@@ -8,3 +8,4 @@ target
 /influent-clustering-job/bin/
 /influent.iml
 .idea
+.settings
