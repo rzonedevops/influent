@@ -1,0 +1,79 @@
+Version 1.6
+------------
+DataTypes
+- PropertyTag
+	- added ENTITY_TYPE
+- Uncertainty
+	- added currency as an optional indicator of degrading confidence over time
+- ContinentCode
+	- added in 1.6. enum member of Country
+- Country
+	- added in 1.6
+- Frequency
+	- added in 1.6. member of DistributionRange
+- DistributionRange
+	- added in 1.6
+- RangeType
+	- added DISTRIBUTION
+- Property
+	- added DistributionRange as an option for member range
+		
+Version 1.5
+------------
+
+DataTypes
+- PropertyTag
+	- CREDIT/DEBIT changed to INFLOWING/OUTFLOWING
+	- added USD
+	- added DURATION
+- PropertyType
+	- removed SERIES (use the new RangeType to define a Range)
+- Series
+    - use the RangeType to define a Range
+- DateInterval
+    - moved here from DataAccess/ClusteringDataAccess
+	- added SECONDS and HOURS
+	- renamed DAILY/WEEKLY/MONTHLY/QUARTERLY/YEARLY to DAYS/WEEKS/MONTHS/QUARTERS/YEARS
+- Duration
+	- added in 1.5
+- DateRange
+	- removed interval and numIntervalsPerBin and replaced with durationPerBin
+- SingletonRange, ListRange, BoundedRange, RangeType
+	- added in 1.5
+- Property
+	- value can now be either a SingletonRange, ListRange or BoundedRange
+
+DataAccess
+- removed DateInterval, DateRange in favor of common definitions in DataTypes
+
+ClusteringDataAccess
+- removed DateInterval, DateRange in favor of common definitions in DataTypes
+
+Search
+- Constraint
+	- removed range-based constraints (use a BoundedRange instead)
+	- renamed presence-based constraints to reflect various use cases
+- PropertyMatchDescriptor
+	- changed value to a Range
+	- changed relative to variable
+	- added boolean include
+	- changed weight to Constraint
+
+EntitySearch
+- PropertyDescriptor
+	- added optional RangeType
+	- renamed optional Constraint to constraint
+- search()
+	- added "type", passed in based on the selection from getDescriptors()
+
+PatternSearch
+- EntityMatchDescriptor
+	- removed sameAs
+	- replaced weight with Constraint
+- PathMatchTag
+	- added in 1.5
+- LinkMatchDescriptor
+	- removed PathMatchDescriptor (use PropertyMatchDescriptors with PathMatchTags)
+	- replaced weight with Constraint
+- searchByExample, searchByTemplate
+    - added optional dateRange filter to search calls

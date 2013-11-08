@@ -1,0 +1,5 @@
+/target
+/.classpath
+/.settings
+/src/main/java/influent/idl/*.java
+/influent-midtier.iml

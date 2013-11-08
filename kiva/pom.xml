@@ -1,0 +1,786 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>oculus.influent</groupId>
+		<artifactId>influent</artifactId>
+		<version>1.0.1-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>kiva</artifactId>
+	<packaging>war</packaging>
+
+	<name>kiva</name>
+	<url></url>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		
+		<!-- path to influent base from project base.  -->
+		<!-- IF MACHINE SPECIFIC, COMMENT OUT!! and run the maven build with -Dinfluent.base.directory=MY_PATH_HERE\influent.-->
+		<influent.base.directory>..</influent.base.directory>
+		
+		<baseProjectSrc>${influent.base.directory}/influent-client/src</baseProjectSrc>
+		<tempWebappDir>tempWebapp</tempWebappDir>
+	</properties>
+
+	<ciManagement>
+		<system>hudson</system>
+		<url>http://maven/jenkins/</url>
+	</ciManagement>
+
+	<build>
+		<resources>
+			<!-- Resources to filter -->
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+				<includes>
+					<include>**/*.properties</include>
+				</includes>
+			</resource>
+
+			<!-- Resources to leave alone -->
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+				<excludes>
+					<exclude>**/*.properties</exclude>
+				</excludes>
+			</resource>
+		</resources>
+		
+		<plugins>
+			<!-- | Create a "Build Number" that contains the time of the build (available
+				as ${buildNumber}) -->
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>buildnumber-maven-plugin</artifactId>
+				<version>1.0-beta-1</version>
+				<executions>
+					<execution>
+						<phase>validate</phase>
+						<goals>
+							<goal>create</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<doCheck>false</doCheck>
+					<doUpdate>false</doUpdate>
+					<format>{0,date,yyyy-MM-dd HH:mm:ss}</format>
+					<items>
+						<item>timestamp</item>
+					</items>
+				</configuration>
+			</plugin>
+
+			<!-- JSLint - run manually with jslint4java:lint -->
+			<plugin>
+				<groupId>com.googlecode.jslint4java</groupId>
+				<artifactId>jslint4java-maven-plugin</artifactId>
+				<version>2.0.0</version>
+				<configuration>
+					<failOnError>false</failOnError>
+					<options>
+						<undef>true</undef>
+						<white>true</white>
+						<vars>true</vars>
+						<sloppy>true</sloppy>
+						<plusplus>true</plusplus>
+						<nomen>true</nomen>	<!-- Allows _ -->
+						<regexp>true</regexp>
+						<eqeq>true</eqeq>
+						<confusion>true</confusion>
+						<continue>true</continue>
+						<newcap>true</newcap>
+						<passfail>false</passfail>
+					</options>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.0</version>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+					<encoding>UTF-8</encoding>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+		<pluginManagement>
+			<plugins>
+				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
+											org.codehaus.mojo
+										</groupId>
+										<artifactId>
+											dependency-maven-plugin
+										</artifactId>
+										<versionRange>
+											[1.0,)
+										</versionRange>
+										<goals>
+											<goal>copy</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore></ignore>
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+	
+	<profiles>
+		<profile>
+			<id>DevelopmentDefaults</id>
+			<activation>
+				<property>
+					<name>!environment</name>
+				</property>
+			</activation>
+			<properties>
+				<default.web.xml>src/main/config/dev-override-web.xml</default.web.xml>
+			</properties>
+		</profile>
+		<profile>
+			<id>DeploymentDefaults</id>
+			<activation>
+				<property>
+					<name>environment</name>
+					<value>deployment</value>
+				</property>
+			</activation>
+			<properties>
+				<default.web.xml>src/main/webapp/WEB-INF/web.xml</default.web.xml>
+			</properties>
+		</profile>
+		
+		<profile>
+			<id>WebXmlDefaults</id>
+			<activation>
+				<property>
+					<name>!web.xml</name>
+				</property>
+			</activation>
+			<properties>
+				<!-- override by running the maven build with -Dweb.xml=MY_PATH_HERE. -->
+				<web.xml>${default.web.xml}</web.xml>
+			</properties>
+		</profile>
+		
+		<!-- For development convenience these settings are used to copy out 
+			the appropriate phantom capture executable based on the OS. In a production 
+			environment the appropriate version and the path to it must be set up manually. -->
+		<profile>
+			<id>windows</id>
+			<activation>
+				<os>
+					<family>windows</family>
+				</os>
+			</activation>
+			<properties>
+				<phantomBinType>exe</phantomBinType>
+				<phantomBinDir>${basedir}/bin/windows</phantomBinDir>
+				<phantomBinFile>phantomjs.exe</phantomBinFile>
+			</properties>
+		</profile>
+
+		<profile>
+			<id>linux</id>
+			<activation>
+				<os>
+					<family>unix</family>
+				</os>
+			</activation>
+			<properties>
+				<phantomBinType>linux-x86-64</phantomBinType>
+				<phantomBinDir>${basedir}/bin/linux-x86-64</phantomBinDir>
+				<phantomBinFile>phantomjs</phantomBinFile>
+			</properties>
+		</profile>
+		<profile>
+			<id>linux-i686</id>
+			<activation>
+				<os>
+					<family>unix</family>
+					<arch>i686</arch>
+				</os>
+			</activation>
+			<properties>
+				<phantomBinType>linux-i686</phantomBinType>
+				<phantomBinDir>${basedir}/bin/linux-i686</phantomBinDir>
+				<phantomBinFile>phantomjs</phantomBinFile>
+			</properties>
+		</profile>
+		<profile>
+			<id>macosx</id>
+			<activation>
+				<os>
+					<family>mac</family>
+				</os>
+			</activation>
+			<properties>
+				<phantomBinType>macosx</phantomBinType>
+				<phantomBinDir>${basedir}/bin/macosx</phantomBinDir>
+				<phantomBinFile>phantomjs</phantomBinFile>
+			</properties>
+		</profile>
+	
+		<!-- Development Profile Runs unoptimized (raw) version of JavaScript,
+			also provides access to test files -->
+		<profile>
+			<id>Development</id>
+			
+			<activation>
+				<property>
+					<name>!environment</name>
+				</property>
+			</activation>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-war-plugin</artifactId>
+						<version>2.1.1</version>
+						<configuration>
+							<webXml>src\main\webapp\WEB-INF\web.xml</webXml>							
+							<overlays>
+								<!-- Overlay client JS files -->
+								<overlay>
+									<artifactId>aperture-client</artifactId>
+									<groupId>oculus.aperture</groupId>
+									<type>jar</type>
+									<targetPath>aperture</targetPath>
+								</overlay>
+								<overlay>
+									<artifactId>influent-client-dist</artifactId>
+									<groupId>${project.parent.groupId}</groupId>
+									<type>jar</type>
+									<targetPath>.</targetPath>
+								</overlay>
+							</overlays>
+						</configuration>
+					</plugin>
+			   	    <plugin>
+			   	        <groupId>org.codehaus.mojo</groupId>
+			   	        <artifactId>dependency-maven-plugin</artifactId>
+		   	        	<version>1.0</version>
+		   	        	<executions>
+		   	        		<execution>
+			   	        		<id>copy</id>
+			   	        		<goals>
+				   	        		<goal>copy</goal>
+			   	        		</goals>
+				   	            <configuration>
+				   	              <artifactItems>
+				   	                <artifactItem>
+				   	                  <groupId>oculus.aperture.service</groupId>
+				   	                  <artifactId>aperture-capture-phantom</artifactId>
+				   	                  <type>${phantomBinType}</type>
+				   	                  <version>1.0.0-SNAPSHOT</version>
+				   	                  <outputDirectory>${phantomBinDir}</outputDirectory>
+				   	                  <destFileName>${phantomBinFile}</destFileName>
+				   	                </artifactItem>
+				   	              </artifactItems>
+				   	            </configuration>
+							</execution>
+		   	        	</executions>
+			   	    </plugin>
+					
+					<!-- Compile application .less file -->
+					<plugin>
+    					<groupId>org.lesscss</groupId>
+    					<artifactId>lesscss-maven-plugin</artifactId>
+    					<version>1.3.3</version>
+    					<configuration>
+    						<lessJs>${baseProjectSrc}/scripts/lib/extern/less-1.3.3.min.js</lessJs>
+        					<sourceDirectory>${baseProjectSrc}/theme</sourceDirectory>
+        					<outputDirectory>${project.build.directory}/${project.build.finalName}/theme</outputDirectory>
+					        <compress>true</compress>
+					        <force>true</force>
+					        <includes>
+					            <include>app.less</include>
+					        </includes>
+    					</configuration>
+    					<executions>
+    						<!-- If you see a less related error here about the path to influent-client, resolve it by running the maven build with
+    							-Dinfluent.base.directory=MY_PATH_HERE\influent. By default we look for it in the parent directory -->
+				        	<execution>
+				        		<id>process-less</id>
+            					<phase>process-resources</phase>
+				            	<goals>
+				                	<goal>compile</goal>
+				            	</goals>
+				        	</execution>
+				    	</executions>
+					</plugin>
+
+					<plugin>
+						<!-- Jetty For Dev Builds Only -->
+						<groupId>org.mortbay.jetty</groupId>
+						<artifactId>jetty-maven-plugin</artifactId>
+						<version>7.2.0.v20101020</version>
+						<configuration>
+
+							<reload>manual</reload>
+
+							<scanTargetPatterns>
+								<scanTargetPattern>
+									<directory>src/main/resources</directory>
+									<includes>
+										<include>**/*</include>
+									</includes>
+									<excludes>
+										<exclude>**/.svn/**/*</exclude>
+									</excludes>
+								</scanTargetPattern>
+							</scanTargetPatterns>
+
+							<webAppConfig>
+								<contextPath>/kiva</contextPath>
+								<baseResource
+									implementation="org.eclipse.jetty.util.resource.ResourceCollection">
+									<!-- Use the development (source) code -->
+									<resourcesAsCSV>${baseProjectSrc},src/main/webapp,${project.build.directory}/${project.build.finalName}</resourcesAsCSV>
+								</baseResource>
+
+								<overrideDescriptor>${web.xml}</overrideDescriptor>
+
+							</webAppConfig>
+
+						</configuration>
+
+						<dependencies>
+							<dependency>
+								<groupId>org.eclipse.jetty</groupId>
+								<artifactId>jetty-server</artifactId>
+								<version>7.2.0.v20101020</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- Deployment Profile Runs optimized version of JavaScript -->
+		<profile>
+			<id>Deployment</id>
+
+			<activation>
+				<property>
+					<name>environment</name>
+					<value>deployment</value>
+				</property>
+			</activation>
+
+			<build>
+				<plugins>
+				
+					<!--  Create new directory to store webapp -->
+					<plugin>
+  						<artifactId>maven-antrun-plugin</artifactId>
+  						<executions>
+    						<execution>
+      							<id>create-webapp-directory</id>
+      							<phase>generate-resources</phase>
+      							<configuration>
+        							<tasks>
+        								<delete dir="${project.build.directory}/${tempWebappDir}"/>
+          								<mkdir dir="${project.build.directory}/${tempWebappDir}"/>
+          							</tasks>
+                    			</configuration>
+                    			<goals>
+                        			<goal>run</goal>
+                    			</goals>
+                			</execution>
+            			</executions>
+         			</plugin>
+					
+					<!--  Copy scripts from base projects -->
+					<plugin>
+						<artifactId>maven-resources-plugin</artifactId>
+        				<version>2.6</version>
+    					<executions>
+    						<execution>
+            					<id>copy-requirejs</id>
+            					<phase>generate-resources</phase>
+            					<goals>
+                					<goal>copy-resources</goal>
+            					</goals>
+            					<configuration>
+            						<outputDirectory>${project.build.directory}/${tempWebappDir}/requirejs</outputDirectory>
+                					<overwrite>true</overwrite>
+                					<resources>
+                    					<resource>
+                        					<directory>${baseProjectSrc}/../requirejs</directory>
+                    					</resource>
+                					</resources>
+            					</configuration>
+        					</execution>
+    					
+        					<execution>
+            					<id>copy-client-src</id>
+            					<phase>generate-resources</phase>
+            					<goals>
+                					<goal>copy-resources</goal>
+            					</goals>
+            					<configuration>
+            						<outputDirectory>${project.build.directory}/${tempWebappDir}/webapp</outputDirectory>
+                					<overwrite>true</overwrite>
+                					<resources>
+                    					<resource>
+                        					<directory>${baseProjectSrc}</directory>
+                        					<excludes>
+          										<exclude>app.less</exclude>
+          									</excludes>
+                    					</resource>
+                					</resources>
+            					</configuration>
+        					</execution>
+        					
+        					<execution>
+            					<id>copy-kiva-src</id>
+            					<phase>generate-resources</phase>
+            					<goals>
+                					<goal>copy-resources</goal>
+            					</goals>
+            					<configuration>
+            						<outputDirectory>${project.build.directory}/${tempWebappDir}/webapp</outputDirectory>
+                					<overwrite>true</overwrite>
+                					<resources>
+                    					<resource>
+                        					<directory>${project.basedir}/src/main/webapp</directory>
+                    					</resource>
+                					</resources>
+            					</configuration>
+        					</execution>
+        					
+        					<execution>
+            					<id>copy-app-build</id>
+            					<phase>generate-resources</phase>
+            					<goals>
+                					<goal>copy-resources</goal>
+            					</goals>
+            					<configuration>
+            						<outputDirectory>${project.build.directory}/${tempWebappDir}</outputDirectory>
+                					<overwrite>true</overwrite>
+                					<resources>
+                    					<resource>
+                        					<directory>${project.basedir}/src/main</directory>
+                        					<includes>
+                        						<include>app.build.js</include>
+                        					</includes>
+                    					</resource>
+                					</resources>
+            					</configuration>
+        					</execution>
+    					</executions>
+					</plugin>
+					
+					<!-- Compile application .less file -->
+					<plugin>
+    					<groupId>org.lesscss</groupId>
+    					<artifactId>lesscss-maven-plugin</artifactId>
+    					<version>1.3.3</version>
+    					<configuration>
+    						<lessJs>${project.build.directory}/${tempWebappDir}/webapp/scripts/lib/extern/less-1.3.3.min.js</lessJs>
+        					<sourceDirectory>${baseProjectSrc}/theme</sourceDirectory>
+        					<outputDirectory>${project.build.directory}/${tempWebappDir}/webapp/theme</outputDirectory>
+					        <compress>true</compress>
+					        <force>true</force>
+					        <includes>
+					            <include>app.less</include>
+					        </includes>
+    					</configuration>
+    					<executions>
+				        	<execution>
+				        		<id>process-less</id>
+            					<phase>process-resources</phase>
+				            	<goals>
+				                	<goal>compile</goal>
+				            	</goals>
+				        	</execution>
+				    	</executions>
+					</plugin>
+
+					<plugin>
+						<groupId>com.github.mcheely</groupId>
+    					<artifactId>requirejs-maven-plugin</artifactId>
+    					<version>2.0.0</version>
+    					<executions>
+      						<execution>
+      							<phase>compile</phase>
+        						<goals>
+          							<goal>optimize</goal>
+        						</goals>
+      						</execution>
+    					</executions>
+    					<configuration>
+        					<!-- path to optimizer json config file -->
+        					<configFile>
+            					${project.build.directory}/${tempWebappDir}/app.build.js
+        					</configFile>
+        					<!-- optional path to optimizer executable -->
+        					<optimizerFile>
+            					${project.build.directory}/${tempWebappDir}/requirejs/r.js
+        					</optimizerFile>
+					        <!--
+					        Whether or not to process configFile with maven filters.
+					        If you use this option, some options in your configFile
+					        must resolve to absolute paths (see below)
+					        -->
+					        <filterConfig>
+					            true
+					        </filterConfig>
+					        <!-- Skip requirejs optimization if true -->
+					        <skip>
+					            false
+					        </skip>
+					    </configuration>
+					</plugin>
+					
+					<!-- WAR configuration -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-war-plugin</artifactId>
+						<version>2.1.1</version>
+						<configuration>
+							<!-- Use optimized sources -->
+							<warSourceDirectory>${project.build.directory}/webapp-build</warSourceDirectory>
+							<webXml>${project.build.directory}/webapp-build/WEB-INF/web.xml</webXml>							
+							<overlays>
+								<!-- Overlay client JS files -->
+								<overlay>
+									<groupId>oculus.aperture</groupId>
+									<artifactId>aperture-client</artifactId>
+									<type>jar</type>
+									<targetPath>aperture</targetPath>
+								</overlay>
+							</overlays>
+						</configuration>
+					</plugin>
+
+					<!-- Jetty configuration -->
+					<plugin>
+						<!-- Jetty For Dev Builds Only -->
+						<groupId>org.mortbay.jetty</groupId>
+						<artifactId>jetty-maven-plugin</artifactId>
+						<version>7.2.0.v20101020</version>
+						<configuration>
+
+							<reload>manual</reload>
+
+							<scanTargetPatterns>
+								<scanTargetPattern>
+									<directory>src/main/resources</directory>
+									<includes>
+										<include>**/*</include>
+									</includes>
+									<excludes>
+										<exclude>**/.svn/**/*</exclude>
+									</excludes>
+								</scanTargetPattern>
+							</scanTargetPatterns>
+
+							<webAppConfig>
+								<contextPath>/kiva</contextPath>
+								<baseResource implementation="org.eclipse.jetty.util.resource.ResourceCollection">
+									<!-- Use the "built" version of the JS code (been run through the RequireJS optimizer) -->
+									<resourcesAsCSV>${project.build.directory}/${project.build.finalName}</resourcesAsCSV>
+								</baseResource>
+							</webAppConfig>
+						</configuration>
+
+						<dependencies>
+							<dependency>
+								<groupId>org.eclipse.jetty</groupId>
+								<artifactId>jetty-server</artifactId>
+								<version>7.2.0.v20101020</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- Continuous Integration Profile
+			Uses Cargo to deploy the built WAR to the local Jetty server -->
+		<profile>
+			<id>CI</id>
+
+			<!-- Manual activation on the build machine -->
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.cargo</groupId>
+						<artifactId>cargo-maven2-plugin</artifactId>
+						<version>1.1.1</version>
+						<configuration>
+							<container>
+								<containerId>jetty7x</containerId>
+								<type>remote</type>
+							</container>
+
+							<deployer>
+								<deployables>
+									<deployable>
+										<properties>
+											<context>/kiva</context>
+										</properties>
+									</deployable>
+								</deployables>
+							</deployer>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+	
+	<dependencies>
+		<dependency>
+			<artifactId>influent-midtier</artifactId>
+			<groupId>${project.parent.groupId}</groupId>
+			<version>${project.parent.version}</version>
+		</dependency>
+		
+		<dependency>
+			<artifactId>influent-server</artifactId>
+			<groupId>${project.parent.groupId}</groupId>
+			<version>${project.parent.version}</version>
+		</dependency>
+		
+		<dependency>
+			<artifactId>influent-client-dist</artifactId>
+			<groupId>${project.parent.groupId}</groupId>
+			<version>${project.parent.version}</version>
+		</dependency>
+		
+		<dependency>
+			<artifactId>influent-entity-clustering</artifactId>
+			<groupId>${project.parent.groupId}</groupId>
+			<version>${project.parent.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>oculus.aperture</groupId>
+			<artifactId>aperture-client</artifactId>
+			<version>1.0.0-SNAPSHOT</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+		</dependency>
+
+		<dependency>
+			<artifactId>solr-solrj</artifactId>
+			<groupId>org.apache.solr</groupId>
+			<version>4.1.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-logging</groupId>
+			<artifactId>commons-logging</artifactId>
+			<version>1.1.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>net.sf.ehcache</groupId>
+			<artifactId>ehcache-core</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>net.sf.ehcache</groupId>
+			<artifactId>ehcache-web</artifactId>
+		</dependency>
+		
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.2</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20090211</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.sun.jersey</groupId>
+			<artifactId>jersey-core</artifactId>
+			<version>1.11</version>
+		</dependency>
+		
+		<dependency>
+    		<groupId>com.sun.jersey</groupId>
+    		<artifactId>jersey-client</artifactId>
+    		<version>1.11</version>
+		</dependency>
+		
+		<dependency>
+    		<groupId>com.sun.jersey.contribs</groupId>
+    		<artifactId>jersey-apache-client</artifactId>
+    		<version>1.11</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>com.sun.jersey</groupId>
+			<artifactId>jersey-json</artifactId>
+			<version>1.11</version>
+		</dependency>
+		
+		<dependency>
+			<artifactId>aperture-common</artifactId>
+			<groupId>oculus.aperture</groupId>
+			<version>1.0.0-SNAPSHOT</version>
+		</dependency>
+		
+		<dependency>
+			<artifactId>aperture-capture-phantom</artifactId>
+			<groupId>oculus.aperture.service</groupId>
+			<version>1.0.0-SNAPSHOT</version>
+		</dependency>
+		
+		<dependency>
+  			<groupId>org.lesscss</groupId>
+  			<artifactId>lesscss-maven-plugin</artifactId>
+  			<version>1.3.0</version>
+		</dependency>
+	</dependencies>
+</project>
