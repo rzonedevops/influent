@@ -64,7 +64,10 @@ public class UISerializationHelper {
 		fle.put("properties", props);
 		
 		for (FL_Property prop : cluster.getProperties()) {
-			props.put(prop.getKey(), toUIJson(prop));
+			try {
+				props.put(prop.getKey(), toUIJson(prop));
+			} catch (JSONException e) {				
+			}
 		}
 
 		return fle;
@@ -83,7 +86,10 @@ public class UISerializationHelper {
 		fle.put("properties", props);
 		
 		for (FL_Property prop : entity.getProperties()) {
-			props.put(prop.getKey(), toUIJson(prop));
+			try {
+				props.put(prop.getKey(), toUIJson(prop));
+			} catch (JSONException e) {				
+			}
 		}
 		
 		return fle;
@@ -131,7 +137,10 @@ public class UISerializationHelper {
 		fll.put("target", link.getTarget());
 		JSONObject props = new JSONObject();
 		for (FL_Property prop : link.getProperties()) {
-			props.put(prop.getKey(), toUIJson(prop));
+			try {
+				props.put(prop.getKey(), toUIJson(prop));
+			} catch (JSONException e) {				
+			}
 		}
 		fll.put("properties", props);
 		return fll;
