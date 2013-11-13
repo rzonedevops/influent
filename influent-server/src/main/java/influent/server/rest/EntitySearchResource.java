@@ -226,7 +226,7 @@ public class EntitySearchResource extends ApertureServerResource{
 					}
 				}
 				if (!fetchFullClusters.isEmpty()) {
-					List<FL_Cluster> topClusters = clusterAccess.getEntities(fetchFullClusters, contextId, sessionId);
+					List<FL_Cluster> topClusters = clusterAccess.getClusters(fetchFullClusters, contextId, sessionId);
 					ClusterContextCache.instance.mergeIntoContext(topClusters, contextId, true, false);			//Re-insert the clusters with the computed summaries
 					for (String cid : fetchFullClusters) {
 						rArr.put(UISerializationHelper.toUIJson(ClusterContextCache.instance.getCluster(cid, contextId)));

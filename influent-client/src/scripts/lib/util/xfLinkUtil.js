@@ -10,10 +10,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -262,31 +262,6 @@ define(['jquery', 'lib/util/xfUtil', 'lib/models/xfLink'],
                         contentType: 'application/json'
                     }
                 );
-            }
-        };
-        //--------------------------------------------------------------------------------------------------------------
-        // Merges the links of a file cluster.
-        var _mergeFileLinks = function(linkObject){
-            var matchFound = false;
-            var linkSrc = linkObject.getSource();
-            var linkDst = linkObject.getDestination();
-
-            // Check if the destination already exists in the target.
-            var linkMap = linkSrc.getLinks();
-            var matchFound = false;
-            for (var linkId in linkMap){
-                if (linkMap.hasOwnProperty(linkId)){
-                    if (linkMap[linkId].getDestination().getXfId() === linkDst){
-                        // Sum the link amounts.
-                        linkMap[linkId].setAmount(linkMap[linkId].getAmount() + linkObject.getAmount());
-                        matchFound = true;
-                    }
-                }
-                if (!matchFound){
-                    // Add the new link to the endpoints.
-                    linkSrc.addLink(linkObject);
-                    linkDst.addLink(linkObject);
-                }
             }
         };
         //--------------------------------------------------------------------------------------------------------------

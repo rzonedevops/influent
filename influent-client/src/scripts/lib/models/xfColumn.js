@@ -10,10 +10,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -272,6 +272,14 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 }
 
                 xfUIObj.setParent(this);
+                if (xfUIObj.getUIType() == 'xfCard'){
+                    xfUIObj.updateToolbar({
+                        'allowFile': true,
+                        'allowPin' : true,
+                        'allowFocus' : true,
+                        'allowSearch' : false
+                    });
+                }
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -401,39 +409,35 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 }
 
                 for (i = 0; i < fileChildren.length; i++) {
-                    var link;
                     if (bIsFileSource) {
-                        link = xfLink.createInstance(fileUIObject, fileChildren[i], 1, xfLinkType.FILE);
+                        xfLink.createInstance(fileUIObject, fileChildren[i], 1, xfLinkType.FILE);
                     } else {
-                        link = xfLink.createInstance(fileChildren[i], fileUIObject, 1, xfLinkType.FILE);
+                        xfLink.createInstance(fileChildren[i], fileUIObject, 1, xfLinkType.FILE);
                     }
-//                    fileChildren[i].addLink(link);
-//                    fileUIObject.addLink(link);
                 }
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfColumnInstance.cleanColumn = function() {
-                var needsLayout = false;
+                var removedDataIds = [];
                 if (_UIObjectState.children && _UIObjectState.children.length > 0) {
                     var i;
                     var uiObj;
                     var objectsToRemove = [];
-
-                    needsLayout = _.size(xfColumnInstance.getLinks()) > 0;
 
                     for (i = 0; i < _UIObjectState.children.length; i++) {
                         uiObj = _UIObjectState.children[i];
                         if (uiObj.getUIType() != 'xfFile' && !xfUtil.isUITypeDescendant(uiObj, 'xfMatch')){
                             if (!uiObj.isPinned()) {
                                 objectsToRemove.push(uiObj.getVisualInfo());
+                                removedDataIds.push(uiObj.getDataId());
                             }
                         }
                     }
                     aperture.pubsub.publish(chan.REMOVE_REQUEST, objectsToRemove);
                 }
-                return needsLayout;
+                return removedDataIds;
             };
 
             //----------------------------------------------------------------------------------------------------------

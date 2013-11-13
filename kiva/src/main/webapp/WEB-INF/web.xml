@@ -13,7 +13,7 @@
 		<param-name>guice-modules</param-name>
 		
 		<!-- Uncomment this block for the refactored KIVA dataview implemenation with on-the-fly clustering-->
-		<!-- param-value>
+		<param-value>
 			influent.server.RestConfigModule:
 			oculus.aperture.icons.BaseIconModule: 
 			oculus.aperture.parchment.ParchmentModule:
@@ -26,11 +26,11 @@
 			influent.kiva.server.spi.KivaFLEntitySearchModule:
 			influent.kiva.server.spi.KivaFLDynamicClusteringModule:
 			influent.kiva.server.spi.KivaDatabasePersistenceModule:
-			influent.kiva.server.spi.KivaFLPatternSearchModule:
-		</param-value -->
+			influent.server.spi.RestPatternSearchModule:
+		</param-value>
 		
 		<!-- Uncomment this block for the refactored KIVA dataview implemenation with pre-clustering-->
-		<param-value>
+		<!-- param-value>
 			influent.server.RestConfigModule:
 			oculus.aperture.icons.BaseIconModule: 
 			oculus.aperture.parchment.ParchmentModule:
@@ -43,9 +43,8 @@
 			influent.kiva.server.spi.KivaFLEntitySearchModule:
 			influent.kiva.server.spi.KivaFLClusteringModule:
 			influent.kiva.server.spi.KivaDatabasePersistenceModule:
-			<!--influent.kiva.server.spi.KivaCachedPersistenceModule:-->
 			influent.server.spi.RestPatternSearchModule:
-		</param-value>
+		</param-value -->
 	</context-param>
 
 	<!-- Config File Location -->

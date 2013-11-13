@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry excluding="scripts/lib/extern/" kind="src" path="src"/>
+	<classpathentry excluding="scripts/jquery.js|scripts/lib/extern/" kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.wst.jsdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.wst.jsdt.launching.baseBrowserLibrary"/>
 	<classpathentry kind="lib" path="src/scripts/lib/extern"/>

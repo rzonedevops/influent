@@ -10,10 +10,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -679,13 +679,13 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 _UIObjectState.page = page;
                 _UIObjectState.minIdx = minIdx;
                 _UIObjectState.maxIdx = maxIdx;
-            }
+            };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfMatchInstance.getIncomingLinks = function() {
 
-                var linkId, i;
+                var linkId= null, i;
                 var incomingLinks = {};
 
                 for (i = 0; i < _UIObjectState.children.length; i++) {
@@ -711,7 +711,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             xfMatchInstance.getOutgoingLinks = function() {
 
-                var linkId, i;
+                var linkId= null, i;
                 var outgoingLinks = {};
 
                 for (i = 0; i < _UIObjectState.children.length; i++) {

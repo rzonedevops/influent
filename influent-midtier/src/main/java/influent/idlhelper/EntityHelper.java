@@ -63,7 +63,7 @@ public class EntityHelper extends FL_Entity {
 
 	public PropertyHelper getFirstProperty(String key) {
 		for (FL_Property property : getProperties()) {
-			if (property.getKey() == key) return PropertyHelper.from(property);
+			if (property.getKey().equals(key)) return PropertyHelper.from(property);
 		}
 		return null;
 	}
@@ -107,7 +107,7 @@ public class EntityHelper extends FL_Entity {
 	
 	public static PropertyHelper getFirstProperty(FL_Entity entity, String key) {
 		for (FL_Property property : entity.getProperties()) {
-			if (property.getKey() == key) return PropertyHelper.from(property);
+			if (property.getKey().equals(key)) return PropertyHelper.from(property);
 		}
 		return null;
 	}

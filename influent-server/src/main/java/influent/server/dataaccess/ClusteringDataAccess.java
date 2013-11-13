@@ -572,8 +572,10 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			deleteSQL.append(" DELETE c ");
 			deleteSQL.append("   FROM " + dClusterTable + " as c ");
 			deleteSQL.append("   JOIN " + gClusterTable + " g ");
-			deleteSQL.append("     ON c.rowid = g.rowid ");
-			deleteSQL.append(" WHERE g.clusterid IN " + inClause);
+			deleteSQL.append("     ON c.rowid = g.id ");
+			deleteSQL.append("   JOIN " + gClusterTable + " g2 ");
+			deleteSQL.append("     ON g.entityid = g2.entityid ");
+			deleteSQL.append(" WHERE g2.clusterid IN " + inClause);
 			
 			s_logger.trace("update: " + deleteSQL.toString());
 			deleted += stmt.executeUpdate(deleteSQL.toString());
@@ -587,16 +589,6 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 		}
 		
 		return deleted;
-	}
-
-	@Override
-	public Map<String, List<FL_Cluster>> getAccounts(
-			List<String> entities, String contextId, String sessionId) throws AvroRemoteException {
-		Map<String, List<FL_Cluster>> map = new HashMap<String, List<FL_Cluster>>();
-		for (FL_Cluster entity : getEntities(entities, contextId, sessionId)) {
-			map.put(entity.getUid(), Collections.singletonList(entity));
-		}
-		return map;
 	}
 	
 	/***
@@ -689,7 +681,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 		} catch (Exception e) {
 			throw new AvroRemoteException(e);
 		}
-		return this.getEntities(clusterIds, contextId, sessionId);
+		return this.getClusters(clusterIds, contextId, sessionId);
 	}
 	
 	@Override
@@ -1264,10 +1256,18 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 					// add the cluster member list
 					Map<String, Map<String, List<String>>>  clusterMembers = selectClusterMembers(contextId, sessionId);
 					for (String id : clusterMembers.keySet()) {
-						List<String> subclusters = clusterMembers.get(id).get("cluster");
-						List<String> entities = clusterMembers.get(id).get("entity");
-						clusters.get(id).setMembers(entities);
-						clusters.get(id).setSubclusters(subclusters);
+						Map<String, List<String>> clusterMember = clusterMembers.get(id);
+						if (clusterMember != null) {
+							List<String> subclusters = clusterMember.get("cluster");
+							List<String> entities = clusterMember.get("entity");
+							ClusterHelper clusterHelper = clusters.get(id);
+							if (clusterHelper != null) {
+								clusterHelper.setMembers(entities);
+								clusterHelper.setSubclusters(subclusters);
+							} else {
+								System.out.println("Cluster " + id + " has no cluster helper");
+							}
+						}
 					}
 					results.addAll( clusters.values() );
 				} finally {

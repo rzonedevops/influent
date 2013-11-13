@@ -394,7 +394,7 @@ public class KivaClusteringDataAccess extends ClusteringDataAccess {
 	}
 	
 	@Override
-	public List<FL_Cluster> getEntities(List<String> clusterIds, String contextId, String sessionId)
+	public List<FL_Cluster> getClusters(List<String> clusterIds, String contextId, String sessionId)
 			throws AvroRemoteException {
 		
 		try {

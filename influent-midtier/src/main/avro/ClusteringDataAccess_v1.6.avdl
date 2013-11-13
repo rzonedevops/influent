@@ -48,17 +48,17 @@ protocol FL_ClusteringDataAccess {
 	}
 
 	/**
-	 Returns a set of entities by uid.
+	 Returns a set of clusters by uid.
 	 
 	 Service URL: /cluster/list
 	 HTTP Method: POST and GET
 	 
-	 @param entities 	uids of entities to retrieve
+	 @param entities 	uids of clusters to retrieve
 	 @param contextId	the context to retrieve the clusters from
 	 @param sessionId	the user session the clusters are associated with
 	 @return 			cluster entities	
 	 */
-	array<FL_Cluster> getEntities(array<string> entities, string contextId, string sessionId);
+	array<FL_Cluster> getClusters(array<string> entities, string contextId, string sessionId);
 	
 	/**
 	 Removes entities from a cluster
@@ -98,19 +98,6 @@ protocol FL_ClusteringDataAccess {
 	 @return 			boolean indicating if any clusters were deleted	
 	 */
 	boolean clearContext(string contextId, string sessionId);
-	
-	/**
-	 Returns a set of accounts for each given entity.
-	 
-	 Service URL: /cluster/accounts
-	 HTTP Method: POST and GET
-	 
-	 @param entities 		uids of entities to retrieve
-	 @param contextId		the context to retrieve the clusters from
-	 @param sessionId	the user session the clusters are associated with
-	 @return 				map of input entity IDs to an array of the accounts for that cluster entity	
-	 */
-	map<array<FL_Cluster>> getAccounts(array<string> entities, string contextId, string sessionId);
 		
 	/**
 	 Returns links to other entities related to specify entities. Each Link returned should

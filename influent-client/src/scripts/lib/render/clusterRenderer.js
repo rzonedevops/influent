@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011 Oculus Info Inc.
+ * Copyright (c) 2013 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -10,10 +10,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,9 +27,9 @@ define(['jquery', 'lib/channels','lib/render/cardRenderer'], function($, chan, c
     var _renderDefaults = {
         STACK_WIDTH : 3,
         STACK_COUNT : 3,
-        CLIP_LEADER_OFFSET : 8,
-        EXPANDED_PADDING_BOTTOM : 4
+        CLIP_LEADER_OFFSET : 8
     };
+    _renderDefaults.EXPANDED_PADDING_BOTTOM = (_renderDefaults.STACK_COUNT-1)+_renderDefaults.STACK_COUNT;
     var _cardDefaults = cardRenderer.getRenderDefaults();
     var clusterRenderer = {};
     // Private Functions ------------------------------------------------------------------------------
@@ -174,7 +174,7 @@ define(['jquery', 'lib/channels','lib/render/cardRenderer'], function($, chan, c
             canvas.css('left', _renderDefaults.CARD_LEFT);
         }
 
-        canvas.css('padding-bottom', (_renderDefaults.STACK_COUNT-1) * _renderDefaults.STACK_WIDTH);
+        canvas.css('padding-bottom', _renderDefaults.EXPANDED_PADDING_BOTTOM);
     };
 
     var _createElement = function(visualInfo, parentCanvas){

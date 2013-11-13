@@ -24,10 +24,10 @@
  */
 package influent.bitcoin.server.spi;
 
-import influent.bitcoin.server.clustering.BitCoinEntityClusterer;
 import influent.server.dataaccess.EntityClustering;
 import influent.bitcoin.server.clustering.BitcoinClusteringDataAccess;
 import influent.bitcoin.server.data.BitcoinNamespaceHandler;
+import influent.entity.clustering.GeneralEntityClusterer;
 import influent.idl.FL_Clustering;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_Geocoding;
@@ -49,7 +49,7 @@ public class BitcoinFLClusteringModule extends AbstractModule {
 	protected void configure() {
 		bind(FL_Clustering.class).to(EntityClustering.class);
 		bind(FL_ClusteringDataAccess.class).to(BitcoinClusteringDataAccess.class);
-		bind(EntityClusterer.class).to(BitCoinEntityClusterer.class);
+		bind(EntityClusterer.class).to(GeneralEntityClusterer.class);
 	}
 	
 	/*

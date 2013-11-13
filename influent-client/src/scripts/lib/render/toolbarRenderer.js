@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011 Oculus Info Inc.
+ * Copyright (c) 2013 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -10,10 +10,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -110,16 +110,12 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
         leftOp.unbind('click');
         if (requestedLeftOp == toolbarOp.BRANCH) {
             leftImg.attr('src','img/expand_btn.png');
-            leftOp.click(function() {
-                publishBranchRequest(chan.BRANCH_LEFT_EVENT, 'left');
-                return true;
-            });
-        } else if (requestedLeftOp == toolbarOp.PRUNE) {
-            leftImg.attr('src','img/collapse_btn.png');
-            leftOp.click(function() {
-                publishBranchRequest(chan.PRUNE_LEFT_EVENT, 'left');
-                return true;
-            });
+            leftOp.click(
+                function() {
+                    publishBranchRequest(chan.BRANCH_LEFT_EVENT, 'left');
+                    return true;
+                }
+            );
         } else if (requestedLeftOp == toolbarOp.WORKING) {
             leftImg.attr('src','img/ajax-loader.gif');
         }
@@ -147,16 +143,12 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
         rightOp.unbind('click');
         if (requestedRightOp == toolbarOp.BRANCH) {
             rightImg.attr('src','img/expand_btn.png');
-            rightOp.click(function() {
-                publishBranchRequest(chan.BRANCH_RIGHT_EVENT, 'right');
-                return true;
-            });
-        } else if (requestedRightOp == toolbarOp.PRUNE) {
-            rightImg.attr('src','img/collapse_btn.png');
-            rightOp.click(function() {
-                publishBranchRequest(chan.PRUNE_RIGHT_EVENT, 'right');
-                return true;
-            });
+            rightOp.click(
+                function() {
+                    publishBranchRequest(chan.BRANCH_RIGHT_EVENT, 'right');
+                    return true;
+                }
+            );
         } else if (requestedRightOp == toolbarOp.WORKING ) {
             rightImg.attr('src','img/ajax-loader.gif');
         }
@@ -195,7 +187,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
         }
 
         return containedIds;
-    }
+    };
 
     var _createToolbar = function(visualInfo, cardWidth){
         // Create toolbar buttons.
@@ -426,59 +418,6 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
 
         for (var i=0; i < sortedButtonList.length; i++){
             _toolbarState.toolbarDiv.append(sortedButtonList[i].div);
-        }
-    };
-
-    var _createSearchControls = function(visualInfo, cardWidth){
-        _toolbarState.searchDiv = _getStateElement('.searchToolbarCtrl');
-
-        if (_toolbarState.searchDiv == null){
-            _toolbarState.searchDiv = $('<div>');
-            _toolbarState.searchDiv.addClass('searchToolbarCtrl');
-
-            var simpleBtn = $('<div>');
-            simpleBtn.addClass('cardToolbarItem');
-            simpleBtn.addClass('remove-button');
-            simpleBtn.addClass('smallSearchButton');
-            simpleBtn.click(function(){
-                if(visualInfo.matchUIObject == null) {
-                    aperture.pubsub.publish(chan.SHOW_MATCH_REQUEST, {xfId : visualInfo.xfId});
-                }
-                else {
-                    aperture.pubsub.publish(
-                        chan.APPLY_PATTERN_SEARCH_TERM,
-                        {
-                            xfId: visualInfo.xfId,
-                            searchTerm: null
-                        }
-                    );
-                }
-                return false;
-            });
-
-            _toolbarState.searchDiv.append(simpleBtn);
-
-            var buttonCount = 2;
-            if(visualInfo.toolbarSpec['allowFile']) {
-                buttonCount++;
-            }
-            if(visualInfo.toolbarSpec['allowFocus']) {
-                buttonCount++;
-            }
-
-            // xfFile objects require different positioning due to the asymmetrical shape of the file tabs.
-            if (visualInfo.UIType == 'xfFile'){
-                _toolbarState.searchDiv.css('top', -0.5*_renderDefaults.TOOLBAR_BTN_HEIGHT - 5);
-                _toolbarState.searchDiv.css('left', cardWidth - buttonCount*_renderDefaults.TOOLBAR_BTN_HEIGHT - 15);
-            }
-            else {
-                _toolbarState.searchDiv.css('top', -_renderDefaults.TOOLBAR_BTN_HEIGHT - 5);
-                _toolbarState.searchDiv.css('right', 0);
-            }
-
-            _toolbarState.canvas.append(_toolbarState.searchDiv);
-
-
         }
     };
 

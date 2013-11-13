@@ -24,11 +24,6 @@
  */
 package influent.server.dataaccess;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-
 import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
 import influent.server.utilities.SQLConnectionPool;
@@ -37,7 +32,6 @@ import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
 
 import org.apache.avro.AvroRemoteException;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +43,6 @@ public class CachedPersistenceAccess implements FL_Persistence {
 	private static Logger s_logger = LoggerFactory.getLogger(CachedPersistenceAccess.class);
 	
 	private final Ehcache cache;
-	private final SQLConnectionPool connectionPool;
 	
 	
 	public CachedPersistenceAccess(
@@ -63,7 +56,6 @@ public class CachedPersistenceAccess implements FL_Persistence {
 		}
 		
 		this.cache = cacheManager.getEhcache(cacheName);
-		this.connectionPool = connectionPool;
 	}
 	
 	

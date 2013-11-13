@@ -54,7 +54,7 @@ public class BitcoinClusteringDataAccess extends ClusteringDataAccess {
 	}
 
 	@Override
-	public List<FL_Cluster> getEntities(List<String> entities, String contextId, String sessionId)
+	public List<FL_Cluster> getClusters(List<String> entities, String contextId, String sessionId)
 			throws AvroRemoteException {
 		try {
 			ArrayList<FL_Cluster> results = new ArrayList<FL_Cluster>();	

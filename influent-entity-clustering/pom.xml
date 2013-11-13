@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.0.1-SNAPSHOT</version>
+		<version>1.1.0-SNAPSHOT</version>
 	</parent>
 	  
 	<modelVersion>4.0.0</modelVersion>
@@ -18,22 +18,19 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-		</dependency>
-		<dependency>
 			<artifactId>influent-midtier</artifactId>
 			<groupId>${project.parent.groupId}</groupId>
 			<version>${project.parent.version}</version>
 		</dependency>
  		<dependency>
-			<groupId>com.oculusinfo.ml</groupId>
-			<artifactId>ml</artifactId>
-			<version>0.0.14-SNAPSHOT</version>
+			<groupId>com.oculusinfo</groupId>
+			<artifactId>ensemble-clustering</artifactId>
+			<version>0.1.0-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.2</version>
 		</dependency>
 	</dependencies>
 

@@ -24,9 +24,10 @@
  */
 package influent.midtier.api;
 
+import influent.idl.FL_Cluster;
 import influent.idl.FL_Entity;
 
-import java.util.List;
+import java.util.Collection;
 
 public interface EntityClusterer {
 	
@@ -38,10 +39,29 @@ public interface EntityClusterer {
 	public void init(Object[] args);
 	
 	/***
-	 * Cluster the list of entities into EntityCluster objects.  If an entity is not clustered with any other entity, the entity itself is returned.
+	 * Cluster the list of entities into Entity Cluster objects.  If an entity is not clustered with any other entity, the entity itself is returned.
 	 * 
 	 * @param entities to cluster
 	 * @return
 	 */
-	public ClusterResults clusterEntities(List<FL_Entity> entities);
+	public Context clusterEntities(Collection<FL_Entity> entities);
+	
+	/***
+	 * Cluster the list of entities into Entity Cluster objects.  If an entity is not clustered with any other entity, the entity itself is returned.
+	 * 
+	 * @param entities to cluster
+	 * @param clusters is a list of existing cluster the entities should be merged with
+	 * @param context is the current cluster hierarchy in the context
+	 * @return
+	 */
+	public Context clusterEntities(Collection<FL_Entity> entities, Collection<FL_Cluster> clusters, Context context);
+	
+	/***
+	 * Cluster the list of entities into Entity Cluster objects.  If an entity is not clustered with any other entity, the entity itself is returned.
+	 * 
+	 * @param entities to cluster
+	 * @param context is the current cluster hierarchy in the context
+	 * @return
+	 */
+	public Context clusterEntities(Collection<FL_Entity> entities, Context context);
 }

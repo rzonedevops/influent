@@ -24,7 +24,11 @@
  */
 package influent.bitcoin.server.spi;
 
+import java.io.InputStream;
+
 import influent.cluster.DynamicClustering;
+import influent.entity.clustering.GeneralEntityClusterer;
+import influent.entity.clustering.utils.PropertyManager;
 import influent.idl.FL_Clustering;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
@@ -45,6 +49,7 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 	protected void configure() {
 		bind(FL_Clustering.class).to(DynamicClustering.class);
 		bind(FL_ClusteringDataAccess.class).to(DynamicClustering.class);
+		bind(EntityClusterer.class).to(GeneralEntityClusterer.class);
 	}
 	
 	/*
@@ -58,8 +63,8 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 	) {
 
 		try {
-			
-			return new DynamicClustering(dataAccess, geocoding, clusterer);
+			InputStream configStream = BitcoinFLDynamicClusteringModule.class.getResourceAsStream("/clusterer.properties");
+			return new DynamicClustering(dataAccess, geocoding, clusterer, new PropertyManager(configStream));
 		} catch (Exception e) {
 			addError("Failed to load Clustering", e);
 			return null;

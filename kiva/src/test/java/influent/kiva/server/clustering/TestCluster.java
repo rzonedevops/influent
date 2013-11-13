@@ -87,7 +87,7 @@ public class TestCluster {
 
 			List<String> clusterIds = clusterer.clusterEntitiesById(entities, contextId, sessionId);
 			
-			List<FL_Cluster> clusters = clusteringda.getEntities(clusterIds, contextId, sessionId);
+			List<FL_Cluster> clusters = clusteringda.getClusters(clusterIds, contextId, sessionId);
 			
 			for (FL_Cluster cluster : clusters) {
 				System.out.println(cluster);

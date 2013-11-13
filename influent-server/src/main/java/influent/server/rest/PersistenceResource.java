@@ -221,7 +221,7 @@ public class PersistenceResource extends ApertureServerResource{
 			if(files.size() > 0 || clusterIds.size() > 0 || entityIds.size() > 0) {
 				try {
 					ClusterContextCache.instance.mergeIntoContext(files, 
-							clusterAccess.getEntities(clusterIds, contextId, sessionId), 
+							clusterAccess.getClusters(clusterIds, contextId, sessionId), 
 							entityAccess.getEntities(entityIds), 
 							contextId, false, true);
 				} catch (AvroRemoteException e) {

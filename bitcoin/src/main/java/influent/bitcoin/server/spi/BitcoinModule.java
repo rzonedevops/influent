@@ -24,9 +24,7 @@
  */
 package influent.bitcoin.server.spi;
 
-import influent.bitcoin.server.clustering.BitCoinEntityClusterer;
 import influent.bitcoin.server.details.BitcoinAccountPropertiesView;
-import influent.midtier.api.EntityClusterer;
 import influent.server.spi.EntityPropertiesViewService;
 
 import com.google.inject.AbstractModule;
@@ -37,6 +35,5 @@ public class BitcoinModule extends AbstractModule {
 	@Override
 	protected void configure() {
 		bind(EntityPropertiesViewService.class).to(BitcoinAccountPropertiesView.class);
-		bind(EntityClusterer.class).to(BitCoinEntityClusterer.class);
 	}
 }

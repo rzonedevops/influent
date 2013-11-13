@@ -35,7 +35,6 @@ import java.sql.Statement;
 import java.util.Date;
 
 import org.apache.avro.AvroRemoteException;
-import org.apache.commons.lang.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;

@@ -25,7 +25,7 @@
 package influent.server.spi;
 
 import influent.idl.FL_PatternSearch;
-import influent.midtier.api.rest.client.RestPatternSearch;
+import influent.server.dataaccess.QuBEClient;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -39,7 +39,7 @@ public class RestPatternSearchModule extends AbstractModule {
 
 	@Override
 	protected void configure() {
-		bind(FL_PatternSearch.class).to(RestPatternSearch.class);
+		bind(FL_PatternSearch.class).to(QuBEClient.class);
 	}
 	
 
@@ -47,12 +47,12 @@ public class RestPatternSearchModule extends AbstractModule {
 	 * Provide the service
 	 */
 	@Provides 
-	public RestPatternSearch connect (
+	public QuBEClient connect (
 		@Named("influent.pattern.search.remoteURL") String remoteURL
 	) {
 		try {
 			if(remoteURL != null && remoteURL.length() > 0) {
-				return new RestPatternSearch(remoteURL);
+				return new QuBEClient(remoteURL);
 			}
 			else {
 				return null;

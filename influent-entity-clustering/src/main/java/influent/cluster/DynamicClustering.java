@@ -25,6 +25,7 @@
 package influent.cluster;
 
 import influent.entity.clustering.utils.EntityAggregatedLinks;
+import influent.entity.clustering.utils.PropertyManager;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_Clustering;
 import influent.idl.FL_ClusteringDataAccess;
@@ -36,9 +37,8 @@ import influent.idl.FL_Geocoding;
 import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
 import influent.idl.FL_SortBy;
-import influent.idlhelper.FLEntityObject;
 import influent.midtier.IdGenerator;
-import influent.midtier.api.ClusterResults;
+import influent.midtier.api.Context;
 import influent.midtier.api.DataAccessException;
 import influent.midtier.api.EntityClusterer;
 
@@ -69,10 +69,9 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 	
 	private final EntityClusterer _clusterer;
 	
-	private final Map<String, Map<String,FL_Cluster>> _context;
+	private final Map<String, Context> _context;
 	
-	
-	public DynamicClustering(FL_DataAccess entityAccess, FL_Geocoding geocoding, EntityClusterer clusterer) {
+	public DynamicClustering(FL_DataAccess entityAccess, FL_Geocoding geocoding, EntityClusterer clusterer, PropertyManager config) {
 		_entityAccess = entityAccess;
 		_clusterer = clusterer;
 		_geoCoder = geocoding;
@@ -81,15 +80,15 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 			public String nextId() {
 				return 'Z'+UUID.randomUUID().toString();
 			}
-		}, _geoCoder
+		}, _geoCoder, config
 		});
-		_context = new HashMap<String, Map<String, FL_Cluster>>();
+		_context = new HashMap<String, Context>();
 	}
 	
 	@Override
 	public String createContext() throws AvroRemoteException {
 		String randContext = UUID.randomUUID().toString();
-		_context.put(randContext, new HashMap<String, FL_Cluster>());
+		_context.put(randContext, new Context());
 		return randContext;
 	}	
 
@@ -103,28 +102,45 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 	public List<String> clusterEntities(List<FL_Entity> entities,
 			String contextId, String sessionId) throws AvroRemoteException {
 
-		List<String> roots = new ArrayList<String>();
+		List<String> rootIds = new ArrayList<String>();
 		
-		ClusterResults cr = _clusterer.clusterEntities(entities);
-				
-		for (FLEntityObject c : cr.getRoots()) {
-			roots.add(c.getUid());
+		// fetch the current context
+		Context context = _context.get(contextId);
+		
+		List<FL_Entity> clusterEntities = entities;
+		
+		// if there is an existing context then filter out all entities that already belong to this context
+		if (context != null) {
+			clusterEntities = new ArrayList<FL_Entity>(entities.size());
+			
+			for (FL_Entity entity : entities) {
+				if (!context.entities.containsKey(entity.getUid())) {
+					clusterEntities.add(entity);
+				}
+			}
 		}
 		
-		insertIntoContext(cr, contextId);
+		// nothing to do - return
+		if (clusterEntities.isEmpty()) return rootIds;
 		
-		return roots;
+		Context updatedContext = _clusterer.clusterEntities(clusterEntities, context);
+				
+		rootIds.addAll(updatedContext.roots.keySet());
+		
+		insertIntoContext(updatedContext, contextId);
+		
+		return rootIds;
 	}
 
 	@Override
-	public List<FL_Cluster> getEntities(List<String> entities, String contextId, String sessionId)
+	public List<FL_Cluster> getClusters(List<String> entities, String contextId, String sessionId)
 			throws AvroRemoteException {
-		Map<String, FL_Cluster> clusters = _context.get(contextId);
-		if (clusters == null) return Collections.emptyList();
+		Context context = _context.get(contextId);
+		if (context == null) return Collections.emptyList();
 		
 		List<FL_Cluster> results = new ArrayList<FL_Cluster>();
 		for (String id : entities) {
-			FL_Cluster c = clusters.get(id);
+			FL_Cluster c = context.clusters.get(id);
 			if (c!= null) {
 				results.add(c);
 			}
@@ -137,34 +153,47 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 	public long removeMembers(List<String> entities, String contextId, String sessionId)
 			throws AvroRemoteException {
 
-		Map<String, FL_Cluster> clusters = _context.get(contextId);
-		if (clusters == null) return 0;
+		Context context = _context.get(contextId);
+		if (context == null) return 0;
 		
 		int count = 0;
 		for (String id : entities) {
-			FL_Cluster c = clusters.get(id);
+			FL_Cluster c = context.clusters.get(id);
 			if (c!= null) {
-				clusters.remove(id);
+				context.clusters.remove(id);
 				count++;
+				
+				// remove all entities from the context that were members of this cluster
+				for (String eId : c.getMembers()) {
+					context.entities.remove(eId);
+				}
+				
+				// remove all sub-clusters from the context too!
+				count += removeMembers(c.getSubclusters(), contextId, sessionId);
 			}
 		}
 		
 		return count;
-		
 	}
 
 	@Override
 	public List<FL_Cluster> getContext(String contextId, String sessionId,
 			boolean computeSummaries) throws AvroRemoteException {
-		Map<String, FL_Cluster> clusters = _context.get(contextId);
+		Context context = _context.get(contextId);
 		
-		if (clusters == null) return Collections.emptyList();
+		if (context == null) return Collections.emptyList();
 		
 		List<FL_Cluster> results = new ArrayList<FL_Cluster>();
-		for (String id : clusters.keySet()) {
-			FL_Cluster c = clusters.get(id);
+		for (String id : context.clusters.keySet()) {
+			FL_Cluster c = context.clusters.get(id);
 			if (c!= null) {
-				results.add(c);
+				// return copies of the cluster to avoid tampering with the internal context!
+				FL_Cluster copy = FL_Cluster.newBuilder(c).build();
+				// the default avro builders use a immutable list for members and subclusters
+				// set mutable version explicitly to ease cluster simplification
+				copy.setMembers( new ArrayList<String>(c.getMembers()) );
+				copy.setSubclusters( new ArrayList<String>(c.getSubclusters()) );
+				results.add( copy );
 			}
 		}
 		return results;
@@ -177,14 +206,6 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 			return true;
 		}
 		return false;
-		
-	}
-		
-
-	@Override
-	public Map<String, List<FL_Cluster>> getAccounts(List<String> entities,
-			String contextId, String sessionId) throws AvroRemoteException {
-		return null;
 	}
 
 	@Override
@@ -195,17 +216,15 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		
 		try {
 			if (focusEntities == null || focusEntities.isEmpty()) {
-				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getRelatedAggregatedLinks(entities, direction, tag, date, _entityAccess, focusEntities, true, null,this,this,entitiesContextId, focusContextId, sessionId);
+				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getRelatedAggregatedLinks(entities, direction, tag, date, _entityAccess, true, null,this,this,entitiesContextId, focusContextId, sessionId);
 				return relatedLinks;
 			} else {
-				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getAggregatedLinks(entities, focusEntities, direction, tag, date, null, _entityAccess, this, entitiesContextId, focusContextId, sessionId);
+				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getAggregatedLinks(entities, focusEntities, direction, tag, date, _entityAccess, this, entitiesContextId, focusContextId, sessionId);
 				return relatedLinks;
 			}
 		} catch (DataAccessException e) {
 			throw new AvroRemoteException(e);
 		}
-		
-
 	}
 
 	@Override
@@ -214,7 +233,6 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 			FL_DateRange date, String entitiesContextId, String focusContextId, String sessionId)
 			throws AvroRemoteException {
 
-		
 		//Find leaf nodes for focii, and keep track of leaf id ->original cluster id
 		
 		Map<String,String> fociiIdMap = new HashMap<String, String>();
@@ -237,7 +255,6 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 				entIdMap.put(eli, entid);
 			}
 		}
-		
 		
 		Map<String, List<FL_Link>> links = _entityAccess.getTimeSeriesAggregation(leafList, fociiList, tag, date);	
 		
@@ -262,40 +279,20 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 			List<String> linkFilter, long max, String contextId, String sessionId)
 			throws AvroRemoteException {
 		
-		
 		return null;
 	}
 	
-	public void insertIntoContext(ClusterResults cr, String contextId) {
-		Map<String, FLEntityObject> clusters = cr.getAllClusters();
-		Map<String, FL_Cluster> contextClusters = _context.get(contextId);
-		if (contextClusters == null) {
-			contextClusters = new HashMap<String, FL_Cluster>();
-			_context.put(contextId, contextClusters);
-		}
-		
-		for (String ckey : clusters.keySet()) {
-			FLEntityObject c = clusters.get(ckey);
-			if (c.isCluster()) {  // TODO Should only cluster objects be stored in context??
-				contextClusters.put(c.getUid(), c.cluster);
-			}
-		}
+	public void insertIntoContext(Context updatedContext, String contextId) {
+		_context.put(contextId, updatedContext);
 	}
 	
-	/**
-	 * @param clusterIds
-	 * @param context
-	 * @return
-	 * @throws AvroRemoteException
-	 */
 	private Set<String> getLeafIds(List<String> clusterIds, String context, String sessionId) throws AvroRemoteException {
 		
 		if (clusterIds == null || clusterIds.isEmpty()) return Collections.emptySet();
 		
-		
 		Set<String> lids = new HashSet<String>();
 		
-		List<FL_Cluster> toSearch = getEntities(clusterIds, context, sessionId);
+		List<FL_Cluster> toSearch = getClusters(clusterIds, context, sessionId);
 		
 		List<String> probablyEntities = new ArrayList<String>(clusterIds); 
 		
@@ -311,6 +308,4 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		
 		return lids;
 	}
-	
-
 }

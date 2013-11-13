@@ -60,7 +60,7 @@ public class EntityLookupResource extends ApertureServerResource{
 		List<String> nosumClusters = ClusterContextCache.instance.getClusterIdsWithoutSummaries(entityIds, contextid);
 		
 		if (!nosumClusters.isEmpty()) {
-			List<FL_Cluster> computeClusterSums = clusterAccess.getEntities(entityIds, contextid, sessionId);
+			List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(entityIds, contextid, sessionId);
 			ClusterContextCache.instance.mergeIntoContext(computeClusterSums, contextid, true, false);
 		}
 		
@@ -119,7 +119,7 @@ public class EntityLookupResource extends ApertureServerResource{
 			List<String> nosumClusters = ClusterContextCache.instance.getClusterIdsWithoutSummaries(entityIds, contextid);
 			
 			if (!nosumClusters.isEmpty()) {
-				List<FL_Cluster> computeClusterSums = clusterAccess.getEntities(entityIds, contextid, sessionId);
+				List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(entityIds, contextid, sessionId);
 				ClusterContextCache.instance.mergeIntoContext(computeClusterSums, contextid, true, false);
 			}
 			

@@ -24,7 +24,7 @@
  */
 package influent.midtier.spi;
 
-import influent.entity.clustering.MultiStageEntityClusterer;
+import influent.entity.clustering.GeneralEntityClusterer;
 import influent.midtier.api.EntityClusterer;
 
 import com.google.inject.AbstractModule;
@@ -43,6 +43,6 @@ public class KivaDataAccessModule extends AbstractModule {
 
 	@Override
 	protected void configure() {
-		bind(EntityClusterer.class).to(MultiStageEntityClusterer.class);
+		bind(EntityClusterer.class).to(GeneralEntityClusterer.class);
 	}
 }

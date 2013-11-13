@@ -24,16 +24,15 @@
  */
 package influent.server;
 
-import influent.server.rest.EntitySearchParamsResource;
 import influent.server.rest.AggregatedLinkResource;
 import influent.server.rest.ChartResource;
 import influent.server.rest.ContainedEntitiesResource;
 import influent.server.rest.EntityDetailsResource;
 import influent.server.rest.EntityLookupResource;
+import influent.server.rest.EntitySearchParamsResource;
 import influent.server.rest.EntitySearchResource;
 import influent.server.rest.ExportGraphResource;
 import influent.server.rest.ExportTransactionTableResource;
-import influent.server.rest.ModifyClusterResource;
 import influent.server.rest.ModifyContextResource;
 import influent.server.rest.PatternSearchResource;
 import influent.server.rest.PersistenceResource;
@@ -76,7 +75,6 @@ public class RestConfigModule extends AbstractModule {
 		resourceBinder.addBinding("/aggregatedlinks").toInstance(new ResourceDefinition(AggregatedLinkResource.class));
 		resourceBinder.addBinding("/chart").toInstance(new ResourceDefinition(ChartResource.class));
 		resourceBinder.addBinding("/entities").toInstance(new ResourceDefinition(EntityLookupResource.class));
-		resourceBinder.addBinding("/modifycluster").toInstance(new ResourceDefinition(ModifyClusterResource.class));
 		resourceBinder.addBinding("/exporttransactions").toInstance(new ResourceDefinition(ExportTransactionTableResource.class));
 		resourceBinder.addBinding("/persist").toInstance(new ResourceDefinition(PersistenceResource.class));
 		resourceBinder.addBinding("/containedentities").toInstance(new ResourceDefinition(ContainedEntitiesResource.class));

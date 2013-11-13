@@ -1,4 +1,3 @@
-
 /**
  * Copyright (c) 2013 Oculus Info Inc.
  * http://www.oculusinfo.com/
@@ -11,10 +10,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,7 +22,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
 define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/models/xfColumn', 'lib/models/xfFile',
     'lib/models/xfImmutableCluster', 'lib/models/xfImmutableCluster', 'lib/models/xfClusterBase', 'lib/models/xfCard', 'lib/models/xfLink', 'lib/layout/xfLayoutProvider',
     'lib/util/xfUtil', 'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/extern/ActivityLogger',
@@ -372,12 +370,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 case chan.BRANCH_RIGHT_EVENT :
                     _onBranchRightEvent(eventChannel, data, renderCallback);
                     break;
-                case chan.PRUNE_LEFT_EVENT :
-                    _onPruneLeftEvent(eventChannel, data, renderCallback);
-                    break;
-                case chan.PRUNE_RIGHT_EVENT :
-                    _onPruneRightEvent(eventChannel, data, renderCallback);
-                    break;
                 case chan.EXPAND_EVENT :
                     _onExpandEvent(eventChannel, data, renderCallback);
                     break;
@@ -547,9 +539,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var i;
 
             var fileObject = _UIObjectState.singleton.getUIObjectByXfId(fileXfId);
-            var column = _getColumnByUIObject(fileObject);
 
-            if(!fileObject) {
+            if (!fileObject) {
                 console.error('Unable to apply pattern search; file with XfId ' + fileXfId + ' does not exist');
                 return '';
             }
@@ -557,7 +548,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var fileChildren = fileObject.getChildren();
             var allDataIds = [];
 
-            if(fileChildren.length == 0) {
+            if (fileChildren.length == 0) {
                 return '';
             }
 
@@ -611,9 +602,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         	var i, j;
         	
             // Do a preliminary scan to see if it's basic or not
-            for (var i = columnExtents.min; i <= columnExtents.max; i++) {
+            for (i = columnExtents.min; i <= columnExtents.max; i++) {
                 columnFiles = xfUtil.getChildrenByType(_getColumnByIndex(i), 'xfFile');
-                for (var j = 0; j < columnFiles.length; j++ ) {
+                for (j = 0; j < columnFiles.length; j++ ) {
                     if (columnFiles[j].hasMatchCard()) {
                         var matchCardObject = columnFiles[j].getMatchUIObject();
                         matchcardObjects.push(matchCardObject);
@@ -908,7 +899,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
         var _populatePatternResults = function(serverResponse, renderCallback) {
 
-            var i, j, k;
+            var j, k;
 
             // For each match entity (file) get a set of unique entities that belong in that file
             var workspaceFiles = xfUtil.getChildrenByType(_UIObjectState.singleton, 'xfFile');
@@ -1217,13 +1208,10 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 console.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
             }
 
-            var isCopying;
             var insertedCard;
             if (_useCopyMethod(addCard)) {
-                isCopying = true;
                 insertedCard = addCard.clone();
             } else {
-                isCopying = false;
                 insertedCard = addCard;
                 _removeObject(
                     insertedCard,
@@ -1244,7 +1232,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     targetContainer,
                     function(specs) {
 
-                        var columnChanges = _pruneColumns();
+                        _pruneColumns();
 
                         _UIObjectState.childModule.updateCardsWithCharts(specs);
 
@@ -1270,7 +1258,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 insertedCard.showToolbar(true);
                 insertedCard.setPin(false);
 
-                var columnChanges = _pruneColumns();
+                _pruneColumns();
 
                 if (targetContainer.getUIType() == 'xfFile'){
                     targetContainer = targetContainer.getClusterUIObject();
@@ -1516,9 +1504,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                         var newUIObjects = _handleBranchingServerResponse(response, sourceObj, isBranchRight, targetColumn);
 
                         if (isBranchRight) {
-                            sourceObj.setRightOperation(toolbarOp.PRUNE);
+                            sourceObj.setRightOperation(toolbarOp.BRANCH);
                         } else {
-                            sourceObj.setLeftOperation(toolbarOp.PRUNE);
+                            sourceObj.setLeftOperation(toolbarOp.BRANCH);
                         }
 
                         _updateLinks(true, true, newUIObjects, renderCallback, newUIObjects);
@@ -1578,7 +1566,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var sourceDataIds = [];
             for (i = 0; i < cardObjectList.length; i++) {
                 var cardObject = cardObjectList[i];
-                sourceDataIds.push(cardObject.getDataId());
+                if (sourceDataIds.indexOf(cardObject.getDataId()) < 0){
+                    sourceDataIds.push(cardObject.getDataId());
+                }
 
                 var cardObjectLinks = cardObject.getLinks();
                 for (var linkId in cardObjectLinks) {
@@ -1678,15 +1668,10 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
         var _handleBranchingServerResponse = function(serverResponse, sourceObj, isBranchRight, prebuiltTargetColumn) {
 
-            var i, j;
+            var i;
 
             var entities = serverResponse.targets;
-            var srLinkArray = null;
             var createdUIObjects = [];
-
-            if(serverResponse.data != null) {
-                srLinkArray = serverResponse.data[sourceObj.getDataId()];
-            }
 
             // If there are no related links for the given card, return.
 //            if (entities == null || srLinkArray == null || srLinkArray.length == 0){
@@ -1697,20 +1682,14 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var sourceColumn = _getColumnByUIObject(sourceObj);
             // Check if there is an existing target column, if not, create one.
             var targetColumn = isBranchRight ? _getNextColumn(sourceColumn) : _getPrevColumn(sourceColumn);
-            var topRenderObj = undefined;
 
             if (targetColumn == null){
                 targetColumn = prebuiltTargetColumn;
                 _UIObjectState.singleton.insert(prebuiltTargetColumn, isBranchRight ? null : sourceColumn);
-                topRenderObj = _UIObjectState.singleton;
-            }
-            else {
-                topRenderObj = targetColumn;
             }
             
             var specs = _getPopulatedSpecsFromData(entities, targetColumn);
 
-            var linkObj = null;
             var firstUiObject = null;
 
             var dataIds = [];
@@ -1727,15 +1706,12 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 parentObj = targetColumn;
             }
 
-            var layoutOp = 'insert';
-
             for (i = 0; i < specs.length; i++) {
                 var uiObject = {};
 
                 //Check to see if there is an existing object in this column
                 uiObject = targetColumn.getUIObjectsByDataId(specs[i].dataId)[0];
 
-                linkObj = null;
                 if (!uiObject) {
                     if (specs[i].isCluster) {
                         uiObject =  xfImmutableCluster.createInstance(specs[i]);
@@ -1759,7 +1735,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                         uiObject.update(specs[i]);
 
                         toCollapseIds.push(uiObject.getXfId());
-                        layoutOp = 'update';
                     }
                 }
                 createdUIObjects.push(uiObject);
@@ -1806,71 +1781,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             uiObj.setRightOperation(toolbarOp.WORKING);
             aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : uiObj});
             _branchEventHandler(eventChannel, data, renderCallback);
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
-
-        var _pruneEventHandler = function(eventChannel, data, renderCallback){
-            if (eventChannel != chan.PRUNE_RIGHT_EVENT && eventChannel != chan.PRUNE_LEFT_EVENT){
-                console.error('Prune event handler does not support this event: ' + eventChannel);
-                return;
-            }
-
-            var sourceObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
-            sourceObj.collapseLinks(data.direction, false);
-
-            // Check if the target column is empty; if so, we can nuke it
-            for(var i = _UIObjectState.children.length-2; i > 0; i--) {
-                var childColumn = _UIObjectState.children[i];
-                if(childColumn.isEmpty() && _.size(childColumn.getLinks()) == 0) {
-                    _UIObjectState.singleton.removeChild(childColumn.getXfId(), true, false);
-                }
-            }
-
-            //Draper instrumentation
-            _log('user', eventChannel, 'Prune related links', _loggerState.type.WF_MARSHAL,
-                {
-                    sessionId : _UIObjectState.sessionId,
-                    xfId : data.xfId,
-                    dataId : sourceObj.getDataId()
-                }
-            );
-
-            renderCallback(_UIObjectState.singleton.getVisibleDataIds());
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
-
-        var _onPruneLeftEvent = function(eventChannel, data, renderCallback) {
-            var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
-            uiObj.setLeftOperation('branch');
-            aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : uiObj});
-            _pruneEventHandler(eventChannel, data, renderCallback);
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
-
-        var _onPruneRightEvent = function(eventChannel, data, renderCallback) {
-            var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
-            uiObj.setRightOperation('branch');
-            aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : uiObj});
-            _pruneEventHandler(eventChannel, data, renderCallback);
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
-
-        var _handleFileCollapseEvent = function(fileUIObject, renderCallback) {
-
-            if (fileUIObject.hasSelectedChild()) {
-                aperture.pubsub.publish(
-                    chan.SELECTION_CHANGE_REQUEST,
-                    {
-                        xfId: null,
-                        selected : true,
-                        noRender: true
-                    }
-                );
-            }
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -2014,27 +1924,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         };
 
         //--------------------------------------------------------------------------------------------------------------
-
-        var _getContainedEntities = function(entityIds, contextId, callback) {
-            aperture.io.rest(
-                '/containedentities',
-                'POST',
-                function (response) {
-                    callback(response);
-                },
-                {
-                    postData : {
-                    	sessionId : _UIObjectState.sessionId,
-                        queryId: (new Date()).getTime(),
-                        clusterIds : entityIds,
-                        contextid : contextId
-                    },
-                    contentType: 'application/json'
-                }
-            );
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
         var _selectAdjacentMatchObject = function(columnObj){
             var adjacentMatchColumn = columnObj;
             var adjacentMatchs = xfUtil.getChildrenByType(adjacentMatchColumn, 'xfMatch');
@@ -2066,16 +1955,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             });
 
             if (objToRemove.getUIType() == 'xfMatch') {
-                if(objToRemove.getSpecs().length > 0){
-                    var childIds = [];
-                    var childSpecs = objToRemove.getSpecs();
-                    for(var i = 0; i < childSpecs.length; i++) {
-                        childIds.push(childSpecs[i].dataId);
-                    }
-
-                    // Match cards do not have data ids so use the xfId instead.
-                    _modifyContext(sourceColumn.getXfId(), 'remove', objToRemove.getXfId(), childIds);
-                }
+                
                 // If the match card being deleted has the search focus, re-parent the
                 // search focus with the closest adjacent xfMatchcard, if possible.
                 if (objToRemove.isSearchControlFocused()){
@@ -2148,7 +2028,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
         //--------------------------------------------------------------------------------------------------------------
 
-        var _modifyContext = function(columnId, editStr, parentId, childIds, callback) {
+        var _modifyContext = function(columnId, editStr, fileId, childIds, callback) {
             aperture.io.rest(
                 '/modifycontext',
                 'POST',
@@ -2162,7 +2042,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     	sessionId : _UIObjectState.sessionId,
                         contextId: columnId,
                         edit : editStr,
-                        fileId : parentId,
+                        fileId : fileId,
                         childIds : childIds
                     },
                     contentType: 'application/json'
@@ -2222,8 +2102,11 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             }
 
             var columnUIObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
-            var needsLayout = columnUIObject.cleanColumn();
-            if (needsLayout) {
+
+            var contextId = columnUIObject.getXfId();
+            var dataIds = columnUIObject.cleanColumn();
+            if (dataIds.length > 0) {
+                _modifyContext(contextId, 'remove', contextId, dataIds);
                 renderCallback();
             }
         };
@@ -2255,11 +2138,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             // Link it to all files to the columns to the left and right of our column
             _addFileLinks(fileUIObj, columnUIObj, true, true);
 
-            var modifyContextCallback = function(){
-                _modifyContext(columnUIObj.getXfId(), 'insert', fileUIObj.getClusterUIObject().getDataId(),
-                    fileUIObj.getClusterUIObject().getContainedCardDataIds(), showMatchcardCallback);
-            };
-
             var linkCallback = function() {
                 if(sourceObjOriginalParent != null && sourceObjOriginalParent.getChildren().length == 0) {
                     aperture.pubsub.publish(chan.REMOVE_REQUEST, {xfId : sourceObjOriginalParent.getXfId()});
@@ -2285,6 +2163,11 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 } else {
                     linkCallback();
                 }
+            };
+
+            var modifyContextCallback = function(){
+                _modifyContext(columnUIObj.getXfId(), 'insert', fileUIObj.getClusterUIObject().getDataId(),
+                    fileUIObj.getClusterUIObject().getContainedCardDataIds(), showMatchcardCallback);
             };
 
             var collapseCallback = function() {
@@ -2495,7 +2378,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     		sessionId : _UIObjectState.sessionId
                 		}
             		);
-                }
+                };
 
                 if (response == 'NONE' || response == 'ERROR') {
                     // we could not save the state... warn the user
@@ -2510,7 +2393,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 } else {
                     exportCallback();
                 }
-            }
+            };
 
             _saveState(callback);
         };
@@ -2581,7 +2464,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     		sessionId : _UIObjectState.sessionId
                 		}
             		);
-                }
+                };
 
                 if (response == 'NONE' || response == 'ERROR') {
                     // we could not save the state... warn the user
@@ -2596,7 +2479,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 } else {
                     exportCallback();
                 }
-            }
+            };
 
             _saveState(callback);
         };
@@ -2638,7 +2521,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 return;
             }
             
-            var i;
             var matchcardObjects = _getAllMatchCards();
             
             // if it's a pattern search, we proceed to highlight files, match cards, and file links
@@ -2783,7 +2665,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var childObjects = clusterUIObject.getChildren();
             var childCount = childObjects.length;
 
-            var faceTitle = childObjects[0].getVisualInfo().spec.label;
             var confidenceInSrc = 0;
             var confidenceInAge = 0;
 
@@ -3458,8 +3339,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             subTokens[chan.APPLY_PATTERN_SEARCH_TERM] = aperture.pubsub.subscribe(chan.APPLY_PATTERN_SEARCH_TERM, _pubsubHandler);
             subTokens[chan.BRANCH_LEFT_EVENT] = aperture.pubsub.subscribe(chan.BRANCH_LEFT_EVENT, _pubsubHandler);
             subTokens[chan.BRANCH_RIGHT_EVENT] = aperture.pubsub.subscribe(chan.BRANCH_RIGHT_EVENT, _pubsubHandler);
-            subTokens[chan.PRUNE_LEFT_EVENT] = aperture.pubsub.subscribe(chan.PRUNE_LEFT_EVENT, _pubsubHandler);
-            subTokens[chan.PRUNE_RIGHT_EVENT] = aperture.pubsub.subscribe(chan.PRUNE_RIGHT_EVENT, _pubsubHandler);
             subTokens[chan.EXPAND_EVENT] = aperture.pubsub.subscribe(chan.EXPAND_EVENT, _pubsubHandler);
             subTokens[chan.COLLAPSE_EVENT] = aperture.pubsub.subscribe(chan.COLLAPSE_EVENT, _pubsubHandler);
             subTokens[chan.REMOVE_REQUEST] = aperture.pubsub.subscribe(chan.REMOVE_REQUEST, _pubsubHandler);

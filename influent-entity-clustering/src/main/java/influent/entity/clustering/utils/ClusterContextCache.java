@@ -1,3 +1,27 @@
+/**
+ * Copyright (c) 2013 Oculus Info Inc.
+ * http://www.oculusinfo.com/
+ *
+ * Released under the MIT License.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package influent.entity.clustering.utils;
 
 import influent.idl.FL_Cluster;
@@ -228,8 +252,8 @@ public class ClusterContextCache {
 		
 		for (FL_Cluster cluster : clusters) {
 			
-			//if the cluster already exists, just replace the properties
-			//DON'T replace the whole thing, or the simplification pointers will be overwritten
+			// if the cluster already exists, just replace the properties
+			// DON'T replace the whole thing, or the simplification pointers will be overwritten
 			if (clusterMap.containsKey(cluster.getUid())) {
 				FL_Cluster oldCluster = clusterMap.get(cluster.getUid());		
 				oldCluster.setProperties(cluster.getProperties());
@@ -244,7 +268,7 @@ public class ClusterContextCache {
 			} else {
 				clusterMap.put(cluster.getUid(), cluster);
 				contentSet.add(cluster.getUid());
-				//Not putting in subclusters, they will be handled on their own interation through the clusters list
+				// Not putting in subclusters, they will be handled on their own interation through the clusters list
 				contentSet.addAll(cluster.getMembers());
 			}
 			

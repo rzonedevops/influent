@@ -36,8 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.solr.client.solrj.util.ClientUtils;
-
 public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
 	
 	public static PropertyMatchDescriptorHelper from(FL_PropertyMatchDescriptor descriptor) {
@@ -127,7 +125,7 @@ public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
 				
 				sb.append(k);
 				sb.append(":(");
-				sb.append(ClientUtils.escapeQueryChars(iv));
+				sb.append(SolrUtils.escapeQueryChars(iv));
 				sb.append("~)^");
 				sb.append(dweight);
 			}
@@ -138,7 +136,7 @@ public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
 		// Add check for weight boost here
 		String boost = (weight != null && weight.doubleValue() != 1.0)? boost="^"+ weight : "";
 		
-		return k+":(" + ClientUtils.escapeQueryChars(v) +")"+boost;
+		return k+":(" + SolrUtils.escapeQueryChars(v) +")"+boost;
 	}
 	
 	/**

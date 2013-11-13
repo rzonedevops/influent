@@ -31,7 +31,7 @@ import influent.idl.FL_DateRange;
 import influent.idl.FL_DirectionFilter;
 import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
-import influent.midtier.utilities.DateRangeBuilder;
+import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
 import influent.server.utilities.UISerializationHelper;
 
@@ -64,11 +64,9 @@ public class AggregatedLinkResource extends ApertureServerResource{
 		this.clusterAccess = clusterAccess;
 	}
 
-	
 	@Post
 	public StringRepresentation getLinks(String jsonData) throws ResourceException {
 		JSONObject jsonObj;
-//		JSONArray clusterArr = null;
 		JSONObject result = new JSONObject();
 		Map<String, List<FL_Link>> links = new HashMap<String, List<FL_Link>>();
 		
@@ -153,7 +151,6 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			}			
 			links = clusterAccess.getFlowAggregation(srcEntities, dstEntities, direction, FL_LinkTag.FINANCIAL, dateRange, srcContextId, dstContextId, sessionId);			
 			
-			//links = EntityAggregatedLinks.getAggregatedLinks(sEntities, tEntities, direction, FL_LinkTag.FINANCIAL, dateRange, aggregationType, null, service);
 			// Get the query id. This is used by the client to ensure
 			// it only processes the latest response.
 			queryId = jsonObj.getString("queryId").trim();
@@ -180,7 +177,6 @@ public class AggregatedLinkResource extends ApertureServerResource{
 				}
 				result.put("data",dmap);
 			}
-			
 
 			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
@@ -192,9 +188,5 @@ public class AggregatedLinkResource extends ApertureServerResource{
 		} catch (AvroRemoteException e) {
 			throw new ResourceException(Status.SERVER_ERROR_INTERNAL, e.getMessage());
 		}
-		
-		
 	}
-	
-
 }

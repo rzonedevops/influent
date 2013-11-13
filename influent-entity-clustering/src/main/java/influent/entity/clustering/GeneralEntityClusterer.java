@@ -24,172 +24,391 @@
  */
 package influent.entity.clustering;
 
-import influent.idl.FL_Entity;
-import influent.idlhelper.FLEntityObject;
-import influent.midtier.api.ClusterResults;
-import influent.midtier.api.EntityClusterer;
-
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.avro.AvroRemoteException;
 
-import com.oculusinfo.ml.DataSet;
-import com.oculusinfo.ml.unsupervised.Cluster;
-import com.oculusinfo.ml.unsupervised.ClusterResult;
-import com.oculusinfo.ml.unsupervised.Clusterer;
+import influent.entity.clustering.utils.EntityClusterFactory;
+import influent.entity.clustering.utils.PropertyManager;
+import influent.idl.FL_Cluster;
+import influent.idl.FL_Entity;
+import influent.idl.FL_Frequency;
+import influent.idl.FL_GeoData;
+import influent.idl.FL_Geocoding;
+import influent.idl.FL_Property;
+import influent.idl.FL_PropertyTag;
+import influent.idl.FL_SingletonRange;
+import influent.idlhelper.ClusterHelper;
+import influent.idlhelper.EntityHelper;
+import influent.idlhelper.PropertyHelper;
+import influent.midtier.IdGenerator;
+import influent.midtier.api.Context;
+import influent.midtier.api.EntityClusterer;
 
-public class GeneralEntityClusterer implements EntityClusterer {	
-	protected static final int PARTITION_SIZE = 10000;
-	protected static final int MAX_ITERATIONS = 3;
-	protected List<Clusterer> clusterStages;
-	protected EntityInstanceFactory instanceFactory;
-	
-	protected static final Logger s_logger = LoggerFactory.getLogger(GeneralEntityClusterer.class);
-	
-	
+public class GeneralEntityClusterer extends BaseEntityClusterer {
+	private FL_Geocoding geoCoder;
+	private IdGenerator idGenerator;
+	private PropertyManager pMgr;
+	private List<EntityClusterer> clusterStages;
+	private int MIN_CLUSTER_SIZE = 10;
+
 	@Override
-	public void init(Object[] args) throws IllegalArgumentException {
-		 try {
-			 init((EntityInstanceFactory) instanceFactory, (List<Clusterer>) clusterStages);
-		 }
-		 catch (Exception e) {
-			 throw new IllegalArgumentException("Invalid initialization parameters. Parameters must be init(EntityInstanceFactory instanceFactory, List<Clusterer> clusterStages", e);
-		 }
-	}
-	
-	protected void init(EntityInstanceFactory instanceFactory, List<Clusterer> clusterStages) {
-		this.instanceFactory = instanceFactory;
-		this.clusterStages = clusterStages;
-	}
-	
-	protected Map<String, FLEntityObject> getNonClusters(Map<String, FLEntityObject> index) {
-		Map<String, FLEntityObject> clusters = new HashMap<String, FLEntityObject>();
-		for (String id : index.keySet()) {
-			FLEntityObject e = index.get(id);
-			if (e.isCluster()) {
-				clusters.put(e.getUid(), e);
-			}
+	public void init(Object[] args) {
+		try {
+			idGenerator = (IdGenerator)args[0];
+			geoCoder = (FL_Geocoding)args[1];
+			pMgr = (PropertyManager)args[2];
+			MIN_CLUSTER_SIZE = Integer.parseInt(pMgr.getProperty(PropertyManager.MIN_CLUSTER_SIZE, "10"));
+			clusterStages = createClusterStages(pMgr);
 		}
-		return clusters;
-	}
-	
-	protected List<List<FLEntityObject>> partitionDataSet(List<FLEntityObject> entities, int partitionSize) {
-		List<List<FLEntityObject>> partitions = new LinkedList<List<FLEntityObject>>();
-		int sIdx = 0;
-		int eIdx = 0;
-		while (eIdx < entities.size()) {
-			eIdx = (int)Math.min(sIdx+partitionSize, entities.size());
-			partitions.add( entities.subList(sIdx, eIdx) );
-			sIdx = eIdx;
+		catch (Exception e) {
+			throw new IllegalArgumentException("Invalid initialization parameters.", e);
 		}
-		return partitions;
 	}
 	
-	protected void stageInit(int stage, int interation, Clusterer clusterer, DataSet ds) {
-		// Nothing special to do
-	}
+	private List<EntityClusterer> createClusterStages(PropertyManager pMgr){
+		List<EntityClusterer> clusterStages = new ArrayList<EntityClusterer>();
+		
+		String[] clusterFields = pMgr.getProperty(PropertyManager.CLUSTER_FIELDS, "GEO:geo,TYPE:categorical,LABEL:label").split(",");
 	
-	@Override
-	public ClusterResults clusterEntities(List<FL_Entity> entities) {
-		// create an index of entities
-		Map<String, FLEntityObject> index = createEntityIndex(entities);
+		// create a cluster factory each stage will use to create FL_Cluster objects
+		EntityClusterFactory clusterFactory = new EntityClusterFactory(idGenerator, geoCoder);
 		
-		List<List<FLEntityObject>> partitions = partitionDataSet(new LinkedList<FLEntityObject>(index.values()), PARTITION_SIZE);
-		List<FLEntityObject> stageResults = new LinkedList<FLEntityObject>(); 
-		
-		s_logger.info("Initiating entity clustering for {} entities", entities.size());
-		
-		int stage = 1;
-		
-		// Process cluster stages
-		for (Clusterer clusterer : clusterStages) {
-			s_logger.info("Beginning stage {} clustering", stage);
-			
-			// initialize the stage clusterer
-			clusterer.init();
-			
- 			int numClusters = -1;
- 			int iteration = 0;
-			while (numClusters != stageResults.size() && iteration < MAX_ITERATIONS) {
-				s_logger.info("Beginning iteration {}", (iteration+1));
-				// keep track of the previous iteration numClusters generated
-				numClusters = stageResults.size();
+		for (String field : clusterFields) {
+			String[] tokens = field.split(":");  // TagOrFieldName, Type, Fuzzy (if label feature)
+			if (tokens.length > 1) {
+				String tagOrFieldName = tokens[0];
+				String type = tokens[1];
 				
-				// initialize the stage results
-				stageResults = new LinkedList<FLEntityObject>();
-				
-				for (List<FLEntityObject> items : partitions) {
-					// Generate a dataset for the clusterer to process
-					DataSet ds = EntityDataSetFactory.createDataSetfromEntities(items, instanceFactory);
-		
-					// hook for special initialization of stage
-					stageInit(stage, iteration, clusterer, ds);
-					
-					// cluster the entities
-					ClusterResult result = clusterer.doCluster(ds);
-					
-					List<Cluster> clusters = new LinkedList<Cluster>();
-					for (Cluster cluster : result) {
-						clusters.add(cluster);
-					}
-			
-					// convert cluster to entity clusters
-					List<FLEntityObject> clusterItems = instanceFactory.toEntity(clusters, index);
-		
-					// add the resulting clusters to the stageResults
-					stageResults.addAll(clusterItems);
-				
-					// add the generated entity clusters to the entity index
-					updateEntityIndex(clusterItems, index);
+				if (type.equalsIgnoreCase("categorical")) {
+					CategoricalEntityClusterer clusterer = new CategoricalEntityClusterer();
+					Object[] params = {clusterFactory, tagOrFieldName}; 
+					clusterer.init(params);
+					clusterStages.add(clusterer);
 				}
-				// randomly shuffle the stage results to avoid re clustering the same partition of items each iteration
-//				Collections.shuffle(stageResults);
-				
-				// partition the stage results for the next stage
-				partitions = partitionDataSet(stageResults, PARTITION_SIZE);
-				
-				// increment the iteration number
-				iteration++;
+				else if (type.equalsIgnoreCase("label")) {
+					String clusterType = tokens.length == 3 ? tokens[2] : "fingerprint";  // default to fingerprint if none
+					
+					// first group alphabetically
+					LabelEntityClusterer clusterer = new LabelEntityClusterer();
+					Object[] params = {clusterFactory, tagOrFieldName, "alpha", pMgr}; 
+					clusterer.init(params);
+					clusterStages.add(clusterer);
+					
+					// next fuzzy or finger print cluster
+					clusterer = new LabelEntityClusterer();
+					Object[] params2 = {clusterFactory, tagOrFieldName, clusterType, pMgr}; 
+					clusterer.init(params2);
+					clusterStages.add(clusterer);
+				}
+				else if (type.equalsIgnoreCase("geo")) {
+					GeoEntityClusterer clusterer = new GeoEntityClusterer();
+					Object[] params = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Continent}; 
+					clusterer.init(params);
+					clusterStages.add(clusterer);
+					
+					clusterer = new GeoEntityClusterer();
+					Object[] params2 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Region}; 
+					clusterer.init(params2);
+					clusterStages.add(clusterer);
+					
+					clusterer = new GeoEntityClusterer();
+					Object[] params3 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Country}; 
+					clusterer.init(params3);
+					clusterStages.add(clusterer);
+					
+					clusterer = new GeoEntityClusterer();
+					Object[] params4 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.LatLon}; 
+					clusterer.init(params4);
+					clusterStages.add(clusterer);
+				}
+				else if (type.equalsIgnoreCase("numeric")) {
+					Integer numBins = tokens.length == 3 ? Integer.parseInt(tokens[2]) : 5;  // default to 5 bins
+					NumericEntityClusterer clusterer = new NumericEntityClusterer();
+					Object[] params = {clusterFactory, tagOrFieldName, numBins}; 
+					clusterer.init(params);
+					clusterStages.add(clusterer);
+				}
+				else {
+					log.warn("Invalid cluster field type specified in clusterer.properties - verify the value of entity.clusterer.clusterfields");
+				}
 			}
-			s_logger.info("Stage {} completed with {} clusters", stage, stageResults.size());
-			
-			// terminate the stage clusterer
-			clusterer.terminate();
-			
-			// increment the stage number
-			stage++;
+			else {
+				log.warn("Invalid cluster field specified in clusterer.properties - verify the value of entity.clusterer.clusterfields");
+			}
 		}
 		
-		s_logger.info("Entity clustering generated {} clusters top level clusters", stageResults.size());
-		
-		List<FLEntityObject> rootClusters = stageResults;
-//		List<FL_Cluster> rootClusters = new LinkedList<FL_Cluster>();
-//		for (FLEntityObject e : stageResults) {
-//			if (e.isCluster()) {  // HACK we should return root entities too otherwise they are lost!
-//				rootClusters.add(e.cluster);
-//			}
-//		}
-		
-		return new ClusterResults(rootClusters, getNonClusters(index));
-	}
-
-	protected Map<String, FLEntityObject> createEntityIndex(List<FL_Entity> entities) {
-		Map<String, FLEntityObject> index = new HashMap<String, FLEntityObject>();
-		
-		for (FL_Entity entity : entities) {
-			FLEntityObject obj = new FLEntityObject(entity);
-			index.put(obj.getUid(), obj);
-		}
-		return index;
+		return clusterStages;
 	}
 	
-	protected void updateEntityIndex(List<FLEntityObject> entities, Map<String, FLEntityObject> index) {
-		for (FLEntityObject entity : entities) {
-			index.put(entity.getUid(), entity);
+	private List<FL_Entity> getClusterMembers(FL_Cluster cluster, Context context) {
+		List<FL_Entity> members = new LinkedList<FL_Entity>();
+		
+		for (String id : cluster.getMembers()) {
+			members.add(context.entities.get(id));
+		}
+		return members;
+	}
+	
+	private List<FL_Cluster> getSubClusters(FL_Cluster cluster, Context context) {
+		List<FL_Cluster> subClusters = new LinkedList<FL_Cluster>();
+		
+		for (String id : cluster.getSubclusters()) {
+			subClusters.add( context.clusters.get(id) );
+		}
+		return subClusters;
+	}
+
+	@Override
+	public Context clusterEntities(Collection<FL_Entity> entities) {
+		return this.clusterEntities(entities, new Context());
+	}
+	
+	@Override
+	public Context clusterEntities(Collection<FL_Entity> entities, Collection<FL_Cluster> clusters, Context context) {
+		throw new UnsupportedOperationException();
+	}
+	
+	@Override
+	public Context clusterEntities(Collection<FL_Entity> entities, Context context) {
+		if (clusterStages == null || clusterStages.isEmpty()) return null;
+	
+		// create a default context if the passed in one is empty
+		if (context == null) {
+			context = new Context();
+		}
+		
+		// add the entities to the context
+		context.addEntities(entities);
+		
+		// first stage generates root objects in entity cluster hierarchy
+		Context results = clusterStages.get(0).clusterEntities(entities, context.roots.values(), context);
+		
+		// add the new/modified roots to the context roots
+		context.roots.putAll(results.roots);
+		
+		// keep track of the modified roots - only they need to have their summaries recomputed
+		Map<String, FL_Cluster> modifiedRoots = new HashMap<String, FL_Cluster>(results.roots);
+		
+		// find the candidate clusters to split
+		Collection<FL_Cluster> clustersToSplit = new LinkedList<FL_Cluster>();
+		findClustersToSplit(results.roots, clustersToSplit);
+		
+		// add the roots to the allClusters map in context
+		context.clusters.putAll(results.roots);
+		
+		//
+		// Top down Divisive hierarchical clustering using binning and k-means clustering - each stage clusters by a distinct feature
+		//
+		for (int i=1; i < clusterStages.size(); i++) {
+			EntityClusterer clusterer = clusterStages.get(i); 
+					
+			Map<String, FL_Cluster> stageResults = new HashMap<String, FL_Cluster>();
+			
+			for (FL_Cluster cluster : clustersToSplit) {
+				// sub-cluster the entity cluster
+				results = clusterer.clusterEntities( getClusterMembers(cluster, context), getSubClusters(cluster, context), context );
+				
+				// update the cluster children to be the sub-clustering results
+				// and update the root and parent of the children
+				updateClusterReferences(cluster, results.roots);	
+
+				// store the new/modified clusters in the context
+				context.clusters.putAll(results.roots);
+					
+				// schedule the cluster for further splitting on another stage
+				stageResults.putAll(results.roots);
+			}
+			// update the clusters to split for next stage
+			clustersToSplit.clear();
+			findClustersToSplit(stageResults, clustersToSplit);
+		}
+		
+		// lastly update the modified clusters summaries
+		updateClusterSummaries(modifiedRoots, context);
+		
+		// return back the modified context
+		return context;
+	}
+	
+	private void findClustersToSplit(Map<String, FL_Cluster> candidates, Collection<FL_Cluster> splitQueue) {
+		for (String id : candidates.keySet()) {
+			FL_Cluster c = candidates.get(id);
+			if (c.getMembers().size() > MIN_CLUSTER_SIZE || (c.getMembers().size() > 0 && c.getSubclusters().size() > 0))  {
+				splitQueue.add(c);
+			}
+		}
+	}
+
+	private void updateClusterReferences(FL_Cluster cluster, Map<String, FL_Cluster> children) {
+		List<String> childClusterIds = new LinkedList<String>();
+		
+		String parentId = cluster.getUid();
+		String rootId = cluster.getRoot() == null ? parentId : cluster.getRoot();
+		
+		for (String id : children.keySet()) {
+			FL_Cluster c = children.get(id);
+			c.setParent(parentId);
+			c.setRoot(rootId);
+			childClusterIds.add(c.getUid());
+		}
+		cluster.getMembers().clear();
+		Set<String> uniqueIds = new HashSet<String>(cluster.getSubclusters());
+		uniqueIds.addAll(childClusterIds);
+		cluster.setSubclusters(new LinkedList<String>(uniqueIds));
+	}
+	
+	private void updateClusterSummaries(Map<String, FL_Cluster> clusters, Context context) {
+		for (String id : clusters.keySet()) {
+			FL_Cluster cluster = clusters.get(id);
+			updateClusterSummaries(cluster, context);
+		}
+	}
+	
+	protected void increment(String key, double increment, Map<String, Double> index) {
+		double count = 0;
+		
+		if (index.containsKey(key)) {
+			count = index.get(key);
+		}
+		count += increment;
+		index.put(key, count);
+	}
+	
+	protected void increment(List<FL_Frequency> stats, Map<String, Double> index) {
+		for (FL_Frequency freq : stats) {
+			String key = "";
+			if (freq.getRange() instanceof FL_GeoData) {
+				key = ((FL_GeoData)freq.getRange()).getCc();
+			}
+			else {
+				key = (String)freq.getRange();
+			}
+			double count = freq.getFrequency();
+			increment(key, count, index);
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void updateClusterSummaries(FL_Cluster cluster, Context context) {
+		// depth first search to update cluster summaries
+		if (cluster.getSubclusters().isEmpty()) {
+			// revise the cluster count
+			FL_Property prop = ClusterHelper.getFirstProperty(cluster, "count");
+			FL_SingletonRange range = (FL_SingletonRange) prop.getRange();
+			range.setValue( cluster.getMembers().size() );
+			
+			Map<String, Double> locationSummary = new HashMap<String, Double>();
+			Map<String, Double> typeSummary = new HashMap<String, Double>();
+			
+			for (String memberId : cluster.getMembers()) {
+				FL_Entity entity = context.entities.get(memberId);
+				
+				// revise the type distribution
+				PropertyHelper typeProp = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.TYPE);
+				if (typeProp != null) {
+					increment((String)typeProp.getValue(), 1, typeSummary);
+				}
+
+				// revise the location distribution
+				PropertyHelper geoProp = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.GEO);
+				if (geoProp != null) {
+					FL_GeoData geoData = (FL_GeoData)geoProp.getValue(); 
+					String cc = geoData.getCc();
+					if (cc != null && !cc.isEmpty()) {
+						increment(cc, 1, locationSummary);
+					}
+				}
+			}	
+			List<FL_Frequency> typeFreqs = (List<FL_Frequency>) ClusterHelper.getFirstProperty(cluster, "type-dist").getValue();
+			
+			// update the type distribution range property
+			typeFreqs.clear();
+			for (String key : typeSummary.keySet()) {
+				typeFreqs.add( new FL_Frequency(key, typeSummary.get(key)) );
+			}		
+			
+			List<FL_Frequency> locFreqs = (List<FL_Frequency>) ClusterHelper.getFirstProperty(cluster, "location-dist").getValue();
+			
+			// update the location distribution range property
+			locFreqs.clear();
+			for (String key : locationSummary.keySet()) {
+				FL_GeoData geo = new FL_GeoData(null, null, null, key);
+				try {
+					geoCoder.geocode(Collections.singletonList(geo));
+				} catch (AvroRemoteException e) { /* ignore */ }
+				locFreqs.add( new FL_Frequency(geo, locationSummary.get(key)) );
+			}
+		}
+		else {
+			int count = 0;
+			Map<String, Double> locationSummary = new HashMap<String, Double>();
+			Map<String, Double> typeSummary = new HashMap<String, Double>();
+			
+			// update each child cluster first 
+			for (String subClusterId : cluster.getSubclusters()) {
+				FL_Cluster subCluster = context.clusters.get(subClusterId);
+				updateClusterSummaries(subCluster, context);
+				FL_Property prop = ClusterHelper.getFirstProperty(subCluster, "count");
+				FL_SingletonRange range = (FL_SingletonRange) prop.getRange();
+				count += (Integer)range.getValue();
+				
+				List<FL_Frequency> typeFreqs = (List<FL_Frequency>) ClusterHelper.getFirstProperty(subCluster, "type-dist").getValue();
+				for (FL_Frequency freq : typeFreqs) {
+					String type = (String)freq.getRange();
+					if (typeSummary.containsKey(type)) {
+						Double f = typeSummary.get(type);
+						typeSummary.put(type, f + freq.getFrequency());
+					}
+					else {
+						typeSummary.put(type, freq.getFrequency());
+					}
+				}
+				
+				List<FL_Frequency> locationFreqs = (List<FL_Frequency>) ClusterHelper.getFirstProperty(subCluster, "location-dist").getValue();
+				for (FL_Frequency freq : locationFreqs) {
+					FL_GeoData geo = (FL_GeoData)freq.getRange();
+					if (locationSummary.containsKey(geo.getCc())) {
+						Double f = locationSummary.get(geo.getCc());
+						locationSummary.put(geo.getCc(), f + freq.getFrequency());
+					}
+					else {
+						locationSummary.put(geo.getCc(), freq.getFrequency());
+					}
+				}
+			}
+			// now update this cluster
+			FL_Property prop = ClusterHelper.getFirstProperty(cluster, "count");
+			FL_SingletonRange range = (FL_SingletonRange) prop.getRange();
+			range.setValue( count );
+			
+			List<FL_Frequency> typeFreqs = (List<FL_Frequency>) ClusterHelper.getFirstProperty(cluster, "type-dist").getValue();
+			
+			// update the type distribution range property
+			typeFreqs.clear();
+			for (String key : typeSummary.keySet()) {
+				typeFreqs.add( new FL_Frequency(key, typeSummary.get(key)) );
+			}
+			
+			List<FL_Frequency> locFreqs = (List<FL_Frequency>) ClusterHelper.getFirstProperty(cluster, "location-dist").getValue();
+			
+			// update the location distribution range property
+			locFreqs.clear();
+			for (String key : locationSummary.keySet()) {
+				FL_GeoData geo = new FL_GeoData(null, null, null, key);
+				try {
+					geoCoder.geocode(Collections.singletonList(geo));
+				} catch (AvroRemoteException e) { /* ignore */ }
+				locFreqs.add( new FL_Frequency(geo, locationSummary.get(key)) );
+			}
 		}
 	}
 }

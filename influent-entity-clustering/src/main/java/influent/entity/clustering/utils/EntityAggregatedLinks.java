@@ -1,3 +1,27 @@
+/**
+ * Copyright (c) 2013 Oculus Info Inc.
+ * http://www.oculusinfo.com/
+ *
+ * Released under the MIT License.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package influent.entity.clustering.utils;
 
 
@@ -36,7 +60,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class EntityAggregatedLinks {
-	private static final int MIN_CLUSTER_SIZE = 2;
 	private static final String PROP_LINK_COUNT = "link-count";
 	private static final String PROP_DATE = "cluster-link-date-range";
 
@@ -47,29 +70,64 @@ public class EntityAggregatedLinks {
 	/**
 	 *  Test Code @see TestLinkClustering 
 	 */
+	/***
+	 * Retrieve related links for src entityId and aggregate them by clustering the destination entities. Entities can be FL_Entities or FL_Clusters
+	 * 
+	 * @param entityId - src entity to fetch related links for
+	 * @param direction - the direction of the link from the entities
+	 * @param tag - a tag filter for returned related links
+	 * @param dateRange - a date filter for returned related links
+	 * @param da - the data access module
+	 * @param clusterAggregation - whether to cluster the destination entities
+	 * @param targetOutput - optional list to return destination entities
+	 * @param clusterer - the entity clustering module
+	 * @param clusterAccess - the entity clustering data access module
+	 * @param srcContext - the source entities context
+	 * @param dstContext - the dest entities context
+	 * @param sessionId - the current session id
+	 * @return a map of src entities and their aggregated related links
+	 * @throws DataAccessException
+	 * @throws AvroRemoteException
+	 */
 	public static Map<String, List<FL_Link>> getRelatedAggregatedLinks(String entityId,
 																	FL_DirectionFilter direction,
 																	FL_LinkTag tag,
 																	FL_DateRange dateRange,
 																	FL_DataAccess da,
-																	List<String> aggregationFocus,
 																	boolean clusterAggregation,
 																	List<Object> targetOutput,
 																	FL_Clustering clusterer,
-																	FL_ClusteringDataAccess cda,
+																	FL_ClusteringDataAccess clusterAccess,
 																	String srcContext,
 																	String dstContext,
 																	String sessionId) throws DataAccessException, AvroRemoteException {
-		return getRelatedAggregatedLinks(Collections.singletonList(entityId), direction, tag, dateRange, da, aggregationFocus, clusterAggregation, targetOutput, clusterer, cda, srcContext, dstContext, sessionId);
+		return getRelatedAggregatedLinks(Collections.singletonList(entityId), direction, tag, dateRange, da, clusterAggregation, targetOutput, clusterer, clusterAccess, srcContext, dstContext, sessionId);
 	}
 	
+	/***
+	 * Retrieve related links for src entityIds and aggregate them by clustering the destination entities. Entities can be FL_Entities or FL_Clusters
+	 * 
+	 * @param entityIds - src entities to fetch related links for
+	 * @param direction - the direction of the link from the entities
+	 * @param tag - a tag filter for returned related links
+	 * @param dateRange - a date filter for returned related links
+	 * @param da - the data access module
+	 * @param clusterAggregation - whether to cluster the destination entities
+	 * @param targetOutput - optional list to return destination entities
+	 * @param clusterer - the entity clustering module
+	 * @param clusterAccess - the entity clustering data access module
+	 * @param srcContext - the source entities context
+	 * @param dstContext - the dest entities context
+	 * @param sessionId - the current session id
+	 * @return a map of src entities and their aggregated related links
+	 * @throws DataAccessException
+	 * @throws AvroRemoteException
+	 */
 	public static Map<String, List<FL_Link>> getRelatedAggregatedLinks(List<String> entityIds, 
 																	FL_DirectionFilter direction, 
 																	FL_LinkTag tag,
 																	FL_DateRange dateRange,
 																	FL_DataAccess da,
-																	List<String> aggregationFocus,
-																	
 																	boolean clusterAggregation,
 																	List<Object> targetOutput,
 																	FL_Clustering clusterer,
@@ -78,7 +136,6 @@ public class EntityAggregatedLinks {
 																	String dstContext,
 																	String sessionId
 																	) throws DataAccessException, AvroRemoteException {
-		
 		
 		// First attempt to get related cluster links for the entity id's
 		try {
@@ -91,55 +148,42 @@ public class EntityAggregatedLinks {
 			 
 			long startms = System.currentTimeMillis();
 			
-			// keep track of the srcEntity ancestor of each descendant entity
-			Map<String, String> entityAncestorIndex = new HashMap<String, String>();  // entity id -> ancestor id
+			// retrieve the src entities
+			List<Object> srcThings = new ArrayList<Object>();
+			srcThings.addAll( clusterAccess.getClusters(entityIds, srcContext, sessionId) );
+			srcThings.addAll( da.getEntities(entityIds) );
 						
-			
-			List<String> rawEntityIds = new ArrayList<String>();
-			Map<String, FL_Cluster> existingClusters = new HashMap<String, FL_Cluster>();
-			//First, split ids into raw and existing clusters
-			for (String id : entityIds) {
-				List<FL_Cluster> flc = clusterAccess.getEntities(Collections.singletonList(id), srcContext, sessionId);
-				if (flc != null && !flc.isEmpty()) {
-					existingClusters.put(id, flc.get(0));
-				} else {
-					rawEntityIds.add(id);
-					entityAncestorIndex.put(id, id);
-				}
-			}
-			
-			// For non-clusters fetch their raw related links
-			Map<String, List<FL_Link>> rawLinks = new HashMap<String, List<FL_Link>>();
-			Map<String, List<FL_Link>> relatedLinks =  new HashMap<String, List<FL_Link>>();
-			if (!rawEntityIds.isEmpty()) {
-				rawLinks.putAll(da.getFlowAggregation(rawEntityIds, aggregationFocus, direction, tag ,dateRange));
-			} 
+			s_logger.info("Found "+srcThings.size()+" src entities  (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 			
 			startms = System.currentTimeMillis();
 			
-			
-			// Get all the descendant entity Ids associated with src clusters and create ancestor map
-			List<String> srcEntityIds = buildEntityAncestorMap(existingClusters.values(), entityAncestorIndex, clusterAccess, srcContext, sessionId);
-			
+			// keep track of the parent of each entity
+			Map<String, String> entityAncestorIndex = new HashMap<String, String>();  // entity id -> ancestor id
+						
+			// Get all the entity Ids associated with srcEntities and create ancestor map
+			List<String> srcChildEntityIds = buildEntityAncestorMap(srcThings, entityAncestorIndex, clusterAccess, srcContext, sessionId);
+						
 			s_logger.info("Created ancestor map (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 			
 			startms = System.currentTimeMillis();
 			
-			// Get the related links for the srcEntities and add to the raw related links already fetched for non-cluster src entities
-			rawLinks.putAll(da.getFlowAggregation(srcEntityIds, aggregationFocus, direction, tag ,dateRange));
+			Map<String, List<FL_Link>> rawLinks = new HashMap<String, List<FL_Link>>();
+			Map<String, List<FL_Link>> relatedLinks =  new HashMap<String, List<FL_Link>>();
+			
+			// Get the related links for all the child srcEntities and add to the raw related links
+			rawLinks.putAll(da.getFlowAggregation(srcChildEntityIds, new ArrayList<String>(0), direction, tag ,dateRange));
 			
 			s_logger.info("Found related raw links (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
-			
-			// TODO SBL : Do we really need to ever pass back raw links? The below conditional could be removed
-			// if the links are not requested to be aggregated then return the raw links 
 					
-			//TODO : still need the targets in this case!
-			//Also, don't the links need to point to the originating cluster, instead of the raw underlying entity?
+			startms = System.currentTimeMillis();
+			
+			// If no aggregation was request just pass back the raw links 
+			// Populate the target output if a list was passed in
 			if (!clusterAggregation) {
-				// retrieve the dstEntities associated with rawLinks
 				if (targetOutput!= null) {
+					// target output was requests - retrieve the dstEntities associated with rawLinks
 					List<String> dstEntityIds = new ArrayList<String>();
-					dstEntityIds.addAll(getDestLinkEntity(rawLinks));
+					dstEntityIds.addAll( getDestLinkEntity(rawLinks) );
 					List<FL_Entity> dstEntities = da.getEntities(dstEntityIds);
 					targetOutput.addAll(dstEntities);
 				}
@@ -148,10 +192,10 @@ public class EntityAggregatedLinks {
 			
 			// retrieve the dstEntities associated with rawLinks
 			List<String> dstEntityIds = new ArrayList<String>();
-			dstEntityIds.addAll(getDestLinkEntity(rawLinks));
+			dstEntityIds.addAll( getDestLinkEntity(rawLinks) );
 			List<FL_Entity> dstEntities = da.getEntities(dstEntityIds);
 			
-			//Handle loop links
+			// handle loop links - they are exempt from clustering and returned directly
 			for (String key : rawLinks.keySet()) {
 				List<FL_Link> loops = new ArrayList<FL_Link>();
 				for (FL_Link link : rawLinks.get(key)) {
@@ -184,75 +228,40 @@ public class EntityAggregatedLinks {
 			// We now have loop free raw links from all src entities (whether they are members of a cluster or not) to dst entities
 			// Now we can cluster dst entities and aggregate links on src and dst by cluster membership
 			
-			startms = System.currentTimeMillis();
-			
-			
 			s_logger.info("Found "+dstEntities.size()+" destination entities (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 			
-			// Determine which dst entities are not already clusters and need to be clustered
-			// NOTE: They all are currently
+			startms = System.currentTimeMillis();
+				
+			// cluster the dst entities - NOTE the clusterer should determine which are already clustered and ignore
+			List<String> results = clusterer.clusterEntities(dstEntities, dstContext, sessionId);
 			
-			// Cluster the dst entities not already clustered
-			if (dstEntities.size() > MIN_CLUSTER_SIZE) {
-				startms = System.currentTimeMillis();
-				
-//				List<Entity> wrappedEntities = new ArrayList<Entity>();
-//				List<FL_Entity> toRemove = new ArrayList<FL_Entity>();
-//				for (FL_Entity fle : dstEntities) {
-//					Entity e = FLWrapHelper.fromFLEntity(fle);
-//					if (e != null) {
-//						wrappedEntities.add(e);
-//					} else {
-//						toRemove.add(fle);
-//					}
-//				}
-//				
-//				for (FL_Entity fle : toRemove) {
-//					dstEntities.remove(fle);
-//				}
-				
-				// cluster the dst entities
-				List<String> results = clusterer.clusterEntities(dstEntities, dstContext, sessionId);
-				s_logger.info("Done clustering link entities (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
-				
-				//TODO : either add this method to the FL_ClusteringDataAccess interface (undesirable),
-				//or come up with a better solution than this.
+			s_logger.info("Done clustering link entities (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 
-				List<FL_Cluster> ctxEnts = clusterAccess.getContext(dstContext, sessionId, false);
-				
-				Map<String, FL_Cluster> resultClusterMap = new HashMap<String, FL_Cluster>();
-				for (FL_Cluster c : ctxEnts) {
-					resultClusterMap.put(c.getUid(), c);
-				}
-				
-
-				
-				startms = System.currentTimeMillis();
-				updateAncestorIndex(dstEntities, resultClusterMap, entityAncestorIndex);
-				s_logger.info("Created link entity ancestor map (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
-				
-				//Add the root clusters to the target output list, if it isnt null
-				if (targetOutput!=null) {
-					targetOutput.addAll(results);
-				}
-				
-			}
-			else if (dstEntities.size() > 0) {
-				for (FL_Entity dstEntity : dstEntities) {
-					if (targetOutput!=null) {
-						targetOutput.add(dstEntity);
-					}
-					entityAncestorIndex.put(dstEntity.getUid(), dstEntity.getUid());
-				}
-			}
+			startms = System.currentTimeMillis();
 			
+			// retrieve the dst cluster context so we can aggregate raw links by cluster membership
+			List<FL_Cluster> ctxEnts = clusterAccess.getContext(dstContext, sessionId, false);
+				
+			Map<String, FL_Cluster> resultClusterMap = new HashMap<String, FL_Cluster>();
+			for (FL_Cluster c : ctxEnts) {
+				resultClusterMap.put(c.getUid(), c);
+			}	
+			
+			updateAncestorIndex(dstEntities, resultClusterMap, entityAncestorIndex);
+			
+			s_logger.info("Created link entity ancestor map (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
+				
+			//Add the root clusters to the target output list, if it isnt null
+			if (targetOutput!=null) {
+				targetOutput.addAll(results);  // TODO this is a list of id's but above it's treated like FL_Entity Objects
+			}
+							
 			startms = System.currentTimeMillis();
 			
 			// now we can aggregate on the linkEntities and raw links - add the to the relatedLinks
+			Map<String, List<FL_Link>> agLinks = aggregateLinks(rawLinks, direction, entityAncestorIndex, da);
 			
 			// Need to merge results, not put, or loop links might get lost.
-			
-			Map<String, List<FL_Link>> agLinks = aggregateLinks(rawLinks, direction, entityAncestorIndex, da) ;
 			for (String agKey : agLinks.keySet()) {
 				if (relatedLinks.containsKey(agKey)) {
 					relatedLinks.get(agKey).addAll(agLinks.get(agKey));
@@ -272,16 +281,32 @@ public class EntityAggregatedLinks {
 	}
 
 	
+	/***
+	 * Retrieve aggregated related links between src entityIds and dst entityIds. Entities can be FL_Entities or FL_Clusters
+	 * 
+	 * @param srcEntityIds - src entities to fetch related links for
+	 * @param dstEntityIds - dst entities to fetch related links for
+	 * @param direction - the direction of the link from the entities
+	 * @param tag - a tag filter for returned related links
+	 * @param dateRange - a date filter for returned related links
+	 * @param da - the data access module
+	 * @param clusterAccess - the entity clustering data access module
+	 * @param srcContext - the source entities context
+	 * @param dstContext - the dest entities context
+	 * @param sessionId - the current session id
+	 * @return a map of src entities and their aggregated related links to dst entities
+	 * @throws DataAccessException
+	 * @throws AvroRemoteException
+	 */
 	public static Map<String, List<FL_Link>> getAggregatedLinks(List<String> srcEntityIds, 
 															 List<String> dstEntityIds,
 															 FL_DirectionFilter direction,
 															 FL_LinkTag tag,
-															 FL_DateRange dateRange, 
-															 Collection<String> aggregationFocus, 
+															 FL_DateRange dateRange,  
 															 FL_DataAccess da,
 															 FL_ClusteringDataAccess clusterAccess,
-															 String srcCtx,
-															 String dstCtx,
+															 String srcContext,
+															 String dstContext,
 															 String sessionId) throws DataAccessException {
 		
 		try {
@@ -297,20 +322,11 @@ public class EntityAggregatedLinks {
 				return null;
 			}
 		
-			// TODO need to first retrieve aggregate links that already exist
-		
 			long startms = System.currentTimeMillis();
 			
 			// retrieve the src entities
-			
 			List<Object> srcThings = new ArrayList<Object>();
-			for (String id : srcEntityIds) {
-				List<FL_Cluster> ec = clusterAccess.getEntities(Collections.singletonList(id), srcCtx, sessionId);
-				if (ec != null && !ec.isEmpty()) {
-					srcThings.add(ec.get(0));
-				} 
-			}
-			
+			srcThings.addAll( clusterAccess.getClusters(srcEntityIds, srcContext, sessionId) );
 			srcThings.addAll(da.getEntities(srcEntityIds));
 			
 			s_logger.info("Found "+srcThings.size()+" src entities  (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
@@ -319,46 +335,28 @@ public class EntityAggregatedLinks {
 			
 			// retrieve the dst entities
 			List<Object> dstThings = new ArrayList<Object>(); 
-			for (String id : dstEntityIds) {
-				List<FL_Cluster> ec = clusterAccess.getEntities(Collections.singletonList(id), dstCtx, sessionId);
-				if (ec != null && !ec.isEmpty()) {
-					dstThings.add(ec.get(0));
-				} 
-			}
-				
-			List<FL_Entity> dstTmp = da.getEntities(dstEntityIds);
-			for (FL_Entity o :dstTmp) {
-				dstThings.add(o);
-			}
-			
+			dstThings.addAll( clusterAccess.getClusters(dstEntityIds, dstContext, sessionId) );
+			dstThings.addAll( da.getEntities(dstEntityIds) );
 			
 			s_logger.info("Found "+dstThings.size()+" dst entities  (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 		
-			// keep track of the parent of each entity
-			Map<String, String> entityAncestorIndex = new HashMap<String, String>();  // entity id -> ancestor id
-		
 			startms = System.currentTimeMillis();
 			
-			//TODO : refactoring in progress
+			// keep track of the parent of each entity
+			Map<String, String> entityAncestorIndex = new HashMap<String, String>();  // entity id -> ancestor id
 			
 			// Get all the entity Ids associated with srcEntities and create ancestor map
-			List<String> srcChildEntityIds = buildEntityAncestorMap(srcThings, entityAncestorIndex,clusterAccess,srcCtx, sessionId);
+			List<String> srcChildEntityIds = buildEntityAncestorMap(srcThings, entityAncestorIndex, clusterAccess, srcContext, sessionId);
 		
 			// create ancestor map for dstEntities
-			List<String> dstChildEntityIds = buildEntityAncestorMap(dstThings, entityAncestorIndex,clusterAccess,dstCtx, sessionId);
+			List<String> dstChildEntityIds = buildEntityAncestorMap(dstThings, entityAncestorIndex,clusterAccess, dstContext, sessionId);
 			
 			s_logger.info("Created ancestor map (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 		
 			startms = System.currentTimeMillis();
 			
-			// Get the related links for the srcEntities
-			// HACK this forces retrieving the raw links each time - we need to fetch aggregate links if they are available
-			
-			// HACK : src and dst ids are coming inswitched around, it seems, if direction is DESTINATION?
-			
-			Map<String, List<FL_Link>> rawLinks = null;
-			rawLinks = da.getFlowAggregation(srcChildEntityIds, dstChildEntityIds, direction, tag ,dateRange);
-					
+			// Get the related links for the srcEntities	
+			Map<String, List<FL_Link>> rawLinks = da.getFlowAggregation(srcChildEntityIds, dstChildEntityIds, direction, tag, dateRange);
 			
 			s_logger.info("Found related raw links (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 			
@@ -374,44 +372,22 @@ public class EntityAggregatedLinks {
 			s_logger.error("Exception caught during getAggregatedLinks : "+e.getMessage(),e);
 			throw new DataAccessException("Exception while aggregating links "+e.getMessage(),e);
 		}	
-	}
+	}	
 	
-	/*private static Map<String, List<FL_Link>> filterNonClusterLinks(Map<String, List<FL_Link>> links) {
-		Map<String, List<Link>> filterLinks = new HashMap<String, List<Link>>();
-		
-		for (String key : links.keySet()) {
-			for (FL_Link link : links.get(key)) {
-				if (link.getTag() == ItemTag.CLUSTER) {
-					List<FL_Link> clusterLinks = filterLinks.get(key);
-					if (clusterLinks == null) {
-						clusterLinks = new LinkedList<Link>();
-						filterLinks.put(key, clusterLinks);
-					}
-					clusterLinks.add(link);
-				}
-			}
-		}
-		return filterLinks;
-	}*/
-	
-	
-	
-	private static void updateAncestorIndex(List<FL_Entity> entities, Map<String, ? extends Object> index, Map<String, String> ancestorMap) {
-		Map<String, Object> searchIndex = new HashMap<String, Object>(index);
+	private static void updateAncestorIndex(List<FL_Entity> entities, Map<String, FL_Cluster> searchIndex, Map<String, String> ancestorMap) {
 		for (FL_Entity entity : entities) {
 			String entityId = entity.getUid();
 			
 			// find the ancestor for the entity and add to ancestor map
 			for (String key : searchIndex.keySet()) {
-				Object searchEntity = searchIndex.get(key);
-				if ((searchEntity instanceof FL_Cluster) && ((FL_Cluster)searchEntity).getMembers().contains(entityId)) {
-					FL_Cluster ancestor = (FL_Cluster)searchEntity;
-					while ( ancestor.getParent()!=null && !ancestor.getParent().isEmpty() ) {
-						ancestor = (FL_Cluster)index.get(ancestor.getParent());
-					}
-					ancestorMap.put(entityId, ancestor.getUid());
+				FL_Cluster ancestor = searchIndex.get(key);
+				
+				if (ancestor.getMembers().contains(entityId)) {
+					String rootId = (ancestor.getParent() == null || ancestor.getParent().isEmpty()) ? ancestor.getUid() : ancestor.getRoot();
+					ancestorMap.put(entityId, rootId);
 				}
 			}
+			
 			// if we could not find an ancestor then add the entity to the ancestor map as an ancestor to itself
 			if (!ancestorMap.containsKey(entityId)) {
 				ancestorMap.put(entityId, entityId);
@@ -428,13 +404,15 @@ public class EntityAggregatedLinks {
 
 		for (Object entity : clusters) {
 			if (entity instanceof FL_Cluster) {
+				FL_Cluster cluster = (FL_Cluster)entity;
+				
 				// find all the entities that are decendents of this cluster
-				List<String> childIds = fetchLeaves( clusterAccess, (FL_Cluster)entity, context, sessionId);
+				List<String> childIds = fetchLeaves(clusterAccess, cluster, context, sessionId);
 
 				// keep track of the ancestor for each childId
 				for (String childId : childIds) {
 					entityIds.add(childId);
-					entityAncestorIndex.put(childId, ((FL_Cluster)entity).getUid());
+					entityAncestorIndex.put(childId, cluster.getUid());
 				}
 			} else if (entity instanceof FL_Entity) {
 				FL_Entity fle = (FL_Entity)entity;
@@ -442,11 +420,11 @@ public class EntityAggregatedLinks {
 				entityAncestorIndex.put(fle.getUid(), fle.getUid());
 			}
 		}
+		// return back all child entity ids found
 		return entityIds;
 	}
 	
 	private static List<String> fetchLeaves(FL_ClusteringDataAccess clusterAccess, FL_Cluster cluster, String context, String sessionId) throws AvroRemoteException {
-		
 		List<String> eids = new ArrayList<String>();
 		Deque<FL_Cluster> toProcess = new LinkedList<FL_Cluster>();
 		toProcess.addLast(cluster);
@@ -454,14 +432,13 @@ public class EntityAggregatedLinks {
 		while(!toProcess.isEmpty()) {
 			FL_Cluster procCluster = toProcess.removeFirst();
 			if (!procCluster.getSubclusters().isEmpty()) {
-				toProcess.addAll(clusterAccess.getEntities(procCluster.getSubclusters(), context, sessionId));
+				toProcess.addAll(clusterAccess.getClusters(procCluster.getSubclusters(), context, sessionId));
 			}
 			if (!procCluster.getMembers().isEmpty()) {
 				eids.addAll(procCluster.getMembers());
 			}
 		}
 		return eids;
-		
 	}
 	
 	public static Map<String, List<FL_Link>> aggregateLinks(Map<String, 
@@ -474,10 +451,8 @@ public class EntityAggregatedLinks {
 		for (String id : links.keySet()) {
 			for (FL_Link link : links.get(id)) {
 				String srcId = link.getSource();
-				//if (srcId.indexOf("-") > -1) srcId = srcId.substring(0, srcId.indexOf("-"));
 				String src = ancestorIndex.get(srcId);
 				String destId = link.getTarget();
-				//if (destId.indexOf("-") > -1) destId = destId.substring(0, destId.indexOf("-"));
 				String dst = ancestorIndex.get(destId);
 				
 				// only process links that are in the ancestorIndex
@@ -515,14 +490,12 @@ public class EntityAggregatedLinks {
 						datePropTags.add(FL_PropertyTag.STAT);
 						datePropTags.add(FL_PropertyTag.DATE);
 						FL_Property dateProp = new PropertyHelper(PROP_DATE,PROP_DATE, minDate, maxDate, FL_PropertyType.DATE, datePropTags);
-	
 						props.add(dateProp);
 					}
 					
 					aggregateLink = FL_Link.newBuilder().setDirected(link.getDirected()).setProperties(props).setProvenance(null)
 							.setSource(src).setTags(Collections.singletonList(FL_LinkTag.FINANCIAL)).setTarget(dst).setUncertainty(null).build();
 					
-					//aggregateLink = new FL_Link(src, dst, "", ItemTag.CLUSTER, link.getType(), props, link.isDirected());
 					aggregateLinks.put(key, aggregateLink);
 				}
 				else {
@@ -558,7 +531,6 @@ public class EntityAggregatedLinks {
 							
 						}
 						
-						
 						List<PropertyHelper> a = LinkHelper.getProperties(aggregateLink, p.getKey());
 						if (a != null && a.size() > 0) {
 							switch (a.get(0).getType()) {
@@ -590,7 +562,6 @@ public class EntityAggregatedLinks {
 		
 		Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
 		
-//		List<Item> saveLinks = new LinkedList<Item>();
 		// create the resulting links for each src entity
 		for (String key : aggregateLinks.keySet()) {
 			FL_Link link = aggregateLinks.get(key);
@@ -606,16 +577,10 @@ public class EntityAggregatedLinks {
 				results.put(src, linkset);
 			}
 			linkset.add(link);
-			//saveLinks.add(link);
 		}
-		
-		// save the links to the transient datastore
-		//da.storeItems(saveLinks,false);
 		
 		return results;
 	}
-	
-	
 	
 	private static Set<String> getDestLinkEntity(Map<String, List<FL_Link>> links) {
 		// Get all the dst entity Ids associated with links

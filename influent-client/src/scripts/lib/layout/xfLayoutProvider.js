@@ -1,3 +1,27 @@
+/**
+ * Copyright (c) 2013 Oculus Info Inc.
+ * http://www.oculusinfo.com/
+ *
+ * Released under the MIT License.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 define(['jquery', 'lib/channels', 'lib/module', 'lib/render/workspaceRenderer', 'lib/render/columnRenderer', 'lib/render/cardRenderer',
     'lib/render/fileRenderer', 'lib/render/matchRenderer', 'lib/render/clusterRenderer'],
 function($, chan, modules, workspaceRenderer, columnRenderer, cardRenderer, fileRenderer, matchRenderer, clusterRenderer) {
@@ -108,20 +132,20 @@ function($, chan, modules, workspaceRenderer, columnRenderer, cardRenderer, file
                         };
                         var fileBodyHeight;
                         if (visualInfo.clusterUIObject.isExpanded()){
-                            fileBodyHeight = _processUIObject(visualInfo.clusterUIObject, colIndex, top, originX)
-                            top = fileBodyHeight + _fileDefaults.FOOTER_HEIGHT + _fileDefaults.MARGIN_BOTTOM
+                            fileBodyHeight = _processUIObject(visualInfo.clusterUIObject, colIndex, top, originX) + _clusterDefaults.EXPANDED_PADDING_BOTTOM;
+                            top = fileBodyHeight + _fileDefaults.FOOTER_HEIGHT + _fileDefaults.MARGIN_BOTTOM;
                         }
                         else {
                             fileBodyHeight = cardRenderer.getCardHeight(visualInfo.showDetails)
                                 + 2*(_cardDefaults.BORDER_WIDTH) + _cardDefaults.CARD_SPACING +
                                 clusterStackHeight;
-                            top += fileBodyHeight + _fileDefaults.FOOTER_HEIGHT + _fileDefaults.MARGIN_BOTTOM
+                            top += fileBodyHeight + _fileDefaults.FOOTER_HEIGHT + _fileDefaults.MARGIN_BOTTOM;
                         }
                     }
                     // This is an empty file. We just need to add the
                     // height of the empty file placeholder.
                     else {
-                        top += _fileDefaults.EMPTY_FILE_HEIGHT + _fileDefaults.FOOTER_HEIGHT + _fileDefaults.MARGIN_BOTTOM
+                        top += _fileDefaults.EMPTY_FILE_HEIGHT + _fileDefaults.FOOTER_HEIGHT + _fileDefaults.MARGIN_BOTTOM;
                     }
 
                     // Process the xfMatch object.

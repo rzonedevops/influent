@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.0.1-SNAPSHOT</version>
+		<version>1.1.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>kiva</artifactId>
@@ -663,12 +663,6 @@
 	
 	<dependencies>
 		<dependency>
-			<artifactId>influent-midtier</artifactId>
-			<groupId>${project.parent.groupId}</groupId>
-			<version>${project.parent.version}</version>
-		</dependency>
-		
-		<dependency>
 			<artifactId>influent-server</artifactId>
 			<groupId>${project.parent.groupId}</groupId>
 			<version>${project.parent.version}</version>
@@ -693,42 +687,11 @@
 		</dependency>
 		
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-		</dependency>
-
-		<dependency>
 			<artifactId>solr-solrj</artifactId>
 			<groupId>org.apache.solr</groupId>
 			<version>4.1.0</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>commons-logging</groupId>
-			<artifactId>commons-logging</artifactId>
-			<version>1.1.1</version>
-		</dependency>
-
-		<dependency>
-			<groupId>net.sf.ehcache</groupId>
-			<artifactId>ehcache-core</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>net.sf.ehcache</groupId>
-			<artifactId>ehcache-web</artifactId>
-		</dependency>
-		
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
@@ -742,45 +705,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.sun.jersey</groupId>
-			<artifactId>jersey-core</artifactId>
-			<version>1.11</version>
-		</dependency>
-		
-		<dependency>
-    		<groupId>com.sun.jersey</groupId>
-    		<artifactId>jersey-client</artifactId>
-    		<version>1.11</version>
-		</dependency>
-		
-		<dependency>
-    		<groupId>com.sun.jersey.contribs</groupId>
-    		<artifactId>jersey-apache-client</artifactId>
-    		<version>1.11</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>com.sun.jersey</groupId>
-			<artifactId>jersey-json</artifactId>
-			<version>1.11</version>
-		</dependency>
-		
-		<dependency>
-			<artifactId>aperture-common</artifactId>
-			<groupId>oculus.aperture</groupId>
-			<version>1.0.0-SNAPSHOT</version>
-		</dependency>
-		
-		<dependency>
-			<artifactId>aperture-capture-phantom</artifactId>
-			<groupId>oculus.aperture.service</groupId>
-			<version>1.0.0-SNAPSHOT</version>
-		</dependency>
-		
-		<dependency>
-  			<groupId>org.lesscss</groupId>
-  			<artifactId>lesscss-maven-plugin</artifactId>
-  			<version>1.3.0</version>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<scope>runtime</scope> <!-- change this to compile if needed for tests -->
 		</dependency>
 	</dependencies>
 </project>

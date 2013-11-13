@@ -24,7 +24,6 @@
  */
 package influent.server.data;
 
-import influent.midtier.ChartData;
 
 import java.awt.Color;
 import java.awt.Graphics2D;

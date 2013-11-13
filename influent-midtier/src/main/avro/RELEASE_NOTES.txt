@@ -17,6 +17,10 @@ DataTypes
 	- added DISTRIBUTION
 - Property
 	- added DistributionRange as an option for member range
+	
+ClusteringDataAccess
+- removed getAccounts() method
+- renamed getEntities() to getClusters()
 		
 Version 1.5
 ------------
