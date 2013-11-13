@@ -414,10 +414,11 @@ define(['jquery', 'lib/module', 'lib/channels'],
                             }
                         }
 
+                        searchString += 'datatype:"'+ $('#entities').val()+ '"';
+                        
                         var searchData = {
                             xfId : _UIObjectState.parentId,
                             searchTerm : searchString,
-                            type : $('#entities').val(),
                             noRender : true
                         };
 

@@ -16,7 +16,7 @@ public class EntitySearchTerms {
 	private List<FL_PropertyMatchDescriptor> terms = new ArrayList<FL_PropertyMatchDescriptor>();
 	private Boolean doCluster = null;
 	
-	
+	private String dataType = null;
 	
 	public EntitySearchTerms(String term) {
 		Pattern extraTermRegEx = Pattern.compile("\\A([^:]*)(\\s*$| [^:\\s]+:.*)");
@@ -41,6 +41,17 @@ public class EntitySearchTerms {
 					doCluster = (clusterBoolString.equalsIgnoreCase("true") || clusterBoolString.equalsIgnoreCase("yes"));
 				}
 				
+				continue;
+			}
+			
+			if (tagName.equalsIgnoreCase("datatype")) {
+				dataType = tagsMatcher.group(2).toString().trim();
+				if (dataType.indexOf('"') == 0) {
+					dataType = dataType.substring(1);
+				}
+				if (dataType.lastIndexOf('"') == dataType.length()-1) {
+					dataType = dataType.substring(0, dataType.length()-1);
+				}
 				continue;
 			}
 			
@@ -83,7 +94,9 @@ public class EntitySearchTerms {
 	}
 	
 	
-	
+	public String getType() {
+		return dataType;
+	}
 	
 	public Boolean doCluster() {
 		return doCluster;

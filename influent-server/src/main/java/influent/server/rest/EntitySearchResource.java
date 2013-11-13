@@ -125,13 +125,12 @@ public class EntitySearchResource extends ApertureServerResource{
 			}
 			
 			// get the search term
-			String term = jsonObj.getString("term").trim();
+			final String term = jsonObj.getString("term").trim();
 			
-			// get the advanced search type
-			// TODO: UI doesn't send this yet
-			String type = jsonObj.has("type") ? jsonObj.getString("type").trim() : null;
+			final EntitySearchTerms terms = new EntitySearchTerms(term);
 			
-			EntitySearchTerms terms = new EntitySearchTerms(term);
+			// get the data type
+			final String type = terms.getType();
 			
 			if (terms.doCluster() != null) {
 				doCluster = terms.doCluster();
