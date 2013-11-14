@@ -10,7 +10,7 @@
 		<!-- Delete the old kiva WAR file -->
 		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f /cygdrive/c/jetty-7-stage/webapps/kiva*"/>
 		<!-- Copy the WAR snapshot and rename to kiva.war -->
-		<scp file="kiva/target/kiva-1.0.1-SNAPSHOT.war" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/jetty-7-stage/webapps/kiva.war" trust="yes"/>
+		<scp file="kiva/target/kiva-${version}.war" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/jetty-7-stage/webapps/kiva.war" trust="yes"/>
 		<!-- Copy the app.properties file for merging -->
 		<scp file="kiva/src/main/resources/app.properties" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/jetty-7-stage/tempApp.properties" trust="yes"/>
 		<!-- Merge app.properties in with the host copy -->
@@ -19,7 +19,7 @@
         <!-- Delete the old bitcoin WAR file -->
         <sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f /cygdrive/c/jetty-7-stage/webapps/bitcoin*"/>
         <!-- Copy the WAR snapshot and rename to bitcoin.war -->
-        <scp file="bitcoin/target/bitcoin-1.0.1-SNAPSHOT.war" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/jetty-7-stage/webapps/bitcoin.war" trust="yes"/>
+        <scp file="bitcoin/target/bitcoin-${version}.war" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/jetty-7-stage/webapps/bitcoin.war" trust="yes"/>
 		
 		<!-- Delete any lingering temp files -->
 		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f /cygdrive/c/jetty-7-stage/tempApp.properties"/>
