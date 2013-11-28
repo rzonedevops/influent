@@ -38,7 +38,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
         	SEARCH_RESULT_HEIGHT : 100,
         	TAB_HEIGHT : 12
     	};
-        var _ajaxSpinner = 'url(' + xfUtil.getUrl('img/ajax-loader.gif') + ') no-repeat center center';
+        var _ajaxSpinner = 'url(img/ajax-loader.gif) no-repeat center center';
 
         //--------------------------------------------------------------------------------------------------------------
 

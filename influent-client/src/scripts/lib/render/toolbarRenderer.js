@@ -239,7 +239,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
                     });
 
                     var fileImg = $('<img/>');
-                    fileImg.attr('src' , xfUtil.getUrl('img/new_file.png'));
+                    fileImg.attr('src' , 'img/new_file.png');
 
                     fileDiv.append(fileImg);
                     fileDiv.css('float','left');
@@ -293,7 +293,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
                     });
 
                     var searchImg = $('<img/>');
-                    searchImg.attr('src' , xfUtil.getUrl('img/search-small.png'));
+                    searchImg.attr('src' , 'img/search-small.png');
 
                     searchDiv.append(searchImg);
                     searchDiv.css('float','left');
@@ -315,7 +315,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
                     });
 
                     var focusImg = $('<img/>');
-                    focusImg.attr('src', xfUtil.getUrl('img/arrows.png'));
+                    focusImg.attr('src', 'img/arrows.png');
 
                     focusBtnDiv.append(focusImg);
                     focusBtnDiv.css('float','left');
@@ -337,7 +337,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
                     });
 
                     var pinImg = $('<img/>');
-                    pinImg.attr('src', xfUtil.getUrl(visualInfo.isPinned?'img/empty-button.png':'img/pin-button.png'));
+                    pinImg.attr('src', visualInfo.isPinned?'img/empty-button.png':'img/pin-button.png');
                     pinBtnDiv.attr('id', visualInfo.xfId+'_pinBtnDiv');
                     pinBtnDiv.append(pinImg);
                     pinBtnDiv.css('float','left');
@@ -390,7 +390,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
                 );
 
                 var closeImg = $('<img/>');
-                closeImg.attr('src', xfUtil.getUrl('img/close_box.png'));
+                closeImg.attr('src', 'img/close_box.png');
                 closeDiv.addClass('cardToolbarItem');
                 closeDiv.addClass('remove-button');
                 closeDiv.append(closeImg);
@@ -446,7 +446,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
                 });
 
                 var focusImg = $('<img/>');
-                focusImg.attr('src', xfUtil.getUrl('img/arrows.png'));
+                focusImg.attr('src', 'img/arrows.png');
 
                 focusBtnDiv.append(focusImg);
                 focusBtnDiv.css('position', 'relative');
@@ -469,7 +469,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
                 });
 
                 var fileImg = $('<img/>');
-                fileImg.attr('src' , xfUtil.getUrl('img/file_add.png'));
+                fileImg.attr('src' , 'img/file_add.png');
 
                 fileDiv.append(fileImg);
                 fileDiv.addClass('matchToolbarItem');
@@ -500,7 +500,7 @@ function($, chan, xfUtil, toolbarOp, xfModalDialog) {
             );
 
             var closeImg = $('<img/>');
-            closeImg.attr('src', xfUtil.getUrl('img/close_box.png'));
+            closeImg.attr('src', 'img/close_box.png');
             closeDiv.addClass('matchToolbarItem');
             closeDiv.addClass('remove-button');
             closeDiv.append(closeImg);

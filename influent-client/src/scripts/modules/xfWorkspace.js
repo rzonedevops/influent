@@ -2320,7 +2320,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     $.blockUI({
                         theme: true,
                         title: 'Capture In Progress',
-                        message: '<img src="' + xfUtil.getUrl('img/ajax-loader.gif') + '" style="display:block;margin-left:auto;margin-right:auto"/>'
+                        message: '<img src="img/ajax-loader.gif" style="display:block;margin-left:auto;margin-right:auto"/>'
                     });
 
                     var timestamp = (new Date().getTime());
@@ -2412,7 +2412,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     $.blockUI({
                         theme: true,
                         title: 'Export In Progress',
-                        message: '<img src="' + xfUtil.getUrl('img/ajax-loader.gif') + '" style="display:block;margin-left:auto;margin-right:auto"/>'
+                        message: '<img src="img/ajax-loader.gif" style="display:block;margin-left:auto;margin-right:auto"/>'
                     });
 
                     var timestamp = (new Date().getTime());

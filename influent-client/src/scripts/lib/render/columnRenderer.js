@@ -89,7 +89,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
             });
 
             var fileImg = $('<img/>');
-            fileImg.attr('src' , xfUtil.getUrl('img/new_file.png'));
+            fileImg.attr('src' , 'img/new_file.png');
 
             fileDiv.append(fileImg);
             fileDiv.css('float', 'right');
@@ -113,7 +113,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
             var cleanColumnImg = $('<img/>');
             
             // icon courtesy of http://p.yusukekamiyamane.com 
-            cleanColumnImg.attr('src' , xfUtil.getUrl('img/clean_column.png'));
+            cleanColumnImg.attr('src' , 'img/clean_column.png');
 
             cleanColumnDiv.append(cleanColumnImg);
             cleanColumnDiv.css('float', 'right');

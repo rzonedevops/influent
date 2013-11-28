@@ -368,20 +368,10 @@ define(['jquery', 'lib/channels','lib/render/cardRenderer', 'lib/render/matchRen
     fileRenderer.createElement = function(visualInfo) {
         var spec = visualInfo.spec;
         var canvas = $('#' + visualInfo.xfId);
-        if (canvas.length > 0 && canvas[0].childNodes.length > 0){
+        if (canvas.length > 0) {
         	// DO NOT remove the match card container, as it has it's own renderer and will be re-created if needed
-        	var toRemove = [];
-        	for(var i = 0; i < canvas[0].childNodes.length; i++) {
-        		if(!canvas[0].children[i].classList.contains('matchCardContainer')) {
-        			toRemove.push(canvas[0].childNodes[i]);
-        		}
-        	}
-        	
-        	for(var i = 0; i < toRemove.length; i++) {
-        		toRemove[i].remove();
-        	}
-        }
-        else {
+        	canvas.children().not('.matchCardContainer').remove();
+        } else {
             canvas = $('<div class="file"/>');
             canvas.attr('id', visualInfo.xfId);
         }
