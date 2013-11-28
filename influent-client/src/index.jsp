@@ -1,3 +1,4 @@
+<!DOCTYPE HTML>
 <!--
     Copyright (c) 2013 Oculus Info Inc.
     http://www.oculusinfo.com/
@@ -22,7 +23,6 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 -->
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <%@ page
     language="java"
     pageEncoding="utf-8"
@@ -33,6 +33,7 @@
 %>
 <html>
     <head>
+	    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta charset="UTF-8">
         <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
         <link rel="stylesheet" type="text/css" href="theme/custom-theme/jquery-ui-1.8.13.custom.css"/>

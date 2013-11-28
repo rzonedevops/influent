@@ -209,19 +209,6 @@ define([],
 
         //--------------------------------------------------------------------------------------------------------------
 
-        var _getUrl = function(uri) {
-            var originUrl = document.location.origin + document.location.pathname;
-            originUrl = originUrl.substr(0, originUrl.lastIndexOf('/') + 1);
-
-            if (originUrl.charAt(originUrl.length - 1) != '/') {
-                originUrl = originUrl + '/';
-            }
-
-            return originUrl + uri;
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
-
         var _getChildrenByType = function(target, uiType) {
             var toReturn = [];
             var acceptedTypes = [uiType];
@@ -296,10 +283,15 @@ define([],
         //--------------------------------------------------------------------------------------------------------------
 
         var _stringToBoolean = function(string) {
-            switch(string.toLowerCase()) {
-                case "false": case "no": case "0": case "" : return false;
-                default: return true;
-            }
+        	if (aperture.util.isString(string)) {
+	            switch(string.toLowerCase()) {
+	                case "false": case "no": case "0": case "" : return false;
+	            }
+        	} else if (string === true || string === false) {
+        		return string;
+        	}
+        	
+        	return true;
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -349,7 +341,6 @@ define([],
             getAdjacentObjectInfo : _getAdjacentObjectInfo,
             constructLayoutRequest : _constructLayoutRequest,
             getSafeURI : _getSafeURI,
-            getUrl : _getUrl,
             getChildrenByType : _getChildrenByType,
             getLinkableChildren : _getLinkableChildren,
             stringToBoolean : _stringToBoolean,

@@ -89,7 +89,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
                         {
         					imgUrl: nextIcon.url || aperture.palette.icon(nextIcon.icon),
         					title: (nextIcon.title || '') + ' ('+ count+ ')',
-                            score : count / clusterCount,
+                            score : count / clusterCount
                         }
                     );
         		}

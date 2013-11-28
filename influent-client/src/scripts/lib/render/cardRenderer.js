@@ -48,7 +48,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/toolbarRenderer
         BORDER_WIDTH        : 1
     };
 
-    var _ajaxSpinner = 'url("' + xfUtil.getUrl('img/ajax-loader.gif') + '") no-repeat center center';
+    var _ajaxSpinner = 'url("img/ajax-loader.gif") no-repeat center center';
 
     //------------------------------------------------------------------------------------------------------------------
     // Private Functions
