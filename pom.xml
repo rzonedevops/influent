@@ -5,7 +5,7 @@
 	<groupId>oculus.influent</groupId>
 	<artifactId>influent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.1.2-SNAPSHOT</version>
+	<version>1.1.2</version>
 
 	<name>Influent Project Modules</name>
 	<description>Parent module for building Influent projects</description>
@@ -29,6 +29,9 @@
 		</developer>
 	</developers>
 
+	<properties>
+		<aperture.version>1.0.2</aperture.version>
+	</properties>
 	<build>
 		<plugins>
 			<plugin>
