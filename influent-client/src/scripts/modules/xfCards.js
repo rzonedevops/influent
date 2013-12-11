@@ -23,8 +23,15 @@
  * SOFTWARE.
  */
 
-define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xfWorkspace', 'lib/models/xfClusterBase', 'lib/models/xfCard', 'lib/util/xfUtil'],
-    function($, modules, chan, currency, xfWorkspace, xfClusterBase, xfCard, xfUtil) {
+define(
+    [
+        'jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xfWorkspace',
+        'lib/models/xfClusterBase', 'lib/models/xfCard', 'lib/util/xfUtil', 'lib/constants'
+    ],
+    function(
+        $, modules, chan, currency, xfWorkspace,
+        xfClusterBase, xfCard, xfUtil, constants
+    ) {
         var module = {};
 
         //--------------------------------------------------------------------------------------------------------------
@@ -127,7 +134,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
         	var label = xfWorkspace.getValueByTag(elementData, 'LABEL');
 
             spec.dataId = elementData.uid;
-            spec.isCluster = true;
+            spec.type = (elementData.entitytype == 'cluster_summary') ? constants.MODULE_NAMES.SUMMARY_CLUSTER : constants.MODULE_NAMES.CLUSTER_BASE;
+            spec.subtype = elementData.entitytype;
             spec.members = stubMembers;
             spec.icons = _getClusterIcons(elementData, entityCount);
             spec.count = entityCount;
@@ -139,7 +147,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
         var _processEntity = function(elementData, spec) {
         	
             spec.dataId = elementData.uid;
-            spec.isCluster = false;
+            spec.type = constants.MODULE_NAMES.ENTITY;
+            spec.subtype = elementData.entitytype;
             spec.label = xfWorkspace.getValueByTag(elementData, 'LABEL');
             spec.icons = [];
 
@@ -217,10 +226,10 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
                 }
             }
             
-            if (elementData.isCluster) {
-                _processEntityCluster(elementData, spec);
-            } else {
+            if (elementData.entitytype == 'entity') {
                 _processEntity(elementData, spec);
+            } else {
+                _processEntityCluster(elementData, spec);
             }
         };
 
@@ -260,11 +269,10 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
                 function(focusMDC) {
                     for (var i = 0; i < specs.length; i++) {
                     	 var specUIObj = xfWorkspace.getUIObjectsByDataId(specs[i].dataId)[0];            
-                         var columnObj = xfUtil.getUITypeAncestor(specUIObj, 'xfColumn');
+                         var columnObj = xfUtil.getUITypeAncestor(specUIObj, constants.MODULE_NAMES.COLUMN);
 
                          updates.push({
                             dataId : specs[i].dataId,
-                            isCluster : specs[i].isCluster,
                             contextId : columnObj.getXfId()
                         });
                     }
@@ -282,10 +290,12 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
             	aperture.log.error('no focus account in chart request. bailing out of request!');
                 return;
             }
+
+            var focusId = focus.dataId;
             
             var entity = {
                 contextId : focus.contextId,
-                dataId : focus.dataId
+                dataId : focusId
             };
 
             // Separate call for files?
@@ -293,8 +303,10 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
                     '/chart',
                     'POST',
                     function(response) {
-                        // pull MDC out of response
-                        var maxCreditDebit = (response[focus.dataId].maxDebit > response[focus.dataId].maxCredit) ? response[focus.dataId].maxDebit : response[focus.dataId].maxCredit;
+                        var responseData = response[focusId];
+                        var maxCreditDebit = responseData? 
+                        		responseData.maxDebit > responseData.maxCredit ? 
+                        				responseData.maxDebit : responseData.maxCredit : null;
 
                         onReturn(maxCreditDebit);
                     },
@@ -305,7 +317,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
                             startDate : xfWorkspace.getFilterDates().startDate,
                             endDate :  xfWorkspace.getFilterDates().endDate,
                             numBuckets : xfWorkspace.getFilterDates().numBuckets,
-                            focusId : focus.memberIds,
+                            focusId : [focus.dataId],
                             focusMaxDebitCredit : "",
                             focuscontextid : focus.contextId
                         },
@@ -339,7 +351,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xf
                             startDate : xfWorkspace.getFilterDates().startDate,
                             endDate :  xfWorkspace.getFilterDates().endDate,
                             numBuckets : xfWorkspace.getFilterDates().numBuckets,
-                            focusId : focus.memberIds,
+                            focusId : [focus.dataId],
                             focusMaxDebitCredit : focusMDC,
                             focuscontextid : focus.contextId
                         },

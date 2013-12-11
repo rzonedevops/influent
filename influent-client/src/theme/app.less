@@ -290,8 +290,47 @@ body {
 	width: 60%;
 	height: @influent-properties-height;
 	border-left: @influent-grey-border;
+    padding: 0px;
+    border: 0px;
 }
-	
+
+#tableTab {
+    padding: 0px;
+    position: absolute;
+    top: 33px;
+    bottom: 1px;
+    right: 1px;
+    left: 1px;
+}
+
+#chartTab {
+    padding: 0px;
+    position: absolute;
+    top: 33px;
+    bottom: 1px;
+    right: 1px;
+    left: 1px;
+}
+
+.tabs {
+    padding: 0px;
+    background: none;
+    border-width: 0px;
+}
+
+.ui-tabs-nav {
+    padding-left: 0px;
+    background: transparent;
+    border-width: 0px 0px 1px 0px;
+    -moz-border-radius: 0px;
+    -webkit-border-radius: 0px;
+    border-radius: 0px;
+}
+
+.ui-tabs-panel {
+    border-width: 0px 1px 1px 1px;
+}
+
 #dateradio {
 	position:relative;
 	padding-bottom:5px;
@@ -402,6 +441,16 @@ body {
 	position : relative;
 }
 
+.insideBaseballCard {
+	position: absolute;
+	top: 0px;
+	right: 0px;
+	bottom: 0px;
+	left: 0px;
+	.rounded-corners(@influent-card-corner-radius - 2);
+	border: 1px solid rgba(255,255,255,0);
+}
+
 .selectedContainer { 
 	border : @influent-select-border;
 }
@@ -453,6 +502,10 @@ body {
 	width : 20px;
 	height : 20px;
     background-color: #d3d3d3;
+}
+
+.selectedContainer { 
+	border : @influent-select-border;
 }
 
 .leftOp {
@@ -951,6 +1004,27 @@ body {
   margin-left:1px;
 }
 
+#advancedTabs {
+	top: .5em;
+	bottom: .5em;
+	left: 1em;
+	right: 1em;
+	position: absolute;
+}
+
+.match-tab {
+	top: 34px;
+	right: .2em;
+	left: .2em;
+	bottom: .2em;
+	overflow: auto;
+	position: absolute;
+}
+
+#patternEngineDescription {
+	margin-top: 20px;
+}
+
 .matchRemoveButton {
   width:15px;
   height: 15px;
@@ -1024,3 +1098,18 @@ body {
 .currency-table-column {
 	text-align: right;
 }
+
+.tooltip-selected-entity {
+	color: darken(@influent-select-color, 20%);
+}
+
+.tooltip-focus-entity {
+	color: darken(@influent-highlight-color, 10%);
+}
+
+.influent-tooltip {
+	background-color: rgba(255,255,255,0.75);
+	border: 1px solid rgba(0,0,0,0.5);
+	padding: 5px 5px 5px 5px;
+}
+

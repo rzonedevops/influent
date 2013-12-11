@@ -68,7 +68,7 @@ protocol FL_EntitySearch {
 	The set of results from a single search call. Each item also has a score.
 	 */
 	record FL_SearchResults {
-		/** total number of results found */
+		/** total number of results FOUND, which may be more than the number returned. */
 		long total = 0;
 		
 		/** array of Items (Entities or Links) with scores */

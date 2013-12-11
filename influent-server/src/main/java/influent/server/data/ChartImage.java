@@ -43,6 +43,7 @@ public class ChartImage extends BufferedImage {
 		NEGATIVE_BAR(new Color(0x6B,0x59,0x35,0x7F)),
 		POSITIVE_BAR_HILITE(new Color(0xF6,0x8C,0x0D,0xFF)), // currently same colour as dark orange
 		NEGATIVE_BAR_HILITE(new Color(0xB0,0x61,0x00,0xFF)), // currently same colour as light orange
+		CAP_BAR(new Color(0x00,0x00,0x00,0x7F)),
 		RING_CENTER(new Color(0xC8,0xC8,0xC8,0xFF)),
 		RING_BALANCE(new Color(0x4C,0x4C,0x4C,0xFF)),
 		RING_GROWTH(new Color(0xB7,0xF9,0x54,0xE5)),
@@ -108,70 +109,119 @@ public class ChartImage extends BufferedImage {
 		//-----------------------
 		
 		x = x - SPACER;
-		final double maxViewableBarHeight = (double)getHeight() / 2.0 - 1;
+		final int maxViewableBarHeight = (int)((getHeight() - 3.0) / 2.0);
 		
 		double maxAbsoluteMoney = Math.max(data.getMaxCredit(), data.getMaxDebit());
 		
-		final double extraScaleBuffer = 1.2; // should be in the client but currently not. defines the ACTUAL scale.
+		// use focus's max absolute value instead (rescale to the focus)
 		if (focusMaxDebitCredit != null) {
-			// use focus's max absolute value instead (rescale to the focus)
-			maxAbsoluteMoney = (focusMaxDebitCredit==null) ? 0.0 : focusMaxDebitCredit * extraScaleBuffer;
+			maxAbsoluteMoney = focusMaxDebitCredit;
+		}
+		
+		// sanity check this.
+		if (maxAbsoluteMoney <= 0) {
+			maxAbsoluteMoney = 1.0;
 		}
 		
 		for (int i = 0; i < numBuckets; i++) {
-			g2d.setColor(COLORS.POSITIVE_BAR.color);
 			x = x + BAR_WIDTH + SPACER;
 			
+			boolean clipped = false;
+
 			// size for full scale
 			double moneyScaled = data.getCredits().get(i) / maxAbsoluteMoney;
-			if (moneyScaled > maxViewableBarHeight) moneyScaled = maxViewableBarHeight;
-			double barHeight = maxViewableBarHeight * moneyScaled;
+			int barHeight;
 			
-			g2d.fillRect(
-				x, 
-				(int)Math.round(centerline - 1 - barHeight),
-				BAR_WIDTH, 
-				(int)Math.round(barHeight)
-			);
-
+			if (moneyScaled > 0.0) {
+				if (moneyScaled > 1.0) {
+					moneyScaled = 1.0;
+					clipped = true;
+				}
+				
+				barHeight = (int)Math.ceil(moneyScaled * maxViewableBarHeight);
+				
+				// main bar above
+				g2d.setColor(COLORS.POSITIVE_BAR.color);
+				g2d.fillRect(
+					x, 
+					centerline - 1 - barHeight,
+					BAR_WIDTH, 
+					barHeight
+				);
+			}
+			
+			// focus sub-bar above
 			if (data.getFocusCredits().get(i) > 0) {
 				g2d.setColor(COLORS.POSITIVE_BAR_HILITE.color);
-				moneyScaled = data.getFocusCredits().get(i) / maxAbsoluteMoney;
-				barHeight = maxViewableBarHeight * moneyScaled;
+				moneyScaled = Math.min(1.0, data.getFocusCredits().get(i) / maxAbsoluteMoney);
+				barHeight = (int)Math.ceil(moneyScaled * maxViewableBarHeight);
 				
 				g2d.fillRect(
 					x, 
 					(int)Math.round(centerline - 1 - barHeight),
 					BAR_WIDTH, 
-					(int) (Math.round(barHeight) > 0 ? Math.round(barHeight) : 1) 
+					barHeight
 				);
 			}
 
-			g2d.setColor(COLORS.NEGATIVE_BAR.color);
+			// if clipped top, mark it
+			if (clipped) {
+				g2d.setColor(COLORS.CAP_BAR.color);
+				g2d.fillRect(
+					x - 1, 
+					centerline - 1 - maxViewableBarHeight,
+					BAR_WIDTH + 2, 
+					1
+				);
+			}
 
+			clipped = false;
 			moneyScaled = data.getDebits().get(i) / maxAbsoluteMoney;
-			if (moneyScaled > maxViewableBarHeight) moneyScaled = maxViewableBarHeight;
-			barHeight = (maxViewableBarHeight - 1) * moneyScaled;
 
-			g2d.fillRect(
-				x, 
-				centerline + 2, 
-				BAR_WIDTH,
-				(int)Math.round(barHeight)
-			);
-			
-			if (data.getFocusDebits().get(i) > 0) {
-				g2d.setColor(COLORS.NEGATIVE_BAR_HILITE.color);
-				moneyScaled = data.getFocusDebits().get(i) / maxAbsoluteMoney;
-				barHeight = (maxViewableBarHeight - 1) * moneyScaled;
+			if (moneyScaled > 0.0) {
+				if (moneyScaled > 1.0) {
+					moneyScaled = 1.0;
+					clipped = true;
+				}
 				
+				barHeight = (int)Math.ceil(moneyScaled * maxViewableBarHeight);
+	
+				g2d.setColor(COLORS.NEGATIVE_BAR.color);
+
+				// main bar below.
+				g2d.fillRect(
+					x, 
+					centerline + 2, 
+					BAR_WIDTH,
+					barHeight
+				);
+			}
+			
+			// focus sub-bar below
+			if (data.getFocusDebits().get(i) > 0) {
+				moneyScaled = Math.min(1.0,  data.getFocusDebits().get(i) / maxAbsoluteMoney);
+				barHeight = (int)Math.ceil(moneyScaled * maxViewableBarHeight);
+				
+				g2d.setColor(COLORS.NEGATIVE_BAR_HILITE.color);
 				g2d.fillRect(
 					x, 
 					centerline + 2, 
 					BAR_WIDTH, 
-					(int) (Math.round(barHeight) > 0 ? Math.round(barHeight) : 1)
+					barHeight
 				);
 			}
+
+			// if clipped, mark it.
+			if (clipped) {
+				g2d.setColor(COLORS.CAP_BAR.color);
+				g2d.fillRect(
+					x - 1, 
+					centerline + 1 + maxViewableBarHeight,
+					BAR_WIDTH + 2, 
+					1
+				);
+			}
+			
 		}
 	}
 }

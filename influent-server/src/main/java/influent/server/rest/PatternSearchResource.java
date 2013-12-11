@@ -38,6 +38,7 @@ import influent.idl.FL_PatternSearchResult;
 import influent.idl.FL_PatternSearchResults;
 import influent.idl.FL_PropertyType;
 import influent.idlhelper.SerializationHelper;
+import influent.midtier.TypedId;
 import influent.server.utilities.AvroUtils;
 import influent.server.utilities.DateTimeParser;
 import influent.server.utilities.UISerializationHelper;
@@ -151,7 +152,17 @@ public class PatternSearchResource extends ApertureServerResource{
 			List<FL_EntityMatchDescriptor> exampleEntities = example.getEntities();
 			Map<String, String> hackMap = new HashMap<String, String>(exampleEntities.size());
 			for (int i = 0; i < exampleEntities.size(); i++) {
-				hackMap.put("E" + i, exampleEntities.get(i).getUid());
+				final FL_EntityMatchDescriptor emd = exampleEntities.get(i);
+				hackMap.put("E" + i, emd.getUid());
+
+				List<String> ids = new ArrayList<String>(emd.getExamplars().size());
+
+				// get native entity id refs from globals and substitute
+				for (String uid : emd.getExamplars()) {
+					ids.add(TypedId.fromTypedId(uid).getNativeId());
+				}
+				
+				emd.setExamplars(ids);
 			}
 
 			getLogger().info("Executing pattern search: "+ SerializationHelper.toJson(example));
@@ -198,10 +209,12 @@ public class PatternSearchResource extends ApertureServerResource{
 
 				// gather a set of all entity ids to lookup
 				for (FL_EntityMatchResult entityResult : searchResult.getEntities()) {
-					final String entityId = entityResult.getEntity().getUid().toString();
+					String entityId = entityResult.getEntity().getUid().toString();
 
 					trace.append(" ");
 					trace.append(entityId);
+					
+					entityId = TypedId.fromNativeId(TypedId.ACCOUNT, entityId).getTypedId();
 					
 					String resultUid = entityResult.getUid();
 					if (hackMap.containsKey(resultUid)) {

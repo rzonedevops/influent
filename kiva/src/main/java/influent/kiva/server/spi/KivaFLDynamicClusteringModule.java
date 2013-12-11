@@ -24,8 +24,6 @@
  */
 package influent.kiva.server.spi;
 
-import java.io.InputStream;
-
 import influent.cluster.DynamicClustering;
 import influent.entity.clustering.GeneralEntityClusterer;
 import influent.entity.clustering.utils.PropertyManager;
@@ -35,9 +33,12 @@ import influent.idl.FL_DataAccess;
 import influent.idl.FL_Geocoding;
 import influent.midtier.api.EntityClusterer;
 
+import java.io.InputStream;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 
 
 /**
@@ -60,12 +61,21 @@ public class KivaFLDynamicClusteringModule extends AbstractModule {
 	public DynamicClustering clustering (
 			FL_DataAccess dataAccess,
 			FL_Geocoding geocoding,
-			EntityClusterer clusterer
+			EntityClusterer clusterer,
+			@Named("influent.midtier.ehcache.config") String ehCacheConfig,
+			@Named("influent.dynamic.clustering.cache.name") String cacheName
 	) {
 
 		try {
 			InputStream configStream = KivaFLDynamicClusteringModule.class.getResourceAsStream("/clusterer.properties");
-			return new DynamicClustering(dataAccess, geocoding, clusterer, new PropertyManager(configStream));
+			return new DynamicClustering(
+				dataAccess, 
+				geocoding, 
+				clusterer, 
+				new PropertyManager(configStream),
+				ehCacheConfig,
+				cacheName
+			);
 		} catch (Exception e) {
 			addError("Failed to load Clustering", e);
 			return null;

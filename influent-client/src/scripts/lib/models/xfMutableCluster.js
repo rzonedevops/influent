@@ -22,14 +22,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil', 'lib/models/xfCard', 'lib/models/xfClusterBase', 'lib/extern/underscore'],
-    function($, xfUIObject, chan, guid, xfUtil, xfCard, xfClusterBase) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil',
+        'lib/models/xfCard', 'lib/models/xfClusterBase', 'lib/models/xfSummaryCluster', 'lib/constants',
+        'lib/extern/underscore'],
+    function(
+        $, xfUIObject, chan, guid, xfUtil,
+        xfCard, xfClusterBase, xfSummaryCluster, constants
+    ) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
         //--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfMutableCluster';
+        var MODULE_NAME = constants.MODULE_NAMES.MUTABLE_CLUSTER;
 
         //--------------------------------------------------------------------------------------------------------------
         // Public
@@ -193,6 +200,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             xfClusterInstance.restoreVisualState = function(state) {
 
+                this.cleanState();
+
                 _UIObjectState.xfId = state.xfId;
                 _UIObjectState.UIType = state.UIType;
 
@@ -201,12 +210,12 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 _UIObjectState.isHighlighted = state.isHighlighted;
                 _UIObjectState.showToolbar = state.showToolbar;
                 _UIObjectState.showDetails = state.showDetails;
-                _UIObjectState.showSpinner = false;
                 _UIObjectState.isPinned = state.isPinned;
                 _UIObjectState.toolbarSpec = state.toolbarSpec;
 
                 _UIObjectState.spec.dataId = state.spec.dataId;
-                _UIObjectState.spec.isCluster = state.spec.isCluster;
+                _UIObjectState.spec.type = state.spec.type;
+                _UIObjectState.spec.subtype = state.spec.subtype;
                 _UIObjectState.spec.count = state.spec.count;
                 _UIObjectState.spec.icons = state.spec.icons;
                 _UIObjectState.spec.detailsTextNodes = state.spec.detailsTextNodes;
@@ -215,28 +224,32 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 _UIObjectState.spec.label = state.spec.label;
                 _UIObjectState.spec.confidenceInSrc = state.spec.confidenceInSrc;
                 _UIObjectState.spec.confidenceInAge = state.spec.confidenceInAge;
-                _UIObjectState.spec.leftOperation = state.spec.leftOperation;
-                _UIObjectState.spec.rightOperation = state.spec.rightOperation;
                 _UIObjectState.spec.flow = state.spec.flow;
                 _UIObjectState.spec.members = state.spec.members;
 
                 _UIObjectState.children = [];
                 var childCount = state.children.length;
                 for (var i = 0; i < childCount; i++) {
-                    if (state.children[i].UIType == xfCard.getModuleName()) {
+                    if (state.children[i].UIType == constants.MODULE_NAMES.ENTITY) {
                         var cardSpec = xfCard.getSpecTemplate();
                         var cardUIObj = xfCard.createInstance(cardSpec);
                         cardUIObj.cleanState();
                         cardUIObj.restoreVisualState(state.children[i]);
                         this.insert(cardUIObj, null);
-                    } else if (state.children[i].UIType == 'xfMutableCluster') {
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
                         var clusterSpec = xfMutableCluster.getSpecTemplate();
                         var clusterUIObj = xfMutableCluster.createInstance(clusterSpec);
                         clusterUIObj.cleanState();
                         clusterUIObj.restoreVisualState(state.children[i]);
                         this.insert(clusterUIObj, null);
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                        var clusterSpec = xfSummaryCluster.getSpecTemplate();
+                        var clusterUIObj = xfSummaryCluster.createInstance(clusterSpec);
+                        clusterUIObj.cleanState();
+                        clusterUIObj.restoreVisualState(state.children[i]);
+                        this.insert(clusterUIObj, null);
                     } else {
-                        console.error("cluster children should only be of type " + xfCard.getModuleName() + " or " + xfMutableCluster.getModuleName() + ".");
+                        console.error("cluster children should only be of type " + constants.MODULE_NAMES.ENTITY + ", " + constants.MODULE_NAMES.SUMMARY_CLUSTER + " or " + constants.MODULE_NAMES.MUTABLE_CLUSTER + ".");
                     }
                 }
             };
@@ -252,9 +265,12 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 for (var i = 0; i < _UIObjectState.children.length; i++) {
                     var child = _UIObjectState.children[i];
-                    if (child.getUIType() == 'xfCard' && child.getDataId() != null) {
+                    if ((child.getUIType() == constants.MODULE_NAMES.ENTITY ||
+                        child.getUIType() == constants.MODULE_NAMES.SUMMARY_CLUSTER) &&
+                        child.getDataId() != null
+                    ) {
                         containedIds.push(child.getDataId());
-                    } else if (child.getUIType() == 'xfMutableCluster') {
+                    } else if (child.getUIType() == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
                         containedIds = containedIds.concat(child.getContainedCardDataIds());
                     }
                 }
@@ -270,7 +286,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         //--------------------------------------------------------------------------------------------------------------
 
         xfMutableCluster.getSpecTemplate = function() {
-            return xfClusterBase.getSpecTemplate();
+            var spec = xfClusterBase.getSpecTemplate();
+            spec.type = MODULE_NAME;
+            return spec;
         };
 
         //--------------------------------------------------------------------------------------------------------------

@@ -33,10 +33,17 @@ import influent.idl.FL_SingletonRange;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
+
+	private static Pattern NUMBER_PATTERN = Pattern.compile("[0-9]");
+	private static Pattern TERM_SEPARATOR = Pattern.compile("\\.\\s+|[,;:\\?\\s]+");
 	
 	public static PropertyMatchDescriptorHelper from(FL_PropertyMatchDescriptor descriptor) {
 		if (descriptor instanceof PropertyMatchDescriptorHelper) return (PropertyMatchDescriptorHelper)descriptor;
@@ -79,6 +86,78 @@ public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
 	}
 
 	/**
+	 * Returns an FL_*Range Object representing a set of basic string terms
+	 * 
+	 * @param terms
+	 * 		the terms to represent
+	 * @return
+	 * 		an FL_*Range Object - either a singleton or list
+	 */
+	public static Object rangeFromBasicTerms(String terms) {
+		
+		// if quoted, return as one term
+		if (terms.charAt(0) == '"') {
+			int end = terms.length() 
+					- (terms.charAt(terms.length()-1) == '"'? 1: 0);
+			
+			return FL_SingletonRange.newBuilder()
+				.setType(FL_PropertyType.STRING)
+				.setValue(terms.substring(1, end))
+				.build();
+		}
+		
+		final String tokens[] = terms.split("\\s+");
+
+		// else break by whitespace
+		switch (tokens.length) {
+		case 0:
+			return null;
+			
+		case 1:
+			return FL_SingletonRange.newBuilder()
+				.setType(FL_PropertyType.STRING)
+				.setValue(tokens[0])
+				.build();
+			
+		default:
+			return FL_ListRange.newBuilder()
+				.setType(FL_PropertyType.STRING)
+				.setValues(Arrays.asList(Arrays.copyOf(tokens, tokens.length, Object[].class)))
+				.build();
+		}
+	}
+	
+	/**
+	 * Returns true if the match descriptor is exclusive, accounting for both the include
+	 * property and the NOT constraint. 
+	 * 
+	 * Match descriptors have a NOT constraint which is redundant with the include boolean
+	 * for searches other than pattern searches. Here we interpret "NOT exclude" as "NOT/exclude", since
+	 * otherwise the criteria would have no effect at all.
+	 * 
+	 * @param descriptor
+	 * 		The match specification
+	 * 
+	 * @return
+	 * 		true if an exclusion
+	 */
+	public static boolean isExclusion(FL_PropertyMatchDescriptor descriptor) {
+		return FL_Constraint.NOT.equals(descriptor) || !descriptor.getInclude();
+	}
+	
+	/**
+	 * Returns a Solr query clause to represent the descriptor supply.
+	 * 
+	 * @param descriptor
+	 * 		The match specification
+	 * 
+	 * @return
+	 */
+	public static String toSolrClause(FL_PropertyMatchDescriptor descriptor) {
+		return toSolrClause(descriptor, null);
+	}
+	
+	/**
 	 * Returns a Solr query clause to represent the descriptor supply. Since descriptors do not
 	 * yet include weights the weight is supplied here as a separate parameter.
 	 * 
@@ -91,52 +170,78 @@ public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
 	 * @return
 	 */
 	public static String toSolrClause(FL_PropertyMatchDescriptor descriptor, Double weight) {
-		final PropertyMatchDescriptorHelper pst = from(descriptor);
 		
-		String k = pst.getKey();
-		String v = pst.getStringValue();
+		String k = (String) descriptor.getKey();
+		
+		Collection<Object> values;
 
-		// validate it
-		if (k == null || k.trim().isEmpty() ||  v == null || v.trim().isEmpty()) {
-			return null;
+		final Object r = descriptor.getRange();
+		
+		if (r instanceof FL_SingletonRange) {
+			values = Collections.singleton(((FL_SingletonRange)r).getValue());
+		} else if (r instanceof FL_ListRange) {
+			values = ((FL_ListRange)r).getValues();
+			
+		// TODO: account for bounded ranges
+		} else {
+			values = null; 
 		}
 		
-		FL_Constraint pstp = pst.getConstraint();
+
+		final StringBuilder s = new StringBuilder();
 		
-		// TODO : add the other constraint types
-		if (pstp == FL_Constraint.NOT) {
-			k="-"+k;
+		// fuzzy?
+		if (isExclusion(descriptor)) {
+			s.append("-");
+		}
+		
+		s.append(k);
+		
+		if (FL_Constraint.FUZZY_PARTIAL_OPTIONAL.equals(descriptor.getConstraint())) {
+			s.append(":(");
 			
-		} else if (pstp == FL_Constraint.FUZZY_PARTIAL_OPTIONAL) {
-			
-			// have to match every token fuzzily. TODO: research what Solr considers tokens!
-			final String vs[] = v.split("\\s+");
-
-			// divide the weight by the number of contributing matches
-			double dweight = 0.01*(int)(((weight != null)? weight : 1.0) / (0.01*vs.length));
-
-			
-			StringBuilder sb = new StringBuilder();
-			
-			for (String iv : vs) {
-				if (sb.length() != 0) {
-					sb.append(" OR ");
-				} 
+			for (Object v : values) {
 				
-				sb.append(k);
-				sb.append(":(");
-				sb.append(SolrUtils.escapeQueryChars(iv));
-				sb.append("~)^");
-				sb.append(dweight);
+				// add each term separately
+				String wsTokens[] = TERM_SEPARATOR.split(v.toString());
+				
+				for (String token : wsTokens) {
+					if (token.indexOf('-') == -1 || NUMBER_PATTERN.matcher(token).find()) {
+						s.append(token);
+						s.append("~ ");
+					} else {
+						String hyphenTokens[] = token.split("-");
+						for (String seg : hyphenTokens) {
+							s.append(seg);
+							s.append("~ ");
+						}
+					}
+				}
 			}
+			
+			s.setLength(s.length()-1);
+			s.append(")");
+			
+		} else { // not | required / equals
+			s.append(":(");
+			
+			for (Object v : values) {
+				s.append("\"");
+				s.append(v);
+				s.append("\" ");
+			}
+			
+			s.setLength(s.length()-1);
+			s.append(")");
+		}
+			
 
-			return sb.toString();
+		if (weight != null && weight != 1.0) {
+			s.append("^");
+			s.append(weight);
 		}
 		
-		// Add check for weight boost here
-		String boost = (weight != null && weight.doubleValue() != 1.0)? boost="^"+ weight : "";
-		
-		return k+":(" + SolrUtils.escapeQueryChars(v) +")"+boost;
+		return s.toString();
 	}
 	
 	/**
@@ -152,94 +257,67 @@ public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
 	 * 		A list of explicitly defined terms
 	 * 
 	 * @return
+	 * 		The solr query string or null if not a valid query.
 	 */
 	public static String toSolrQuery(String basicQuery, Map<String, Double> basicQueryFieldWeights, List<FL_PropertyMatchDescriptor> advancedTerms) {
 		
 		// copy terms to merge basic with advanced.
-		final List<FL_PropertyMatchDescriptor> terms = advancedTerms != null?
-				new ArrayList<FL_PropertyMatchDescriptor>(advancedTerms) : new ArrayList<FL_PropertyMatchDescriptor>();
-	
-		// first add basic query terms.
-		if (basicQuery != null) {
-			basicQuery = basicQuery.trim();
-			
-			while(!basicQuery.isEmpty()) {
+		final List<FL_PropertyMatchDescriptor> ors = 
+				new ArrayList<FL_PropertyMatchDescriptor>(advancedTerms.size());
+			final List<FL_PropertyMatchDescriptor> nots = 
+				new ArrayList<FL_PropertyMatchDescriptor>(advancedTerms.size());
 				
-				// quoted?
-				if (basicQuery.charAt(0) == '\"') {
-					int endquote = basicQuery.indexOf('"', 1);
-
-					// found the end quote
-					if (endquote != -1) {
-						String exactMatch = basicQuery.substring(1, endquote);
-						
-						for (String key : basicQueryFieldWeights.keySet()) {
-							terms.add(
-								FL_PropertyMatchDescriptor.newBuilder()
-									.setConstraint(FL_Constraint.REQUIRED_EQUALS)
-									.setKey(key)
-									.setRange(new SingletonRangeHelper(exactMatch, FL_PropertyType.STRING))
-									.build()
-							);
-						}
-						
-					} else {
-						
-						// otherwise process as unquoted next cycle
-						endquote = 0;
-					}
-					
-					// break if at the end, otherwise the subsequent line will index off the end.
-					if (endquote+1 == basicQuery.length()) {
-						break;
-					}
-					
-					// set up next block
-					basicQuery = basicQuery.substring(endquote+1).trim();
-					
-				} else {
-					String fuzzyMatch = basicQuery;
-					final int startquote = basicQuery.indexOf('"');
-
-					// found the start of a quote, which is our end then
-					if (startquote != -1) {
-						fuzzyMatch = basicQuery.substring(0, startquote).trim();
-						
-						basicQuery = basicQuery.substring(startquote);
-						
-					} else {
-						
-						// else we will be done after this
-						basicQuery = "";
-					}
-					
-					for (String key : basicQueryFieldWeights.keySet()) {
-						terms.add(
-							FL_PropertyMatchDescriptor.newBuilder()
-								.setConstraint(FL_Constraint.FUZZY_PARTIAL_OPTIONAL)
-								.setKey(key)
-								.setRange(new SingletonRangeHelper(fuzzyMatch, FL_PropertyType.STRING))
-								.build()
-						);
-					}
+		// first add basic query terms.
+		if (basicQuery != null && !basicQuery.isEmpty()) {
+			final Object values = rangeFromBasicTerms(basicQuery);
+			
+			if (values != null) {
+				for (String key : basicQueryFieldWeights.keySet()) {
+					ors.add(
+						FL_PropertyMatchDescriptor.newBuilder()
+							.setConstraint(FL_Constraint.REQUIRED_EQUALS)
+							.setKey(key)
+							.setRange(values)
+							.build()
+					);
 				}
 			}
 		}
+		
 		
 		// now form it into a query
 		StringBuilder query = new StringBuilder();
 		
-		for (FL_PropertyMatchDescriptor term : terms) {
-			final String clause = toSolrClause(term, basicQueryFieldWeights.get(term.getKey()));
+		// separate ors from nots
+		for (FL_PropertyMatchDescriptor term : advancedTerms) {
+			(isExclusion(term)? nots: ors).add(term);
+		}
+
+		// not valid
+		if (ors.isEmpty()) {
+			return null;
+		}
+
+		// ors
+		for (FL_PropertyMatchDescriptor term : ors) {
+			query.append(toSolrClause(term));
+			query.append(" OR ");
+		}
+		
+		// trim last OR
+		query.setLength(query.length() - 4);
+
+		// nots
+		if (!nots.isEmpty()) {
+			query.insert(0, '(');
+			query.append(')');
 			
-			if (clause != null) {
-				if (query.length() > 0) {
-					query.append(" OR ");
-				}
-				query.append(clause);
+			for (FL_PropertyMatchDescriptor term : nots) {
+				query.append(" AND ");
+				query.append(toSolrClause(term));
 			}
 		}
-				
+		
 		return query.toString();
 	}
 
@@ -270,10 +348,5 @@ public class PropertyMatchDescriptorHelper extends FL_PropertyMatchDescriptor {
 			return bounded.getStart() != null ? bounded.getStart() : bounded.getEnd();
 		}
 		return null;
-	}
-
-	public String getStringValue() {
-		Object value = getValue();
-		return (value != null) ? value.toString() : "";
 	}
 }

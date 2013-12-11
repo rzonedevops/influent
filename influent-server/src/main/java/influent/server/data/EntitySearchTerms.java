@@ -84,18 +84,25 @@ public class EntitySearchTerms {
 				val = val.trim();
 				
 				FL_PropertyMatchDescriptor.Builder termBuilder = FL_PropertyMatchDescriptor.newBuilder();
-				termBuilder.setKey(tagName);
+
+				boolean quoted = false;
 				
-				if (val.startsWith("-")) {
-					val = val.substring(1);
-					termBuilder.setConstraint(FL_Constraint.NOT);
-				} else if (val.startsWith("\"") && val.endsWith("\"")) {
+				if (val.startsWith("\"") && val.endsWith("\"")) {
 					val = val.substring(1, val.length() - 1);
+					quoted = true;
+				}
+				
+				if (tagName.startsWith("-")) {
+					tagName = tagName.substring(1);
+					termBuilder.setInclude(false);
+				} 
+				if (quoted) {
 					termBuilder.setConstraint(FL_Constraint.REQUIRED_EQUALS);
 				} else {
 					termBuilder.setConstraint(FL_Constraint.FUZZY_PARTIAL_OPTIONAL);
 				}
 				
+				termBuilder.setKey(tagName);
 				termBuilder.setRange(new SingletonRangeHelper(val, FL_PropertyType.STRING));
 				
 				terms.add(termBuilder.build());	

@@ -111,7 +111,7 @@ define(["lib/sandbox", "lib/extern/underscore"], function(Sandbox) {
 				 * 
 				 * If the module has not been started, this call does nothing.
 				 * 
-				 * @param name the name of the module to end, or if an id was used to start it,
+				 * @param id the name of the module to end, or if an id was used to start it,
 				 * the id
 				 */
 				end : function( id ) {

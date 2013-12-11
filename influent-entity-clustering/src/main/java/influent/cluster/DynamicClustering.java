@@ -38,10 +38,12 @@ import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
 import influent.idl.FL_SortBy;
 import influent.midtier.IdGenerator;
+import influent.midtier.TypedId;
 import influent.midtier.api.Context;
 import influent.midtier.api.DataAccessException;
 import influent.midtier.api.EntityClusterer;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,7 +53,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.Ehcache;
+import net.sf.ehcache.Element;
+
 import org.apache.avro.AvroRemoteException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Singleton;
 
@@ -63,41 +71,66 @@ import com.google.inject.Singleton;
 @Singleton
 public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess {
 
+	private static Logger s_logger = LoggerFactory.getLogger(DynamicClustering.class);
+	
 	private final FL_DataAccess _entityAccess;
-	
 	private final FL_Geocoding _geoCoder;
-	
 	private final EntityClusterer _clusterer;
+
+	private final Ehcache cache;
 	
-	private final Map<String, Context> _context;
 	
-	public DynamicClustering(FL_DataAccess entityAccess, FL_Geocoding geocoding, EntityClusterer clusterer, PropertyManager config) {
+	
+	public DynamicClustering(
+		FL_DataAccess entityAccess, 
+		FL_Geocoding geocoding, 
+		EntityClusterer clusterer, 
+		PropertyManager config,
+		String ehCacheConfig,
+		String cacheName
+	) throws ClassNotFoundException, SQLException {
+
 		_entityAccess = entityAccess;
 		_clusterer = clusterer;
 		_geoCoder = geocoding;
 		_clusterer.init(new Object[] {new IdGenerator() {
 			@Override
 			public String nextId() {
-				return 'Z'+UUID.randomUUID().toString();
+				return TypedId.fromNativeId(TypedId.CLUSTER, UUID.randomUUID().toString()).getTypedId();
 			}
 		}, _geoCoder, config
 		});
-		_context = new HashMap<String, Context>();
+		
+		CacheManager cacheManager = (ehCacheConfig != null) ? CacheManager.create(ehCacheConfig) : null;
+		if (cacheManager == null) {
+			s_logger.warn("ehcache property not set, persistence data won't be cached");
+		}
+		
+		this.cache = cacheManager.getEhcache(cacheName);
 	}
+	
+	
+	
 	
 	@Override
 	public String createContext() throws AvroRemoteException {
 		String randContext = UUID.randomUUID().toString();
-		_context.put(randContext, new Context());
+		insertIntoContext(new Context(), randContext);
 		return randContext;
 	}	
-
+	
+	
+	
+	
 	@Override
 	public List<String> clusterEntitiesById(List<String> entityIds,
 			String contextId, String sessionId) throws AvroRemoteException {
 		return clusterEntities(_entityAccess.getEntities(entityIds),contextId,sessionId);
 	}
-
+	
+	
+	
+	
 	@Override
 	public List<String> clusterEntities(List<FL_Entity> entities,
 			String contextId, String sessionId) throws AvroRemoteException {
@@ -105,7 +138,7 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		List<String> rootIds = new ArrayList<String>();
 		
 		// fetch the current context
-		Context context = _context.get(contextId);
+		Context context = getContext(contextId);
 		
 		List<FL_Entity> clusterEntities = entities;
 		
@@ -131,11 +164,14 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		
 		return rootIds;
 	}
-
+	
+	
+	
+	
 	@Override
 	public List<FL_Cluster> getClusters(List<String> entities, String contextId, String sessionId)
 			throws AvroRemoteException {
-		Context context = _context.get(contextId);
+		Context context = getContext(contextId);
 		if (context == null) return Collections.emptyList();
 		
 		List<FL_Cluster> results = new ArrayList<FL_Cluster>();
@@ -148,12 +184,15 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		
 		return results;
 	}
-
+	
+	
+	
+	
 	@Override
 	public long removeMembers(List<String> entities, String contextId, String sessionId)
 			throws AvroRemoteException {
 
-		Context context = _context.get(contextId);
+		Context context = getContext(contextId);
 		if (context == null) return 0;
 		
 		int count = 0;
@@ -175,11 +214,14 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		
 		return count;
 	}
-
+	
+	
+	
+	
 	@Override
 	public List<FL_Cluster> getContext(String contextId, String sessionId,
 			boolean computeSummaries) throws AvroRemoteException {
-		Context context = _context.get(contextId);
+		Context context = getContext(contextId);
 		
 		if (context == null) return Collections.emptyList();
 		
@@ -198,16 +240,22 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		}
 		return results;
 	}
-
+	
+	
+	
+	
 	@Override
 	public boolean clearContext(String contextId, String sessionId) throws AvroRemoteException {
-		if (_context.containsKey(contextId)) {
-			_context.remove(contextId);
+		if (contextContains(contextId)) {
+			removeContext(contextId);
 			return true;
 		}
 		return false;
 	}
-
+	
+	
+	
+	
 	@Override
 	public Map<String, List<FL_Link>> getFlowAggregation(List<String> entities,
 			List<String> focusEntities, FL_DirectionFilter direction,
@@ -226,7 +274,10 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 			throw new AvroRemoteException(e);
 		}
 	}
-
+	
+	
+	
+	
 	@Override
 	public Map<String, List<FL_Link>> getTimeSeriesAggregation(
 			List<String> entities, List<String> focusEntities, FL_LinkTag tag,
@@ -272,7 +323,10 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		
 		return links;
 	}
-
+	
+	
+	
+	
 	@Override
 	public Map<String, List<FL_Link>> getAllTransactions(List<String> entities,
 			FL_LinkTag tag, FL_DateRange date, FL_SortBy sort,
@@ -282,29 +336,77 @@ public class DynamicClustering implements FL_Clustering, FL_ClusteringDataAccess
 		return null;
 	}
 	
+	
+	
+	
 	public void insertIntoContext(Context updatedContext, String contextId) {
-		_context.put(contextId, updatedContext);
+		Element element = new Element(contextId, updatedContext);
+		
+		// explicitly remove the item from the cache first if it exists - this works around an EOFException thrown by ehcache
+		cache.remove(contextId);
+		cache.put(element);
 	}
 	
-	private Set<String> getLeafIds(List<String> clusterIds, String context, String sessionId) throws AvroRemoteException {
+	
+	
+	
+	private Context getContext(String contextId) {
+		
+		Context data = null;
+		
+		Element element = cache.get(contextId);
+		if (element != null) {
+			data = (Context)element.getObjectValue();
+		}
+		
+		return data;
+	}
+	
+	
+	
+	
+	private Boolean contextContains(String contextId) {
+		return cache.isKeyInCache(contextId);
+	}
+	
+	
+	
+	
+	private void removeContext(String contextId) {
+		cache.remove(contextId);
+	}
+	
+	
+	
+	
+	private Set<String> getLeafIds(List<String> ids, String context, String sessionId) throws AvroRemoteException {
+		if (ids == null || ids.isEmpty()) return Collections.emptySet();
+		
+		Set<String> lids = new HashSet<String>();
+
+		lids.addAll(TypedId.filterTypedIds(ids, TypedId.ACCOUNT));
+		lids.addAll(getClusterLeafIds(TypedId.filterTypedIds(ids, TypedId.CLUSTER), context, sessionId));
+		
+		return lids;
+	}
+	
+	
+	
+	
+	private Set<String> getClusterLeafIds(List<String> clusterIds, String context, String sessionId) throws AvroRemoteException {
 		
 		if (clusterIds == null || clusterIds.isEmpty()) return Collections.emptySet();
 		
 		Set<String> lids = new HashSet<String>();
-		
+
 		List<FL_Cluster> toSearch = getClusters(clusterIds, context, sessionId);
 		
-		List<String> probablyEntities = new ArrayList<String>(clusterIds); 
-		
 		for (FL_Cluster flc : toSearch) {
-			probablyEntities.remove(flc.getUid());
 			lids.addAll(flc.getMembers());
 			if (flc.getSubclusters()!= null && !flc.getSubclusters().isEmpty()) {
-				lids.addAll(getLeafIds(flc.getSubclusters(),context, sessionId));
+				lids.addAll(getClusterLeafIds(flc.getSubclusters(), context, sessionId));
 			}
 		}
-		
-		lids.addAll(probablyEntities);
 		
 		return lids;
 	}

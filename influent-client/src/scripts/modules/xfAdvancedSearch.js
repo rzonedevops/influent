@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/module', 'lib/channels'],
-    function($, modules, chan) {
+define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
+    function($, modules, chan, xfWorkspace) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
@@ -43,34 +43,19 @@ define(['jquery', 'lib/module', 'lib/channels'],
         // Private Methods
         //--------------------------------------------------------------------------------------------------------------
 
-        var _resolveFuzzy = function (fuzzyDiv) {
-
-            if (fuzzyDiv == null) {
-                return;
-            }
-
-            var that = $(fuzzyDiv);
-            var id = that.attr('id').charAt(that.attr('id').length-1);
-
-            if (that.is(':checked')) {
-                $('#not'+id)
-                    .attr('checked', false)
-                    .attr('disabled','disabled');
-            }
-            else {
-                $('#not'+id).removeAttr('disabled');
-            }
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
-
         var _onAdvancedSearchDialogRequest = function(eventChannel, data) {
+        	set(data.terms);
+        	
             _UIObjectState.parentId = data.xfId;
             $('#advancedDialog').dialog('open');
         };
 
         //--------------------------------------------------------------------------------------------------------------
 
+        var _buildForType = null;
+        
+
+        
         var _modalBoxCreator = function() {
             var currentProps = [];
 
@@ -116,150 +101,140 @@ define(['jquery', 'lib/module', 'lib/channels'],
                             entityColumns.push({type: type, data: desc});
                         }
                     }
-
+                    
                     _initializeModalComponents(entityColumns);
                     currentProps = entityColumns[0]['data'];
 
-                    $('#entities').change(
-                        function() {
-                            var propertyContainer = $('#propertyContainer');
-                            var propertyLine;
-                            var oldFriendlyNames = new Array();
-                            var oldFieldValues = new Array();
-                            var oldNotValues = new Array();
-                            var oldFuzzyValues = new Array();
+                    _buildForType = function () {
+                        var propertyContainer = $('#propertyContainer');
+                        var propertyLine;
+                        var oldFriendlyNames = [];
+                        var oldFieldValues = [];
+                        var oldNotValues = [];
+                        var oldFuzzyValues = [];
 
-                            var oldInd = -1;
-                            for (var i = 0; i < entityColumns[0]['data'].length; i++) {
-                                if(entityColumns[i]['data'] == _UIObjectState.properties) {
-                                    oldInd = i;
-                                    break;
-                                }
+                        var oldInd = -1;
+                        for (var i = 0; i < entityColumns[0]['data'].length; i++) {
+                            if(entityColumns[i]['data'] == _UIObjectState.properties) {
+                                oldInd = i;
+                                break;
                             }
-
-                            if(oldInd != -1) {
-                            	for (var i = 0; i < entityColumns[oldInd]['data'].length; i++) {
-                            		oldFriendlyNames[i] = entityColumns[oldInd]['data'][i]['friendlyText'];
-                            	}
-                            	
-	                            propertyContainer.children().each(function() {
-	                            	$(this).children().each(function() {
-		                            	var idName = $(this).attr('id');
-		                            	var idx = -1;
-		                            	if(idName != null) {
-			                                if(idName.indexOf('textProperty') == 0) {
-			                                	idx = idName.substring('textProperty'.length);
-			                                	oldFieldValues[idx] = $(this).val();
-			                                }
-			                                else if(idName.indexOf('not') == 0) {
-			                                	idx = idName.substring('not'.length);
-			                                	oldNotValues[idx] = $(this).attr('checked');
-			                                }
-			                                else if(idName.indexOf('fuzzy') == 0) {
-			                                	idx = idName.substring('fuzzy'.length);
-			                                	oldFuzzyValues[idx] = $(this).attr('checked');
-			                                }
-		                            	}
-	                            	});
-	                            });
-                            }
-
-                            propertyContainer.empty();
-                            var col = $(this).val();
-
-                            var ind = 0;
-                            for (var x = 0; x < entityColumns.length; x++) {
-                                if (entityColumns[x]['type'] == col) {
-                                    ind = x;
-                                    break;
-                                }
-                            }
-
-                            for (var i = 0; i < entityColumns[ind]['data'].length; i++) {
-                            	propertyLine = $('<div/>');
-                                var inputType = entityColumns[ind]['data'][i]['suggestedTerms'].length == 0 ?  'input' : 'select';
-
-                                var element = $('<label/>');
-                                element.attr('for', ('textProperty' + i.toString()));
-                                element.css('width', '30%');
-                                element.css('float', 'left');
-                                element.css('text-align', 'right');
-                                element.html(entityColumns[ind]['data'][i]['friendlyText'] + ':&nbsp;&nbsp;');
-                                propertyLine.append(element);
-
-                                element = $('<' + inputType + '/>');
-                                element.attr('id', ('textProperty' + i.toString()));
-                                element.addClass('textPropertyClass');
-                                element.css('width', 140);
-                                
-                                var oldFriendlyNameIdx = jQuery.inArray(entityColumns[ind]['data'][i]['friendlyText'], oldFriendlyNames);
-                                if(oldFriendlyNameIdx != -1) {
-                                	element.val(oldFieldValues[oldFriendlyNameIdx]);
-                                }
-
-                                if (inputType == 'select') {
-                                    var option = $('<option/>');
-                                    element.append(option);
-                                    for (var j = 0; j < entityColumns[ind]['data'][i]['suggestedTerms'].length; j++) {
-                                        option = $('<option/>');
-                                        option.html(entityColumns[ind]['data'][i]['suggestedTerms'][j]);
-                                        element.append(option);
-                                    }
-                                }
-
-                                propertyLine.append(element);
-
-                                
-                                element = $('<label/>');
-                                element.attr('for', ('not' + i.toString()));
-                                element.html('  &nbsp;&nbsp;Not?: ');
-                                propertyLine.append(element);
-                                
-                                element = $('<input/>');
-                                element.attr('id', ('not' + i.toString()));
-                                element.attr('type', 'checkbox');
-                                element.css('position', 'relative');
-                                element.css('top', 3);
-                                if(oldFriendlyNameIdx != -1) {
-                                	if(oldFuzzyValues[oldFriendlyNameIdx] == 1) {
-                                		element.attr('disabled', 'disabled');	
-                                	}
-                                	else {
-                                		element.attr('checked', oldNotValues[oldFriendlyNameIdx]);
-                                	}
-                                }
-                                propertyLine.append(element);
-
-                                element = $('<label/>');
-                                element.attr('for', ('fuzzy' + i.toString()));
-                                element.html('  &nbsp;&nbsp;Fuzzy?: ');
-                                propertyLine.append(element);
-
-                                element = $('<input/>');
-                                element.attr('id', ('fuzzy' + i.toString()));
-                                element.attr('type', 'checkbox');
-                                element.css('position', 'relative');
-                                element.css('top', 3);
-                                if(oldFriendlyNameIdx != -1) {
-                                	element.attr('checked', oldFuzzyValues[oldFriendlyNameIdx]);
-                                }
-                                propertyLine.append(element);
-                                element.change(
-                                    function() {
-                                        _resolveFuzzy(this);
-                                    }
-                                );
-                                
-                                propertyContainer.append(propertyLine);
-                            }
-
-                            currentProps = entityColumns[ind]['data'];
-                            propertyContainer.append('<br><br>');
-
-                            _UIObjectState.properties = currentProps;
-                            _constructDialog(_UIObjectState);
                         }
-                    );
+
+                        if(oldInd != -1) {
+                        	for (var i = 0; i < entityColumns[oldInd]['data'].length; i++) {
+                        		oldFriendlyNames[i] = entityColumns[oldInd]['data'][i]['friendlyText'];
+                        	}
+                        	
+                            propertyContainer.children().each(function() {
+                            	$(this).children().each(function() {
+                                	var idName = $(this).attr('id');
+                                	var idx = -1;
+                                	if(idName != null) {
+                                        if(idName.indexOf('textProperty') == 0) {
+                                        	idx = idName.substring('textProperty'.length);
+                                        	oldFieldValues[idx] = $(this).val();
+                                        }
+                                        else if(idName.indexOf('not') == 0) {
+                                        	idx = idName.substring('not'.length);
+                                        	oldNotValues[idx] = $(this).attr('checked');
+                                        }
+                                        else if(idName.indexOf('fuzzy') == 0) {
+                                        	idx = idName.substring('fuzzy'.length);
+                                        	oldFuzzyValues[idx] = $(this).attr('checked');
+                                        }
+                                	}
+                            	});
+                            });
+                        }
+
+                        propertyContainer.empty();
+                        var col = $(this).val();
+
+                        var ind = 0;
+                        for (var x = 0; x < entityColumns.length; x++) {
+                            if (entityColumns[x]['type'] == col) {
+                                ind = x;
+                                break;
+                            }
+                        }
+
+                        for (var i = 0; i < entityColumns[ind]['data'].length; i++) {
+                        	propertyLine = $('<div></div>');
+                            var inputType = entityColumns[ind]['data'][i]['suggestedTerms'].length == 0 ?  'input' : 'select';
+
+                            var element = $('<label></label>');
+                            element.attr('for', ('textProperty' + i.toString()));
+                            element.css('width', '30%');
+                            element.css('float', 'left');
+                            element.css('text-align', 'right');
+                            element.html(entityColumns[ind]['data'][i]['friendlyText'] + ':&nbsp;&nbsp;');
+                            propertyLine.append(element);
+
+                            element = $('<' + inputType + '/>');
+                            element.attr('id', ('textProperty' + i.toString()));
+                            element.addClass('textPropertyClass');
+                            element.css('width', 140);
+                            
+                            var oldFriendlyNameIdx = jQuery.inArray(entityColumns[ind]['data'][i]['friendlyText'], oldFriendlyNames);
+                            if(oldFriendlyNameIdx != -1) {
+                            	element.val(oldFieldValues[oldFriendlyNameIdx]);
+                            }
+
+                            if (inputType == 'select') {
+                                var option = $('<option></option>');
+                                element.append(option);
+                                for (var j = 0; j < entityColumns[ind]['data'][i]['suggestedTerms'].length; j++) {
+                                    option = $('<option></option>');
+                                    option.html(entityColumns[ind]['data'][i]['suggestedTerms'][j]);
+                                    element.append(option);
+                                }
+                            }
+
+                            propertyLine.append(element);
+
+                            
+                            element = $('<label></label>');
+                            element.attr('for', ('not' + i.toString()));
+                            element.html('  &nbsp;&nbsp;Not?: ');
+                            propertyLine.append(element);
+                            
+                            element = $('<input/>');
+                            element.attr('id', ('not' + i.toString()));
+                            element.attr('type', 'checkbox');
+                            element.css('position', 'relative');
+                            element.css('top', 3);
+                            if(oldFriendlyNameIdx != -1) {
+                        		element.attr('checked', oldNotValues[oldFriendlyNameIdx]);
+                            }
+                            propertyLine.append(element);
+
+                            element = $('<label></label>');
+                            element.attr('for', ('fuzzy' + i.toString()));
+                            element.html('  &nbsp;&nbsp;Fuzzy?: ');
+                            propertyLine.append(element);
+
+                            element = $('<input/>');
+                            element.attr('id', ('fuzzy' + i.toString()));
+                            element.attr('type', 'checkbox');
+                            element.css('position', 'relative');
+                            element.css('top', 3);
+                            if(oldFriendlyNameIdx != -1) {
+                            	element.attr('checked', oldFuzzyValues[oldFriendlyNameIdx]);
+                            }
+                            propertyLine.append(element);
+                            
+                            propertyContainer.append(propertyLine);
+                        }
+
+                        currentProps = entityColumns[ind]['data'];
+                        propertyContainer.append('<br><br>');
+
+                        _UIObjectState.properties = currentProps;
+                        _constructDialog(_UIObjectState);
+                    };
+                    
+                    $('#entities').change(_buildForType);
 
                     _UIObjectState.properties = currentProps;
                     _constructDialog(_UIObjectState);
@@ -274,20 +249,45 @@ define(['jquery', 'lib/module', 'lib/channels'],
             var first = entityCols[0]['data'];
             var i;
 
-            var dialog = $('#advancedDialog');
+            var activity = $('#match-tab-activity');
+            activity.append('<br>Like Account(s):<br><br><br>');
+            
+            var idfield = $('<label></label>');
+            idfield.attr('for', 'likeIdProperty');
+            idfield.css('width', '30%');
+            idfield.css('float', 'left');
+            idfield.css('text-align', 'right');
+            idfield.html('id(s):&nbsp;&nbsp;');
+
+            var idline= $('<div></div>').appendTo(activity);
+            idline.append(idfield);
+
+            idfield = $('<input/>');
+            idfield.attr('id', 'likeIdProperty');
+            idfield.addClass('textPropertyClass');
+            idfield.css('width', 140);
+            idline.append(idfield);
+            
+            var patternEngineDescription = 
+            	aperture.config.get()['influent.config'].patternQueryDescriptionHTML ||
+            	'SORRY, this data set does not appear to be indexed for behavioral query by example!';
+
+        	$('<div id="patternEngineDescription"></div>').appendTo(activity).html(patternEngineDescription);
+            
+            var dialog = $('#match-tab-attrs');
             dialog.css('white-space', 'nowrap');
             dialog.append('<br>');
 
-            var element = $('<label/>');
+            var element = $('<label></label>');
             element.attr('for', 'entities');
             element.html('Type: ');
             dialog.append(element);
 
-            element = $('<select/>');
+            element = $('<select></select>');
             element.attr('id', 'entities');
 
             for (i = 0; i < entityCols.length; i++) {
-                var option = $('<option/>');
+                var option = $('<option></option>');
                 option.attr('value', entityCols[i]['type']);
                 option.html(entityCols[i]['type']);
                 element.append(option);
@@ -299,17 +299,17 @@ define(['jquery', 'lib/module', 'lib/channels'],
             dialog.append('<br>');
             dialog.append('<br>');
 
-            var propertyContainer = $('<div/>');
+            var propertyContainer = $('<div></div>');
             var propertyLine;
             propertyContainer.attr('id', 'propertyContainer');
 
             for (i = 0; i < first.length; i++) {
-            	propertyLine = $('<div/>');
+            	propertyLine = $('<div></div>');
             	propertyLine.attr('id', 'propertyLine-' + first[i]['friendlyText']);
             	
                 var inputType = first[i]['suggestedTerms'].length == 0 ?  'input' : 'select';
 
-                element = $('<label/>');
+                element = $('<label></label>');
                 element.attr('for', ('textProperty' + i.toString()));
                 element.css('width', '30%');
                 element.css('float', 'left');
@@ -324,7 +324,7 @@ define(['jquery', 'lib/module', 'lib/channels'],
 
                 if (inputType == 'select') {
                     for (var j = 0; j < first[i]['suggestedTerms'].length; j++) {
-                        option = $('<option/>');
+                        option = $('<option></option>');
                         option.html(first[i]['suggestedTerms'][j]);
                         element.append(option);
                     }
@@ -333,7 +333,7 @@ define(['jquery', 'lib/module', 'lib/channels'],
                 propertyLine.append(element);
                 
                 
-                element = $('<label/>');
+                element = $('<label></label>');
                 element.attr('for', ('not' + i.toString()));
                 element.html('  &nbsp;&nbsp;Not?: ');
                 propertyLine.append(element);
@@ -354,7 +354,7 @@ define(['jquery', 'lib/module', 'lib/channels'],
                 }
                 
                 
-                element = $('<label/>');
+                element = $('<label></label>');
                 element.attr('for', ('fuzzy' + i.toString()));
                 element.html('  &nbsp;&nbsp;Fuzzy?: ');
                 propertyLine.append(element);
@@ -375,12 +375,6 @@ define(['jquery', 'lib/module', 'lib/channels'],
                 	element.css('display', 'none');
                 }
                 
-                element.change(
-                    function() {
-                        _resolveFuzzy(this);
-                    }
-                );
-                
                 propertyContainer.append(propertyLine);
             }
 
@@ -391,30 +385,192 @@ define(['jquery', 'lib/module', 'lib/channels'],
         };
 
         //--------------------------------------------------------------------------------------------------------------
-
+        
+        /**
+         * Parse a query string and return a hash of named value objects, each containing value, not, fuzzy
+         */
+        function parseQuery(searchString) {
+        	var nameValuePattern = /([^:\s]+)\s*:\s*(.+?)\s*(([^:\s]+):|$)/;
+        	var match = nameValuePattern.exec(searchString);
+        	var props = {};
+        	var key, value;
+        	var not, fuzzy;
+        	
+        	while (match != null) {
+        		key = match[1];
+        		value = match[2];
+        		
+        		if (not = !!(key.charAt(0) === '-')) {
+        			key = key.substr(1);
+        		}
+        		if (!(fuzzy = !(value.charAt(0) === '"'))) {
+        			value = value.substring(1, value.length-1);
+        		}
+        		props[key] = {
+        			value: value,
+        			not: not,
+        			fuzzy : fuzzy
+        		};
+        		
+        		var matchlen = match[0].length - match[3].length;
+        		if (matchlen >= searchString.length) {
+        			break;
+        		}
+        		
+        		searchString = searchString.substr(matchlen);
+        		match = nameValuePattern.exec(searchString);
+        	}
+        	
+        	return props;
+        }
+        
+        function seedFromEntities(entities) {
+        	var entity;
+        	var i=0;
+        	var props;
+        	
+        	for (i=0; i< entities.length; i++) {
+        		entity = entities[i];
+        		props = {};
+        		
+        		props.datatype = {
+    				value: xfWorkspace.getValueByTag(entity, 'TYPE')
+        		};
+        		
+                for (var propKey in entity.properties ) {
+                    if ( entity.properties.hasOwnProperty(propKey) ) {
+                        var property = entity.properties[propKey];
+                    	var useIt = true;
+                    	
+                        if ( property.tags ) {
+                            for (var j = 0; j < property.tags.length; j++ ) {
+                            	if (property.tags[j] === 'ID') {
+                            		useIt = false;
+                            		break;
+                            	}
+                            }
+                        }
+                        
+                        if (useIt) {
+	                        props[propKey] = {
+	                        	value: property.value,
+	                        	fuzzy: true
+	                        };
+                        }
+                    }
+                }
+                
+                set(props);
+        	}
+        }
+        
+        /**
+         * Populate from a search string
+         */
+        function set(searchString) {
+        	var props = aperture.util.isString(searchString)? parseQuery(searchString) : 
+        		searchString != null? searchString : {};
+        	
+        	var blank = {
+    			value: '',
+    			not: false,
+    			fuzzy: false
+        	};
+        	
+        	if (props.like) {
+                $('#likeIdProperty').val(props.like.value);
+                $('#advancedTabs').tabs( 'select', 1 );
+        		
+        	} else {
+	        	if (props.datatype) {
+	        		$('#entities').val(props.datatype.value);
+	        		if (_buildForType) {
+		        		_buildForType.call($('#entities').get(0));
+	        		}
+	        	}
+	        	
+                $('#likeIdProperty').val('');
+                
+	            for (var x = 0; x < _UIObjectState.properties.length; x++) {
+	            	var key = _UIObjectState.properties[x]['key'];
+	            	var value = props[key] || blank;
+	
+	                $('#textProperty'+x).val(value.value);
+	                $('#not'+x).attr('checked', value.not);
+	                $('#fuzzy'+x).attr('checked', value.fuzzy);
+	            }
+	            
+                $('#advancedTabs').tabs( 'select', 0 );
+        	}
+        }
+        
+        function onTabChange(event, ui) {
+        	if (ui.index == 0) {
+            	var id = $('#likeIdProperty').val();
+            	
+            	if (id) {
+            		var ids = id.split(/(\\s*,\\s*)|(\\s+)/);
+            		
+                    aperture.io.rest(
+                        '/entities',
+                        'POST',
+                        function (response) {
+                        	seedFromEntities(response.data);
+                        },
+                        {
+                            postData : {
+                            	sessionId : xfWorkspace.getSessionId(),
+                                queryId: (new Date()).getTime(),
+                                entities : ids,
+                                contextid : '',
+                                isFlattened : true
+                            },
+                            contentType: 'application/json'
+                        }
+                    );
+            	}
+        	}
+        }
+        
         var _constructDialog = function(state){
+        	$('#advancedTabs').tabs({ 
+        		heightStyle: 'auto',
+        		select: onTabChange
+        	});
             $('#advancedDialog').dialog({
+            	height: 450,
                 autoOpen: false,
                 modal: true,
                 buttons: {
                     'Apply': function () {
                         var searchString = "";
+                        var isPattern = $('#advancedTabs').tabs( 'option', 'selected' );
 
-                        for (var x = 0; x < state.properties.length; x++) {
-                            if ($('#textProperty'+x).val() != "") {
-
-                                var val = $('#textProperty'+x).val();
-                                if ($('#not'+x).is(':checked')) {
-                                    val = '-' + val;
-                                } else if (!$('#fuzzy'+x).is(':checked')) {
-                                    val = '"' + val + '"';
-                                }
-
-                                searchString += state.properties[x]['key'] + ':' + val + ' ';
-                            }
+                        if (isPattern) {
+                        	var id = $('#likeIdProperty').val();
+                        	if (id) {
+                            	searchString = "like:"+ id;
+                        	}
+                        	
+                        } else {
+	                        for (var x = 0; x < state.properties.length; x++) {
+	                            if ($('#textProperty'+x).val() != "") {
+	
+	                            	var key = state.properties[x]['key'];
+	                                var val = $('#textProperty'+x).val();
+	                                if ($('#not'+x).is(':checked')) {
+	                                    key = '-' + key;
+	                                } 
+	                                if (!$('#fuzzy'+x).is(':checked')) {
+	                                    val = '"' + val + '"';
+	                                }
+	
+	                                searchString += key + ':' + val + ' ';
+	                            }
+	                        }
+	
+	                        searchString += 'datatype:'+ $('#entities').val();
                         }
-
-                        searchString += 'datatype:"'+ $('#entities').val()+ '"';
                         
                         var searchData = {
                             xfId : _UIObjectState.parentId,
@@ -440,6 +596,8 @@ define(['jquery', 'lib/module', 'lib/channels'],
                 },
                 width:500
             });
+            
+            $('#advancedDialog').css('display', '');
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -466,8 +624,10 @@ define(['jquery', 'lib/module', 'lib/channels'],
 	                _UIObjectState.subscriberTokens = subTokens;
 	            },
 	            end : function(){
-	                for (token in _UIObjectState.subscriberTokens) {
-	                    aperture.pubsub.unsubscribe(_UIObjectState.subscriberTokens[token]);
+	                for (var token in _UIObjectState.subscriberTokens) {
+                        if (_UIObjectState.subscriberTokens.hasOwnProperty(token)) {
+	                        aperture.pubsub.unsubscribe(_UIObjectState.subscriberTokens[token]);
+                        }
 	                }
 	            }
         	};

@@ -31,6 +31,7 @@ import influent.idl.FL_Entity;
 import influent.idl.FL_EntitySearch;
 import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
+import influent.idl.FL_ListRange;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyMatchDescriptor;
 import influent.idl.FL_PropertyTag;
@@ -38,8 +39,9 @@ import influent.idl.FL_PropertyType;
 import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
 import influent.idl.FL_SortBy;
+import influent.idl.FL_TransactionResults;
 import influent.idlhelper.PropertyHelper;
-import influent.idlhelper.SingletonRangeHelper;
+import influent.midtier.TypedId;
 import influent.server.dataaccess.DataAccessHelper;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.DataViewDataAccess;
@@ -55,13 +57,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.avro.AvroRemoteException;
+import org.joda.time.DateTime;
 import org.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,25 +90,27 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 		super(connectionPool, search, namespaceHandler);
 	}
 	
-	
+	/**
+	 * TODO: push this change down from a list of singleton match descriptors to a single list match descriptor
+	 */
 	@Override
 	public List<FL_Entity> getEntities(List<String> entities) throws AvroRemoteException {
 		//Construct the id search query for the search
 		
 		List<FL_Entity> results = new ArrayList<FL_Entity>();
 		
-		StringBuilder sb = new StringBuilder();
-		
 		int qCount = 0;			//How many entities to query at once
 		int maxFetch = 100;
+		List<Object> idVals = new ArrayList<Object>(maxFetch);
 		Iterator<String> idIter = entities.iterator();
+		
 		while (idIter.hasNext()) {
 			
-			sb.append(idIter.next());
+			idVals.add(idIter.next());
 			if (qCount == (maxFetch-1) || !idIter.hasNext()) {
 				FL_PropertyMatchDescriptor idMatch = FL_PropertyMatchDescriptor.newBuilder()
-						.setKey("id")
-						.setRange(new SingletonRangeHelper(sb.toString(), FL_PropertyType.STRING))
+						.setKey("uid")
+						.setRange(FL_ListRange.newBuilder().setType(FL_PropertyType.STRING).setValues(idVals).build())
 						.setConstraint(FL_Constraint.REQUIRED_EQUALS)
 						.build();
 				FL_SearchResults searchResult = _search.search(null, Collections.singletonList(idMatch), 0, maxFetch, null);
@@ -125,9 +127,8 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 				}
 				
 				qCount=0;
-				sb = new StringBuilder();
+				idVals.clear();
 			} else {
-				sb.append(' ');
 				qCount++;
 			}
 		}
@@ -142,20 +143,25 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 	
 	
 	@Override
-	public Map<String, List<FL_Link>> getAllTransactions(
+	public FL_TransactionResults getAllTransactions(
 			List<String> entities,
 			FL_LinkTag tag,
 			FL_DateRange dateRange,
 			FL_SortBy sort,
 			List<String> linkFilter,
+			long start,
 			long max) throws AvroRemoteException {
-		Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
+		
+		final List<String> ns_entities = TypedId.nativeFromTypedIds(entities);
+		final List<FL_Link> links = new ArrayList<FL_Link>();
+		final FL_TransactionResults.Builder results = FL_TransactionResults.newBuilder().setResults(links);
+		
 		try {
 			Connection connection = _connectionPool.getConnection();
 			Statement stmt = connection.createStatement();
 			
-			Date startDate = DataAccessHelper.getStartDate(dateRange);
-			Date endDate = DataAccessHelper.getEndDate(dateRange);
+			DateTime startDate = DataAccessHelper.getStartDate(dateRange);
+			DateTime endDate = DataAccessHelper.getEndDate(dateRange);
 			
 			// TODO remove me when old dbs using 'Date' have been updated or rebuilt
 			String dateColumnName = getNamespaceHandler().tableName(null, "TransactionDate");
@@ -176,12 +182,13 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 			
 			String focusIds = "";
 			if (linkFilter != null) {
+				linkFilter = TypedId.nativeFromTypedIds(linkFilter);
 				focusIds = DataAccessHelper.createNodeIdListFromCollection(linkFilter, true, false);
 			}
 			
 			final String financials2 = getNamespaceHandler().tableName(null, "Financials2");
 			
-			List<String> idsCopy = new ArrayList<String>(entities); // copy the ids as we will take 100 at a time to process and the take method is destructive
+			List<String> idsCopy = new ArrayList<String>(ns_entities); // copy the ids as we will take 100 at a time to process and the take method is destructive
 			while (idsCopy.size() > 0) {
 				List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
 				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
@@ -192,26 +199,36 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 				String fromFocus = buildSearchIdsString(getNamespaceHandler().escapeColumnName("From"), linkFilter);
 				String toFocus = buildSearchIdsString(getNamespaceHandler().escapeColumnName("To"), linkFilter);
 				
-				String sql = getNamespaceHandler().rowLimit("* from (" +
-							" select * from " +financials2+ " where " + dateColumnName + " between '"+DataAccessHelper.sdf.format(startDate)+"' and '"+DataAccessHelper.sdf.format(endDate)+"' and " + fromIds +
-							(focusIds.isEmpty() ? "" : " and " + toFocus) +
-							" union all " +
-							" select * from " +financials2+ " where " + dateColumnName + " between '"+DataAccessHelper.sdf.format(startDate)+"' and '"+DataAccessHelper.sdf.format(endDate)+"' and " + toIds +
-							(focusIds.isEmpty() ? "" : " and " + fromFocus) +
-							" ) a " + orderBy, max);
-				s_logger.trace("execute: " + sql);
+				String selector = " from " +financials2+ 
+						" where " + dateColumnName + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+
+						"' and ((" + fromIds + (focusIds.isEmpty() ? "" : " and " + toFocus) +
+						") or (" + toIds + (focusIds.isEmpty() ? "" : " and " + fromFocus) +
+						")) ";
 				
+				final String sql = "select * from ("+
+						getNamespaceHandler().rowLimit("*"+ selector + orderBy, max)
+							+ ") a union all select NULL,NULL,NULL,NULL,NULL,COUNT(*)" + selector;
+				
+				s_logger.trace("execute: " + sql);
+
 				if (stmt.execute(sql)) {
 					ResultSet rs = stmt.getResultSet();
 					while (rs.next()) {
 						String from = rs.getString("From");
+						
+						if (from == null) {
+							results.setTotal(rs.getLong("loan_id"));
+							
+							continue;
+						}
+						
 						String to = rs.getString("To");
 						Date date = new java.util.Date(rs.getTimestamp("Date").getTime());
 						Double amount = rs.getDouble("Amount");
 						String comment = rs.getString("Comment");
 						
-						Double credit = checkEntitiesContainsEntity(entities, to) ? amount : 0.0;
-						Double debit = checkEntitiesContainsEntity(entities, from) ? amount : 0.0;
+						Double credit = checkEntitiesContainsEntity(ns_entities, to) ? amount : 0.0;
+						Double debit = checkEntitiesContainsEntity(ns_entities, from) ? amount : 0.0;
 
 						// drop the postfix if we're sorting by amount so that linklist only has 1 value
 						// could probably generalize this but let's be conservative for safety's sake
@@ -228,13 +245,6 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 						// are cleaned or properly regenerated in the future
 						comment = formatCommentString(comment);
 						
-						String entity = entities.contains(to) ? to : from;
-						List<FL_Link> linkList = results.get(entity);
-						if (linkList == null) {
-							linkList = new LinkedList<FL_Link>();
-							results.put(entity, linkList);
-						}
-
 						List<FL_Property> properties = new ArrayList<FL_Property>();
 						properties.add(
 							new PropertyHelper(
@@ -283,8 +293,11 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 							)
 						);
 						
-						FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), from, to, true, null, null, properties);
-						linkList.add(link);
+						FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), 
+								TypedId.fromNativeId(TypedId.ACCOUNT, from).getTypedId(), 
+								TypedId.fromNativeId(TypedId.ACCOUNT, to).getTypedId(), 
+								true, null, null, properties);
+						links.add(link);
 					}
 					rs.close();
 				}
@@ -298,7 +311,7 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 			throw new AvroRemoteException(e);
 		}
 
-		return results;
+		return results.build();
 	}
 	
 	

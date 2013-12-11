@@ -24,6 +24,8 @@
  */
 package influent.server.dataaccess;
 
+import influent.midtier.TypedId;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -85,7 +87,7 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 */
 	@Override
 	public String globalFromLocalEntityId(String namespace, String localEntityId) {
-		return localEntityId;
+		return TypedId.fromNativeId(TypedId.ACCOUNT, localEntityId).getTypedId();
 	}
 
 	/* (non-Javadoc)
@@ -93,7 +95,7 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 */
 	@Override
 	public String localFromGlobalEntityId(String globalEntityId) {
-		return globalEntityId;
+		return TypedId.fromTypedId(globalEntityId).getNativeId();
 	}
 	
 	/* (non-Javadoc)

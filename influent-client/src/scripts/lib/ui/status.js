@@ -28,11 +28,11 @@ define(["jquery", "lib/module", "lib/extern/underscore"], function($, modules) {
 	var statusDialog = (function() {
 		var status = $('<div id="ajax-status">'
 				+ '<img id="ajax-status-icon" src="img/ajax-loader.gif"/>'
-				+ '<div id="ajax-status-message"/>'
+				+ '<div id="ajax-status-message"></div>'
 				+ '<div id="ajax-status-error" style="display: none;">'
-				+ '<div id="ajax-status-retry"/>'
-				+ '<div id="ajax-status-ok"/>'
-				+ '<div id="ajax-status-reset"/>'
+				+ '<div id="ajax-status-retry"></div>'
+				+ '<div id="ajax-status-ok"></div>'
+				+ '<div id="ajax-status-reset"></div>'
 				+ '</div></div>');
 
 		// add the retry button

@@ -28,22 +28,33 @@ import influent.idl.FL_DateInterval;
 import influent.idl.FL_DateRange;
 
 import java.io.Serializable;
-import java.text.SimpleDateFormat;
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.RandomAccess;
+import java.util.TimeZone;
+
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 public class DataAccessHelper {
 
 	// Serves no purpose other than for us to identify popup requests down the line when we are looking up entities.
 	public interface DetailsSubject {}
 	
+	
+	
+	
 	public static List<String> detailsSubject(String id) {
 		return new DetailsSubjectList(id);
 	}
+	
+	
+	
+	
     private static class DetailsSubjectList extends AbstractList<String> implements DetailsSubject, RandomAccess, Serializable {
         static final long serialVersionUID = 3093736618740652951L;
         private final String _id;
@@ -67,50 +78,161 @@ public class DataAccessHelper {
         }
     }
     
+    
+    
+    
 	public static final String ENTITY_TABLE = "FinEntity";
 	public static final String FLOW_TABLE = "FinFlow";
 	public static final String GLOBAL_CLUSTER_TABLE = "global_cluster_dataview";
 	public static final String DYNAMIC_CLUSTER_TABLE = "dynamic_cluster_dataview";
 	
-	public static SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 	
-	public static Date getStartDate(FL_DateRange date) {
-		return new Date(date.getStartDate());
-	}
-	
-	public static Date getEndDate(FL_DateRange date) {
-		Calendar c = Calendar.getInstance();
-		c.setTimeInMillis(date.getStartDate());
-		switch (date.getDurationPerBin().getInterval()) {
-		case SECONDS:
-			c.add(Calendar.SECOND, date.getNumBins().intValue());
-			break;
-		case HOURS:
-			c.add(Calendar.HOUR_OF_DAY, date.getNumBins().intValue());
-			break;
-		case DAYS:
-			c.add(Calendar.DATE, date.getNumBins().intValue());
-			break;
-		case WEEKS:
-			c.add(Calendar.DATE, (date.getNumBins().intValue() * 7));
-			break;
-		case MONTHS:
-			c.add(Calendar.MONTH, date.getNumBins().intValue());
-			break;
-		case QUARTERS:
-			c.add(Calendar.MONTH, (date.getNumBins().intValue() *3));
-			break;
-		case YEARS:
-			c.add(Calendar.YEAR, date.getNumBins().intValue());
-			break;
+	/**
+	 * Formats a date, exclusive of time, as a UTC date string.
+	 */
+	public static String format(Long date) {
+		if (date == null) {
+			return null;
 		}
 		
-		return c.getTime();
+		return format(new DateTime((long)date, DateTimeZone.UTC));
 	}
 	
-	public static boolean isDateInRange(long date, FL_DateRange range) {
-		return getStartDate(range).getTime() <= date && date <= getEndDate(range).getTime();
+	private static void pad00(int n, StringBuilder s) {
+		if (n < 10) {
+			s.append('0');
+		}
+		s.append(n);
 	}
+	
+	public static String format(DateTime dateTime) {
+		if (dateTime == null) {
+			return null;
+		}
+		
+		StringBuilder s = new StringBuilder(10);
+		
+		s.append(dateTime.getYear());
+		s.append('-');
+		
+		pad00(dateTime.getMonthOfYear(), s);
+		s.append('-');
+		
+		pad00(dateTime.getDayOfMonth(), s);
+		s.append(' ');
+
+		pad00(dateTime.getHourOfDay(), s);
+		s.append(':');
+		
+		pad00(dateTime.getMinuteOfHour(), s);
+		s.append(':');
+		
+		pad00(dateTime.getSecondOfMinute(), s);
+		s.append('.');
+		
+		int ms = dateTime.getMillisOfSecond();
+
+		if (ms < 100) {
+			s.append('0');
+		}
+		pad00(ms, s);
+		
+		return s.toString();
+	}
+	
+	public static DateTime getStartDate(FL_DateRange date) {
+		if (date == null || date.getStartDate() == null) {
+			return null;
+		}
+		
+		return new DateTime((long)date.getStartDate(), DateTimeZone.UTC);
+	}
+	
+	public static DateTime getExclusiveEndDate(FL_DateRange date) {
+		if (date == null) {
+			return null;
+		}
+
+		DateTime d = new DateTime((long)date.getStartDate(), DateTimeZone.UTC);
+
+		switch (date.getDurationPerBin().getInterval()) {
+		case SECONDS:
+			return d.plusSeconds(date.getNumBins().intValue());
+		case HOURS:
+			return d.plusHours(date.getNumBins().intValue());
+		case DAYS:
+			return d.plusDays(date.getNumBins().intValue());
+		case WEEKS:
+			return d.plusWeeks(date.getNumBins().intValue());
+		case MONTHS:
+			return d.plusMonths(date.getNumBins().intValue());
+		case QUARTERS:
+			return d.plusMonths(date.getNumBins().intValue() * 3);
+		case YEARS:
+			return d.plusYears(date.getNumBins().intValue());
+		}
+		
+		return d;
+	}
+	
+	/**
+	 * Gets the inclusive end date for SQL between. 
+	 */
+	public static DateTime getEndDate(FL_DateRange date) {
+		if (date == null) {
+			return null;
+		}
+
+		// max millisecond precision in SQL datetime is .997
+		return getExclusiveEndDate(date).minusMillis(3);
+	}
+	
+	
+	
+	public static List<Date> getDateIntervals(FL_DateRange date) {
+		Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+		c.setTimeInMillis(date.getStartDate());
+		
+		List<Date> dates = new ArrayList<Date>(date.getNumBins().intValue());
+		for (int i = 0; i < date.getNumBins().intValue(); i++) {
+			dates.add(c.getTime());
+			switch (date.getDurationPerBin().getInterval()) {
+				case SECONDS:
+					c.add(Calendar.SECOND, 1);
+					break;
+				case HOURS:
+					c.add(Calendar.HOUR_OF_DAY, 1);
+					break;
+				case DAYS:
+					c.add(Calendar.DATE, 1);
+					break;
+				case WEEKS:
+					c.add(Calendar.DATE, 7);
+					break;
+				case MONTHS:
+					c.add(Calendar.MONTH, 1);
+					break;
+				case QUARTERS:
+					c.add(Calendar.MONTH, 3);
+					break;
+				case YEARS:
+					c.add(Calendar.YEAR, 1);
+					break;
+			}
+		}
+		
+		return dates;
+	}
+	
+	
+	
+	
+	public static boolean isDateInRange(long date, FL_DateRange range) {
+		return range.getStartDate() <= date && date <= getEndDate(range).getMillis();
+	}
+	
+	
+	
 	
 	public static String standardTableName(String tableSeriesName, FL_DateInterval interval) {
 		if (interval != null) {
@@ -120,6 +242,9 @@ public class DataAccessHelper {
 		return tableSeriesName;
 	}
 
+	
+	
+	
 	public static String getIntervalLevel(FL_DateInterval interval) {
 		switch (interval) {
 		case SECONDS:
@@ -140,6 +265,9 @@ public class DataAccessHelper {
 		return "Yearly";
 	}
 	
+	
+	
+	
 	public static String createNodeIdListFromCollection(List<String> nodeIDs, boolean usePrefix, boolean trimDash) {
 		if (nodeIDs == null || nodeIDs.isEmpty()) return null;
 	
@@ -155,6 +283,8 @@ public class DataAccessHelper {
 		return resultString.toString();
 	}
 
+	
+	
 	
 	public static String createInClause(Collection<String> inItems) {
 		StringBuilder resultString = new StringBuilder();

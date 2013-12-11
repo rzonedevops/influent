@@ -22,8 +22,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 'lib/render/clusterRenderer'],
-    function($, chan, xfUtil, cardRenderer, clusterRenderer) {
+define(
+    [
+        'jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 'lib/render/clusterRenderer', 'lib/constants'
+    ],
+    function(
+        $, chan, xfUtil, cardRenderer, clusterRenderer, constants
+    ) {
 
         var _cardDefaults = cardRenderer.getRenderDefaults();
     	var CONTAINER_WIDTH_PADDING = 40;
@@ -52,7 +57,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
             // append the little tab to the top of the container
             var matchCardTab = $(canvas).children('.matchCardTab');
             if (matchCardTab.length == 0) {
-                matchCardTab = $('<div/>');
+                matchCardTab = $('<div></div>');
                 matchCardTab.addClass('matchCardTab');
                 matchCardTab.css('border-bottom-width', _renderDefaults.TAB_HEIGHT);
                 matchCardTab.css('top', -(_renderDefaults.TAB_HEIGHT - _renderDefaults.SEARCH_CTRL_PADDING_TOP));
@@ -67,11 +72,11 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
             var parentId = visualInfo.xfId;
 
             // Create the controls
-            var form  = $('<div/>');
+            var form  = $('<div></div>');
             var searchBox = $('<input/>');
-            var advancedOptionsButton = $('<button id="advancedOptionsButton"/>').button({icons: {primary:'searchIcon'}, text: false});
-            var removeButton = $('<div/>');
-			var searchType = $('<div/>');
+            var advancedOptionsButton = $('<button id="advancedOptionsButton"></button>').button({icons: {primary:'searchIcon'}, text: false});
+            var removeButton = $('<div></div>');
+			var searchType = $('<div></div>');
             var globalSearchButton = $('<button id= "globalSearchButton">Search</button>').button();
 
             // Add the controls.
@@ -173,7 +178,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
                 form.children('.ui-draggable').remove();
 
                 if (searchType.attr('clicked') == 'advancedOptionsButton') {
-                    aperture.pubsub.publish(chan.ADVANCE_SEARCH_DIALOG_REQUEST, {xfId : parentId});
+                    aperture.pubsub.publish(chan.ADVANCE_SEARCH_DIALOG_REQUEST, {xfId : parentId, terms : searchBox.val()});
                 }
                 else {
                     if (searchBox.val() == '') {
@@ -208,12 +213,13 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
                 var element = undefined;
 
                 switch(childObjects[i].getUIType()){
-                    case 'xfImmutableCluster' :
-                    case 'xfMutableCluster' : {
+                    case constants.MODULE_NAMES.IMMUTABLE_CLUSTER :
+                    case constants.MODULE_NAMES.MUTABLE_CLUSTER :
+                    case constants.MODULE_NAMES.SUMMARY_CLUSTER : {
                         element = clusterRenderer.createElement(visualInfo);
                         break;
                     }
-                    case 'xfCard' : {
+                    case constants.MODULE_NAMES.ENTITY : {
                         element = cardRenderer.createElement(visualInfo);
                         break;
                     }
@@ -257,11 +263,11 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
                 // Remove any previous listeners.
                 xfUtil.clearMouseListeners(canvas, ['mousedown']);
             } else {
-                canvas = $('<div/>');
+                canvas = $('<div></div>');
                 canvas.attr('id', visualInfo.xfId);
 
                 // Create the search controls.
-                searchDiv = $('<div/>');
+                searchDiv = $('<div></div>');
                 searchDiv.addClass('searchControls');
                 searchDiv.css('padding-top', _renderDefaults.SEARCH_CTRL_PADDING_TOP);
                 searchDiv.css('padding-bottom', _renderDefaults.SEARCH_CTRL_PADDING_BOTTOM);
@@ -270,7 +276,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
                 searchDiv.append(searchElement);
 
                 // Create the container for the search results.
-                cardDiv = $('<div/>');
+                cardDiv = $('<div></div>');
                 cardDiv.addClass('searchResults');
                 cardDiv.css('height', _renderDefaults.SEARCH_RESULT_HEIGHT);
                 cardDiv.css('padding-top', _renderDefaults.SEARCH_RESULT_PADDING_TOP);
@@ -292,14 +298,14 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
 
             if (visualInfo.spec.searchState == 'init') {
                 // append a 'search results here' div
-                var searchEntitiesDiv = $('<div/>');
+                var searchEntitiesDiv = $('<div></div>');
                 searchEntitiesDiv.addClass('emptyMatchBackground');
                 searchEntitiesDiv.html('Search Accounts');
                 searchEntitiesDiv.width(_renderDefaults.MATCHCARD_WIDTH);
                 searchEntitiesDiv.css('height', _renderDefaults.SEARCH_RESULT_HEIGHT);
                 cardDiv.append(searchEntitiesDiv);
             } else if (visualInfo.spec.searchState == 'searching') {
-                var searchingDiv = $('<div/>');
+                var searchingDiv = $('<div></div>');
                 searchingDiv.addClass('emptyMatchBackground');
                 searchingDiv.width(_renderDefaults.MATCHCARD_WIDTH);
                 searchingDiv.css('height', _renderDefaults.SEARCH_RESULT_HEIGHT);
@@ -313,13 +319,13 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
 
                     _processChildren(childUIObjects, cardDiv, visualInfo.minIdx, visualInfo.maxIdx);
 
-                    var searchPagingControlDiv = $('<div class="searchPagingControls"/>');
+                    var searchPagingControlDiv = $('<div class="searchPagingControls"></div>');
 
                     var searchPagingLabel =$('<div class="searchResultCount"></div>');
                     searchPagingLabel.html(_getPageString(visualInfo) + ' (' + visualInfo.totalMatches + ')');
                     searchPagingLabel.css('height', _renderDefaults.SEARCH_RESULT_COUNT_HEIGHT);
 
-                    var prevButton = $('<button/>').button({
+                    var prevButton = $('<button></button>').button({
                         icons: {
                             primary: "ui-icon-carat-1-w"
                         },
@@ -329,7 +335,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
                         aperture.pubsub.publish(chan.PREV_SEARCH_PAGE_REQUEST, {xfId : visualInfo.xfId});
                     });
 
-                    var nextButton = $('<button/>').button({
+                    var nextButton = $('<button></button>').button({
                         icons: {
                             primary: "ui-icon-carat-1-e"
                         },
@@ -345,7 +351,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
 
                     cardDiv.append(searchPagingControlDiv);
                 } else {
-                    var noEntitiesDiv = $('<div/>');
+                    var noEntitiesDiv = $('<div></div>');
                     noEntitiesDiv.addClass('emptyMatchBackground');
                     noEntitiesDiv.html('No Results Found');
                     noEntitiesDiv.width(_renderDefaults.MATCHCARD_WIDTH);
@@ -375,7 +381,7 @@ define(['jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 
                 		focusChanged = 	eventObject.target.classList.contains('matchCardSearchBox') || 
                 						eventObject.target.classList.contains('advancedOptionsButton') || 
                 						eventObject.target.classList.contains('searchResults') ||
-                						eventObject.target.classList.contains('searchPagingControls');;
+                						eventObject.target.classList.contains('searchPagingControls');
                 	}
                 	
                     if(!visualInfo.isSearchControlFocused && focusChanged) {

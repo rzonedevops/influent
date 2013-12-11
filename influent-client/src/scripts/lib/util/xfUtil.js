@@ -22,8 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define([],
-    function() {
+define(
+    ['lib/constants'],
+    function(constants) {
 
         // Note that the use of ((http|ftp|https)://)* means that this also includes valid hash keys for charts, not just general URIs
         var VALID_URI_REGEX = new RegExp('((http|ftp|https)://)*[a-z0-9\-_]+(\.[a-z0-9\-_]+)+([a-z0-9\-\.,@\?^=%&;:/~\+#]*[a-z0-9\-@\?^=%&;/~\+#])?', 'i');
@@ -40,7 +41,7 @@ define([],
         var _isUITypeDescendant = function(uiObject, uiType){
             var parentObj = uiObject.getParent();
             if (_.isEmpty(parentObj) // Parent has not been set - newly created item.
-                    || parentObj.getUIType() == 'xfColumn'){
+                    || parentObj.getUIType() == constants.MODULE_NAMES.COLUMN){
                 return false;
             }
             if (parentObj.getUIType() == uiType){
@@ -59,7 +60,7 @@ define([],
         var _getUITypeAncestor = function(uiObject, uiType){
             var parentObj = uiObject.getParent();
             if (_.isEmpty(parentObj) // Parent has not been set - newly created item.
-                || uiObject.getUIType() == 'xfColumn'){
+                || uiObject.getUIType() == constants.MODULE_NAMES.COLUMN){
                 return null;
             }
             if (parentObj.getUIType() == uiType){
@@ -98,16 +99,16 @@ define([],
             for (var i=0; i < children.length; i++){
                 var targetObj = children[i];
                 // If this is a match card, skip to the next object.
-                if (targetObj.getUIType() != 'xfMatch'){
+                if (targetObj.getUIType() != constants.MODULE_NAMES.MATCH){
                     var nextTarget = i+1 < children.length ? children[i+1] : null;
                     // If the current target is a file and the next target is a matchcard,
                     // we don't want to separate the two, so we get the next child.
-                    if (nextTarget != null && nextTarget.getUIType() == 'xfMatch'){
+                    if (nextTarget != null && nextTarget.getUIType() == constants.MODULE_NAMES.MATCH){
                         nextTarget = i+2 < children.length ? children[i+2] : null;
                     }
                     var tPos = positionMap[targetObj.getXfId()];
 
-                    if (_isClusterType(targetObj) && targetObj.isExpanded()){
+                    if (_isClusterTypeFromObject(targetObj) && targetObj.isExpanded()){
                         var neighbourInfo = _getAdjacentObjectInfo(positionMap, sourceObj, targetObj);
                         // We don't want to insert a uiObject side an expanded cluster hierarchy.
                         // We can only insert above, or below the topmost cluster element.
@@ -221,7 +222,7 @@ define([],
                 toReturn.push(target);
             }
 
-            if (target.getUIType() === 'xfFile'){
+            if (target.getUIType() === constants.MODULE_NAMES.FILE){
                 if (target.getMatchUIObject() != null){
                     toReturn = toReturn.concat(_getChildrenByType(target.getMatchUIObject(), acceptedTypes));
                 }
@@ -248,14 +249,14 @@ define([],
         var _getLinkableChildren = function(target) {
             var toReturn = [];
 
-            var isCollapsedCluster = (_isClusterType(target) && !target.isExpanded());
+            var isCollapsedCluster = (_isClusterTypeFromObject(target) && !target.isExpanded());
 
             // If this is an xfCard or a cluster uiObject, use the object itself.
             // Otherwise iterate through its children.
-            if (target.getUIType() == 'xfCard' || isCollapsedCluster){
+            if (target.getUIType() == constants.MODULE_NAMES.ENTITY || isCollapsedCluster){
                 toReturn.push(target);
             } else {
-            	if(target.getUIType() == 'xfFile' && target.hasMatchCard()) {
+            	if(target.getUIType() == constants.MODULE_NAMES.FILE && target.hasMatchCard()) {
             		var matchChildren = target.getMatchUIObject().getChildren();
                     for (var i = 0; i < matchChildren.length; i++) {
                         currChildrenByType = _getLinkableChildren(matchChildren[i]);
@@ -308,14 +309,14 @@ define([],
         var _getTopLevelEntity = function(uiObj){
             if (uiObj == null ||
                 typeof uiObj.getUIType !== 'function' ||
-                uiObj.getUIType() == 'xfWorkspace' ||
-                uiObj.getUIType() == 'xfColumn' ||
-                uiObj.getUIType() == 'xfLink'
+                uiObj.getUIType() == constants.MODULE_NAMES.WORKSPACE ||
+                uiObj.getUIType() == constants.MODULE_NAMES.COLUMN ||
+                uiObj.getUIType() == constants.MODULE_NAMES.FILE
             ) {
                 return null;
             }
 
-            if (uiObj.getParent().getUIType() == 'xfColumn') {
+            if (uiObj.getParent().getUIType() == constants.MODULE_NAMES.COLUMN) {
                 return uiObj;
             } else {
                 return _getTopLevelEntity(uiObj.getParent());
@@ -325,14 +326,63 @@ define([],
         //--------------------------------------------------------------------------------------------------------------
 
         var _isFileCluster = function(uiObject){
-          return (uiObject.getUIType() == 'xfMutableCluster');
+          return (uiObject.getUIType() == constants.MODULE_NAMES.MUTABLE_CLUSTER);
         };
 
         //--------------------------------------------------------------------------------------------------------------
 
-        var _isClusterType = function(uiObject) {
-            return (uiObject.getUIType() == 'xfImmutableCluster' || uiObject.getUIType() == 'xfMutableCluster');
+        var _isClusterTypeFromObject = function(uiObject) {
+            return (
+                uiObject.getUIType() == constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
+                uiObject.getUIType() == constants.MODULE_NAMES.MUTABLE_CLUSTER ||
+                uiObject.getUIType() == constants.MODULE_NAMES.SUMMARY_CLUSTER
+            );
         };
+
+        //--------------------------------------------------------------------------------------------------------------
+
+        var _isClusterTypeFromSpec = function(spec) {
+
+            if (spec.type != null) {
+                return (
+                    spec.type == constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
+                    spec.type == constants.MODULE_NAMES.MUTABLE_CLUSTER ||
+                    spec.type == constants.MODULE_NAMES.SUMMARY_CLUSTER ||
+                    spec.type == constants.MODULE_NAMES.CLUSTER_BASE
+                );
+            }
+
+            return false;
+        };
+
+        //--------------------------------------------------------------------------------------------------------------
+        
+        function _displayShiftedDate(utc) {
+        	return new Date(
+        		utc.getUTCFullYear(), 
+        		utc.getUTCMonth(),
+        		utc.getUTCDate()
+			);
+        }
+        
+        //--------------------------------------------------------------------------------------------------------------
+        
+        function _dayBefore(date) {
+        	return new Date(
+    			date.getFullYear(), 
+    			date.getMonth(),
+    			date.getDate() - 1
+			);
+        }
+
+        //--------------------------------------------------------------------------------------------------------------
+        function _dayAfter(date) {
+        	return new Date(
+    			date.getFullYear(), 
+    			date.getMonth(),
+    			date.getDate() + 1
+			);
+        }
 
         //--------------------------------------------------------------------------------------------------------------
         return {
@@ -347,7 +397,11 @@ define([],
             clearMouseListeners : _clearMouseListeners,
             getTopLevelEntity : _getTopLevelEntity,
             isFileCluster : _isFileCluster,
-            isClusterType : _isClusterType
+            isClusterTypeFromObject : _isClusterTypeFromObject,
+            isClusterTypeFromSpec : _isClusterTypeFromSpec,
+            dayBefore : _dayBefore,
+            dayAfter : _dayAfter,
+            displayShiftedDate : _displayShiftedDate
         };
     }
 );

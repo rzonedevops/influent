@@ -32,17 +32,17 @@ public class LedgerResult {
 	final private Integer numRows;
 	final private List<String> columnNames;
 	final private List<List<String>> tableData;
-	final private Integer totalRows;
+	final private Long totalRows;
 	
 	public LedgerResult(List<String> columnNames, List<List<String>> tableData){
-		this(columnNames.size(), tableData.size(), columnNames, tableData, tableData.size());
+		this(columnNames.size(), tableData.size(), columnNames, tableData, (long)tableData.size());
 	}
 	
 	public LedgerResult(Integer numColumns,
 			Integer numRows,
 			List<String> columnNames,
 			List<List<String>> tableData,
-			Integer totalRows){
+			Long totalRows){
 		this.numColumns = numColumns;
 		this.numRows = numRows;
 		this.columnNames = columnNames;
@@ -66,7 +66,7 @@ public class LedgerResult {
 		return tableData;
 	}
 	
-	public Integer getTotalRows() {
+	public Long getTotalRows() {
 		return totalRows;
 	}
 }

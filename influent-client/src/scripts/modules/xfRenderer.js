@@ -22,11 +22,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer',
+define(
+    [
+        'jquery', 'lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer',
         'lib/render/clusterRenderer', 'lib/render/fileRenderer', 'lib/render/matchRenderer','lib/render/columnRenderer',
-        'lib/render/workspaceRenderer', 'lib/render/toolbarRenderer'],
-    function($, modules, chan, xfUtil, cardRenderer, clusterRenderer, fileRenderer, matchRenderer, columnRenderer,
-             workspaceRenderer, toolbarRenderer) {
+        'lib/render/workspaceRenderer', 'lib/render/toolbarRenderer', 'lib/constants'
+    ],
+    function(
+        $, modules, chan, xfUtil, cardRenderer,
+        clusterRenderer, fileRenderer, matchRenderer, columnRenderer,
+        workspaceRenderer, toolbarRenderer, constants
+    ) {
 
 
         var _renderState = {
@@ -80,7 +86,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/render/c
 
                     var postAnimate = function(){
                         // Assume that xfFiles are always added to the top.
-                        var offsetY =  (layoutInfo.targetInfo.uiObject.getUIType()=='xfFile'?_fileDefaults.HEADER_HEIGHT : 0) + _toolbarDefaults.TOOLBAR_BTN_HEIGHT + 5;
+                        var offsetY =  (layoutInfo.targetInfo.uiObject.getUIType() == constants.MODULE_NAMES.FILE ?_fileDefaults.HEADER_HEIGHT : 0) + _toolbarDefaults.TOOLBAR_BTN_HEIGHT + 5;
 
                         var scrollY = Math.max((isInsertRight?targetPosition.top : refPosition.top) - offsetY, _toolbarDefaults.TOOLBAR_BTN_HEIGHT);
                         // Check if we need to scroll the viewport.
@@ -127,7 +133,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/render/c
                 else if (layoutInfo.type == 'zoomTo'){
                     var refPosition = positionMap[layoutInfo.refInfo.uiObject.getXfId()];
                     // Assume that xfFiles are always added to the top.
-                    var offsetY =  (layoutInfo.refInfo.uiObject.getUIType()=='xfFile'?_fileDefaults.HEADER_HEIGHT : 0) + _toolbarDefaults.TOOLBAR_BTN_HEIGHT + 5;
+                    var offsetY =  (layoutInfo.refInfo.uiObject.getUIType() == constants.MODULE_NAMES.FILE ? _fileDefaults.HEADER_HEIGHT : 0) + _toolbarDefaults.TOOLBAR_BTN_HEIGHT + 5;
 
                     var scrollY = Math.max(refPosition.top - offsetY, _toolbarDefaults.TOOLBAR_BTN_HEIGHT);
 
@@ -190,32 +196,39 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/render/c
                 return;
             }
 
-            var isFirst = $('#' + visualInfo.xfId + ((objectType == 'xfImmutableCluster' || objectType == 'xfMutableCluster') ?'_cluster':'')).length == 0;
+            var isFirst = $(
+                '#' +
+                visualInfo.xfId +
+                ((objectType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
+                  objectType == constants.MODULE_NAMES.MUTABLE_CLUSTER ||
+                  objectType == constants.MODULE_NAMES.SUMMARY_CLUSTER) ? '_cluster' : '')
+            ).length == 0;
 
             // Determine what we're rendering.
             switch(objectType){
-                case 'xfWorkspace' : {
+                case constants.MODULE_NAMES.WORKSPACE : {
                     element = workspaceRenderer.createElement(visualInfo);
                     break;
                 }
-                case 'xfColumn' : {
+                case constants.MODULE_NAMES.COLUMN : {
                     element = columnRenderer.createElement(visualInfo);
                     break;
                 }
-                case 'xfFile' : {
+                case constants.MODULE_NAMES.FILE : {
                     element = fileRenderer.createElement(visualInfo);
                     break;
                 }
-                case 'xfMatch' : {
+                case constants.MODULE_NAMES.MATCH : {
                     element = matchRenderer.createElement(visualInfo);
                     break;
                 }
-                case 'xfImmutableCluster' :
-                case 'xfMutableCluster' : {
+                case constants.MODULE_NAMES.IMMUTABLE_CLUSTER :
+                case constants.MODULE_NAMES.MUTABLE_CLUSTER :
+                case constants.MODULE_NAMES.SUMMARY_CLUSTER : {
                     element = clusterRenderer.createElement(visualInfo);
                     break;
                 }
-                case 'xfCard' : {
+                case constants.MODULE_NAMES.ENTITY : {
                     element = cardRenderer.createElement(visualInfo);
                     break;
                 }
@@ -240,27 +253,31 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/render/c
                 }
             }
 
-            var fileParent = null;
-            if (objectType == 'xfCard' || objectType == 'xfImmutableCluster' || objectType == 'xfMutableCluster') {
-                fileParent = element.parents('.fileBody').first();
-                if(fileParent.length == 0) {
-                    fileParent = element.parents('.fileBodySelected').first();
-                }
-                if(fileParent.length == 0) {
-                    fileParent = element.parents('.fileBodyHighlighted').first();
-                }
-            }
-            else if(objectType == 'xfFile' && visualInfo.clusterUIObject != null) {
-                var cardXfId = visualInfo.clusterUIObject.getXfId();
-                var bottomCard = $('#' + cardXfId);
-                fileParent = bottomCard.parents('.fileBody').first();
-                if(fileParent.length == 0) {
-                    fileParent = bottomCard.parents('.fileBodySelected').first();
-                }
-                if(fileParent.length == 0) {
-                    fileParent = bottomCard.parents('.fileBodyHighlighted').first();
-                }
-            }
+//            var fileParent = null;
+//            if (objectType == constants.MODULE_NAMES.ENTITY ||
+//                objectType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
+//                objectType == constants.MODULE_NAMES.MUTABLE_CLUSTER ||
+//                objectType == constants.MODULE_NAMES.SUMMARY_CLUSTER
+//            ) {
+//                fileParent = element.parents('.fileBody').first();
+//                if(fileParent.length == 0) {
+//                    fileParent = element.parents('.fileBodySelected').first();
+//                }
+//                if(fileParent.length == 0) {
+//                    fileParent = element.parents('.fileBodyHighlighted').first();
+//                }
+//            }
+//            else if(objectType == constants.MODULE_NAMES.FILE && visualInfo.clusterUIObject != null) {
+//                var cardXfId = visualInfo.clusterUIObject.getXfId();
+//                var bottomCard = $('#' + cardXfId);
+//                fileParent = bottomCard.parents('.fileBody').first();
+//                if(fileParent.length == 0) {
+//                    fileParent = bottomCard.parents('.fileBodySelected').first();
+//                }
+//                if(fileParent.length == 0) {
+//                    fileParent = bottomCard.parents('.fileBodyHighlighted').first();
+//                }
+//            }
 
             // Call the layout provider if a layout request is present.
             performLayout(data.layoutRequest);

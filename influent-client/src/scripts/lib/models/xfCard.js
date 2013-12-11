@@ -22,14 +22,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil', 'lib/extern/underscore'],
-    function($, xfUIObject, chan, guid, xfUtil) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil', 'lib/constants',
+        'lib/extern/underscore'],
+    function(
+        $, xfUIObject, chan, guid, xfUtil, constants
+    ) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
         //--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfCard';
+        var MODULE_NAME = constants.MODULE_NAMES.ENTITY;
 
         var xfCardToolBarSpecTemplate = {
             allowFile           : false,
@@ -54,8 +59,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
         var xfCardSpecTemplate = {
             parent              : {},
+            type                : MODULE_NAME,
+            subtype             : 'entity',
             dataId              : '',
-            isCluster           : false,
             icons               : [],
             detailsTextNodes    : [],
             graphUrl            : '',
@@ -157,8 +163,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             //----------------------------------------------------------------------------------------------------------
 
-            xfCardInstance.isCluster = function() {
-                return false;
+            xfCardInstance.getUISubtype = function() {
+                return _UIObjectState.spec.subtype;
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -179,6 +185,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             xfCardInstance.getParent = function() {
                 return _UIObjectState.spec.parent;
             };
+
             //----------------------------------------------------------------------------------------------------------
 
             xfCardInstance.setParent = function(xfUIObj){
@@ -300,7 +307,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 if (deleteAfterCollapse) {
                     if (_.size(_UIObjectState.links) == 0) {
                         // Check if this card is a descendant of a match card.
-                        if (!xfUtil.isUITypeDescendant(this, 'xfFile')){
+                        if (!xfUtil.isUITypeDescendant(this, constants.MODULE_NAMES.FILE)){
                         	aperture.pubsub.publish(chan.REMOVE_REQUEST, {xfId : this.getXfId()});
                         }
                     }
@@ -470,7 +477,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     // If this id belongs to this objects parent,
                     // and that parent is expanded, the child
                     // shall also inherit the highlight.
-                    if (xfUtil.isClusterType(this.getParent()) && this.getParent().isExpanded() && this.getParent().isHighlighted()){
+                    if (xfUtil.isClusterTypeFromObject(this.getParent()) && this.getParent().isExpanded() && this.getParent().isHighlighted()){
                         _UIObjectState.isHighlighted = true;
                     }
                     else if (_UIObjectState.isHighlighted) {
@@ -588,7 +595,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 state['node'] = {};
                 state['node']['xfId'] = _UIObjectState.xfId;
                 state['node']['dataId'] = _UIObjectState.spec.dataId;
-                state['node']['isCluster'] = _UIObjectState.spec.isCluster;
                 state['node']['icons'] = _UIObjectState.spec.icons;
                 state['node']['detailsTextNodes'] = _UIObjectState.spec.detailsTextNodes;
                 state['node']['graphUrl'] = _UIObjectState.spec.graphUrl;
@@ -628,14 +634,14 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 state['isHighlighted'] = _UIObjectState.isHighlighted;
                 state['showToolbar'] = _UIObjectState.showToolbar;
                 state['showDetails'] = _UIObjectState.showDetails;
-                state['showSpinner'] = false; // By default the spinner should not be visible.
                 state['isPinned'] = _UIObjectState.isPinned;
                 state['toolbarSpec'] = _UIObjectState.toolbarSpec;
 
                 state['spec'] = {};
                 state['spec']['parent'] = _UIObjectState.spec.parent.getXfId();
                 state['spec']['dataId'] = _UIObjectState.spec.dataId;
-                state['spec']['isCluster'] = _UIObjectState.spec.isCluster;
+                state['spec']['type'] = _UIObjectState.spec.type;
+                state['spec']['subtype'] = _UIObjectState.spec.subtype;
                 state['spec']['icons'] = _UIObjectState.spec.icons;
                 state['spec']['detailsTextNodes'] = _UIObjectState.spec.detailsTextNodes;
                 state['spec']['graphUrl'] = _UIObjectState.spec.graphUrl;
@@ -643,8 +649,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 state['spec']['label'] = _UIObjectState.spec.label;
                 state['spec']['confidenceInSrc'] = _UIObjectState.spec.confidenceInSrc;
                 state['spec']['confidenceInAge'] = _UIObjectState.spec.confidenceInAge;
-                state['spec']['leftOperation'] = _UIObjectState.spec.leftOperation;
-                state['spec']['rightOperation'] = _UIObjectState.spec.rightOperation;
                 state['spec']['flow'] = _UIObjectState.spec.flow;
                 state['spec']['chartSpec'] = _UIObjectState.spec.chartSpec;
 
@@ -655,6 +659,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             xfCardInstance.restoreVisualState = function(state) {
 
+                this.cleanState();
+
                 _UIObjectState.xfId = state.xfId;
                 _UIObjectState.UIType = state.UIType;
 
@@ -662,12 +668,12 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 _UIObjectState.isHighlighted = state.isHighlighted;
                 _UIObjectState.showToolbar = state.showToolbar;
                 _UIObjectState.showDetails = state.showDetails;
-                _UIObjectState.showSpinner = false; // By default the spinner should not be visible.
                 _UIObjectState.isPinned = state.isPinned;
                 _UIObjectState.toolbarSpec = state.toolbarSpec;
 
                 _UIObjectState.spec.dataId = state.spec.dataId;
-                _UIObjectState.spec.isCluster = state.spec.isCluster;
+                _UIObjectState.spec.type = state.spec.type;
+                _UIObjectState.spec.subtype = state.spec.subtype;
                 _UIObjectState.spec.icons = state.spec.icons;
                 _UIObjectState.spec.detailsTextNodes = state.spec.detailsTextNodes;
                 _UIObjectState.spec.graphUrl = state.spec.graphUrl;
@@ -675,8 +681,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 _UIObjectState.spec.label = state.spec.label;
                 _UIObjectState.spec.confidenceInSrc = state.spec.confidenceInSrc;
                 _UIObjectState.spec.confidenceInAge = state.spec.confidenceInAge;
-                _UIObjectState.spec.leftOperation = state.spec.leftOperation;
-                _UIObjectState.spec.rightOperation = state.spec.rightOperation;
                 _UIObjectState.spec.flow = state.spec.flow;
                 _UIObjectState.spec.chartSpec = state.spec.chartSpec;
             };
@@ -772,7 +776,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         xfCardModule.getSpecTemplate = function() {
 
             var specTemplate = _.clone(xfCardSpecTemplate);
-            specTemplate.chartSpec = _.clone(xfCardChartSpecTemplate);;
+            specTemplate.chartSpec = _.clone(xfCardChartSpecTemplate);
 
             return specTemplate;
         };

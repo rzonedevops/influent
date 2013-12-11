@@ -33,9 +33,9 @@ import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.PropertyHelper;
 import influent.server.data.ChartData;
+import influent.server.dataaccess.DataAccessHelper;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -94,7 +94,8 @@ public class ChartBuilder {
 		String contextId,
 		String focusContextId,
 		String sessionId,
-		Integer bucketNo
+		Integer bucketNo,
+		String imageHash
 	) throws AvroRemoteException {
 		Double startingBalance = 0.0;
 		
@@ -124,7 +125,7 @@ public class ChartBuilder {
 				foundInCache = true;
 			}
 		}
-		if (!foundInCache) startingBalance = calcStartingBalance(new Date(dateRange.getStartDate()), entities); 
+		if (!foundInCache) startingBalance = calcStartingBalance(DateTimeParser.fromFL(dateRange.getStartDate()), entities); 
 		Double runningBalance = startingBalance;
 		Double maxBalance = startingBalance;
 		Double minBalance = startingBalance;
@@ -142,7 +143,7 @@ public class ChartBuilder {
 							PropertyHelper property = PropertyHelper.from(prop);
 							if (property.hasTag(FL_PropertyTag.DATE)) {
 								Long date = (Long)property.getValue();
-								bucket = DateRangeBuilder.determineInterval(new DateTime(date), new DateTime(dateRange.getStartDate()), dateRange.getDurationPerBin().getInterval(), dateRange.getDurationPerBin().getNumIntervals().intValue());
+								bucket = DateRangeBuilder.determineInterval(DateTimeParser.fromFL(date), DateTimeParser.fromFL(dateRange.getStartDate()), dateRange.getDurationPerBin().getInterval(), dateRange.getDurationPerBin().getNumIntervals().intValue());
 								if (bucket >= bucketNo) skip=true;
 								if (bucket < 0) skip=true;
 							}
@@ -223,10 +224,10 @@ public class ChartBuilder {
 			chartDataCache.put(element);
 		}
 		
-		return new ChartData(startingBalance, endBalance, credits, debits, maxCredit, maxDebit, maxBalance, minBalance, focusCredits, focusDebits);
+		return new ChartData(startingBalance, endBalance, credits, debits, maxCredit, maxDebit, maxBalance, minBalance, focusCredits, focusDebits, DataAccessHelper.getDateIntervals(dateRange), imageHash);
 	}
 
-	private Double calcStartingBalance(Date minDate, List<String> memberIds) {
+	private Double calcStartingBalance(DateTime minDate, List<String> memberIds) {
 //		final DateTime epoch = new DateTime(1970,1,1,0,0);
 		Double balance = 0.0;
 		

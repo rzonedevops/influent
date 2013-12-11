@@ -21,6 +21,11 @@ DataTypes
 ClusteringDataAccess
 - removed getAccounts() method
 - renamed getEntities() to getClusters()
+
+DataAccess
+- getAllTransactions
+	- changed return type to TransactionResults which include total result count
+	- added a start index
 		
 Version 1.5
 ------------

@@ -1,8 +1,21 @@
 <ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="../../main/config/ehcache.xsd">
+    
+    <!-- Recommended to allocate 25% of server RAM to working memory and 
+         remaining 75% distributed among the ehcaches according the recommendations below.  
+         Each cache should be allocated a minimum of 3 times allocated RAM in disk cache. -->
+    
+    <!-- Example allocation breakdown for 8GB of server RAM:  
+            0.6 GB RAM, 1.8 GB disk to SimplePageCacheFilter
+            0.3 GB RAM, 0.9 GB disk to ChartDataCache
+            0.6 GB RAM, 1.8 GB disk to persistenceCache
+            4.5 GB RAM, 13.5 GB disk to dynamicClusterCache 
+            This leaves 2.0 GB RAM to working memory-->
+    
+    <!-- Aperture web page cache settings: recommended 10% of allocated cache RAM -->
     <cache name="SimplePageCachingFilter"
-           maxElementsInMemory="10000"
-           maxElementsOnDisk="1000"
+           maxBytesLocalHeap="600M"
+           maxBytesLocalDisk="1800M"
            eternal="false"
            overflowToDisk="true"
            diskPersistent="false"
@@ -10,19 +23,10 @@
            timeToLiveSeconds="600"
            memoryStoreEvictionPolicy="LFU"
 	/>
-	<cache name="QueryCache"
-    	   maxElementsInMemory="10000"
-           maxElementsOnDisk="10000"
-           eternal="false"
-           overflowToDisk="true"
-           diskPersistent="false"
-           timeToIdleSeconds="7200"
-           timeToLiveSeconds="28800"
-           memoryStoreEvictionPolicy="LFU"
-	/>
+	<!-- Chart Data cache settings: recommended 5% of allocated cache RAM -->
 	<cache name="ChartDataCache"
-    	   maxElementsInMemory="10000"
-           maxElementsOnDisk="10000"
+    	   maxBytesLocalHeap="300M"
+           maxBytesLocalDisk="900M"
            eternal="false"
            overflowToDisk="true"
            diskPersistent="false"
@@ -30,29 +34,10 @@
            timeToLiveSeconds="28800"
            memoryStoreEvictionPolicy="LFU"
 	/>
-	<cache name="ItemCache"
-    	   maxElementsInMemory="10000"
-           maxElementsOnDisk="10000"
-           eternal="false"
-           overflowToDisk="true"
-           diskPersistent="false"
-           timeToIdleSeconds="7200"
-           timeToLiveSeconds="28800"
-           memoryStoreEvictionPolicy="LFU"
-	/>
-	<cache name="exportCache"
-    	   maxElementsInMemory="10000"
-           maxElementsOnDisk="10000"
-           eternal="false"
-           overflowToDisk="true"
-           diskPersistent="false"
-           timeToIdleSeconds="7200"
-           timeToLiveSeconds="28800"
-           memoryStoreEvictionPolicy="LFU"
-	/>
+	<!-- Persistent session cache settings: recommended 10% of allocated cache RAM -->
 	<cache name="persistenceCache"
-    	   maxElementsInMemory="10000"
-           maxElementsOnDisk="10000"
+    	   maxBytesLocalHeap="600M"
+           maxBytesLocalDisk="1800M"
            eternal="false"
            overflowToDisk="true"
            diskPersistent="false"
@@ -60,6 +45,17 @@
            timeToLiveSeconds="43200"
            memoryStoreEvictionPolicy="FIFO"
 	/>
+	<!-- Entity cluster context cache settings: recommended 75% of allocated cache RAM -->
+	<cache name="dynamicClusteringCache"
+    	   maxBytesLocalHeap="4500M"
+           maxBytesLocalDisk="13500M"
+           eternal="false"
+           overflowToDisk="true"
+           diskPersistent="false"
+           timeToIdleSeconds="43200"
+           timeToLiveSeconds="43200"
+           memoryStoreEvictionPolicy="LFU"
+	/>
 	
-	<diskStore path="java.io.tmpdir" />
+	<diskStore path="ehcache.disk.store.dir" />
 </ehcache>

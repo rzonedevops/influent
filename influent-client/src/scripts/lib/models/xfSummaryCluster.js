@@ -25,13 +25,11 @@
 define(
     [
         'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil',
-        'lib/models/xfCard', 'lib/models/xfSummaryCluster',
         'lib/models/xfClusterBase', 'lib/constants',
         'lib/extern/underscore'
     ],
     function(
         $, xfUIObject, chan, guid, xfUtil,
-        xfCard, xfSummaryCluster,
         xfClusterBase, constants
     ) {
 
@@ -39,23 +37,23 @@ define(
         // Private Variables
         //--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfImmutableCluster';
+        var MODULE_NAME = constants.MODULE_NAMES.SUMMARY_CLUSTER;
 
         //--------------------------------------------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------------------------------------------
 
-        var xfImmutableCluster = {};
+        var xfSummaryCluster = {};
 
         //--------------------------------------------------------------------------------------------------------------
 
-        xfImmutableCluster.createInstance = function(spec){
+        xfSummaryCluster.createInstance = function(spec){
 
             //------------------
             // private variables
             //------------------
 
-            var guidId = 'immutable_' + guid.generateGuid();
+            var guidId = 'summary_' + guid.generateGuid();
             
             var _UIObjectState = {
                 xfId                : guidId,
@@ -78,51 +76,12 @@ define(
             // private methods
             //----------------
 
-            var _createChildrenFromSpec = function(showSpinner, showToolbar, setPinned) {
-
-                for (var i = 0; i < _UIObjectState.children.length; i++) {
-                    _UIObjectState.children[i].dispose();
-                    _UIObjectState.children[i] = null;
-                }
-                _UIObjectState.children.length = 0;
-
-                for (var i = 0; i < _UIObjectState.spec.members.length; i++) {
-
-                    var childMemberSpec = _UIObjectState.spec.members[i];
-
-                    var uiObject = {};
-                    if (childMemberSpec.type == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
-                        uiObject = xfSummaryCluster.createInstance(childMemberSpec);
-                    } else if (xfUtil.isClusterTypeFromSpec(childMemberSpec)) {
-                        uiObject =  xfImmutableCluster.createInstance(childMemberSpec);
-                    } else if (childMemberSpec.type == constants.MODULE_NAMES.ENTITY) {
-                        uiObject = xfCard.createInstance(childMemberSpec);
-                    }
-                    uiObject.showDetails(_UIObjectState.showDetails);
-                    uiObject.showSpinner(showSpinner);
-                    uiObject.setPin(setPinned);
-
-                    // we set the children's toolbar state base on our toolbar state. However,
-                    // we need to specifically set our children to not allow close
-                    uiObject.updateToolbar(_UIObjectState.toolbarSpec);
-                    uiObject.updateToolbar({'allowClose': false});
-                    uiObject.showToolbar(showToolbar);
-
-                    // Add the child to the cluster.
-                    uiObject.setParent(xfClusterInstance);
-                    _UIObjectState.children.push(uiObject);
-                }
-            };
-
             //---------------
             // public methods
             //---------------
 
             // create new object instance
             var xfClusterInstance = xfClusterBase.createInstance(_UIObjectState);
-
-            // create child placeholder cards from spec
-            _createChildrenFromSpec(true, false, _UIObjectState.isPinned);
 
             //----------
             // Overrides
@@ -131,11 +90,10 @@ define(
             xfClusterInstance.clone = function() {
 
                 // create cloned object
-                var clonedObject = xfImmutableCluster.createInstance(_UIObjectState.spec);
+                var clonedObject = xfSummaryCluster.createInstance(_UIObjectState.spec);
 
                 // add necessary UI state
                 clonedObject.showDetails(_UIObjectState.showDetails);
-                (_UIObjectState.isExpanded) ? clonedObject.expand() : clonedObject.collapse();
 
                 // make the cloned object an orphan
                 clonedObject.setParent(null);
@@ -146,33 +104,42 @@ define(
 
             //----------------------------------------------------------------------------------------------------------
 
+            xfClusterInstance.expand = function() {
+                return;
+            };
+
+            //----------------------------------------------------------------------------------------------------------
+
+            xfClusterInstance.collapse = function() {
+                return;
+            };
+
+            //----------------------------------------------------------------------------------------------------------
+
             xfClusterInstance.removeChild = function(xfId, disposeObject, preserveLinks) {
-                console.error('Unable to remove child from ' + MODULE_NAME);
+                return;
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfClusterInstance.removeAllChildren = function() {
-                console.error('Unable to remove children from ' + MODULE_NAME);
+                return;
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfClusterInstance.insert = function(xfUIObj, beforeXfUIObj00) {
-                console.error('Unable to insert children into ' + MODULE_NAME);
+                return;
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfClusterInstance.update = function(spec) {
-
                 for (var key in spec) {
                     if (spec.hasOwnProperty(key)) {
                         _UIObjectState.spec[key] = spec[key];
                     }
                 }
-
-                _createChildrenFromSpec(false, true, _UIObjectState.isPinned);
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -184,7 +151,6 @@ define(
                 _UIObjectState.xfId = state.xfId;
                 _UIObjectState.UIType = state.UIType;
 
-                _UIObjectState.isExpanded = state.isExpanded;
                 _UIObjectState.isSelected = state.isSelected;
                 _UIObjectState.isHighlighted = state.isHighlighted;
                 _UIObjectState.showToolbar = state.showToolbar;
@@ -207,37 +173,6 @@ define(
                 _UIObjectState.spec.members = state.spec.members;
 
                 _UIObjectState.children = [];
-                var childCount = state.children.length;
-                for (var i = 0; i < childCount; i++) {
-                    if (state.children[i].UIType == constants.MODULE_NAMES.ENTITY) {
-                        var cardSpec = xfCard.getSpecTemplate();
-                        var cardUIObj = xfCard.createInstance(cardSpec);
-                        cardUIObj.cleanState();
-                        cardUIObj.restoreVisualState(state.children[i]);
-                        this._restoreObjectToCluster(cardUIObj);
-                    } else if (state.children[i].UIType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
-                        var clusterSpec = xfImmutableCluster.getSpecTemplate();
-                        var clusterUIObj = xfImmutableCluster.createInstance(clusterSpec);
-                        clusterUIObj.cleanState();
-                        clusterUIObj.restoreVisualState(state.children[i]);
-                        this._restoreObjectToCluster(clusterUIObj);
-                    } else {
-                        console.error("cluster children should only be of type " + constants.MODULE_NAMES.ENTITY + " or " + constants.MODULE_NAMES.IMMUTABLE_CLUSTER + ".");
-                    }
-                }
-            };
-
-            //----------------------------------------------------------------------------------------------------------
-
-            xfClusterInstance._restoreObjectToCluster = function(object) {
-
-                var memberSpec = _.clone(object.getVisualInfo().spec);
-                memberSpec.parent = this;
-
-                _UIObjectState.children.push(object);
-                _UIObjectState.spec.members.push(memberSpec);
-
-                object.setParent(this);
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -247,20 +182,21 @@ define(
 
         //--------------------------------------------------------------------------------------------------------------
 
-        xfImmutableCluster.getSpecTemplate = function() {
+        xfSummaryCluster.getSpecTemplate = function() {
             var spec = xfClusterBase.getSpecTemplate();
             spec.type = MODULE_NAME;
+            spec.subtype = 'cluster_summary';
             return spec;
         };
 
         //--------------------------------------------------------------------------------------------------------------
 
-        xfImmutableCluster.getModuleName = function() {
+        xfSummaryCluster.getModuleName = function() {
             return MODULE_NAME;
         };
 
         //--------------------------------------------------------------------------------------------------------------
 
-        return xfImmutableCluster;
+        return xfSummaryCluster;
     }
 );

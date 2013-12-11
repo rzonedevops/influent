@@ -22,14 +22,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil', 'lib/extern/underscore'],
-    function($, xfUIObject, chan, xfUtil) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil', 'lib/constants',
+        'lib/extern/underscore'
+    ],
+    function(
+        $, xfUIObject, chan, xfUtil, constants
+    ) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
         //--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfCluster';
+        var MODULE_NAME = constants.MODULE_NAMES.CLUSTER_BASE;
 
         var xfClusterToolBarSpecTemplate = {
             allowFile           : true,
@@ -54,8 +60,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
 
         var xfClusterSpecTemplate = {
             parent              : {},
+            type                : MODULE_NAME,
+            subtype             : 'entity_cluster',
             dataId              : '',
-            isCluster           : true,
             count               : 0,
             members             : [],
             icons               : [],
@@ -118,8 +125,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
 
             //----------------------------------------------------------------------------------------------------------
 
-            xfClusterInstance.isCluster = function() {
-                return true;
+            xfClusterInstance.getUISubtype = function() {
+                return _UIObjectState.spec.subtype;
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -363,7 +370,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
                                 }
                             }
 
-                            if (foundLink && !xfUtil.isUITypeDescendant(targetEntities[targetEntities.length-1], 'xfFile')) {
+                            if (foundLink && !xfUtil.isUITypeDescendant(targetEntities[targetEntities.length-1], constants.MODULE_NAMES.FILE)) {
                                 link.remove();
                             }
                         }
@@ -376,7 +383,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
                     if (deleteAfterCollapse) {
                         if (_.size(_UIObjectState.links) == 0) {
                             // Check if this card is a descendant of a match card.
-                            if (!xfUtil.isUITypeDescendant(this, 'xfFile')){
+                            if (!xfUtil.isUITypeDescendant(this, constants.MODULE_NAMES.FILE)){
                             	this.getParent().removeChild(this.getXfId(), true, true);
                             }
                         }
@@ -519,7 +526,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
                     // If this id belongs to this objects parent,
                     // and that parent is expanded, the child
                     // shall also inherit the highlight.
-                    if (xfUtil.isClusterType(this.getParent()) && this.getParent().isExpanded() && this.getParent().isHighlighted()){
+                    if (xfUtil.isClusterTypeFromObject(this.getParent()) && this.getParent().isExpanded() && this.getParent().isHighlighted()){
                         _UIObjectState.isHighlighted = true;
                     }
                     else {
@@ -705,7 +712,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
                 state['node'] = {};
                 state['node']['parent'] = _UIObjectState.spec.parent.getXfId();
                 state['node']['dataId'] = _UIObjectState.spec.dataId;
-                state['node']['isCluster'] = _UIObjectState.spec.isCluster;
                 state['node']['count'] = _UIObjectState.spec.count;
                 state['node']['icons'] = _UIObjectState.spec.icons;
                 state['node']['detailsTextNodes'] = _UIObjectState.spec.detailsTextNodes;
@@ -753,14 +759,14 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
                 state['isHighlighted'] = _UIObjectState.isHighlighted;
                 state['showToolbar'] = _UIObjectState.showToolbar;
                 state['showDetails'] = _UIObjectState.showDetails;
-                state['showSpinner'] = false;
                 state['isPinned'] = _UIObjectState.isPinned;
                 state['toolbarSpec'] = _UIObjectState.toolbarSpec;
 
                 state['spec'] = {};
                 state['spec']['parent'] = _UIObjectState.spec.parent.getXfId();
                 state['spec']['dataId'] = _UIObjectState.spec.dataId;
-                state['spec']['isCluster'] = _UIObjectState.spec.isCluster;
+                state['spec']['type'] = _UIObjectState.spec.type;
+                state['spec']['subtype'] = _UIObjectState.spec.subtype;
                 state['spec']['count'] = _UIObjectState.spec.count;
                 state['spec']['icons'] = _UIObjectState.spec.icons;
                 state['spec']['detailsTextNodes'] = _UIObjectState.spec.detailsTextNodes;
@@ -769,8 +775,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
                 state['spec']['label'] = _UIObjectState.spec.label;
                 state['spec']['confidenceInSrc'] = _UIObjectState.spec.confidenceInSrc;
                 state['spec']['confidenceInAge'] = _UIObjectState.spec.confidenceInAge;
-                state['spec']['leftOperation'] = _UIObjectState.spec.leftOperation;
-                state['spec']['rightOperation'] = _UIObjectState.spec.rightOperation;
                 state['spec']['flow'] = _UIObjectState.spec.flow;
                 state['spec']['members'] = _UIObjectState.spec.members;
 
@@ -818,11 +822,12 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil'
                 _UIObjectState.toolbarSpec = null;
                 _UIObjectState.spec = null;
 
-                for (var i = 0; i < _UIObjectState.children.length; i++) {
-                    _UIObjectState.children[i].dispose();
-                    _UIObjectState.children[i] = null;
+                var kids = _UIObjectState.children;
+                _UIObjectState.children = [];
+                
+                for (var i = 0; i < kids.length; i++) {
+                    kids[i].dispose();
                 }
-                _UIObjectState.children = null;
 
                 for (var linkId in _UIObjectState.links) {
                     if (_UIObjectState.links.hasOwnProperty(linkId)) {

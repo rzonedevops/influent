@@ -41,7 +41,7 @@ define([], function() {
 		 */
 		parse : function (hash) {
 			if (hash == null) {
-				return;
+				return null;
 			}
 			
 			var params = hash.split(")!");
@@ -90,7 +90,7 @@ define([], function() {
 			// Check each of the newly set properties, have any changed?
 			// NOTE THAT this should deep copy any object values, which
 			// we currently take care of after this loop.
-			for (prop in updates) {
+			for (var prop in updates) {
 				// Copy own properties, data only, no functions
 				// Note: if copy functions we really screw up the use of "that" in the closure
 				if (updates.hasOwnProperty(prop) && _.isFunction(updates[prop]) === false ) {
@@ -131,7 +131,7 @@ define([], function() {
 		hash: function (params) {
 			var hash = '';
 	
-			for (prop in params) {
+			for (var prop in params) {
 				if (params.hasOwnProperty(prop) && _.isFunction(params[prop]) === false ) {
 					var value = params[prop];
 	

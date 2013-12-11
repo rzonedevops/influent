@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.1.0</version>
+		<version>1.1.2</version>
 	</parent>
 
 	<artifactId>bitcoin</artifactId>
 	<packaging>war</packaging>
 
-	<name>bitcoin</name>
+	<name>${project.artifactId}</name>
 	<url></url>
 
 	<properties>
@@ -150,7 +150,7 @@
 					</configuration>
 				</plugin>
 			</plugins>
-		</pluginManagement>		
+		</pluginManagement>
 	</build>
 	
 	<profiles>
@@ -301,7 +301,7 @@
 				   	                  <groupId>oculus.aperture.service</groupId>
 				   	                  <artifactId>aperture-capture-phantom</artifactId>
 				   	                  <type>${phantomBinType}</type>
-				   	                  <version>1.0.0-SNAPSHOT</version>
+				   	                  <version>${aperture.version}</version>
 				   	                  <outputDirectory>${phantomBinDir}</outputDirectory>
 				   	                  <destFileName>${phantomBinFile}</destFileName>
 				   	                </artifactItem>
@@ -361,7 +361,7 @@
 							</scanTargetPatterns>
 
 							<webAppConfig>
-								<contextPath>/bitcoin</contextPath>
+								<contextPath>/${project.artifactId}</contextPath>
 								<baseResource
 									implementation="org.eclipse.jetty.util.resource.ResourceCollection">
 									<!-- Use the development (source) code -->
@@ -463,7 +463,7 @@
         					</execution>
         					
         					<execution>
-            					<id>copy-bitcoin-src</id>
+            					<id>copy-app-src</id>
             					<phase>generate-resources</phase>
             					<goals>
                 					<goal>copy-resources</goal>
@@ -607,7 +607,7 @@
 							</scanTargetPatterns>
 
 							<webAppConfig>
-								<contextPath>/bitcoin</contextPath>
+								<contextPath>/${project.artifactId}</contextPath>
 								<baseResource implementation="org.eclipse.jetty.util.resource.ResourceCollection">
 									<!-- Use the "built" version of the JS code (been run through the RequireJS optimizer) -->
 									<resourcesAsCSV>${project.build.directory}/${project.build.finalName}</resourcesAsCSV>
@@ -649,7 +649,7 @@
 								<deployables>
 									<deployable>
 										<properties>
-											<context>/bitcoin</context>
+											<context>/${project.artifactId}</context>
 										</properties>
 									</deployable>
 								</deployables>
@@ -683,7 +683,7 @@
 		<dependency>
 			<groupId>oculus.aperture</groupId>
 			<artifactId>aperture-client</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
+			<version>${aperture.version}</version>
 		</dependency>
 		
 		<dependency>

@@ -112,7 +112,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/render/cardRenderer',
             var positionMap = xfLayoutProvider.getPositionMap();
 
             // Add a drop target to left of min and right of max column
-            var leftDropTargetElement = $('<div/>');
+            var leftDropTargetElement = $('<div></div>');
             var leftDropTargetLeft = positionMap[minColumnObject.getXfId()].left - 5;
             var leftDropTargetTop = positionMap[minColumnObject.getXfId()].top;
             leftDropTargetElement.addClass('verticalFileDropTarget');
@@ -126,7 +126,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/render/cardRenderer',
             });
             leftDropTargetElement.droppable('disable');
 
-            var rightDropTargetElement = $('<div/>');
+            var rightDropTargetElement = $('<div></div>');
             var rightDropTargetLeft = positionMap[maxColumnObject.getXfId()].left + 5 + matchRenderer.getRenderDefaults().MATCHCARD_WIDTH;
             var rightDropTargetTop = positionMap[maxColumnObject.getXfId()].top;
             rightDropTargetElement.addClass('verticalFileDropTarget');
@@ -195,8 +195,10 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/render/cardRenderer',
                     _renderState.subscriberTokens = subTokens;
                 },
                 end : function(){
-                    for (token in _renderState.subscriberTokens) {
-                        aperture.pubsub.unsubscribe(_renderState.subscriberTokens[token]);
+                    for (var token in _renderState.subscriberTokens) {
+                        if (_renderState.subscriberTokens.hasOwnProperty(token)) {
+                            aperture.pubsub.unsubscribe(_renderState.subscriberTokens[token]);
+                        }
                     }
                 }
             };

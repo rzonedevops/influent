@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfModalDialog'],
-    function($, modules, chan, duration, xfModalDialog) {
+define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'lib/ui/xfModalDialog'],
+    function($, modules, chan, duration, xfUtil, xfModalDialog) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
@@ -34,8 +34,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
         var _UIObjectState = {
             UIType : MODULE_NAME,
             sandbox : undefined,
-            start : new Date(),
-            end : new Date(2013,0,1), // TODO: fix
+            inTzStart : new Date(),
+            inTzEnd : new Date(2013,0,1), // TODO: fix
             showDetails : true,
             duration : '',
             datasetMax : '',
@@ -68,6 +68,14 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
             }
         )();
 
+        function _utcDate(d) {
+        	return new Date(Date.UTC(
+    			d.getFullYear(), 
+    			d.getMonth(),
+    			d.getDate()
+			));
+        }
+        
         //--------------------------------------------------------------------------------------------------------------
         // Private Methods
         //--------------------------------------------------------------------------------------------------------------
@@ -147,14 +155,14 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
             $('#export-capture').click(
                 function (e) {
                     e.preventDefault();
-                    aperture.pubsub.publish(chan.EXPORT_CAPTURED_IMAGE_REQUEST);
+//                    aperture.pubsub.publish(chan.EXPORT_CAPTURED_IMAGE_REQUEST);
                 }
             );
 
             $('#export-notebook').click(
                 function (e) {
                     e.preventDefault();
-                    aperture.pubsub.publish(chan.EXPORT_GRAPH_REQUEST);
+//                    aperture.pubsub.publish(chan.EXPORT_GRAPH_REQUEST);
                 }
             );
             
@@ -183,8 +191,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
             aperture.pubsub.publish(
                 chan.FILTER_CHANGE_REQUEST,
                 {
-                    start: _UIObjectState.start,
-                    end: _UIObjectState.end,
+                    start: _utcDate(_UIObjectState.inTzStart),
+                    end: _utcDate(_UIObjectState.inTzEnd),
                     duration: _UIObjectState.duration,
                     numBuckets: _UIObjectState.numBuckets
                 }
@@ -223,9 +231,13 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
                 showAnim: 'fadeIn',
                 duration: 'fast',
                 onSelect: function() {
-                    _UIObjectState.start = new Date($(this).val());
-                    _UIObjectState.end = duration.addToDate(_UIObjectState.duration, _UIObjectState.start);
-                    $('#datepickerto').datepicker("setDate", _UIObjectState.end);
+                    _UIObjectState.inTzStart = new Date($(this).val());
+                    _UIObjectState.inTzEnd = duration.addToDate(_UIObjectState.duration, _UIObjectState.inTzStart);
+                    // this is here to fix time zone switches - should this be a fix to duration?
+                    _UIObjectState.inTzEnd.setMinutes(_UIObjectState.inTzEnd.getMinutes() 
+                    		- _UIObjectState.inTzStart.getTimezoneOffset()
+                    		+ _UIObjectState.inTzEnd.getTimezoneOffset());
+                    $('#datepickerto').datepicker("setDate", xfUtil.dayBefore(_UIObjectState.inTzEnd));
 
                     _adjustRangeBar();
                     // unhide apply button
@@ -243,9 +255,13 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
                 showAnim: 'fadeIn',
                 duration: 'fast',
                 onSelect: function() {
-                    _UIObjectState.end = new Date($(this).val());
-                    _UIObjectState.start = duration.subtractFromDate(_UIObjectState.duration, _UIObjectState.end);
-                    $('#datepickerfrom').datepicker("setDate", _UIObjectState.start);
+                    _UIObjectState.inTzEnd = xfUtil.dayAfter(new Date($(this).val()));
+                    _UIObjectState.inTzStart = duration.subtractFromDate(_UIObjectState.duration, _UIObjectState.inTzEnd);
+                    // this is here to fix time zone switches - should this be a fix to duration?
+                    _UIObjectState.inTzStart.setMinutes(_UIObjectState.inTzStart.getMinutes()
+                    		- _UIObjectState.inTzEnd.getTimezoneOffset()
+                    		+ _UIObjectState.inTzStart.getTimezoneOffset());
+                    $('#datepickerfrom').datepicker("setDate", _UIObjectState.inTzStart);
 
                     _adjustRangeBar();
                     // unhide apply button
@@ -253,7 +269,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
                 },
                 beforeShowDay: function(date) {
                     // validation fn for dates, return valid (bool), css classname
-                    return [!_UIObjectState.duration || duration.isDateValidForDuration(date, _UIObjectState.duration), ''];
+                    return [!_UIObjectState.duration || duration.isDateValidForDuration(xfUtil.dayAfter(date), _UIObjectState.duration), ''];
                 }
             });
 
@@ -267,11 +283,15 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
 
             intervalSelect.change(function(e) {
                 _UIObjectState.duration = $('#interval').val();
-                _UIObjectState.end = duration.roundDateByDuration(_UIObjectState.end, _UIObjectState.duration);
-                _UIObjectState.start = duration.subtractFromDate(_UIObjectState.duration, _UIObjectState.end);
+                _UIObjectState.inTzEnd = duration.roundDateByDuration(_UIObjectState.inTzEnd, _UIObjectState.duration);
+                _UIObjectState.inTzStart = duration.subtractFromDate(_UIObjectState.duration, _UIObjectState.inTzEnd);
+                // this is here to fix time zone switches - should this be a fix to duration?
+                _UIObjectState.inTzStart.setMinutes(_UIObjectState.inTzStart.getMinutes() 
+                		- _UIObjectState.inTzEnd.getTimezoneOffset()
+                		+ _UIObjectState.inTzStart.getTimezoneOffset());
 
-                $('#datepickerto').datepicker("setDate", _UIObjectState.end);
-                $('#datepickerfrom').datepicker("setDate", _UIObjectState.start);
+                $('#datepickerto').datepicker("setDate", xfUtil.dayBefore(_UIObjectState.inTzEnd));
+                $('#datepickerfrom').datepicker("setDate", _UIObjectState.inTzStart);
                 _UIObjectState.numBuckets = bucketsForDuration(_UIObjectState.duration);
 
                 _adjustRangeBar();
@@ -290,7 +310,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
             // need lazy initialization of the date range bar to prevent layout race conditions
 
             if(filterDiv.find('#daterangeback').length == 0) {
-                var backDiv = $('<div/>');
+                var backDiv = $('<div></div>');
                 backDiv.attr('id', 'daterangeback');
                 backDiv.addClass('dateRangeBackground');
                 filterDiv.append(backDiv);
@@ -299,7 +319,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
             }
 
             if(filterDiv.find('#daterangefront').length == 0) {
-                var frontDiv = $('<div/>');
+                var frontDiv = $('<div></div>');
                 frontDiv.attr('id', 'daterangefront');
                 frontDiv.addClass('dateRangeForeground');
                 filterDiv.append(frontDiv);
@@ -314,8 +334,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
              */
 
             if (_UIObjectState.datasetMax - _UIObjectState.datasetMin > 0) {
-                var offsetLeft = (_UIObjectState.start.getTime()-_UIObjectState.datasetMin)/(_UIObjectState.datasetMax-_UIObjectState.datasetMin)*_UIObjectState.rangepx;
-                var offsetRight = (_UIObjectState.end.getTime()-_UIObjectState.datasetMin)/(_UIObjectState.datasetMax-_UIObjectState.datasetMin)*_UIObjectState.rangepx;
+                var offsetLeft = (_UIObjectState.inTzStart.getTime()-_UIObjectState.datasetMin)/(_UIObjectState.datasetMax-_UIObjectState.datasetMin)*_UIObjectState.rangepx;
+                var offsetRight = (_UIObjectState.inTzEnd.getTime()-_UIObjectState.datasetMin)/(_UIObjectState.datasetMax-_UIObjectState.datasetMin)*_UIObjectState.rangepx;
                 var barWidth = offsetRight-offsetLeft;
 
                 offsetLeft += _UIObjectState.addLeft;
@@ -359,13 +379,13 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
 
         var _updateFilter = function (chan, data) {
 
-            _UIObjectState.start = new Date(data.startDate);
-            _UIObjectState.end = new Date(data.endDate);
+            _UIObjectState.inTzStart = xfUtil.displayShiftedDate(data.startDate);
+            _UIObjectState.inTzEnd = xfUtil.displayShiftedDate(data.endDate);
             _UIObjectState.duration = data.duration;
             _UIObjectState.numBuckets = bucketsForDuration(data.duration);
 
-            $('#datepickerfrom').datepicker("setDate", _UIObjectState.start);
-            $('#datepickerto').datepicker("setDate", _UIObjectState.end);
+            $('#datepickerfrom').datepicker("setDate", _UIObjectState.inTzStart);
+            $('#datepickerto').datepicker("setDate", xfUtil.dayBefore(_UIObjectState.inTzEnd));
             _setIntervalSelector(_UIObjectState.duration);
             _adjustRangeBar();
         };
@@ -399,8 +419,10 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/ui/xfM
         //--------------------------------------------------------------------------------------------------------------
 
         xfHeaderModule.end = function(){
-            for (token in _UIObjectState.subscriberTokens) {
-                aperture.pubsub.unsubscribe(_UIObjectState.subscriberTokens[token]);
+            for (var token in _UIObjectState.subscriberTokens) {
+                if (_UIObjectState.subscriberTokens.hasOwnProperty(token)) {
+                    aperture.pubsub.unsubscribe(_UIObjectState.subscriberTokens[token]);
+                }
             }
         };
 

@@ -22,10 +22,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/ui/xfLinkType', 'lib/util/xfUtil', 'lib/util/xfLinkUtil'],
-    function($, xfUIObject, chan, guid, xfLinkType, xfUtil, xfLinkUtil) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
+        'lib/ui/xfLinkType', 'lib/util/xfUtil', 'lib/constants'
+    ],
+    function(
+        $, xfUIObject, chan, guid,
+        xfLinkType, xfUtil, constants
+    ) {
 
-        var MODULE_NAME = 'xfLink';
+        var MODULE_NAME = constants.MODULE_NAMES.LINK;
 
         var xfLinkModule = {};
 
@@ -40,11 +47,10 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var matchFound = false;
             for (var linkId in linkMap){
                 if (linkMap.hasOwnProperty(linkId)){
-                    // If the source-destination endpoints AND the link type are a match, merge the properties.
-                    if (linkMap[linkId].getDestination().getXfId() === linkDst.getXfId()
-                        && linkMap[linkId].getType() == linkObject.getType()){
-                        // Sum the link amounts.
-                        linkMap[linkId].setAmount(linkMap[linkId].getAmount() + linkObject.getAmount());
+                    if (linkMap[linkId].getDestination().getXfId() == linkDst.getXfId() &&
+                        linkMap[linkId].getType() == linkObject.getType() &&
+                        linkMap[linkId].getAmount() == linkObject.getAmount()
+                    ){
                         matchFound = true;
                         break;
                     }
@@ -56,6 +62,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 linkDst.addLink(linkObject);
             }
         };
+
+        //--------------------------------------------------------------------------------------------------------------
+
         xfLinkModule.createInstance = function(source, destination, amount, type){
 
             var xfLinkInstance = {};
@@ -176,7 +185,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             xfLinkInstance.exportState = function() {
 
-                var destinationFile = xfUtil.getUITypeAncestor(_UIObjectState.destination, 'xfFile');
+                var destinationFile = xfUtil.getUITypeAncestor(_UIObjectState.destination, constants.MODULE_NAMES.FILE);
 
                 var state = {};
 
