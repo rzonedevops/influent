@@ -26,7 +26,6 @@ package influent.bitcoin.server.spi;
 
 import influent.idl.FL_Persistence;
 import influent.server.dataaccess.CachedPersistenceAccess;
-import influent.server.utilities.SQLConnectionPool;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -55,9 +54,9 @@ public class BitcoinCachedPersistenceModule extends AbstractModule {
 	@Provides @Singleton
 	public CachedPersistenceAccess connectToCachedPersistenceAccess(
 		@Named("influent.midtier.ehcache.config") String ehCacheConfig,
-		@Named("influent.persistence.cache.name") String cacheName,
-		SQLConnectionPool connectionPool
+		@Named("influent.persistence.cache.name") String persistenceCacheName,
+		@Named("influent.dynamic.clustering.cache.name") String clusteringCacheName
 	) {
-		return new CachedPersistenceAccess(ehCacheConfig, cacheName, connectionPool);
+		return new CachedPersistenceAccess(ehCacheConfig, persistenceCacheName, clusteringCacheName);
 	}
 }

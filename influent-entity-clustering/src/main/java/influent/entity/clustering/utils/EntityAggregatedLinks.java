@@ -41,6 +41,7 @@ import influent.idl.FL_PropertyType;
 import influent.idlhelper.LinkHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
+import influent.midtier.TypedId;
 import influent.midtier.api.DataAccessException;
 
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ import java.util.Set;
 
 import org.apache.avro.AvroRemoteException;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -326,8 +328,8 @@ public class EntityAggregatedLinks {
 			
 			// retrieve the src entities
 			List<Object> srcThings = new ArrayList<Object>();
-			srcThings.addAll( clusterAccess.getClusters(srcEntityIds, srcContext, sessionId) );
-			srcThings.addAll(da.getEntities(srcEntityIds));
+			srcThings.addAll( clusterAccess.getClusters(TypedId.filterTypedIds(srcEntityIds, TypedId.CLUSTER), srcContext, sessionId) );
+			srcThings.addAll(da.getEntities(TypedId.filterTypedIds(srcEntityIds, TypedId.ACCOUNT)));
 			
 			s_logger.info("Found "+srcThings.size()+" src entities  (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 		
@@ -335,8 +337,8 @@ public class EntityAggregatedLinks {
 			
 			// retrieve the dst entities
 			List<Object> dstThings = new ArrayList<Object>(); 
-			dstThings.addAll( clusterAccess.getClusters(dstEntityIds, dstContext, sessionId) );
-			dstThings.addAll( da.getEntities(dstEntityIds) );
+			dstThings.addAll( clusterAccess.getClusters(TypedId.filterTypedIds(dstEntityIds, TypedId.CLUSTER), dstContext, sessionId) );
+			dstThings.addAll( da.getEntities(TypedId.filterTypedIds(dstEntityIds, TypedId.ACCOUNT)) );
 			
 			s_logger.info("Found "+dstThings.size()+" dst entities  (total time : "+(System.currentTimeMillis()-startms)/1000+"s)");
 		
@@ -472,7 +474,7 @@ public class EntityAggregatedLinks {
 						PropertyHelper p = PropertyHelper.from(prop);
 						props.add(p);
 						if (p.getType() == FL_PropertyType.DATE) {
-							DateTime pdate = new DateTime(p.getValue());
+							DateTime pdate = new DateTime((long)(Long)p.getValue(), DateTimeZone.UTC);
 							if (minDate== null || minDate.isAfter(pdate)) {
 								minDate = pdate;
 							}
@@ -510,8 +512,8 @@ public class EntityAggregatedLinks {
 					DateTime maxDate = null;
 					if (dateProp != null) {
 						FL_BoundedRange range = (FL_BoundedRange) dateProp.getRange();
-						minDate = new DateTime(range.getStart());
-						maxDate = new DateTime(range.getEnd());
+						minDate = new DateTime((long)(Long)range.getStart(), DateTimeZone.UTC);
+						maxDate = new DateTime((long)(Long)range.getEnd(), DateTimeZone.UTC);
 					}
 					
 					// aggregate properties
@@ -519,7 +521,7 @@ public class EntityAggregatedLinks {
 						PropertyHelper p = PropertyHelper.from(prop);
 						//First, handle dates and update min-max date
 						if (p.getType() == FL_PropertyType.DATE && minDate != null && maxDate!=null) {
-							DateTime pdate = new DateTime(p.getValue());
+							DateTime pdate = new DateTime((long)(Long)p.getValue(), DateTimeZone.UTC);
 							if (minDate== null || minDate.isAfter(pdate)) {
 								minDate = pdate;
 								((FL_BoundedRange)dateProp.getRange()).setStart(minDate);

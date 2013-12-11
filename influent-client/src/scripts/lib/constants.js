@@ -10,10 +10,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,41 +22,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package influent.kiva.server.spi;
-
-import influent.idl.FL_Persistence;
-import influent.server.dataaccess.CachedPersistenceAccess;
-
-import com.google.inject.AbstractModule;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
-
 
 /**
- * This class is used by the Kiva *server* implementation.
- * It binds the new FL_ implementation for that server.
- *
+ * Defines the names of pub/sub channels used throughout the app
  */
-public class KivaCachedPersistenceModule extends AbstractModule {
-
-	@Override
-	protected void configure() {
-		bind(FL_Persistence.class).to(CachedPersistenceAccess.class);
-	}
-	
-	
-	
-	
-	/*
-	 * Provide the cached service
-	 */
-	@Provides @Singleton
-	public CachedPersistenceAccess connectToCachedPersistenceAccess(
-		@Named("influent.midtier.ehcache.config") String ehCacheConfig,
-		@Named("influent.persistence.cache.name") String persistenceCacheName,
-		@Named("influent.dynamic.clustering.cache.name") String clusteringCacheName
-	) {
-		return new CachedPersistenceAccess(ehCacheConfig, persistenceCacheName, clusteringCacheName);
-	}
-}
+define(
+    {
+        MODULE_NAMES : {
+            WORKSPACE : 'xfWorkspace',
+            COLUMN : 'xfColumn',
+            FILE : 'xfFile',
+            ENTITY : 'xfEntity',
+            CLUSTER_BASE : 'xfClusterBase',
+            IMMUTABLE_CLUSTER : 'xfImmutableCluster',
+            MUTABLE_CLUSTER : 'xfMutableCluster',
+            SUMMARY_CLUSTER : 'xfSummaryCluster',
+            MATCH : 'xfMatch',
+            LINK : 'xfLink'
+        },
+        SUBTYPES : {
+            ENTITY_CLUSTER : 'entity_cluster',
+            CLUSTER_SUMMARY : 'cluster_summary',
+            ACCOUNT_OWNER : 'account_owner',
+            ENTITY : 'entity'
+        }
+    }
+);

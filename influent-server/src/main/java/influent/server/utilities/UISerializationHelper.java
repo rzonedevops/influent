@@ -52,7 +52,8 @@ public class UISerializationHelper {
 		JSONObject fle = new JSONObject();
 		
 		fle.put("uid", cluster.getUid());
-		fle.put("isCluster", true);
+		
+		fle.put("entitytype", "entity_cluster");
 		fle.put("members", cluster.getMembers());
 		fle.put("subclusters", cluster.getSubclusters());
 		
@@ -78,6 +79,8 @@ public class UISerializationHelper {
 
 		fle.put("uid", entity.getUid());
 
+		fle.put("entitytype", "entity");
+		
 		if (entity.getUncertainty() != null) {
 			fle.put("uncertainty", new JSONObject(entity.getUncertainty().toString()));
 		}

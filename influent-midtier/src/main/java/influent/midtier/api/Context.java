@@ -27,18 +27,70 @@ package influent.midtier.api;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_Entity;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Context {
-	public final Map<String, FL_Cluster> roots = new HashMap<String, FL_Cluster>();
-	public final Map<String, FL_Cluster> clusters = new HashMap<String, FL_Cluster>();
-	public final Map<String, FL_Entity> entities = new HashMap<String, FL_Entity>();
+import org.apache.avro.Schema;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+
+public class Context implements Serializable {
+	
+	private static final long serialVersionUID = -2312497882397838216L;
+	
+	private static final Schema CLUSTER_MAP_SCHEMA = Schema.createMap(FL_Cluster.getClassSchema());
+	private static final Schema ENTITY_MAP_SCHEMA = Schema.createMap(FL_Entity.getClassSchema());
+	
+	public Map<String, FL_Cluster> roots = new HashMap<String, FL_Cluster>();
+	public Map<String, FL_Cluster> clusters = new HashMap<String, FL_Cluster>();
+	public Map<String, FL_Entity> entities = new HashMap<String, FL_Entity>();
+	
+	
 	
 	public void addEntities(Collection<FL_Entity> entities) {
 		for (FL_Entity entity : entities) {
 			this.entities.put(entity.getUid(), entity);
 		}
+	}
+	
+	
+	
+	
+	/**
+	 * Override Java serialization methods
+	 */
+	private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+		final Encoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+
+		final DatumWriter<Map<String, FL_Cluster>> cwriter = new SpecificDatumWriter<Map<String, FL_Cluster>>(CLUSTER_MAP_SCHEMA);
+		cwriter.write(roots, encoder);
+		cwriter.write(clusters, encoder);
+
+		final DatumWriter<Map<String, FL_Entity>> ewriter = new SpecificDatumWriter<Map<String, FL_Entity>>(ENTITY_MAP_SCHEMA);
+		ewriter.write(entities, encoder);
+		encoder.flush();
+	}
+	
+	
+	
+	
+	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+		final Decoder decoder = DecoderFactory.get().binaryDecoder(in, null);
+		
+		final DatumReader<Map<String, FL_Cluster>> creader = new SpecificDatumReader<Map<String, FL_Cluster>>(CLUSTER_MAP_SCHEMA);
+		roots = creader.read(roots, decoder);
+		clusters = creader.read(clusters, decoder);
+		
+		final DatumReader<Map<String, FL_Entity>> ereader = new SpecificDatumReader<Map<String, FL_Entity>>(ENTITY_MAP_SCHEMA);
+		entities = ereader.read(entities, decoder);
 	}
 } 

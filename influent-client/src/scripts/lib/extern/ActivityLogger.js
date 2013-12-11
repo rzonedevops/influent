@@ -360,7 +360,7 @@ function activityLogger()
 			encodedSystemActivityMessage = writeHeader();
 			encodedSystemActivityMessage +="USERACTION ";
 			encodedSystemActivityMessage += writeVersionData();
-			encodedSystemActivityMessage += writeWorkflowCode(userActivity, userWorkflowState)
+			encodedSystemActivityMessage += writeWorkflowCode(userActivity, userWorkflowState);
 			encodedSystemActivityMessage += writeSWMetadata(softwareMetadata);
 
 			encodedSystemActivityMessage += appendActionDescription(actionDescription);
@@ -433,7 +433,7 @@ function activityLogger()
 	var busy = false;
 	var nextPlaceInLine = 0;
 	var ticketServed = 0;
-	var waitTimeMS = 3
+	var waitTimeMS = 3;
 
 	var currentXHRPayload = "";
 

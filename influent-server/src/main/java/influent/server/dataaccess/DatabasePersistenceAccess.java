@@ -32,9 +32,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Date;
 
 import org.apache.avro.AvroRemoteException;
+import org.joda.time.DateTime;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -102,13 +102,13 @@ public class DatabasePersistenceAccess implements FL_Persistence {
 			}
 
 			data = data.replaceAll("'", "''");
-			Date now = new Date();
+			DateTime now = new DateTime();
 			if (exists) {
 				state = FL_PersistenceState.MODIFIED;
-				sql = "update " + clientStateTableName + " set data='" + data + "', modified='" + DataAccessHelper.sdf.format(now) + "' where sessionId='" + sessionId + "'";
+				sql = "update " + clientStateTableName + " set data='" + data + "', modified='" + DataAccessHelper.format(now) + "' where sessionId='" + sessionId + "'";
 			} else {
 				state = FL_PersistenceState.NEW;
-				sql = "insert into " + clientStateTableName + " (sessionId, created, modified, data) values('" + sessionId + "', '" + DataAccessHelper.sdf.format(now) + "', '" + DataAccessHelper.sdf.format(now) + "', '" + data + "')";				
+				sql = "insert into " + clientStateTableName + " (sessionId, created, modified, data) values('" + sessionId + "', '" + DataAccessHelper.format(now) + "', '" + DataAccessHelper.format(now) + "', '" + data + "')";				
 			}
 			
 			s_logger.trace(sql);

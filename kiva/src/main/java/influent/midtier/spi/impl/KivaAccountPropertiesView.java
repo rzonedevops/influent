@@ -29,6 +29,7 @@ import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
+import influent.midtier.TypedId;
 import influent.midtier.api.DataAccessException;
 import influent.midtier.kiva.data.KivaTypes;
 import influent.server.spi.impl.GenericEntityPropertiesView;
@@ -81,7 +82,7 @@ public class KivaAccountPropertiesView extends GenericEntityPropertiesView {
 	
 	@Override
 	public String getContent(FL_Entity entity) throws DataAccessException {
-		String id = entity.getUid().toString();
+		String id = TypedId.fromTypedId(entity.getUid().toString()).getNativeId();
 		String type = getProperty("type",entity);
 		String label = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.NAME).getValue().toString();
 		String location = "";
@@ -232,7 +233,8 @@ public class KivaAccountPropertiesView extends GenericEntityPropertiesView {
 			String loanCount = getProperty("lenders_loanCount", entity);
 
 			String memberSince  = getFormattedDate(entity, "lenders_memberSince");
-			String occupation = getProperty("lenders_occupationalInfo", entity);
+			String occupation = getProperty("lenders_occupation", entity);
+			String occupationInfo = getProperty("lenders_occupationalInfo", entity);
 			String personalUrl = getProperty("lenders_personalUrl", entity);
 			
 			String kivaUrl = "www.kiva.org/lender/" + id.substring(1);
@@ -254,6 +256,7 @@ public class KivaAccountPropertiesView extends GenericEntityPropertiesView {
 			appendPropertyTableRow(html, "Member Since", memberSince);
 			appendPropertyTableRow(html, "Loan Count", loanCount);
 			appendPropertyTableRow(html, "Occupation", occupation);
+			appendPropertyTableRow(html, "Occupational Info", occupationInfo);
 			appendPropertyTableRow(html, "Invite Count", inviteeCount);
 			appendPropertyTableRow(html, "Kiva URL", "<a href='http://" + kivaUrl + "' target='_blank'>" + kivaUrl);
 			if (personalUrl != null && !personalUrl.isEmpty()) {

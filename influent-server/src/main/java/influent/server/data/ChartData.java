@@ -25,6 +25,7 @@
 package influent.server.data;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 public class ChartData implements Serializable{
@@ -41,6 +42,8 @@ public class ChartData implements Serializable{
 	private final Double minBalance;
 	private final List<Double> focusCredits;
 	private final List<Double> focusDebits;
+	private final List<Date> dates;
+	private final String imageHash;
 	
 	public ChartData(
 		Double startValue,
@@ -52,7 +55,9 @@ public class ChartData implements Serializable{
 		Double maxBalance,
 		Double minBalance,
 		List<Double> focusCredits,
-		List<Double> focusDebits		
+		List<Double> focusDebits,
+		List<Date> dates,
+		String imageHash
 	) {
 		this.startValue = startValue;
 		this.endValue = endValue;
@@ -64,29 +69,83 @@ public class ChartData implements Serializable{
 		this.minBalance = minBalance;
 		this.focusCredits = focusCredits;
 		this.focusDebits = focusDebits;
-		
-		/*if (credits.size() != 15) {
-			throw new InvalidParameterException("credit bin size must be 15");
-		}
-		
-		if (debits.size() != 15) {
-			throw new InvalidParameterException("debit bin size must be 15");
-		}*/
+		this.dates = dates;
+		this.imageHash = imageHash;
 	}
 	
 	
 	
 	
-	public Double getStartValue() { return this.startValue; }
-	public Double getEndValue() { return this.endValue; }
-	public List<Double> getCredits() { return this.credits; }
-	public List<Double> getDebits() { return this.debits; }
-	public Double getMaxCredit() { return this.maxCredit; }
-	public Double getMaxDebit() { return this.maxDebit; }
-	public Double getMaxBalance() { return this.maxBalance; }
-	public Double getMinBalance() { return this.minBalance; }
-	public List<Double> getFocusCredits() { return this.focusCredits; }
-	public List<Double> getFocusDebits() { return this.focusDebits; }	
+	public Double getStartValue() {
+		return this.startValue;
+	}
+	
+	
+	
+	
+	public Double getEndValue() {
+		return this.endValue;
+	}
+	
+	
+	
+	
+	public List<Double> getCredits() {
+		return this.credits;
+	}
+	
+	
+	
+	
+	public List<Double> getDebits() {
+		return this.debits;
+	}
+	
+	
+	
+	
+	public Double getMaxCredit() {
+		return this.maxCredit;
+	}
+	
+	
+	
+	
+	public Double getMaxDebit() {
+		return this.maxDebit;
+	}
+	
+	
+	
+	
+	public Double getMaxBalance() {
+		return this.maxBalance;
+	}
+	
+	
+	
+	
+	public Double getMinBalance() {
+		return this.minBalance;
+	}
+	
+	
+	
+	
+	public List<Double> getFocusCredits() {
+		return this.focusCredits;
+	}
+	
+	
+	
+	
+	public List<Double> getFocusDebits() {
+		return this.focusDebits;
+	}	
+	
+	
+	
+	
 	public Double getTotalCredits() { 
 		Double ret = 0.0;
 		for (int i = 0; i < this.credits.size(); i++) {
@@ -94,11 +153,29 @@ public class ChartData implements Serializable{
 		}
 		return ret;
 	}
+	
+	
+	
+	
 	public Double getTotalDebits() { 
 		Double ret = 0.0;
 		for (int i = 0; i < this.debits.size(); i++) {
 			ret += this.debits.get(i);
 		}
 		return ret;
+	}
+	
+	
+	
+	
+	public List<Date> getDates() {
+		return this.dates;
+	}
+	
+	
+	
+	
+	public String getImageHash() {
+		return this.imageHash;
 	}
 }

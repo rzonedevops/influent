@@ -26,115 +26,172 @@
 /**
  * Manages the view for the app.
  */
-define(['jquery', 'lib/viewproto', 'lib/channels', 'modules/xfCards', 'modules/xfRenderer', 'modules/xfHeader', 'modules/xfEntityDetails', 'modules/xfAdvancedSearch', 'modules/xfSankey', 'modules/xfTransactionsTable', 'modules/xfDropTargetRenderer'],
-    function($, View, chan) {
+define(
+    [
+        'jquery', 'lib/viewproto', 'lib/channels', 'lib/extern/cookieUtil', 'lib/util/GUID', 'lib/ui/xfModalDialog',
+        'modules/xfCards', 'modules/xfRenderer', 'modules/xfHeader', 'modules/xfEntityDetails',
+        'modules/xfAdvancedSearch', 'modules/xfSankey', 'modules/xfTransactionTable', 'modules/xfTransactionGraph',
+        'modules/xfDropTargetRenderer'
+    ],
+    function($, View, chan, cookieUtil, GUID, dialog) {
 
-	// hook up workspace height management, triggered on init and footer expand / collapse
-	(function() {
-		function onFooterExpand(expand) {
-			
-			// workspace needs to leave gap for footer, so adjust
-			var height = $('#footer').height();
-			$('#workspace').css('bottom', height);
+        // hook up workspace height management, triggered on init and footer expand / collapse
+        (function() {
+            function onFooterExpand(expand) {
+
+                // workspace needs to leave gap for footer, so adjust
+                var height = $('#footer').height();
+                $('#workspace').css('bottom', height);
+
+                // notify
+                aperture.pubsub.publish(chan.FOOTER_STATE, {
+                    expanded : expand
+                });
+            }
+
+            // DOM Ready
+            $(function() {
+                onFooterExpand(true);
+            });
+
+            // resize workspace area when footer is done collapsing.
+            $( '#footer' ).accordion({
+                collapsible: true,
+                heightStyle: 'auto',
+                change: function (event, ui) {
+                    onFooterExpand(ui.newContent ? true : false);
+                }
+            });
+        }());
+
+        // get key settings
+        var urlFlags = (function() {
+			function getQueryParam(name) {
+				var regex = new RegExp('[\\?&]' + name + '=([^&#]*)'),
+	    			values = regex.exec(location.search);
+				
+			    return values == null ? null : decodeURIComponent(values[1].replace(/\+/g, ' '));
+			}
 	
-			// notify
-			aperture.pubsub.publish(chan.FOOTER_STATE, {
-				expanded : expand
-			});
-		}
-		
-		// DOM Ready
-		$(function() {
-			onFooterExpand(true);
-		});
-		
-		// resize workspace area when footer is done collapsing.
-		$( '#footer' ).accordion({
-			collapsible: true,
-			heightStyle: 'auto',
-			change: function (event, ui) {
-				onFooterExpand(ui.newContent ? true : false);
-			}
-	    });
-	}());
+			return {
+				sessionId : getQueryParam('sessionId') || '',
+				capture : getQueryParam('capture') || false
+			};
+			
+        }());
+        
+        return View.extend( 'Influent', {
 
-	return View.extend( 'Influent', {
-		
-		/**
-		 * Constructor function.
-		 */
-		init : function() {
-			
-			// call base class constructor.
-			View.prototype.init.call(this);
-			
-			this.inited = false;
-		},
-		
-		/**
-		 * Returns a title that summarises the state
-		 * 
-		 * @returns {String}
-		 * 	the title
-		 */
-		title : function() {
-			
-			// this.state things should be added behind the name here.
-			return aperture.config.get()['influent.config'].title || 'Name Me';
-		},
-		
-		/**
-		 * Default state
-		 */
-		defaults : {
-			// state variables here
-		},
+            /**
+             * Constructor function.
+             */
+            init : function() {
+
+                // call base class constructor.
+                View.prototype.init.call(this);
+
+                this.inited = false;
+            },
+
+            /**
+             * Returns a title that summarises the state
+             *
+             * @returns {String}
+             * 	the title
+             */
+            title : function() {
+
+                // this.state things should be added behind the name here.
+                return aperture.config.get()['influent.config'].title || 'Name Me';
+            },
+
+            /**
+             * Default state
+             */
+            defaults : {
+                // state variables here
+            },
+
+            /**
+             * Set view state
+             */
+            view : function(trialState, callback) {
+
+                // VALIDATE HERE. can use this.ajax to check server things.
+                var validState = trialState;
+
+
+                // apply when done.
+                this.doView(validState, callback);
+            },
+
+            /**
+             * Set view state
+             */
+            doView : function (validState, callback) {
+
+                var that = this;
+                
+                function startView(settings) {
+            		// trace it out for now
+            		aperture.log.info('session: ' + settings.sessionId + ', capture: ' + settings.capture);
+            		        	
+                    // make sure these modules are started. could do module switches here
+                    that.modules.start('xfCards', {div:'cards', sessionId: settings.sessionId});
+                    that.modules.start('xfHeader', {div:'header'});
+                    that.modules.start('xfAdvancedSearch', {div:'search'});
+                    that.modules.start('xfEntityDetails', {div:'popup'});
+                    that.modules.start('xfTransactionTable', {div:"tableTab"});
+                    that.modules.start('xfTransactionGraph', {div:"chartTab"});
+                    that.modules.start('xfDropTargetRenderer', {div:"drop-target-canvas"});
+                    that.modules.start('xfSankey', {div:'sankey', capture: settings.capture});
+                    that.modules.start('xfRenderer', {div:'cards', capture: settings.capture});
+
+                    // then call base implementation too
+                    View.prototype.doView.call(that, validState, callback);
+
+                    // Send a notification that all modules have been started.   This will kickoff initialization
+                    if (!that.inited) {
+                        that.inited = true;
+                        aperture.pubsub.publish(chan.ALL_MODULES_STARTED, {noRender : true});
+                    }
+                }
+
+                var banner = aperture.config.get()['influent.config']['banner'];
+                if (banner) {
+                    $('.banner-text').html(banner);
+                }
+
+                if (urlFlags.sessionId) {
+                    startView(urlFlags);
+                	
+                } else {
+	                // use the application specific part of the host url to label the cookie distinctly
+	                var cookieId = aperture.config.get()['aperture.io'].restEndpoint.replace('%host%', 'sessionId');
+	                var cookie = cookieUtil.readCookie(cookieId);
 	
-		/**
-		 * Set view state
-		 */
-		view : function(trialState, callback) {
-			
-			// VALIDATE HERE. can use this.ajax to check server things.
-			var validState = trialState;
-			
-			
-			// apply when done.
-			this.doView(validState, callback);
-		},
-		
-		/**
-		 * Set view state
-		 */
-		doView : function (validState, callback) {
-			
-			var banner = aperture.config.get()['influent.config']['banner'];
-			if (banner) {
-				$('#banner-text').html(banner);
-			}
-			
-			// make sure these modules are started. could do module switches here
-            this.modules.start('xfRenderer', {div:'cards', capture:$('#settings').attr('capture')});
-            this.modules.start('xfSankey', {div:'sankey', capture:$('#settings').attr('capture')});
-            this.modules.start('xfCards', {div:'cards', sessionId:$('#settings').attr('sessionid')});
-            this.modules.start('xfHeader', {div:'header'});
-            this.modules.start('xfAdvancedSearch', {div:'search'});
-            this.modules.start('xfEntityDetails', {div:'popup'});
-			this.modules.start('xfTransactionsTable', {div:"transactions-content"});
-            this.modules.start('xfDropTargetRenderer', {div:"drop-target-canvas"});
-			
-			// then call base implementation too
-			View.prototype.doView.call(this, validState, callback);
-
-
-            // Send a notification that all modules have been started.   This will kickoff initialization
-			if (!this.inited) {
-				this.inited = true;
-	            aperture.pubsub.publish(chan.ALL_MODULES_STARTED, {noRender : true});
-			}
-		}
-		
-	});
-});
+	                // handle loads and new sessions
+	                if (!cookie) {
+	                    startView({sessionId: GUID.generateGuid(), capture: urlFlags.capture});
+	                } else {
+	                    dialog.createInstance({
+	                        title : 'Session Found',
+	                        contents : 'A previous session of Influent was found. Attempt to reload it? Or start a new session?',
+	                        buttons : {
+	                            'Reload' : function() {
+	                                startView({sessionId: cookie, capture: urlFlags.capture});
+	                            },
+	                            'New Session' : function() {
+	                                startView({sessionId: GUID.generateGuid(), capture: urlFlags.capture});
+	                            }
+	                        }
+	                    });
+	                    cookieUtil.eraseCookie(cookieId);
+	                }
+                }
+            }
+        });
+    }
+);
 
 

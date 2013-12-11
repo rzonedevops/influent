@@ -63,6 +63,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.avro.AvroRemoteException;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -732,8 +733,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			// No flow can be computed return
 			if (srcNodes.isEmpty() || dstNodes.isEmpty()) return results;
 			
-			Date startDate = DataAccessHelper.getStartDate(date);
-			Date endDate = DataAccessHelper.getEndDate(date);
+			DateTime startDate = DataAccessHelper.getStartDate(date);
+			DateTime endDate = DataAccessHelper.getEndDate(date);
 			
 			String gClusterTable = getNamespaceHandler().tableName(null, DataAccessHelper.GLOBAL_CLUSTER_TABLE);
 			
@@ -787,8 +788,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				dateRespectingFlowSQL.append("            ON g.id = c.rowid ");
 				dateRespectingFlowSQL.append("         WHERE g.clusterid IN " + toClause);
 				dateRespectingFlowSQL.append("       ) g2 ON f.ToEntityId = g2.eid ");
-				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				dateRespectingFlowSQL.append(" GROUP BY g1.cid, g2.cid ");
 				
 				dateRespectingFlowSQL.append(" UNION ALL ");
@@ -801,8 +802,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				dateRespectingFlowSQL.append("            ON g.id = c.rowid ");
 				dateRespectingFlowSQL.append("         WHERE g.clusterid IN " + fromClause);
 				dateRespectingFlowSQL.append("       ) g1 ON f.FromEntityId = g1.eid ");
-				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				dateRespectingFlowSQL.append("   AND f.ToEntityId IN " + toClause);
 				dateRespectingFlowSQL.append(" GROUP BY g1.cid, f.ToEntityId ");
 				
@@ -816,8 +817,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				dateRespectingFlowSQL.append("            ON g.id = c.rowid ");
 				dateRespectingFlowSQL.append("         WHERE g.clusterid IN " + toClause);
 				dateRespectingFlowSQL.append("       ) g2 ON f.ToEntityId = g2.eid ");
-				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				dateRespectingFlowSQL.append("   AND f.FromEntityId IN " + fromClause);
 				dateRespectingFlowSQL.append(" GROUP BY f.FromEntityId, g2.cid ");
 				
@@ -827,8 +828,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				dateRespectingFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				dateRespectingFlowSQL.append(" WHERE FromEntityId IN " + fromClause);
 				dateRespectingFlowSQL.append("   AND ToEntityId IN " + toClause);
-				dateRespectingFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				dateRespectingFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				dateRespectingFlowSQL.append(" GROUP BY FromEntityId, ToEntityId");
 					
 				// retrieve aggregate links irrespective of date range
@@ -971,8 +972,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			
 			if (focusEntities != null) focusNodes.addAll(focusEntities);
 			
-			Date startDate = DataAccessHelper.getStartDate(date);
-			Date endDate = DataAccessHelper.getEndDate(date);
+			DateTime startDate = DataAccessHelper.getStartDate(date);
+			DateTime endDate = DataAccessHelper.getEndDate(date);
 			
 			String gClusterTable = getNamespaceHandler().tableName(null, DataAccessHelper.GLOBAL_CLUSTER_TABLE);
 			
@@ -1024,8 +1025,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + fromClause);
 				focusFlowSQL.append("   AND g2.clusterid IN " + toClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY g1.clusterid, g2.clusterid, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
@@ -1042,8 +1043,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + toClause);
 				focusFlowSQL.append("   AND g2.clusterid IN " + fromClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY g1.clusterid, g2.clusterid, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
@@ -1056,8 +1057,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("    ON g1.id = c1.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + fromClause);
 				focusFlowSQL.append("   AND ToEntityId IN " + toClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY g1.clusterid, ToEntityId, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
@@ -1070,8 +1071,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("    ON g1.id = c1.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + toClause);
 				focusFlowSQL.append("   AND ToEntityId IN " + fromClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY g1.clusterid, ToEntityId, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
@@ -1084,8 +1085,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
 				focusFlowSQL.append(" WHERE FromEntityId IN " + fromClause);
 				focusFlowSQL.append("   AND g2.clusterid IN " + toClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY FromEntityId, g2.clusterid, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
@@ -1098,8 +1099,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
 				focusFlowSQL.append(" WHERE FromEntityId IN " + toClause);
 				focusFlowSQL.append("   AND g2.clusterid IN " + fromClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY FromEntityId, g2.clusterid, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
@@ -1108,8 +1109,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append(" WHERE FromEntityId IN " + fromClause);
 				focusFlowSQL.append("   AND ToEntityId IN " + toClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY FromEntityId, ToEntityId, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
@@ -1118,14 +1119,14 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append(" WHERE FromEntityId IN " + toClause);
 				focusFlowSQL.append("   AND ToEntityId IN " + fromClause);
-				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.sdf.format(startDate) + "'");
-				focusFlowSQL.append("   AND '" + DataAccessHelper.sdf.format(endDate) + "'");
+				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
+				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				focusFlowSQL.append(" GROUP BY FromEntityId, ToEntityId, " + finFlowDateColumn + "");
 					
 				StringBuilder tsSQL = new StringBuilder();
 				tsSQL.append("SELECT EntityId, " + finFlowDateColumn + ", InboundAmount, OutboundAmount ");
 				tsSQL.append("  FROM " + finEntityIntervalTable);
-				tsSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '"+DataAccessHelper.sdf.format(startDate)+"' AND '"+DataAccessHelper.sdf.format(endDate)+"'");
+				tsSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '"+DataAccessHelper.format(startDate)+"' AND '"+DataAccessHelper.format(endDate)+"'");
 				tsSQL.append("   AND EntityId IN " + fromClause);
 				
 				tsSQL.append(" UNION ALL ");
@@ -1136,7 +1137,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				tsSQL.append("    ON f.EntityId = g.entityid "); 
 				tsSQL.append("  JOIN " + dSrcClusterTable + " c ");
 				tsSQL.append("    ON g.id = c.rowid ");
-				tsSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '"+DataAccessHelper.sdf.format(startDate)+"' AND '"+DataAccessHelper.sdf.format(endDate)+"'");
+				tsSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '"+DataAccessHelper.format(startDate)+"' AND '"+DataAccessHelper.format(endDate)+"'");
 				tsSQL.append("   AND g.clusterid IN " + fromClause);
 				tsSQL.append(" GROUP BY g.clusterid, f." + finFlowDateColumn + "");
 					

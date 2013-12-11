@@ -22,14 +22,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/models/xfCard', 'lib/models/xfFile', 'lib/extern/underscore'],
-    function($, xfUIObject, chan, guid, xfCard, xfFile) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
+        'lib/models/xfCard', 'lib/models/xfSummaryCluster', 'lib/constants',
+        'lib/extern/underscore'
+    ],
+    function(
+        $, xfUIObject, chan, guid,
+        xfCard, xfSummaryCluster, constants
+    ) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
         //--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfMatch';
+        var MODULE_NAME = constants.MODULE_NAMES.MATCH;
         var SEARCH_RESULTS_PER_PAGE = aperture.config.get()['influent.config']['searchResultsPerPage'];
 
         var xfMatchSpecTemplate = {
@@ -591,14 +599,20 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 _UIObjectState.children = [];
                 for (var i = 0; i < state.children.length; i++) {
-                    if (state.children[i].UIType == xfCard.getModuleName()) {
+                    if (state.children[i].UIType == constants.MODULE_NAMES.ENTITY) {
+                        var cardSpec = xfCard.getSpecTemplate();
+                        var cardUIObj = xfCard.createInstance(cardSpec);
+                        cardUIObj.cleanState();
+                        cardUIObj.restoreVisualState(state.children[i]);
+                        this.insert(cardUIObj, null);
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
                         var cardSpec = xfCard.getSpecTemplate();
                         var cardUIObj = xfCard.createInstance(cardSpec);
                         cardUIObj.cleanState();
                         cardUIObj.restoreVisualState(state.children[i]);
                         this.insert(cardUIObj, null);
                     } else {
-                        console.error("cluster children should only be of type " + xfCard.getModuleName() + ".");
+                        console.error("Match children should only be of type " + constants.MODULE_NAMES.ENTITY + " or " + constants.MODULE_NAMES.SUMMARY_CLUSTER + ".");
                     }
                 }
             };

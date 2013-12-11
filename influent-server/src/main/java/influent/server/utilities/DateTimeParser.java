@@ -27,6 +27,7 @@ package influent.server.utilities;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeUtils;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 import org.joda.time.PeriodType;
 import org.joda.time.chrono.ISOChronology;
@@ -34,7 +35,7 @@ import org.joda.time.field.FieldUtils;
 import org.joda.time.format.ISODateTimeFormat;
 
 /**
- * Temporarily added to address a version issue with Joda DateTime.
+ * DateTime handler for influent dates.
  * 
  * @author djonker
  */
@@ -47,9 +48,37 @@ public class DateTimeParser {
 		if (str == null || str.isEmpty())
 			return null;
 		
-		return ISODateTimeFormat.dateTimeParser().withOffsetParsed().parseDateTime(str);
+		// if we can, just pick out the date because we need to ignore any time zone information.
+		if (str.length() >= 10) {
+			try {
+				int yyyy = Integer.parseInt(str.substring(0, 4));
+				int mm   = Integer.parseInt(str.substring(5, 7));
+				int dd   = Integer.parseInt(str.substring(8, 10));
+
+				// extra sanity check
+				switch (str.charAt(4)) {
+				case '-':
+				case '/':
+					return new DateTime(yyyy, mm, dd, 0,0,0, DateTimeZone.UTC);
+				}
+				
+			} catch (Exception e) {
+			}
+		}
+		
+		final DateTime d = ISODateTimeFormat.dateTimeParser().withOffsetParsed().parseDateTime(str);
+		
+		return new DateTime(d.getYear(), d.getMonthOfYear(), d.getDayOfMonth(), 0,0,0, DateTimeZone.UTC);
 	}
 
+	public static DateTime fromFL(Object value) {
+		if (value instanceof Long) {
+			return new DateTime(((Long)value).longValue(), DateTimeZone.UTC);
+		}
+		
+		return null;
+	}
+	
 	/**
 	 * @see http://joda-time.sourceforge.net/apidocs/org/joda/time/Period.html#normalizedStandard()
 	 */

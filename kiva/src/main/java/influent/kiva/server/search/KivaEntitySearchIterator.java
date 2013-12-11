@@ -36,6 +36,7 @@ import influent.idl.FL_SearchResult;
 import influent.idl.FL_Uncertainty;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.kiva.server.dataaccess.KivaFLTagMaps;
+import influent.midtier.TypedId;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -202,7 +203,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		
 		String uid = (String)sd.getFieldValue("id");
 		
-		entityBuilder.setUid(uid);
+		entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT, uid).getTypedId());
 
 		entityBuilder.setProvenance(null);
 		entityBuilder.setUncertainty(null);

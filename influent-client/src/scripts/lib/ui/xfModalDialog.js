@@ -30,20 +30,22 @@ define(['jquery'],
                 // $(this).dialog("close") for each0 button they write
                 var autoCloseButtons = {};
                 for (var key in spec.buttons) {
-                    (function(key) {
-                        if (spec.buttons.hasOwnProperty(key)) {
-                            autoCloseButtons[key] = function() {
-                                spec.buttons[key]();
-                                $(this).dialog("close");
-                            };
-                        }
-                    })(key);
+                    if (spec.buttons.hasOwnProperty(key)) {
+                        (function(key) {
+                            if (spec.buttons.hasOwnProperty(key)) {
+                                autoCloseButtons[key] = function() {
+                                    spec.buttons[key]();
+                                    $(this).dialog("close");
+                                };
+                            }
+                        })(key);
+                    }
                 }
 
                 var dialogContents =  '<div id="dialog-confirm">'
                     +   '<p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>' + spec.contents + '</p>'
                     + '</div>';
-                var dialogDiv = $('<div/>');
+                var dialogDiv = $('<div></div>');
 
                 dialogDiv.html(dialogContents);
                 $('body').append(dialogDiv);

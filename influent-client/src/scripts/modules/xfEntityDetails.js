@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels'],
-    function($, xfWorkspace, modules, chan) {
+define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/constants'],
+    function($, xfWorkspace, modules, chan, constants) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
@@ -51,7 +51,9 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels'],
         var onSelect = function(channel, data) {
 
             // Only retrieve details for xfCluster and xfCard objects.
-            if (data != null && data.uiType == 'xfCard') {
+            if (data != null &&
+                (data.uiType == constants.MODULE_NAMES.ENTITY || data.uiSubtype == constants.SUBTYPES.ACCOUNT_OWNER)
+            ) {
             	
             	// cache icon set
             	var iconList = xfWorkspace.getUIObjectByXfId(data.xfId).getVisualInfo().spec['icons'];
@@ -63,7 +65,7 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels'],
                     function(response){
                         $('#details').html(response.content);
 
-                        var parent = $('<div class="detailsIconContainer"/>').appendTo('#detailsHeaderInfo');
+                        var parent = $('<div class="detailsIconContainer"></div>').appendTo('#detailsHeaderInfo');
                         var url;
                         var icon;
                         var i;

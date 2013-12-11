@@ -76,4 +76,11 @@ public class SingletonRangeHelper extends FL_SingletonRange {
 		setType(type);
 	}
 
+	public static Object rangeValue(Object range) {
+		return range instanceof FL_SingletonRange? ((FL_SingletonRange)range).getValue() : null;
+	}
+	
+	public static String toString(Object range) {
+		return String.valueOf(rangeValue(range));
+	}
 }

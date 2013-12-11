@@ -38,6 +38,7 @@ import influent.midtier.api.EntityClusterer;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 
 
 /**
@@ -59,12 +60,21 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 	public DynamicClustering clustering (
 			FL_DataAccess dataAccess,
 			FL_Geocoding geocoding,
-			EntityClusterer clusterer
+			EntityClusterer clusterer,
+			@Named("influent.midtier.ehcache.config") String ehCacheConfig,
+			@Named("influent.dynamic.clustering.cache.name") String cacheName
 	) {
 
 		try {
 			InputStream configStream = BitcoinFLDynamicClusteringModule.class.getResourceAsStream("/clusterer.properties");
-			return new DynamicClustering(dataAccess, geocoding, clusterer, new PropertyManager(configStream));
+			return new DynamicClustering(
+				dataAccess, 
+				geocoding, 
+				clusterer, 
+				new PropertyManager(configStream),
+				ehCacheConfig,
+				cacheName
+			);
 		} catch (Exception e) {
 			addError("Failed to load Clustering", e);
 			return null;

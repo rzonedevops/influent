@@ -38,6 +38,7 @@ function($, View, params, chan, statusDialog) {
 	 */
 	var App = function() {
 		var currentHash = undefined,
+			useRootHash = false,
 
 			/**
 			 * View manager

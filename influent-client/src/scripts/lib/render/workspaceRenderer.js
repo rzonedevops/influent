@@ -22,8 +22,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnRenderer'],
-    function($, chan, cardRenderer, columnRenderer) {
+define(
+    [
+        'jquery', 'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnRenderer'
+    ],
+    function(
+        $, chan, cardRenderer, columnRenderer
+    ) {
 
         var workspaceRenderer = {};
 
@@ -65,7 +70,7 @@ define(['jquery', 'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnR
                 canvas.empty();
             }
             else {
-                canvas = $('<div/>');
+                canvas = $('<div></div>');
                 canvas.attr('id', visualInfo.xfId);
             }
 

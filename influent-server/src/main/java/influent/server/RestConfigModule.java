@@ -25,6 +25,8 @@
 package influent.server;
 
 import influent.server.rest.AggregatedLinkResource;
+import influent.server.rest.BigChartResource;
+import influent.server.rest.CacheStatsResource;
 import influent.server.rest.ChartResource;
 import influent.server.rest.ContainedEntitiesResource;
 import influent.server.rest.EntityDetailsResource;
@@ -74,6 +76,7 @@ public class RestConfigModule extends AbstractModule {
 		resourceBinder.addBinding("/relatedlinks").toInstance(new ResourceDefinition(RelatedLinkResource.class));
 		resourceBinder.addBinding("/aggregatedlinks").toInstance(new ResourceDefinition(AggregatedLinkResource.class));
 		resourceBinder.addBinding("/chart").toInstance(new ResourceDefinition(ChartResource.class));
+		resourceBinder.addBinding("/bigchart").toInstance(new ResourceDefinition(BigChartResource.class));
 		resourceBinder.addBinding("/entities").toInstance(new ResourceDefinition(EntityLookupResource.class));
 		resourceBinder.addBinding("/exporttransactions").toInstance(new ResourceDefinition(ExportTransactionTableResource.class));
 		resourceBinder.addBinding("/persist").toInstance(new ResourceDefinition(PersistenceResource.class));
@@ -81,5 +84,6 @@ public class RestConfigModule extends AbstractModule {
 		resourceBinder.addBinding("/modifycontext").toInstance(new ResourceDefinition(ModifyContextResource.class));
 		resourceBinder.addBinding("/export").toInstance(new ResourceDefinition(ExportGraphResource.class));
 		resourceBinder.addBinding("/entitydetails").toInstance(new ResourceDefinition(EntityDetailsResource.class));
+		resourceBinder.addBinding("/cachestats").toInstance(new ResourceDefinition(CacheStatsResource.class));
 	}
 }

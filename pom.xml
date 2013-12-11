@@ -5,9 +5,29 @@
 	<groupId>oculus.influent</groupId>
 	<artifactId>influent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.1.0</version>
-	<name>influent projects</name>
-	<description>parent module for building Influent projects</description>
+	<version>1.1.2-SNAPSHOT</version>
+
+	<name>Influent Project Modules</name>
+	<description>Parent module for building Influent projects</description>
+	<url>https://github.com/oculusinfo/influent</url>
+	<scm>
+		<url>https://github.com/oculusinfo/influent</url>
+		<connection>scm:git:https://github.com/oculusinfo/influent.git</connection>
+	</scm>
+	<licenses>
+		<license>
+			<name>The MIT License (MIT)</name>
+			<url>http://opensource.org/licenses/MIT</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<id>djonker</id>
+			<name>David Jonker</name>
+			<email>support@oculusinfo.com</email>
+		</developer>
+	</developers>
 
 	<build>
 		<plugins>
@@ -43,7 +63,7 @@
 			<dependency>
 				<groupId>net.sf.ehcache</groupId>
 				<artifactId>ehcache-core</artifactId>
-				<version>2.6.5</version>
+				<version>2.6.6</version>
 			</dependency>
 
 			<dependency>

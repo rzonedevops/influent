@@ -22,8 +22,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/util/xfUtil', 'lib/models/xfLink'],
-    function($, xfUtil, xfLink) {
+define(
+    [
+        'jquery', 'lib/util/xfUtil', 'lib/models/xfLink', 'lib/models/xfFile', 'lib/constants'
+    ],
+    function(
+        $, xfUtil, xfLink, xfFile, constants
+    ) {
         //--------------------------------------------------------------------------------------------------------------
 
         var _aggregateLeftLinks = function(clusterObj, clusterLinks, xfWorkspaceModule, renderAndSaveStateCallback){
@@ -47,7 +52,7 @@ define(['jquery', 'lib/util/xfUtil', 'lib/models/xfLink'],
                     // Make sure this is an incoming link.
                     if (uiObject.getXfId() != clusterObj.getXfId()){
 //                        if (xfUtil.isFileCluster(uiObject)){
-                        if (uiObject.getUIType()==='xfFile'){
+                        if (uiObject.getUIType() === constants.MODULE_NAMES.FILE){
                             var fileChildren = uiObject.getChildren();
                             for (var i=0; i < fileChildren.length; i++){
                                 var childObj = fileChildren[i];
@@ -168,7 +173,7 @@ define(['jquery', 'lib/util/xfUtil', 'lib/models/xfLink'],
                     var uiObject = link.getDestination();
                     // Make sure this is an outgoing link.
                     if (uiObject.getXfId() != clusterObj.getXfId()){
-                        if (uiObject.getUIType()==='xfFile'){
+                        if (uiObject.getUIType() === constants.MODULE_NAMES.FILE){
                             var fileChildren = uiObject.getChildren();
                             for (var i=0; i < fileChildren.length; i++){
                                 var childObj = fileChildren[i];

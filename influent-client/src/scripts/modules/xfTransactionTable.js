@@ -30,8 +30,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
 			table: '',
 			curEntity : '',
 			focus : null,
-			startDate : '2008-01-01',
-			endDate : '2014-01-01',
+			startDate : null,
+			endDate : null,
             subscriberTokens : null,
             bFilterFocused : false
 		};
@@ -53,7 +53,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
         //--------------------------------------------------------------------------------------------------------------
 
         var onSearch = function(channel, data) {
-        	aperture.log.info('onSearch transactions : clear transactions table');
+        	aperture.log.debug('onSearch transactions : clear transactions table');
             if (_transactionsTableInitialized) {
                 $('#transactions-table tbody').empty();
             }
@@ -63,13 +63,17 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
 
         var onUpdate = function(channel, data) {
             if (data != null) {
-			    aperture.log.info('onUpdate transactions : ' + data.dataId);
+			    aperture.log.debug('onUpdate transactions : ' + data.dataId);
             }
 
-			_transactionsState.curEntity = (data == null) ? '' : data.dataId;
+			_transactionsState.curEntity = data && data.dataId;
 
             if (!_transactionsTableInitialized) {
-                initializeTransactionsTable();
+            	if (_transactionsState.curEntity && _transactionsState.startDate && _transactionsState.endDate) {
+                    initializeTransactionsTable();
+            	} else {
+            		return;
+            	}
             }
 
 			_transactionsState.table.fnDraw();
@@ -102,13 +106,17 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
         //--------------------------------------------------------------------------------------------------------------
 
         var _onFilter = function(channel, data) {
-			_transactionsState.startDate = data.startDate.getFullYear()+'-'+(data.startDate.getMonth()+1)+'-'+data.startDate.getDate();
-			_transactionsState.endDate = data.endDate.getFullYear()+'-'+(data.endDate.getMonth()+1)+'-'+data.endDate.getDate();
+			_transactionsState.startDate = data.startDate.getUTCFullYear()+'-'+(data.startDate.getUTCMonth()+1)+'-'+data.startDate.getUTCDate();
+			_transactionsState.endDate = data.endDate.getUTCFullYear()+'-'+(data.endDate.getUTCMonth()+1)+'-'+data.endDate.getUTCDate();
 			
-			aperture.log.info('onFilter transactions : '+_transactionsState.startDate+" -> "+_transactionsState.endDate);
+			aperture.log.debug('onFilter transactions : '+_transactionsState.startDate+" -> "+_transactionsState.endDate);
 			
 			if (!_transactionsTableInitialized) {
-				initializeTransactionsTable();
+            	if (_transactionsState.curEntity && _transactionsState.startDate && _transactionsState.endDate) {
+                    initializeTransactionsTable();
+            	} else {
+            		return;
+            	}
 			}
 			
 			_transactionsState.table.fnDraw();
@@ -120,7 +128,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
 
             var ajaxSource = aperture.io.restUrl('/transactions');
 
-        	aperture.log.info('initializeTransactionsTable called');
+        	aperture.log.debug('initializeTransactionsTable called');
             _transactionsState.table = $('#transactions-table');
             _transactionsState.table.dataTable({
                 'bProcessing':true,
@@ -128,7 +136,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
                 'bDeferRender':true,
                 'iDisplayLength':100,
                 'bLengthChange':false,
-                'sScrollY' : '190px',
+                'sScrollY' : '151px',
                 'bScrollCollapse' : true,
                 'bFilter':false,
                 'bDestroy':true,
@@ -138,9 +146,9 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
                     aoData.push({'name':'startDate', 'value':_transactionsState.startDate});
                     aoData.push({'name':'endDate', 'value':_transactionsState.endDate});
                     if (_transactionsState.bFilterFocused && (_transactionsState.curEntity != _transactionsState.focus.dataId)) {                    	
-                		if (!_transactionsState.focus.isCluster) {
+                		//if (!_transactionsState.focus.isCluster) {
                 			aoData.push({'name':'focusIds', 'value':_transactionsState.focus.dataId});			//TODO:  Send list of comma separated entities in clusters
-                		}
+                		//}
                     }
                 },
 				'aaSorting': [],				//No sorting initially - results are in order from server
@@ -208,8 +216,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
         //--------------------------------------------------------------------------------------------------------------
 
         var _initializeModule = function() {
-        	aperture.log.info('_initializeModule transactions');
-        	if (_transactionsState.curEntity != '' && _transactionsState.startDate != '' && _transactionsState.endDate != '' ) {
+        	aperture.log.debug('_initializeModule transactions');
+        	if (_transactionsState.curEntity && _transactionsState.startDate && _transactionsState.endDate) {
             	initializeTransactionsTable();
             }
         };
@@ -248,5 +256,5 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
 		};
 	};
 		
-	modules.register('xfTransactionsTable',transactionsConstructor);
+	modules.register('xfTransactionTable',transactionsConstructor);
 });

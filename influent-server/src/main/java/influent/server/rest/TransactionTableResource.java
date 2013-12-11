@@ -32,6 +32,7 @@ import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idl.FL_SortBy;
+import influent.idl.FL_TransactionResults;
 import influent.idlhelper.PropertyHelper;
 import influent.server.data.LedgerResult;
 import influent.server.utilities.DateRangeBuilder;
@@ -41,7 +42,6 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
@@ -99,7 +99,7 @@ public class TransactionTableResource extends ApertureServerResource {
 			// get the root node ID from the form
 			String entityId = form.getFirstValue("entityId");
 			try {
-				if (entityId == null) {
+				if (entityId == null || entityId.trim().isEmpty()) {
 					JSONObject result = new JSONObject();
 					JSONArray dataArray = new JSONArray();
 					result.put("aaData", dataArray);
@@ -152,7 +152,7 @@ public class TransactionTableResource extends ApertureServerResource {
 				
 				FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
 				long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
-				Map<String, List<FL_Link>> results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, transactionRequestMax);
+				FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
 				LedgerResult ledgerResult = buildForClient(results, startRow, startRow+totalRows);
 				
 				List<String> colNames = ledgerResult.getColumnNames();
@@ -256,74 +256,65 @@ public class TransactionTableResource extends ApertureServerResource {
 		return ftime;
 	}
 	
-	public static LedgerResult buildForClient(Map<String, List<FL_Link>> results, int beginIndex, int endIndex) {
+	public static LedgerResult buildForClient(FL_TransactionResults results, int beginIndex, int endIndex) {
+		
 		assert(beginIndex <= endIndex);
 		beginIndex = Math.max(0, beginIndex);
-		int resultsEndIndex = 0;
-		for(List<FL_Link> links : results.values()) {
-			resultsEndIndex += links.size();
-		}
-		endIndex = Math.min(endIndex, resultsEndIndex);	
+
 		int index = 0;								// use an index to get the required subset; prevents useless parsing and saves time
 
 		List<List<String>> tableData = new ArrayList<List<String>>();
 		
-		for (List<FL_Link> links : results.values()) {
-			for (FL_Link link : links) { 
-				if(index >= beginIndex && index < endIndex) {
+		for (FL_Link link : results.getResults()) { 
+			if(index >= beginIndex && index < endIndex) {
 
-					DateTime date = null;
-					String comment = null;
-					String inflowing = null;
-					String outflowing = null;
+				DateTime date = null;
+				String comment = null;
+				String inflowing = null;
+				String outflowing = null;
+				
+				for (FL_Property prop : link.getProperties()) {
+					PropertyHelper property = PropertyHelper.from(prop);
 					
-					for (FL_Property prop : link.getProperties()) {
-						PropertyHelper property = PropertyHelper.from(prop);
-						
-						if (property.hasTag(FL_PropertyTag.INFLOWING) && property.hasValue()) {
-							if (property.hasTag(FL_PropertyTag.DURATION))
-								inflowing = formatDur((FL_Duration)property.getValue());
-							else
-								inflowing = formatCur((Number)property.getValue(), property.hasTag(FL_PropertyTag.USD));
-						} else if (property.hasTag(FL_PropertyTag.OUTFLOWING) && property.hasValue()) {
-							if (property.hasTag(FL_PropertyTag.DURATION))
-								outflowing = formatDur((FL_Duration)property.getValue());
-							else
-								outflowing = formatCur((Number)property.getValue(), property.hasTag(FL_PropertyTag.USD));
-						} else if (property.hasTag(FL_PropertyTag.AMOUNT) && property.hasValue()) {
-							Number value = (Number)property.getValue();
-							String fvalue = (property.hasTag(FL_PropertyTag.COUNT))? formatCount(value) : formatCur(value, property.hasTag(FL_PropertyTag.USD));
-							if (value.doubleValue() < 0) outflowing = fvalue;
-							else inflowing = fvalue;
-	
-						// date or comments?
-						} else if (property.hasTag(FL_PropertyTag.DATE)) {
-							date = new DateTime((Long)property.getValue());
-						} else if (property.hasTag(FL_PropertyTag.ANNOTATION)) {
-							comment = (String)property.getValue();
-						}
+					if (property.hasTag(FL_PropertyTag.INFLOWING) && property.hasValue()) {
+						if (property.hasTag(FL_PropertyTag.DURATION))
+							inflowing = formatDur((FL_Duration)property.getValue());
+						else
+							inflowing = formatCur((Number)property.getValue(), property.hasTag(FL_PropertyTag.USD));
+					} else if (property.hasTag(FL_PropertyTag.OUTFLOWING) && property.hasValue()) {
+						if (property.hasTag(FL_PropertyTag.DURATION))
+							outflowing = formatDur((FL_Duration)property.getValue());
+						else
+							outflowing = formatCur((Number)property.getValue(), property.hasTag(FL_PropertyTag.USD));
+					} else if (property.hasTag(FL_PropertyTag.AMOUNT) && property.hasValue()) {
+						Number value = (Number)property.getValue();
+						String fvalue = (property.hasTag(FL_PropertyTag.COUNT))? formatCount(value) : formatCur(value, property.hasTag(FL_PropertyTag.USD));
+						if (value.doubleValue() < 0) outflowing = fvalue;
+						else inflowing = fvalue;
+
+					// date or comments?
+					} else if (property.hasTag(FL_PropertyTag.DATE)) {
+						date = DateTimeParser.fromFL(property.getValue());
+					} else if (property.hasTag(FL_PropertyTag.ANNOTATION)) {
+						comment = (String)property.getValue();
 					}
-						
-					List<String> newRow = new ArrayList<String>(5);
-					newRow.add(date.toString(date_formatter)); // Date
-					newRow.add(comment);      // Comment
-					newRow.add(inflowing); 
-					newRow.add(outflowing); 
-					newRow.add(link.getSource()); //Source entityId
-					newRow.add(link.getTarget()); //Destination entityId
-					tableData.add(newRow);
 				}
-				
-				if(index >= endIndex) {
-					break;
-				}
-				
-				index++;
+					
+				List<String> newRow = new ArrayList<String>(5);
+				newRow.add(date.toString(date_formatter)); // Date
+				newRow.add(comment);      // Comment
+				newRow.add(inflowing); 
+				newRow.add(outflowing); 
+				newRow.add(link.getSource()); //Source entityId
+				newRow.add(link.getTarget()); //Destination entityId
+				tableData.add(newRow);
 			}
 			
 			if(index >= endIndex) {
 				break;
 			}
+			
+			index++;
 		}
 		
 		int cols = 5;
@@ -334,7 +325,7 @@ public class TransactionTableResource extends ApertureServerResource {
 		columnNames.add("Inflowing");
 		columnNames.add("Outflowing");
 		
-		return new LedgerResult(cols, endIndex - beginIndex, columnNames, tableData, resultsEndIndex);
+		return new LedgerResult(cols, endIndex - beginIndex, columnNames, tableData, results.getTotal());
 	}
 	
 }

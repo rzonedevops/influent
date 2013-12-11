@@ -46,10 +46,6 @@ define(['jquery', 'lib/module', 'lib/channels'], function($, modules, chan) {
             console.error(unimpMethod + ': "getUIType" by module ' + implementingObjectModuleName);
         };
 
-        implementingObject.isCluster= function() {
-            console.error(unimpMethod + ': "isCluster" by module ' + implementingObjectModuleName);
-        };
-
         implementingObject.getLabel = function() {
             console.error(unimpMethod + ': "getLabel" by module ' + implementingObjectModuleName);
         };

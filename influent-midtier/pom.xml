@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.1.0</version>
+		<version>1.1.2-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>influent-midtier</artifactId>
@@ -35,29 +35,17 @@
 			<plugin>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>idl-protocol</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.avro</groupId>
-				<artifactId>avro-maven-plugin</artifactId>
-				<version>1.7.4</version>
-				<configuration>
-					<stringType>String</stringType>
-					<fieldVisibility>private</fieldVisibility>
-				</configuration>
+				<version>1.7.5</version>
 				<executions>
 					<execution>
 						<phase>generate-sources</phase>
 						<goals>
 							<goal>schema</goal>
+							<goal>idl-protocol</goal>
 						</goals>
 						<configuration>
+							<stringType>String</stringType>
+							<fieldVisibility>private</fieldVisibility>
 							<sourceDirectory>${project.basedir}/src/main/avro/</sourceDirectory>
 							<outputDirectory>${project.basedir}/src/main/java/</outputDirectory>
 						</configuration>
@@ -95,22 +83,10 @@
 									<pluginExecutionFilter>
 										<groupId>org.apache.avro</groupId>
 										<artifactId>avro-maven-plugin</artifactId>
-										<versionRange>[1.7.4,)</versionRange>
-										<goals>
-											<goal>idl-protocol</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore></ignore>
-									</action>
-								</pluginExecution>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>org.apache.avro</groupId>
-										<artifactId>avro-maven-plugin</artifactId>
-										<versionRange>[1.7.4,)</versionRange>
+										<versionRange>[1.7.5,)</versionRange>
 										<goals>
 											<goal>schema</goal>
+											<goal>idl-protocol</goal>
 										</goals>
 									</pluginExecutionFilter>
 									<action>
@@ -126,20 +102,14 @@
 	</build>
 	<dependencies>
 		<dependency>
-			<artifactId>aperture-common</artifactId>
-			<groupId>oculus.aperture</groupId>
-			<version>1.0.0-SNAPSHOT</version>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
-			<version>1.7.4</version>
+			<version>1.7.5</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro-ipc</artifactId>
-			<version>1.7.4</version>
+			<version>1.7.5</version>
 		</dependency>
 		
 		<dependency>

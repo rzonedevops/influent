@@ -209,7 +209,11 @@ public class PersistenceResource extends ApertureServerResource{
 					
 					files.add(fileCluster);
 				}
-				else if(objectType.equals("xfImmutableCluster") || objectType.equals("xfMutableCluster")) {
+				else if(
+				    objectType.equals("xfImmutableCluster") ||
+				    objectType.equals("xfMutableCluster") ||
+				    objectType.equals("xfSummaryCluster")
+				) {
 					clusterIds.add((String) ((HashMap<Object, Object>) objectSpec.get("spec")).get("dataId"));
 				}
 				else if(objectType.equals("xfCard")) {

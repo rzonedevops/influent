@@ -26,7 +26,14 @@ package influent.server.dataaccess;
 
 import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
-import influent.server.utilities.SQLConnectionPool;
+
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
@@ -42,20 +49,22 @@ public class CachedPersistenceAccess implements FL_Persistence {
 
 	private static Logger s_logger = LoggerFactory.getLogger(CachedPersistenceAccess.class);
 	
-	private final Ehcache cache;
+	private final Ehcache persistenceCache;
+	private final Ehcache clusteringCache;
 	
 	
 	public CachedPersistenceAccess(
 		String ehCacheConfig,
-		String cacheName,
-		SQLConnectionPool connectionPool
+		String persistenceCacheName,
+		String dynamicClusteringCacheName
 	) {
 		CacheManager cacheManager = (ehCacheConfig != null) ? CacheManager.create(ehCacheConfig) : null;
 		if (cacheManager == null) {
 			s_logger.warn("ehcache property not set, persistence data won't be cached");
 		}
 		
-		this.cache = cacheManager.getEhcache(cacheName);
+		this.persistenceCache = cacheManager.getEhcache(persistenceCacheName);
+		this.clusteringCache = cacheManager.getEhcache(dynamicClusteringCacheName);
 	}
 	
 	
@@ -64,14 +73,14 @@ public class CachedPersistenceAccess implements FL_Persistence {
 	@Override
 	public FL_PersistenceState persistData(String sessionId, String data) {
 		
-		if (cache == null) {
+		if (persistenceCache == null) {
 			return FL_PersistenceState.NONE;
 		}
 		
-		FL_PersistenceState state = (!cache.isKeyInCache(sessionId)) ? FL_PersistenceState.NEW : FL_PersistenceState.MODIFIED;
+		FL_PersistenceState state = (!persistenceCache.isKeyInCache(sessionId)) ? FL_PersistenceState.NEW : FL_PersistenceState.MODIFIED;
 		
 		Element element = new Element(sessionId, data);
-		cache.put(element);
+		persistenceCache.put(element);
 		
 		return state;
 	}
@@ -84,15 +93,49 @@ public class CachedPersistenceAccess implements FL_Persistence {
 		
 		String data = null;
 		
-		if (cache == null) {
+		if (persistenceCache == null) {
 			return data;
 		}
 		
-		Element element = cache.get(sessionId);
+		Element element = persistenceCache.get(sessionId);
 		if (element != null) {
 			data = element.getObjectValue().toString();
+			Collection<String> contextIds = getContextIdsFromData(data);
+			
+			if (contextIds.size() > 3) {
+			
+				Map<Object, Element> contexts = clusteringCache.getAll(contextIds);
+				
+				boolean containsContext = false;
+				for (Element e : contexts.values()) {
+					if (e != null) {
+						containsContext = true;
+						break;
+					}
+				}
+				
+				if (!containsContext) {
+					data = null;
+				}
+			}
 		}
 		
 		return data;
+	}
+
+
+
+
+	private Collection<String> getContextIdsFromData(String data) {
+		
+		Set<String> ids = new HashSet<String>();
+		
+		String regex = "column_[^\"]*";
+		Matcher m = Pattern.compile(regex).matcher(data);
+		while (m.find()) {
+			ids.add(m.group());
+		}
+		
+		return ids;
 	}
 }

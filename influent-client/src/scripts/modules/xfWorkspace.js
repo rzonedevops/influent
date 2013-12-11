@@ -22,12 +22,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/models/xfColumn', 'lib/models/xfFile',
-    'lib/models/xfImmutableCluster', 'lib/models/xfImmutableCluster', 'lib/models/xfClusterBase', 'lib/models/xfCard', 'lib/models/xfLink', 'lib/layout/xfLayoutProvider',
-    'lib/util/xfUtil', 'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/extern/ActivityLogger',
-    'lib/ui/xfLinkType', 'modules/xfRenderer', 'lib/ui/xfModalDialog'],
-    function($, xfUIObject, chan, guid, xfColumn, xfFile, xfImmutableCluster, xfMutableCluster, xfClusterBase, xfCard, xfLink, xfLayoutProvider, xfUtil, duration,
-             toolbarOp, activityLogger, xfLinkType, xfRenderer, xfModalDialog) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/models/xfColumn', 'lib/models/xfFile',
+        'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster', 'lib/models/xfClusterBase',
+        'lib/models/xfCard', 'lib/models/xfLink', 'lib/layout/xfLayoutProvider', 'lib/util/xfUtil',
+        'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/extern/ActivityLogger', 'lib/ui/xfLinkType',
+        'modules/xfRenderer', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/extern/cookieUtil'
+    ],
+    function(
+        $, xfUIObject, chan, guid, xfColumn, xfFile,
+        xfImmutableCluster, xfMutableCluster, xfSummaryCluster, xfClusterBase,
+        xfCard, xfLink, xfLayoutProvider, xfUtil,
+        duration, toolbarOp, activityLogger, xfLinkType,
+        xfRenderer, xfModalDialog, constants, cookieUtil
+    ) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
@@ -107,8 +116,10 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     // Iterate through each object in the metadata and append it to the output string.
                     var metaString = '';
 
-                    for (var key in metadata){
-                         metaString = metaString.concat((_.isEmpty(metaString)?'':' ') + key + ': ' + metadata[key] + ';');
+                    for (var key in metadata) {
+                        if (metadata.hasOwnProperty(key)) {
+                            metaString = metaString.concat((_.isEmpty(metaString)?'':' ') + key + ': ' + metadata[key] + ';');
+                        }
                     }
                     console.log(type + ' ' + eventChannel + ' ' + description + ' ' + metaString);
                 }
@@ -133,12 +144,45 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 return;
             }
 
-            $(window).bind(
-                'beforeunload',
-                function(){
-                    return _saveState(null);
+            $(function() {
+                $("#transactions").tabs(
+                    {
+                        select: function(event, ui) {
+                            if (ui.panel.id == 'chartTab') {
+                                _onCurrentStateRequest(chan.REQUEST_CURRENT_STATE);
+                            }
+                        }
+                    }
+                );
+            });
+
+            $(window).bind( 'beforeunload',
+                function() {
+                    var cookieId = aperture.config.get()['aperture.io'].restEndpoint.replace('%host%', 'sessionId');
+	                var cookie = cookieUtil.readCookie(cookieId);
+	                
+                    _saveState(null, false);
+                    
+	                if (cookie) {
+	                	var prompt = 'Influent can remember this session and attempt to resume it when you return. '+
+	                    	'However, a previous session was found. If you wish to resume the previous session '+
+	                    	'you must open a new browser tab for it before leaving this one.';
+	                	
+	                	return prompt;
+	                }
                 }
             );
+
+            $(window).bind( 'unload',
+                function() {
+                    var cookieId = aperture.config.get()['aperture.io'].restEndpoint.replace('%host%', 'sessionId');
+                    var cookieExpiryMinutes = aperture.config.get()['influent.config']['sessionTimeoutInMinutes'] || 24*60;
+	                var sessionId = _UIObjectState.sessionId;
+	                
+                	cookieUtil.createCookie(cookieId, sessionId, cookieExpiryMinutes);
+                }
+            );
+
 
             aperture.capture.initialize();
 
@@ -158,7 +202,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                                 aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, {
                                     xfId: _UIObjectState.selectedUIObject.xfId,
                                     dataId: _UIObjectState.selectedUIObject.dataId,
-                                    uiType: _UIObjectState.selectedUIObject.uiType
+                                    uiType: _UIObjectState.selectedUIObject.uiType,
+                                    uiSubtype: _UIObjectState.selectedUIObject.uiSubtype,
+                                    contextId: _UIObjectState.selectedUIObject.contextId
                                 });
                             }
                         }
@@ -175,7 +221,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                             {
                                 xfId: _UIObjectState.focus.xfId,
                                 dataId: _UIObjectState.focus.dataId,
-                                isCluster: _UIObjectState.focus.isCluster,
+                                entityType: _UIObjectState.focus.entityType,
+                                entityLabel: _UIObjectState.focus.entityLabel,
                                 contextId: _UIObjectState.focus.contextId,
                                 noRender: true
                             }
@@ -404,8 +451,13 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 	break;
                 case chan.PIN_TOGGLE :
                     _onPinToggleRequest(eventChannel, data, renderCallback);
+                    break;
                 case chan.HIGHLIGHT_SEARCH_ARGUMENTS :
                 	_onHighlightSearchArguments(eventChannel, data);
+                    break;
+                case chan.REQUEST_CURRENT_STATE :
+                    _onCurrentStateRequest(eventChannel);
+					break;
                 default :
                    break;
             }
@@ -603,7 +655,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         	
             // Do a preliminary scan to see if it's basic or not
             for (i = columnExtents.min; i <= columnExtents.max; i++) {
-                columnFiles = xfUtil.getChildrenByType(_getColumnByIndex(i), 'xfFile');
+                columnFiles = xfUtil.getChildrenByType(_getColumnByIndex(i), constants.MODULE_NAMES.FILE);
                 for (j = 0; j < columnFiles.length; j++ ) {
                     if (columnFiles[j].hasMatchCard()) {
                         var matchCardObject = columnFiles[j].getMatchUIObject();
@@ -667,7 +719,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 }
                 
                 for (i = columnExtents.min; i <= columnExtents.max; i++) {
-                    columnFiles = xfUtil.getChildrenByType(_getColumnByIndex(i), 'xfFile');
+                    columnFiles = xfUtil.getChildrenByType(_getColumnByIndex(i), constants.MODULE_NAMES.FILE);
                     var columnMatchcards = [];
                     for(j = 0; j < columnFiles.length; j++ ) {
                         if (columnFiles[j].hasMatchCard()) {
@@ -816,8 +868,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 }
             }
 
-            var patternString = JSON.stringify(patternSearchObject);
-            return patternString;
+            return JSON.stringify(patternSearchObject);
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -856,7 +907,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                         cluster: false,
                         limit : MAX_PATTERN_SEARCH_RESULTS,
                         contextid : contextId,
-                        useAptima : (_getAllMatchCards().length > 3) ? true : false
+                        useAptima : (_getAllMatchCards().length > 3)
                     },
                     contentType: 'application/json'
                 }
@@ -872,7 +923,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     sessionId : _UIObjectState.sessionId,
                     startDate : _UIObjectState.dates.startDate,
                     endDate :  _UIObjectState.dates.endDate,
-                    useAptima : (_getAllMatchCards().length > 3) ? true : false
+                    useAptima : (_getAllMatchCards().length > 3)
                 }
             );
         };
@@ -885,7 +936,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 var matchcard = matchcardObjects[i];
 
-                if (matchcard.getUIType() != 'xfMatch') {
+                if (matchcard.getUIType() != constants.MODULE_NAMES.MATCH) {
                     continue;
                 }
 
@@ -902,7 +953,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var j, k;
 
             // For each match entity (file) get a set of unique entities that belong in that file
-            var workspaceFiles = xfUtil.getChildrenByType(_UIObjectState.singleton, 'xfFile');
+            var workspaceFiles = xfUtil.getChildrenByType(_UIObjectState.singleton, constants.MODULE_NAMES.FILE);
 
             //Create an xfCard for each entity in each file
             var newMatchResults = [];
@@ -937,7 +988,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             var createdUIObjects = [];
 
-            if (parent.getUIType() == 'xfMatch') {
+            if (parent.getUIType() == constants.MODULE_NAMES.MATCH) {
                 parent.setSearchState('results');
                 aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : parent});
             }
@@ -951,10 +1002,17 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             for (var i = 0; i < specs.length; i++) {
 
                 var UIObject = {};
-                if (!specs[i].isCluster) {
+
+                if (specs[i].type === constants.MODULE_NAMES.CLUSTER_BASE || specs[i].type === constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
+                	UIObject = xfImmutableCluster.createInstance(specs[i]);
+                } else if (specs[i].type === constants.MODULE_NAMES.MUTABLE_CLUSTER) {
+                    UIObject = xfMutableCluster.createInstance(specs[i]);
+                } else if (specs[i].type === constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                    UIObject = xfSummaryCluster.createInstance(specs[i]);
+                } else {
                     UIObject =  xfCard.createInstance(specs[i]);
-                    shownMatches = shownMatches+1;
                 }
+                shownMatches = shownMatches+1;
 
                 UIObject.showDetails(_UIObjectState.showDetails);
                 // determine what the first search object is
@@ -982,15 +1040,16 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             // if there is no currently focused object, then we set the first search object as the
             // focused object
             if (_UIObjectState.focus == null && firstSearchObject != null) {
-                var columnObj = xfUtil.getUITypeAncestor(firstSearchObject, 'xfColumn');
+                var columnObj = xfUtil.getUITypeAncestor(firstSearchObject, constants.MODULE_NAMES.COLUMN);
 
                 // note this will trigger card chart updates as well, which is why we have an else below
-                aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, _processFocusForClusters(firstSearchObject, {
+                aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, {
                     xfId: firstSearchObject.getXfId(),
                     dataId: firstSearchObject.getDataId(),
-                	isCluster: firstSearchObject.isCluster(),
+                    entityType: firstSearchObject.getUIType(),
+                    entityLabel: firstSearchObject.getLabel(),
                     contextId: columnObj? columnObj.getXfId() : null
-                }));
+                });
 
             // else if we are showing card details then we need to populate the card specs with chart data
             } else if (_UIObjectState.showDetails) {
@@ -1013,8 +1072,10 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 var spec = {};
                 spec.showSpinner = false;
-                if (entity.isCluster) {
+                if (entity.entitytype == constants.SUBTYPES.ENTITY_CLUSTER || entity.entitytype == constants.SUBTYPES.ACCOUNT_OWNER) {
                     spec = xfClusterBase.getSpecTemplate();
+                } else if (entity.entitytype == constants.SUBTYPES.CLUSTER_SUMMARY) {
+                    spec = xfSummaryCluster.getSpecTemplate();
                 } else {
                     spec = xfCard.getSpecTemplate();
                 }
@@ -1065,8 +1126,14 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     for (var i = 0; i < specs.length; i++) {
 
                         var uiObject = {};
-                        if (!specs[i].isCluster) {
+                        if (specs[i].type == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                            uiObject = xfSummaryCluster.createInstance(specs[i]);
+                        } else if (specs[i].type == constants.MODULE_NAMES.CLUSTER_BASE || specs[i].type == constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
+                            uiObject = xfImmutableCluster.createInstance(specs[i]);
+                        } else if (specs[i].type == constants.MODULE_NAMES.ENTITY) {
                             uiObject =  xfCard.createInstance(specs[i]);
+                        } else {
+                            continue;
                         }
 
                         uiObject.showDetails(_UIObjectState.showDetails);
@@ -1076,7 +1143,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                         cardObjects.push(uiObject);
                         dataIds.push(uiObject.getDataId());
 
-                        if (parentObj.getUIType() != 'xfColumn'){
+                        if (parentObj.getUIType() != constants.MODULE_NAMES.COLUMN){
                             uiObject.showToolbar(parentObj.showToolbar());
                         }
                     }
@@ -1225,7 +1292,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             // If this is a cluster, flatten out the cluster hierarchy
             // and create a flattened out list of all child cards.
-            if (xfUtil.isClusterType(insertedCard)){
+            if (xfUtil.isClusterTypeFromObject(insertedCard) && insertedCard.getUIType() != constants.MODULE_NAMES.SUMMARY_CLUSTER) {
                 _flattenCluster(
                     insertedCard,
                     cardColumn.getXfId(),
@@ -1241,10 +1308,10 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                             dataIds.push(specs[i].dataId);
                         }
 
-                        if (targetContainer.getUIType() == 'xfFile'){
+                        if (targetContainer.getUIType() == constants.MODULE_NAMES.FILE){
                         	targetContainer = targetContainer.getClusterUIObject();
                         	
-                        	if(targetContainer.getUIType() != 'xfMutableCluster') {
+                        	if(targetContainer.getUIType() != constants.MODULE_NAMES.MUTABLE_CLUSTER) {
                         		console.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
                         	}
                             _modifyContext(containerColumn.getXfId(), 'insert', targetContainer.getDataId(), dataIds);
@@ -1260,16 +1327,19 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 _pruneColumns();
 
-                if (targetContainer.getUIType() == 'xfFile'){
+                if (targetContainer.getUIType() == constants.MODULE_NAMES.FILE){
                     targetContainer = targetContainer.getClusterUIObject();
 
-                    if(targetContainer.getUIType() != 'xfMutableCluster') {
+                    if(targetContainer.getUIType() != constants.MODULE_NAMES.MUTABLE_CLUSTER) {
                         console.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
                     }
                 }
                 // If this is a collapsed file cluster then update the cluster spec.
                 if (xfUtil.isFileCluster(targetContainer) && !targetContainer.isExpanded()) {
                     _updateClusterSpec(targetContainer);
+                    if (_UIObjectState.showDetails) {
+                        _UIObjectState.childModule.updateCardsWithCharts(targetContainer.getSpecs(false));
+                    }
                 }
 
                 // Update the server side cache with the new cluster hierarchy.
@@ -1277,7 +1347,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     // Callback to be performed after the modify context operation has completed.
                     function(){
                         // Update any incoming/outgoing links.
-                        var isCollapsedCluster = xfUtil.isClusterType(targetContainer) && !targetContainer.isExpanded();
+                        var isCollapsedCluster = xfUtil.isClusterTypeFromObject(targetContainer) && !targetContainer.isExpanded();
                         _updateLinks(true, true, [isCollapsedCluster?targetContainer:insertedCard], renderCallback, [targetContainer, insertedCard]);
                     });
             }
@@ -1299,19 +1369,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         //--------------------------------------------------------------------------------------------------------------
 
         var _useCopyMethod = function(addCard) {
-            return (xfUtil.isClusterType(addCard.getParent()));
-        };
-
-        //--------------------------------------------------------------------------------------------------------------
-
-        var _processFocusForClusters = function(xfUiObj, focus) {
-            if (xfUiObj.getUIType() === 'xfImmutableCluster'){
-                focus.memberIds = xfUiObj.getVisibleDataIds();
-            }
-            else {
-                focus.memberIds = [focus.dataId];
-            }
-        	return focus;
+            return (xfUtil.isClusterTypeFromObject(addCard.getParent()));
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -1325,14 +1383,15 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var xfUiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 
             if (xfUiObj) {
-                var columnObj = xfUtil.getUITypeAncestor(xfUiObj, 'xfColumn');
+                var columnObj = xfUtil.getUITypeAncestor(xfUiObj, constants.MODULE_NAMES.COLUMN);
 
-                var focusData = _processFocusForClusters(xfUiObj, {
+                var focusData = {
                     xfId: xfUiObj.getXfId(),
                     dataId: xfUiObj.getDataId(),
-                    isCluster: xfUiObj.isCluster(),
+                    entityType: xfUiObj.getUIType(),
+                    entityLabel: xfUiObj.getLabel(),
                     contextId: columnObj? columnObj.getXfId() : null
-                });
+                };
 
                 aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, focusData);
             }
@@ -1364,28 +1423,23 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 return;
             }
 
-            var objectToBeSelected = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
-
-            _UIObjectState.singleton.setSelection(data.xfId);
-
-            var xfid, dataid, uitype;
+            var objectToBeSelected = data.xfId && _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 
             if (objectToBeSelected == null) {
-                xfid = null;
-                dataid = null;
-                uitype = null;
                 _UIObjectState.selectedUIObject = null;
+                _UIObjectState.singleton.setSelection(null);
+                
             } else {
-                xfid = objectToBeSelected.getXfId();
-                dataid = objectToBeSelected.getDataId();
-                uitype = objectToBeSelected.getUIType();
                 _UIObjectState.selectedUIObject = {
-                    xfId: xfid,
-                    dataId: dataid,
-                    uiType: uitype
+                    xfId: objectToBeSelected.getXfId(),
+                    dataId: objectToBeSelected.getDataId(),
+                    label: objectToBeSelected.getLabel(),
+                    uiType: objectToBeSelected.getUIType(),
+                    uiSubtype: objectToBeSelected.getUISubtype(),
+                    contextId: xfUtil.getUITypeAncestor(objectToBeSelected, 'xfColumn').getXfId()
                 };
+                _UIObjectState.singleton.setSelection(objectToBeSelected.getXfId());
             }
-            _UIObjectState.singleton.setSelection(xfid);
 
             // only publish change event if we can see the results of said change
             if($('#footer-content').css('display') != 'none') {
@@ -1445,7 +1499,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 for (var i = 1; i < columns.length - 2; i++) {
                     var currentColumn = columns[i];
-                    var fileObjects =  xfUtil.getChildrenByType(currentColumn, ['xfFile']);
+                    var fileObjects =  xfUtil.getChildrenByType(currentColumn, [constants.MODULE_NAMES.FILE]);
                     for (var j = 0; j < fileObjects.length; j++) {
                         var fileObject = fileObjects[j];
                         _addFileLinks(fileObject, currentColumn, false, true);
@@ -1713,25 +1767,27 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 uiObject = targetColumn.getUIObjectsByDataId(specs[i].dataId)[0];
 
                 if (!uiObject) {
-                    if (specs[i].isCluster) {
+                    if (specs[i].type == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                        uiObject =  xfSummaryCluster.createInstance(specs[i]);
+                    } else if (xfUtil.isClusterTypeFromSpec(specs[i])) {
                         uiObject =  xfImmutableCluster.createInstance(specs[i]);
-                        // Set the state of the top-level toolbar.
-                        uiObject.updateToolbar({
-                            'allowFile' : true,
-                            'allowPin' : true,
-                            'allowClose' : true,
-                            'allowFocus' : true,
-                            'allowSearch' : false
-                        });
-
                     } else {
                         uiObject =  xfCard.createInstance(specs[i]);
                     }
+
+                    uiObject.updateToolbar({
+                        'allowFile' : true,
+                        'allowPin' : true,
+                        'allowClose' : true,
+                        'allowFocus' : true,
+                        'allowSearch' : false
+                    });
+
                     uiObject.showDetails(_UIObjectState.showDetails);
                     uiObject.showToolbar(true);
                     parentObj.insert(uiObject, adjacentObj);
                 } else {
-                    if (xfUtil.isClusterType(uiObject)) {
+                    if (xfUtil.isClusterTypeFromObject(uiObject)) {
                         uiObject.update(specs[i]);
 
                         toCollapseIds.push(uiObject.getXfId());
@@ -1790,7 +1846,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             var column = _getColumnByUIObject(uiObj);
 
-            if (!xfUtil.isClusterType(uiObj)) {
+            if (!xfUtil.isClusterTypeFromObject(uiObj)) {
                 console.error('Expand request for a non cluster object');
             }
 
@@ -1875,7 +1931,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 
-            if (uiObj.getUIType() != 'xfFile' && !xfUtil.isClusterType(uiObj)) {
+            if (uiObj.getUIType() != constants.MODULE_NAMES.FILE && !xfUtil.isClusterTypeFromObject(uiObj)) {
                 console.error('Collapse request for a non cluster or file object');
             }
 
@@ -1926,7 +1982,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         //--------------------------------------------------------------------------------------------------------------
         var _selectAdjacentMatchObject = function(columnObj){
             var adjacentMatchColumn = columnObj;
-            var adjacentMatchs = xfUtil.getChildrenByType(adjacentMatchColumn, 'xfMatch');
+            var adjacentMatchs = xfUtil.getChildrenByType(adjacentMatchColumn, constants.MODULE_NAMES.MATCH);
             var adjacentMatch = _.isEmpty(adjacentMatchs)?null:adjacentMatchs[0];
 
             if (adjacentMatch){
@@ -1954,7 +2010,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 contextId : sourceColumn.getXfId()
             });
 
-            if (objToRemove.getUIType() == 'xfMatch') {
+            if (objToRemove.getUIType() == constants.MODULE_NAMES.MATCH) {
                 
                 // If the match card being deleted has the search focus, re-parent the
                 // search focus with the closest adjacent xfMatchcard, if possible.
@@ -1980,7 +2036,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     }
                 }
             }
-            else if (parent.getUIType() === 'xfMutableCluster'){
+            else if (parent.getUIType() === constants.MODULE_NAMES.MUTABLE_CLUSTER){
                 _modifyContext(sourceColumn.getXfId(), 'remove', parent.getDataId(), [dataId]);
             }
 
@@ -2118,6 +2174,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var	columnUIObj;
             var sourceObjOriginalParent = sourceObj.getParent();
             var collapseFile = false;
+            var copied = false;
 
             if (!data.isColumn) {
             	columnUIObj = _getColumnByUIObject(sourceObj);
@@ -2128,6 +2185,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             // Create a new file uiObject.            
             var fileSpec = xfFile.getSpecTemplate();
             var fileUIObj = xfFile.createInstance(fileSpec);
+            fileUIObj.showDetails(_UIObjectState.singleton.showDetails());
             // Add the file to the very top of the column.
             var topObj = null;
             if (columnUIObj.getVisualInfo().children.length > 0){
@@ -2153,6 +2211,9 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 var affectedObjects = fileUIObj.getClusterUIObject().getChildren();
                 affectedObjects.push(fileUIObj.getClusterUIObject());
+                if (copied) {
+                    affectedObjects.push(sourceObj);
+                }
 
                 _updateLinks(true, true, linkingObjects, renderCallback, affectedObjects);
             };
@@ -2197,6 +2258,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             if (!data.isColumn) {
                 var insertedCard;
                 if (_useCopyMethod(sourceObj)) {
+                    copied = true;
                     insertedCard = sourceObj.clone();
                 } else {
                     insertedCard = sourceObj;
@@ -2210,7 +2272,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     );
                 }
 
-                if (xfUtil.isClusterType(insertedCard)){
+                if (xfUtil.isClusterTypeFromObject(insertedCard)){
                     collapseFile = true;
                     _flattenCluster(insertedCard, columnUIObj.getXfId(), fileUIObj, collapseCallback);
                     return;
@@ -2219,6 +2281,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                     // Add the source uiObject into the file.
                     collapseFile = false;
                     fileUIObj.insert(insertedCard, null);
+                    insertedCard.showToolbar(true);
+                    insertedCard.setPin(false);
                 }
             }
 
@@ -2283,9 +2347,13 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
         //--------------------------------------------------------------------------------------------------------------
 
-        var _saveState = function(callback) {
+        var _saveState = function(callback, async) {
 
             var currentState = _UIObjectState.singleton.saveState();
+
+            if (async == null || async == undefined || async !== false) {
+                async = true;
+            }
 
             aperture.io.rest(
                 '/persist',
@@ -2301,7 +2369,8 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                         queryId: (new Date()).getTime(),
                         data : (currentState) ? JSON.stringify(currentState) : ""
                     },
-                    contentType: 'application/json'
+                    contentType: 'application/json',
+                    async : async
                 }
             );
         };
@@ -2395,7 +2464,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 }
             };
 
-            _saveState(callback);
+            _saveState(callback, true);
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -2481,7 +2550,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 }
             };
 
-            _saveState(callback);
+            _saveState(callback, true);
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -2505,7 +2574,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
             var topCard = xfUtil.getTopLevelEntity(uiObj);
 
-            if (topCard.getUIType() != "xfCard" && !xfUtil.isClusterType(topCard)) {
+            if (topCard.getUIType() != constants.MODULE_NAMES.ENTITY && !xfUtil.isClusterTypeFromObject(topCard)) {
                 return;
             }
 
@@ -2565,8 +2634,45 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             	}
 
                 var layoutUpdateRequestMsg = _getLayoutUpdateRequestMsg();		// rerender the sankeys
-                aperture.pubsub.publish(chan.UPDATE_SANKEY_EVENT, { workspace : layoutUpdateRequestMsg.layoutInfo.workspace, layoutProvider : layoutUpdateRequestMsg.layoutProvider });
+                aperture.pubsub.publish(
+                    chan.UPDATE_SANKEY_EVENT,
+                    {
+                        workspace : layoutUpdateRequestMsg.layoutInfo.workspace,
+                        layoutProvider : layoutUpdateRequestMsg.layoutProvider
+                    }
+                );
             }
+        };
+
+        //--------------------------------------------------------------------------------------------------------------
+
+        var _onCurrentStateRequest = function(eventChannel) {
+            if (eventChannel != chan.REQUEST_CURRENT_STATE) {
+                return;
+            }
+
+            var currentState = {
+                sessionId : _UIObjectState.sessionId,
+                focusData : _UIObjectState.focus,
+                dates : _UIObjectState.dates
+            };
+
+            if (_UIObjectState.selectedUIObject != null) {
+                currentState.selectedEntity = {
+                    entityType : _UIObjectState.selectedUIObject.uiType,
+                    contextId : _UIObjectState.selectedUIObject.contextId,
+                    dataId : _UIObjectState.selectedUIObject.dataId,
+                    label : _UIObjectState.selectedUIObject.label,
+                    xfId : _UIObjectState.selectedUIObject.xfId
+                };
+            } else {
+                currentState.selectedEntity = null;
+            }
+
+            aperture.pubsub.publish(
+                chan.CURRENT_STATE,
+                currentState
+            );
         };
         
         //--------------------------------------------------------
@@ -2585,7 +2691,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         //--------------------------------------------------------------------------------------------------------------
 
         var _getColumnByUIObject = function(uiObject){
-            var columnObj = xfUtil.getUITypeAncestor(uiObject, 'xfColumn');
+            var columnObj = xfUtil.getUITypeAncestor(uiObject, constants.MODULE_NAMES.COLUMN);
             if (columnObj == null){
                 console.error('The UIObjectId: ' + uiObject.getXfId() + ' does not have a valid parent column.');
             }
@@ -2967,11 +3073,10 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 	
 			        // update context, etc
 			        if (focusUIObj != null) {
-			            var columnObj = xfUtil.getUITypeAncestor(focusUIObj, 'xfColumn');
+			            var columnObj = xfUtil.getUITypeAncestor(focusUIObj, constants.MODULE_NAMES.COLUMN);
 			            if (columnObj != null) {
 			            	focus.contextId = columnObj.getXfId();
 			            }
-			            _processFocusForClusters(focusUIObj, focus);
 			        }
             	}
             	
@@ -3123,14 +3228,14 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 _UIObjectState.children = [];
                 for (var i = 0; i < state.children.length; i++) {
-                    if (state.children[i].UIType == xfColumn.getModuleName()) {
+                    if (state.children[i].UIType == constants.MODULE_NAMES.COLUMN) {
                         var columnSpec = xfColumn.getSpecTemplate();
                         var columnUIObj = _createColumn(columnSpec);
                         columnUIObj.cleanState();
                         columnUIObj.restoreVisualState(state.children[i]);
                         this.insert(columnUIObj, null);
                     } else {
-                        console.error("workspace children should only be of type " + xfColumn.getModuleName() + ".");
+                        console.error("workspace children should only be of type " + constants.MODULE_NAMES.COLUMN + ".");
                     }
                 }
             };
@@ -3257,11 +3362,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
         //--------------------------------------------------------------------------------------------------------------
 
         xfWorkspaceModule.getEntityCount = function(dataElement) {
-            if ( dataElement.isCluster ) {
-                return dataElement['properties'].count.value;
-            } else {
-                return 1;
-            }
+            return (dataElement.entitytype == 'entity') ? 1 : dataElement['properties'].count.value;
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -3354,6 +3455,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
             subTokens[chan.NEW_WORKSPACE_REQUEST] = aperture.pubsub.subscribe(chan.NEW_WORKSPACE_REQUEST, _pubsubHandler);
             subTokens[chan.PIN_TOGGLE] = aperture.pubsub.subscribe(chan.PIN_TOGGLE, _pubsubHandler);
             subTokens[chan.HIGHLIGHT_SEARCH_ARGUMENTS] = aperture.pubsub.subscribe(chan.HIGHLIGHT_SEARCH_ARGUMENTS, _pubsubHandler);
+            subTokens[chan.REQUEST_CURRENT_STATE] = aperture.pubsub.subscribe(chan.REQUEST_CURRENT_STATE, _pubsubHandler);
 
             _UIObjectState.subscriberTokens = subTokens;
         };

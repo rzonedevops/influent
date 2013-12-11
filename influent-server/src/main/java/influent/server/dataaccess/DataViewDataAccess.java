@@ -47,7 +47,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -60,6 +59,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.avro.AvroRemoteException;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,7 +104,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			String entity = idIter.next();
 			
 			FL_PropertyMatchDescriptor idMatch = FL_PropertyMatchDescriptor.newBuilder()
-				.setKey("id")
+				.setKey("uid")
 				.setRange(new SingletonRangeHelper(entity, FL_PropertyType.STRING))
 				.setConstraint(FL_Constraint.REQUIRED_EQUALS)
 				.build();
@@ -156,8 +156,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					
 				Statement stmt = connection.createStatement();
 			
-				Date startDate = DataAccessHelper.getStartDate(date);
-				Date endDate = DataAccessHelper.getEndDate(date);
+				DateTime startDate = DataAccessHelper.getStartDate(date);
+				DateTime endDate = DataAccessHelper.getEndDate(date);
 				
 				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, true, false);
 				
@@ -181,7 +181,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					}
 					String directionClause = (direction == FL_DirectionFilter.BOTH ) ? sourceDirectionClause+" and "+destDirectionClause : (direction == FL_DirectionFilter.DESTINATION ) ? destDirectionClause : (direction == FL_DirectionFilter.SOURCE ) ? sourceDirectionClause : "1=1";
 
-					String dateRespectingFlowSQL = "select FromEntityId, ToEntityId, sum(Amount) as Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.sdf.format(startDate)+"' and '"+DataAccessHelper.sdf.format(endDate)+"' and "+directionClause + " group by FromEntityId, ToEntityId";
+					String dateRespectingFlowSQL = "select FromEntityId, ToEntityId, sum(Amount) as Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+directionClause + " group by FromEntityId, ToEntityId";
 					String flowSQL = "select FromEntityId, ToEntityId from " + finFlowTable + " where "+directionClause;
 						
 					Map<String, Map<String, Double>> fromToAmountMap = new HashMap<String, Map<String, Double>>();
@@ -257,44 +257,6 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		return results;
 	}
 
-	protected Date getEndDate(FL_DateRange date) {
-		Calendar c = Calendar.getInstance();
-		c.setTimeInMillis(date.getStartDate());
-		switch (date.getDurationPerBin().getInterval()) {
-		case SECONDS:
-			c.add(Calendar.SECOND, date.getNumBins().intValue() * date.getDurationPerBin().getNumIntervals().intValue());
-			break;
-		case HOURS:
-			c.add(Calendar.HOUR_OF_DAY, date.getNumBins().intValue() * date.getDurationPerBin().getNumIntervals().intValue());
-			break;
-		case DAYS:
-			c.add(Calendar.DATE, date.getNumBins().intValue() * date.getDurationPerBin().getNumIntervals().intValue());
-			break;
-		case WEEKS:
-			c.add(Calendar.DATE, (date.getNumBins().intValue() * date.getDurationPerBin().getNumIntervals().intValue() * 7));
-			break;
-		case MONTHS:
-			c.add(Calendar.MONTH, date.getNumBins().intValue() * date.getDurationPerBin().getNumIntervals().intValue());
-			break;
-		case QUARTERS:
-			c.add(Calendar.MONTH, (date.getNumBins().intValue() * date.getDurationPerBin().getNumIntervals().intValue() *3));
-			break;
-		case YEARS:
-			c.add(Calendar.YEAR, date.getNumBins().intValue() * date.getDurationPerBin().getNumIntervals().intValue());
-			break;
-		}
-		
-		return c.getTime();
-	}
-
-	protected Date getStartDate(FL_DateRange date) {
-		return new Date(date.getStartDate());
-	}
-	
-	protected boolean isDateInRange(long date, FL_DateRange range) {
-		return getStartDate(range).getTime() <= date && date <= getEndDate(range).getTime();
-	}
-
 	@Override
 	public Map<String, List<FL_Link>> getTimeSeriesAggregation(
 			List<String> entities,
@@ -303,8 +265,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			FL_DateRange date) throws AvroRemoteException {
 		Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
 		
-		Date startDate = DataAccessHelper.getStartDate(date);
-		Date endDate = DataAccessHelper.getEndDate(date);
+		DateTime startDate = DataAccessHelper.getStartDate(date);
+		DateTime endDate = DataAccessHelper.getEndDate(date);
 			
 		
 		final Map<String, List<String>> ns_entities = getNamespaceHandler().entitiesByNamespace(entities);
@@ -343,10 +305,10 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, true, false);
 					String sourceDirectionClause = "FromEntityId in ("+ids+") and ToEntityId in ("+focusIds+")";
 					String destDirectionClause = "ToEntityId in ("+ids+") and FromEntityId in ("+focusIds+")";
-					String focusedSQL = "select FromEntityId, ToEntityId, " + finFlowDateColumn + ", Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.sdf.format(startDate)+"' and '"+DataAccessHelper.sdf.format(endDate)+"' and "+sourceDirectionClause +
+					String focusedSQL = "select FromEntityId, ToEntityId, " + finFlowDateColumn + ", Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+sourceDirectionClause +
 										" union " +
-										"select FromEntityId, ToEntityId, " + finFlowDateColumn + ", Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.sdf.format(startDate)+"' and '"+DataAccessHelper.sdf.format(endDate)+"' and "+destDirectionClause;
-					String tsSQL = "select EntityId, " + finFlowDateColumn + ", InboundAmount, OutboundAmount from "+finEntityIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.sdf.format(startDate)+"' and '"+DataAccessHelper.sdf.format(endDate)+"' and EntityId in ("+ids+")" ;
+										"select FromEntityId, ToEntityId, " + finFlowDateColumn + ", Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+destDirectionClause;
+					String tsSQL = "select EntityId, " + finFlowDateColumn + ", InboundAmount, OutboundAmount from "+finEntityIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and EntityId in ("+ids+")" ;
 	
 					s_logger.trace(focusedSQL);
 	
@@ -495,11 +457,11 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			}
 
 			String data = state.replaceAll("'", "''");
-			Date now = new Date();
+			DateTime now = new DateTime();
 			if (exists) {
-				sql = "update " + clientStateTableName + " set data='"+data+"', modified='"+DataAccessHelper.sdf.format(now)+"' where sessionId='"+sessionId+"'";
+				sql = "update " + clientStateTableName + " set data='"+data+"', modified='"+DataAccessHelper.format(now)+"' where sessionId='"+sessionId+"'";
 			} else {
-				sql = "insert into " + clientStateTableName + " (sessionId, created, modified, data) values(sessionId='"+sessionId+"', '"+DataAccessHelper.sdf.format(now)+"', '"+DataAccessHelper.sdf.format(now)+"', '"+data+"')";				
+				sql = "insert into " + clientStateTableName + " (sessionId, created, modified, data) values(sessionId='"+sessionId+"', '"+DataAccessHelper.format(now)+"', '"+DataAccessHelper.format(now)+"', '"+data+"')";				
 			}
 			
 			stmt.close();

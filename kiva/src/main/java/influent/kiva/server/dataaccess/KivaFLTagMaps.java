@@ -163,6 +163,7 @@ public class KivaFLTagMaps {
 		borrowersGeoMap.put("lat", "lat");
 		borrowersGeoMap.put("lon", "lon");
 		
+		allMap.put("id", new FL_PropertyTag[]{FL_PropertyTag.ID,FL_PropertyTag.RAW });
 		allMap.putAll(borrowersMap);
 		allMap.putAll(lenderMap);
 		allMap.putAll(partnerMap);

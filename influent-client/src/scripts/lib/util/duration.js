@@ -49,12 +49,14 @@ define([], function() {
 	secondInMillis = 1000,
 	minuteInMillis = secondInMillis * 60,
 	hourInMillis   = minuteInMillis * 60,
-	dayInMillis    = hourInMillis * 24,
+	dayInMillis    = hourInMillis * 24;
+
+    //------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Private implementation : add (or subtract) duration to date and return new date
 	 */
-	toDate = function(duration, date, sign) {
+	var toDate = function(duration, date, sign) {
 		if (typeof duration != 'string' || !date) {
 			if (!date)
 				aperture.log.error('Invalid date object in addToDate: '+ date);
@@ -163,23 +165,29 @@ define([], function() {
 		}
 
 		return date;
-	},
+	};
+
+    //------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Add duration to date and return new date
 	 */
-	addToDate = function(duration, date) {
+	var addToDate = function(duration, date) {
 		return toDate(duration, date, 1);
-	},
+	};
+
+    //------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Subtract duration from date and return new date
 	 */
-	subtractFromDate = function(duration, date) {
+	var subtractFromDate = function(duration, date) {
 		return toDate(duration, date, -1);
-	},
+	};
 
-    roundDateByDuration = function() {
+    //------------------------------------------------------------------------------------------------------------------
+
+    var roundDateByDuration = function() {
         function iterByDay(date, direction) {
             date.setTime( date.getTime() + ((direction > 0) ? 86400000 : -86400000) );
         }
@@ -246,6 +254,10 @@ define([], function() {
         };
 
         return function(date, duration) {
+        	
+        	// start by stripping time.
+        	date = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        	
             if(isDateValidForDuration(date, duration)) {
                 return date;
             }
@@ -266,23 +278,25 @@ define([], function() {
 
             return roundByIteration(date, duration, iterators[duration]);
         };
-    }(),
+    }();
 
-    isDateValidForDuration = function() {
-        function forDay() {
-            return true;
+    //------------------------------------------------------------------------------------------------------------------
+
+    var isDateValidForDuration = function() {
+        function forDay(date) {
+            return date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0;
         }
         function forWeek(date) {
-            return date.getDay() === 0;
+            return forDay(date) && date.getDay() === 0;
         }
         function forMonth(date) {
-            return date.getDate() === 1;
+            return forDay(date) && date.getDate() === 1;
         }
         function forQuarter(date) {
-            return date.getDate() === 1 && date.getMonth() %3 === 0;
+            return forDay(date) && date.getDate() === 1 && date.getMonth() %3 === 0;
         }
         function forYear(date) {
-            return date.getMonth() === 0 && date.getDate() === 1;
+            return forDay(date) && date.getMonth() === 0 && date.getDate() === 1;
         }
         var validators = {
             'P14D': forDay,
@@ -304,10 +318,12 @@ define([], function() {
         };
     }();
 
+    //------------------------------------------------------------------------------------------------------------------
+
 	/**
 	 * Private fn that expands a part and returns the result
 	 */
-	expandPart = function(part, symbol, longForm, adjective, delimiter) {
+	var expandPart = function(part, symbol, longForm, adjective, delimiter) {
 
 		// strip out any non meaningful values.
 		part = part.replace(new RegExp('([^0-9])0+' + symbol), '$1');
@@ -323,7 +339,9 @@ define([], function() {
 		part = part.replace(new RegExp('([0-9]+)' + symbol), '$1 ' + longForm + (adjective? '' : 's') + delimiter);
 
 		return part;
-	},
+	};
+
+    //------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Formats a coded duration string for user consumption, according to
@@ -333,7 +351,7 @@ define([], function() {
 	 *
 	 *   string form: { 'symbol' | 'noun' (default) | 'adjective'}
 	 */
-	format = function (duration, spec) {
+	var format = function (duration, spec) {
 		var form = spec? spec.form : null;
 
 		var longForm  = form != 'symbol';
@@ -384,6 +402,8 @@ define([], function() {
 
 		return longForm? '0 Day' : '0D';
 	};
+
+    //------------------------------------------------------------------------------------------------------------------
 
 	that.format = format;
 	that.addToDate = addToDate;

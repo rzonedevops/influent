@@ -114,6 +114,7 @@
 
 	// EXAMPLES.
 	'influent.config' : {
+		'banner' : 'Kiva',
 		'title' : 'Kiva',
 		'workspaceWidth' : 1100,
 		'dateRangeIntervals' : {
@@ -130,6 +131,13 @@
         'maxSearchResults' : 50,
         'searchResultsPerPage' : 12,
         'sessionTimeoutInMinutes' : 24*60,
+        'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
+        	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
+        	+ 'set of model accounts, specified here, will match accounts with similar activity. To match on a pattern of activity '
+        	+ '<i>between</i> accounts, open a match card for each of the roles in the pattern and provide one or more model accounts for each. '
+        	+ 'To supply more than one account as a model use commas. '
+        	+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
+        	+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
         
         iconOrder : ['TYPE', 'GEO'],
         

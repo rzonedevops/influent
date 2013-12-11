@@ -22,15 +22,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',  'lib/models/xfCard',  'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster',
-    'lib/models/xfFile', 'lib/ui/xfLinkType', 'lib/models/xfLink', 'lib/util/xfUtil'],
-    function($, xfUIObject, chan, guid, xfCard, xfImmutableCluster, xfMutableCluster, xfFile, xfLinkType, xfLink, xfUtil) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/constants',
+        'lib/models/xfCard', 'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster',
+        'lib/models/xfFile', 'lib/ui/xfLinkType', 'lib/models/xfLink', 'lib/util/xfUtil'
+    ],
+    function(
+        $, xfUIObject, chan, guid, constants,
+        xfCard, xfImmutableCluster, xfMutableCluster, xfSummaryCluster,
+        xfFile, xfLinkType, xfLink, xfUtil
+    ) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
         //--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfColumn';
+        var MODULE_NAME = constants.MODULE_NAMES.COLUMN;
 
         var xfColumnSpecTemplate = {
             parent : {}
@@ -368,7 +376,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
             xfColumnInstance.setSearchControlFocused = function(xfId) {
                 for (var i = 0; i < _UIObjectState.children.length; i++) {
-                    if(_UIObjectState.children[i].getUIType() == 'xfFile') {
+                    if(_UIObjectState.children[i].getUIType() == constants.MODULE_NAMES.FILE) {
                         _UIObjectState.children[i].setSearchControlFocused(xfId);
                     }
                 }
@@ -403,7 +411,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 for (i = 0; i < _UIObjectState.children.length; i++) {
                     var child = _UIObjectState.children[i];
-                    if (child.getUIType() == 'xfFile') {
+                    if (child.getUIType() == constants.MODULE_NAMES.FILE) {
                         fileChildren.push(child);
                     }
                 }
@@ -428,7 +436,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                     for (i = 0; i < _UIObjectState.children.length; i++) {
                         uiObj = _UIObjectState.children[i];
-                        if (uiObj.getUIType() != 'xfFile' && !xfUtil.isUITypeDescendant(uiObj, 'xfMatch')){
+                        if (uiObj.getUIType() != constants.MODULE_NAMES.FILE && !xfUtil.isUITypeDescendant(uiObj, constants.MODULE_NAMES.MATCH)){
                             if (!uiObj.isPinned()) {
                                 objectsToRemove.push(uiObj.getVisualInfo());
                                 removedDataIds.push(uiObj.getDataId());
@@ -515,25 +523,31 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
 
                 _UIObjectState.children = [];
                 for (var i = 0; i < state.children.length; i++) {
-                    if (state.children[i].UIType == xfCard.getModuleName()) {
+                    if (state.children[i].UIType == constants.MODULE_NAMES.ENTITY) {
                         var cardSpec = xfCard.getSpecTemplate();
                         var cardUIObj = xfCard.createInstance(cardSpec);
                         cardUIObj.cleanState();
                         cardUIObj.restoreVisualState(state.children[i]);
                         this.insert(cardUIObj, null);
-                    } else if (state.children[i].UIType == xfImmutableCluster.getModuleName()) {
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
                         var clusterSpec = xfImmutableCluster.getSpecTemplate();
                         var clusterUIObj = xfImmutableCluster.createInstance(clusterSpec);
                         clusterUIObj.cleanState();
                         clusterUIObj.restoreVisualState(state.children[i]);
                         this.insert(clusterUIObj, null);
-                    } else if (state.children[i].UIType == xfMutableCluster.getModuleName()) {
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
                         var clusterSpec = xfMutableCluster.getSpecTemplate();
                         var clusterUIObj = xfMutableCluster.createInstance(clusterSpec);
                         clusterUIObj.cleanState();
                         clusterUIObj.restoreVisualState(state.children[i]);
                         this.insert(clusterUIObj, null);
-                    } else if (state.children[i].UIType == xfFile.getModuleName()) {
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                        var clusterSpec = xfSummaryCluster.getSpecTemplate();
+                        var clusterUIObj = xfSummaryCluster.createInstance(clusterSpec);
+                        clusterUIObj.cleanState();
+                        clusterUIObj.restoreVisualState(state.children[i]);
+                        this.insert(clusterUIObj, null);
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.FILE) {
                         var fileSpec = xfFile.getSpecTemplate();
                         var fileUIObj = xfFile.createInstance(fileSpec);
                         fileUIObj.cleanState();
@@ -541,10 +555,11 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                         this.insert(fileUIObj, null);
                     } else {
                         console.error("cluster children should only be of type " +
-                            xfCard.getModuleName() + ", " +
-                            xfImmutableCluster.getModuleName() + ", " +
-                            xfMutableCluster.getModuleName() + " or " +
-                            xfFile.getModuleName() + "."
+                            constants.MODULE_NAMES.ENTITY + ", " +
+                            constants.MODULE_NAMES.IMMUTABLE_CLUSTER + ", " +
+                            constants.MODULE_NAMES.SUMMARY_CLUSTER + ", " +
+                            constants.MODULE_NAMES.MUTABLE_CLUSTER + " or " +
+                            constants.MODULE_NAMES.FILE + "."
                         );
                     }
                 }
@@ -569,11 +584,12 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 
                 _UIObjectState.spec.parent = null;
                 _UIObjectState.spec = null;
 
-                for (var i = 0; i < _UIObjectState.children.length; i++) {
-                    _UIObjectState.children[i].dispose();
-                    _UIObjectState.children[i] = null;
+                var kids = _UIObjectState.children;
+                _UIObjectState.children = [];
+                
+                for (var i = 0; i < kids.length; i++) {
+                    kids[i].dispose();
                 }
-                _UIObjectState.children = null;
 
                 _UIObjectState = null;
             };

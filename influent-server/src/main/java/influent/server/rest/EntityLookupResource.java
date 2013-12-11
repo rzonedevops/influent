@@ -29,6 +29,7 @@ import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
+import influent.midtier.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
@@ -55,17 +56,20 @@ public class EntityLookupResource extends ApertureServerResource{
 	private final FL_ClusteringDataAccess clusterAccess;
 	
 	private List<String> flattenEntityCluster(List<String> entityIds, String contextid, String sessionId, boolean isFlattened) throws AvroRemoteException{
+		List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
+		List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
+		
 		List<String> flatIdList = new ArrayList<String>();
 		//First, check to see how many of the ids are clusters without summaries
-		List<String> nosumClusters = ClusterContextCache.instance.getClusterIdsWithoutSummaries(entityIds, contextid);
+		List<String> nosumClusters = ClusterContextCache.instance.getClusterIdsWithoutSummaries(clusterIds, contextid);
 		
 		if (!nosumClusters.isEmpty()) {
-			List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(entityIds, contextid, sessionId);
+			List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(clusterIds, contextid, sessionId);
 			ClusterContextCache.instance.mergeIntoContext(computeClusterSums, contextid, true, false);
 		}
 		
-		List<FL_Cluster> clusterResults = ClusterContextCache.instance.getClusters(entityIds, contextid);
-		List<FL_Entity> entityResults = service.getEntities(entityIds);
+		List<FL_Cluster> clusterResults = ClusterContextCache.instance.getClusters(clusterIds, contextid);
+		List<FL_Entity> entityResults = service.getEntities(accountIds);
 		if (isFlattened){
 			for (FL_Cluster cluster : clusterResults){
 				List<String> childIds = cluster.getMembers();

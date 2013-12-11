@@ -32,6 +32,7 @@ import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idl.FL_SortBy;
+import influent.idl.FL_TransactionResults;
 import influent.idlhelper.PropertyHelper;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
@@ -39,9 +40,7 @@ import influent.server.utilities.DateTimeParser;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
@@ -98,16 +97,15 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 			}
 			
 			FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
-			Map<String, List<FL_Link>> results = dataAccess.getAllTransactions(entityIds, FL_LinkTag.FINANCIAL, dateRange, FL_SortBy.DATE, null, Long.MAX_VALUE);
+			FL_TransactionResults results = dataAccess.getAllTransactions(
+					entityIds, FL_LinkTag.FINANCIAL, dateRange, FL_SortBy.DATE, null, 0, Long.MAX_VALUE);
 			ArrayList<String> colHeader = null;
-			for(List<FL_Link> links : results.values()) {
-				if(links.size() > 0) {
-					colHeader = new ArrayList<String>();
-					colHeader.add("Source");
-					colHeader.add("Target");
-					for(FL_Property prop : links.get(0).getProperties()) {
-						colHeader.add(prop.getFriendlyText());
-					}
+			if(results.getResults().size() > 0) {
+				colHeader = new ArrayList<String>();
+				colHeader.add("Source");
+				colHeader.add("Target");
+				for(FL_Property prop : results.getResults().get(0).getProperties()) {
+					colHeader.add(prop.getFriendlyText());
 				}
 			}
 
@@ -121,20 +119,18 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 				}
 				csvBuilder.append("\n");
 				
-				for(List<FL_Link> result : results.values()) {
-					for(FL_Link link : result) {
-						csvBuilder.append(link.getSource());
-						csvBuilder.append(",");
-						csvBuilder.append(link.getTarget());
-						csvBuilder.append(",");
-						for(int col = 0; col < link.getProperties().size(); col++) {
-							csvBuilder.append(formatProperty(link.getProperties().get(col)));
-							if ( col < link.getProperties().size() - 1) {
-								csvBuilder.append(",");
-							}
+				for(FL_Link link : results.getResults()) {
+					csvBuilder.append(link.getSource());
+					csvBuilder.append(",");
+					csvBuilder.append(link.getTarget());
+					csvBuilder.append(",");
+					for(int col = 0; col < link.getProperties().size(); col++) {
+						csvBuilder.append(formatProperty(link.getProperties().get(col)));
+						if ( col < link.getProperties().size() - 1) {
+							csvBuilder.append(",");
 						}
-						csvBuilder.append("\n");
 					}
+					csvBuilder.append("\n");
 				}
 			}
 						
@@ -157,7 +153,7 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 		PropertyHelper property = PropertyHelper.from(prop);
 		
 		if (property.hasTag(FL_PropertyTag.DATE)) {
-			return csvDateFormat.format(new Date((Long) property.getValue()));
+			return csvDateFormat.format(DateTimeParser.fromFL(property.getValue()));
 		}
 
 		return String.valueOf(property.getValue());

@@ -45,7 +45,7 @@ define(['lib/util/duration'], function(mDuration) {
 			duration = mDuration.parse(duration);
 
 			if (!duration) {
-				return;
+				return null;
 			}
 		}
 		
@@ -55,8 +55,8 @@ define(['lib/util/duration'], function(mDuration) {
 		var timePart = false;
 
 		// process each part
-		for (var p=0; p< tokens.length; p++) {
-			var part = tokens[p];
+		for (var p = 0; p < duration.tokens.length; p++) {
+			var part = duration.tokens[p];
 
 			if (part.symbol == 'T') {
 				timePart = true;

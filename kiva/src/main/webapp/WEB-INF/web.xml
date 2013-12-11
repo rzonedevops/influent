@@ -25,7 +25,7 @@
 			influent.kiva.server.spi.KivaFLDataAccessModule:
 			influent.kiva.server.spi.KivaFLEntitySearchModule:
 			influent.kiva.server.spi.KivaFLDynamicClusteringModule:
-			influent.kiva.server.spi.KivaDatabasePersistenceModule:
+			influent.kiva.server.spi.KivaCachedPersistenceModule:
 			influent.server.spi.RestPatternSearchModule:
 		</param-value>
 		

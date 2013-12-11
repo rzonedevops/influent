@@ -192,5 +192,8 @@ define({
      *     xfId (string)
      * }
      */
-    PIN_TOGGLE : 'pin-toggle'
+    PIN_TOGGLE : 'pin-toggle',
+
+    REQUEST_CURRENT_STATE : 'request-current-state',
+    CURRENT_STATE : 'current-state'
 });

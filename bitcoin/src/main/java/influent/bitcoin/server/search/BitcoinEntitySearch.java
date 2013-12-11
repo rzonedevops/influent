@@ -118,7 +118,7 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 			for (FL_PropertyMatchDescriptor pmd : terms) {
 				PropertyMatchDescriptorHelper term = PropertyMatchDescriptorHelper.from(pmd); 
 				String key = term.getKey();
-				if (!key.equals("id")) {
+				if (!key.equals("uid")) {
 					// we only support "search" but id right now
 					throw new AvroRemoteException("Invalid Property term: " + key);
 				}

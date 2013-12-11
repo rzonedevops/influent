@@ -32,26 +32,25 @@ import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idl.FL_SortBy;
+import influent.idl.FL_TransactionResults;
 import influent.idlhelper.LinkHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.dataaccess.DataAccessHelper;
-import influent.server.dataaccess.DataViewDataAccess;
 import influent.server.dataaccess.DataNamespaceHandler;
+import influent.server.dataaccess.DataViewDataAccess;
 import influent.server.utilities.SQLConnectionPool;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.avro.AvroRemoteException;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,40 +74,51 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 	}
 	
 
-	@Override
-	public Map<String, List<FL_Link>> getAllTransactions(
+	public FL_TransactionResults getAllTransactions(
 			List<String> entities,
 			FL_LinkTag tag,
 			FL_DateRange date,
 			FL_SortBy sort,
 			List<String> linkFilter,
+			long start,
 			long max) throws AvroRemoteException {
 		
-		Map<String, List<FL_Link>> map = new HashMap<String, List<FL_Link>>();
-		for (String id : entities) {
-			map.put(id, getAllTransactionsForEntity(id, tag, date, sort, max, linkFilter));
+		if (entities.size() == 1) {
+			return getAllTransactionsForEntity(entities.get(0), tag, date, sort, max, linkFilter);
 		}
-		return map;
+		
+		long count = 0;
+		final List<FL_Link> links = new ArrayList<FL_Link>();
+				
+		for (String id : entities) {
+			FL_TransactionResults results = getAllTransactionsForEntity(id, tag, date, sort, max, linkFilter);
+
+			count+= results.getTotal();
+			links.addAll(results.getResults());
+		}
+		
+		return FL_TransactionResults.newBuilder().setTotal(count).setResults(links).build();
 	}
 	
-	private List<FL_Link> getAllTransactionsForEntity(
+	private FL_TransactionResults getAllTransactionsForEntity(
 			String id, FL_LinkTag tag,
 			FL_DateRange date, FL_SortBy sort, long max,
 			List<String> linkFilter) throws AvroRemoteException {
 		
 		if (id == null || id.isEmpty()) {
-			return Collections.emptyList();
+			return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
 		}
 		
 		// translate global to local ids, with namespace
 		String schema = getNamespaceHandler().namespaceFromGlobalEntityId(id);
 		id = getNamespaceHandler().localFromGlobalEntityId(id);
 		
+		Long total= 0L;
+		
 		try {
 			Connection connection = _connectionPool.getConnection();
 			Statement statement = connection.createStatement();
 			
-			String top = max > 0 ? ("top " + max) : "";
 			String focusIds = "";
 			if (linkFilter != null) {
 				// we will never find links across schemas, so filter it down again.
@@ -117,12 +127,13 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				if (linkFilter != null) {
 					focusIds = DataAccessHelper.createNodeIdListFromCollection(linkFilter, true, false);
 				} else {
-					return Collections.emptyList();
+					return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
 				}
 			}
 			
-			String sql = "SELECT " + top + " id,source_id,dest_id,dt,amount,usd " +
-					" FROM Bitcoin.dbo.[bitcoin-20130410] ";
+			String sql = "id,source_id,dest_id,dt,amount,usd";
+			sql += ", resultcount = COUNT(*) OVER()"; // comment out to leave out full record count
+			sql += " FROM Bitcoin.dbo.[bitcoin-20130410] ";
 			
 			if (linkFilter == null) {
 				sql += "WHERE (source_id = '" + id + "' OR dest_id = '" + id + "') ";
@@ -131,19 +142,17 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 			}
 			
 			if (date != null && date.getStartDate() != null) {
-				Date start = DataAccessHelper.getStartDate(date);
-				Date end = DataAccessHelper.getEndDate(date);
+				DateTime start = DataAccessHelper.getStartDate(date);
+				DateTime end = DataAccessHelper.getEndDate(date);
 				
-				SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd");
-						
-				sql += " AND dt BETWEEN CONVERT (datetime, '" + format.format(start).trim() + "', 102) ";
-				sql += "              AND CONVERT (datetime, '" + format.format(end).trim() + "', 102) ";
+				sql += " AND dt BETWEEN '" + DataAccessHelper.format(start) + "' ";
+				sql += "              AND '" + DataAccessHelper.format(end) + "' ";
 			}
 			
-			if (sort != null) {
-				sql += "ORDER BY " + (sort == FL_SortBy.DATE ? "dt ASC" : "amount DESC");
-			}
+			sql += sort != null? " ORDER BY " + (sort == FL_SortBy.DATE ? "dt ASC" : "usd DESC"): "";
 			
+			sql = getNamespaceHandler().rowLimit(sql, max);
+
 			long start = System.currentTimeMillis();
 			s_logger.trace("execute: " + sql);
 			
@@ -160,6 +169,11 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				Date dt = new java.util.Date(resultSet.getTimestamp(4).getTime());
 				Double btc = resultSet.getDouble(5);
 				Double usd = resultSet.getDouble(6);
+
+				// comment out to leave out full record count
+				if (total != null && total == 0L) {
+					total = resultSet.getLong(7);
+				}
 				
 				List<FL_Property> props = new ArrayList<FL_Property>();
 				props.add(new PropertyHelper(FL_PropertyTag.ID, trans_id));
@@ -180,7 +194,12 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 			statement.close();
 			connection.close();
 			
-			return records;
+			if (total == null || total == 0) {
+				total = Long.valueOf(records.size());
+			}
+			
+			return new FL_TransactionResults(total, records);
+			
 		} catch (SQLException e) {
 			throw new AvroRemoteException(e);
 		} catch (ClassNotFoundException e) {

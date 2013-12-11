@@ -25,12 +25,18 @@
 package influent.server.rest;
 
 import influent.entity.clustering.utils.ClusterContextCache;
+import influent.idl.FL_BoundedRange;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_DirectionFilter;
 import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
+import influent.idl.FL_Property;
+import influent.idl.FL_PropertyType;
+import influent.idlhelper.LinkHelper;
+import influent.idlhelper.PropertyHelper;
+import influent.idlhelper.SingletonRangeHelper;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
 import influent.server.utilities.UISerializationHelper;
@@ -39,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
@@ -58,6 +65,9 @@ import com.google.inject.Inject;
 public class AggregatedLinkResource extends ApertureServerResource{
 
 	private final FL_ClusteringDataAccess clusterAccess;
+	
+	private static final String PROP_LINK_COUNT = "link-count";
+	private static final String PROP_DATE = "cluster-link-date-range";
 	
 	@Inject
 	public AggregatedLinkResource(FL_ClusteringDataAccess clusterAccess) {
@@ -156,9 +166,11 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			queryId = jsonObj.getString("queryId").trim();
 
 			if (!links.isEmpty()) {
-				JSONObject dmap = new JSONObject();
+				
+				Map<String, FL_Link> linkMap = new HashMap<String, FL_Link>();
+				Map<String, List<FL_Link>> dataMap = new HashMap<String, List<FL_Link>>();
 				for (String key : links.keySet()) {
-					JSONArray larr = new JSONArray();
+					
 					for (FL_Link link : links.get(key)) {
 						// Iterate through the links and re-map the children to
 						// the parent cluster where appropriate.
@@ -170,11 +182,40 @@ public class AggregatedLinkResource extends ApertureServerResource{
 						if (memberToClusterMap.containsKey(tId)){
 							link.setTarget(memberToClusterMap.get(tId));
 						}
-
+						
+						String linkName = link.getSource() + "_:_" + link.getTarget();
+						if (linkMap.containsKey(linkName)) {
+							updateLinkWithNewProperties(linkMap.get(linkName), link);
+						} else {
+							linkMap.put(linkName, link);
+						}
+					}
+					
+					if (memberToClusterMap.containsKey(key)){
+						key = memberToClusterMap.get(key);
+					}
+					
+					List<FL_Link> dataLinks = new ArrayList<FL_Link>();
+					for (FL_Link link : linkMap.values()) {
+						dataLinks.add(link);
+					}
+					
+					if (dataMap.containsKey(key)) {
+						dataMap.get(key).addAll(dataLinks);
+					} else {
+						dataMap.put(key, dataLinks);
+					}
+				}
+				
+				JSONObject dmap = new JSONObject();
+				for (Entry<String, List<FL_Link>> entry : dataMap.entrySet()) {
+					JSONArray larr = new JSONArray();
+					for (FL_Link link : entry.getValue()) {
 						larr.put(UISerializationHelper.toUIJson(link));
 					}
-					dmap.put(key, larr);
+					dmap.put(entry.getKey(), larr);
 				}
+				
 				result.put("data",dmap);
 			}
 
@@ -187,6 +228,73 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			throw new ResourceException(Status.SERVER_ERROR_INTERNAL, e.getMessage());
 		} catch (AvroRemoteException e) {
 			throw new ResourceException(Status.SERVER_ERROR_INTERNAL, e.getMessage());
+		}
+	}
+	
+	
+	
+	
+	private void updateLinkWithNewProperties(FL_Link oldLink, FL_Link newLink) {
+
+		PropertyHelper oldLinkCount = LinkHelper.getFirstProperty(oldLink, PROP_LINK_COUNT);
+		PropertyHelper oldDateProp = LinkHelper.getFirstProperty(oldLink, PROP_DATE);
+		
+		PropertyHelper newLinkCount = LinkHelper.getFirstProperty(newLink, PROP_LINK_COUNT);
+		PropertyHelper newDateProp = LinkHelper.getFirstProperty(newLink, PROP_DATE);
+
+		int count = ((Integer)oldLinkCount.getValue()) + ((Integer)newLinkCount.getValue());
+		oldLinkCount.setRange(new SingletonRangeHelper(count, FL_PropertyType.LONG));
+	
+		DateTime minDate = null;
+		DateTime maxDate = null;
+		if (oldDateProp != null || newDateProp != null) {
+			if (oldDateProp != null) {
+				FL_BoundedRange oldRange = (FL_BoundedRange) oldDateProp.getRange();
+				minDate = DateTimeParser.fromFL(oldRange.getStart());
+				maxDate = DateTimeParser.fromFL(oldRange.getEnd());
+			}
+			
+			if (newDateProp != null) {
+				FL_BoundedRange newRange = (FL_BoundedRange) newDateProp.getRange();
+				DateTime newMinDate = DateTimeParser.fromFL(newRange.getStart());
+				DateTime newMaxDate = DateTimeParser.fromFL(newRange.getEnd());
+				if (minDate == null || minDate.isAfter(newMinDate)) {
+					((FL_BoundedRange)oldDateProp.getRange()).setStart(newMinDate);
+				}
+				if (maxDate == null || maxDate.isBefore(newMaxDate)) {
+					((FL_BoundedRange)oldDateProp.getRange()).setEnd(newMaxDate);
+				}
+			}
+		}
+		
+		for (FL_Property prop : newLink.getProperties()) {
+			
+			PropertyHelper propHelp = PropertyHelper.from(prop);
+			List<PropertyHelper> oldPropList = LinkHelper.getProperties(oldLink, propHelp.getKey());
+			
+			if (oldPropList != null && oldPropList.size() > 0) {
+				switch (oldPropList.get(0).getType()) {
+				case LONG:
+					try {
+						int oldival = (Integer)oldPropList.get(0).getValue();
+						int ival = (Integer)propHelp.getValue();
+						oldPropList.get(0).setRange(new SingletonRangeHelper(oldival + ival, FL_PropertyType.LONG));
+					} catch (Exception e) { /* ignore */ }
+					break;
+				case DOUBLE:
+					try {
+						double olddval = (Double)oldPropList.get(0).getValue();
+						double dval = (Double)propHelp.getValue();
+						oldPropList.get(0).setRange(new SingletonRangeHelper(olddval + dval, FL_PropertyType.DOUBLE));
+					} catch (Exception e) { /* ignore */ }
+					break;
+				default:
+					continue;
+				}
+			}
+			else {
+				oldLink.getProperties().add(propHelp);
+			}
 		}
 	}
 }

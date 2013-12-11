@@ -22,14 +22,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMatch', 'lib/util/GUID', 'lib/models/xfMutableCluster', 'lib/models/xfCard', 'lib/util/xfUtil'],
-    function($, xfUIObject, chan, xfMatch, guid, xfMutableCluster, xfCard, xfUtil) {
+define(
+    [
+        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMatch', 'lib/util/GUID',
+        'lib/models/xfMutableCluster', 'lib/util/xfUtil', 'lib/constants'
+    ],
+    function(
+        $, xfUIObject, chan, xfMatch, guid,
+        xfMutableCluster, xfUtil, constants
+    ) {
 
         //--------------------------------------------------------------------------------------------------------------
         // Private Variables
         //--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfFile';
+        var MODULE_NAME = constants.MODULE_NAMES.FILE;
 
         var xfFileToolBarSpecTemplate = {
             allowFile           : false,
@@ -41,8 +48,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMat
 
         var xfFileSpecTemplate = {
             parent : {},
-            dataId : '',
-            isCluster : false
+            dataId : ''
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -97,21 +103,22 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMat
 
         xfFileModule.createInstance = function(spec){
             var _UIObjectState = {
-                xfId            : '',
-                UIType          : MODULE_NAME,
-                spec            : {},
-                toolbarSpec     : _.clone(xfFileToolBarSpecTemplate),
-                matchUIObject   : null,
-                clusterUIObject   : null,
-                duplicateCount  : 1,
-                links           : {},
-                title           : 'New File',
-                isSelected      : false,
-                isHighlighted   : false,
-                isMatchHighlighted : false,
-                isHovered		: false,
-                showToolbar     : true,
-                titleInitialized: false
+                xfId                : '',
+                UIType              : MODULE_NAME,
+                spec                : {},
+                toolbarSpec         : _.clone(xfFileToolBarSpecTemplate),
+                matchUIObject       : null,
+                clusterUIObject     : null,
+                duplicateCount      : 1,
+                links               : {},
+                title               : 'New File',
+                isSelected          : false,
+                isHighlighted       : false,
+                isMatchHighlighted  : false,
+                isHovered		    : false,
+                showToolbar         : true,
+                showDetails         : false,
+                titleInitialized    : false
             };
 
             //---------------
@@ -453,7 +460,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMat
                     }
 
                     if (initialFileTitle != null && initialFileTitle.length != 0) {
-                        if(xfUtil.isClusterType(xfUIObj)) {
+                        if(xfUtil.isClusterTypeFromObject(xfUIObj)) {
                             if(initialFileTitle.indexOf(')', this.length - 1) !== -1) {
                                 initialFileTitle = initialFileTitle.substring(0, initialFileTitle.lastIndexOf('(')).trim();
                             }
@@ -825,7 +832,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMat
                 state['spec'] = {};
                 state['spec']['parent'] = _UIObjectState.spec.parent.getXfId();
                 state['spec']['dataId'] = _UIObjectState.spec.dataId;
-                state['spec']['isCluster'] = _UIObjectState.spec.isCluster;
 
                 return state;
             };
@@ -848,7 +854,6 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMat
                 _UIObjectState.toolbarSpec = state.toolbarSpec;
 
                 _UIObjectState.spec.dataId = state.spec.dataId;
-                _UIObjectState.spec.isCluster = state.spec.isCluster;
 
                 if (state.clusterUIObject != null) {
                     var clusterSpec = xfMutableCluster.getSpecTemplate();
@@ -963,7 +968,7 @@ define(['jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMat
             xfFileInstance.getContainedCardDataIds = function() {
                 var containedIds = [];
 
-                if (_hasCluster(_UIObjectState) && _UIObjectState.clusterUIObject.getUIType() == 'xfMutableCluster') {
+                if (_hasCluster(_UIObjectState) && _UIObjectState.clusterUIObject.getUIType() == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
                     containedIds = containedIds.concat(_UIObjectState.clusterUIObject.getContainedCardDataIds());
                 }
 
