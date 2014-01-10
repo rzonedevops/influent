@@ -61,6 +61,17 @@ protocol FL_ClusteringDataAccess {
 	array<FL_Cluster> getClusters(array<string> entities, string contextId, string sessionId);
 	
 	/**
+	 Returns a set of cluster summaries by uid.
+	 
+	 Service URL: /clustersummary/list
+	 HTTP Method: POST and GET
+	 
+	 @param entities 	uids of clusters to retrieve
+	 @return 			cluster entities
+	 */
+	array<FL_Cluster> getClusterSummary(array<string> entities);
+	
+	/**
 	 Removes entities from a cluster
 	 
 	 Service URL: /cluster/remove

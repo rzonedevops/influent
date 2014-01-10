@@ -1,0 +1,99 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<artifactId>influent</artifactId>
+		<groupId>oculus.influent</groupId>
+		<version>1.2.0</version>
+	</parent>
+	<artifactId>influent-lib-dist</artifactId>
+	<packaging>pom</packaging>
+	<name>Distribution Builder</name>
+	<description>This project builds distributions of the core influent libraries which are shared between web apps / wars</description>
+
+	<dependencies>
+		<dependency>
+			<artifactId>influent-server</artifactId>
+			<groupId>${project.groupId}</groupId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<artifactId>influent-client-dist</artifactId>
+			<groupId>${project.groupId}</groupId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>oculus.aperture</groupId>
+			<artifactId>aperture-client</artifactId>
+			<version>${aperture.version}</version>
+		</dependency>
+	</dependencies>
+
+	<profiles>
+		<!-- Deployment Profile Runs optimized version of JavaScript -->
+		<profile>
+			<id>nosolr</id>
+		    <activation>
+		      <activeByDefault>true</activeByDefault>
+		    </activation>			
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.2.2</version>
+						<executions>
+							<!-- Combine into single file -->
+							<execution>
+								<id>compile-dist</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/main/assembly/distribution.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>solr</id>
+		    <dependencies>
+				<dependency>
+					<artifactId>solr-solrj</artifactId>
+					<groupId>org.apache.solr</groupId>
+					<version>4.1.0</version>
+				</dependency>
+		    </dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.2.2</version>
+						<executions>
+							<!-- Combine into single file -->
+							<execution>
+								<id>compile-dist</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/main/assembly/distribution-solr.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+	
+</project>

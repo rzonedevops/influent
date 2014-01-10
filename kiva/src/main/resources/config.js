@@ -39,8 +39,8 @@
 	 * The endpoint locations for Aperture services accessed through the io interface
 	 */
 	'aperture.io' : {
-		'rpcEndpoint' : '%host%/kiva/rpc',
-		'restEndpoint' : '%host%/kiva/rest'
+		'rpcEndpoint' : '%host%/${project.artifactId}/rpc',
+		'restEndpoint' : '%host%/${project.artifactId}/rest'
 	},
 
 	/*
@@ -114,6 +114,7 @@
 
 	// EXAMPLES.
 	'influent.config' : {
+        'useAuth' : true,
 		'banner' : 'Kiva',
 		'title' : 'Kiva',
 		'workspaceWidth' : 1100,
@@ -130,6 +131,7 @@
         'doubleEncodeSourceUncertainty' : true,
         'maxSearchResults' : 50,
         'searchResultsPerPage' : 12,
+        'searchGroupBy' : 'GEO',
         'sessionTimeoutInMinutes' : 24*60,
         'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
         	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
@@ -139,11 +141,13 @@
         	+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
         	+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
         
-        iconOrder : ['TYPE', 'GEO'],
+        iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],
         
         activityLogging : {
         	enabled: false,
-        	address: 'http://172.16.98.9:1337'
+        	address: 'rest/activity'
+        	//address: 'http://172.16.98.9:1337'
+        	//provider: 'draper',
         },
         
         // maps property tags to icons.
@@ -201,7 +205,6 @@
         				};
         			}
         		},
-        		
         		limit: 1
         	},
         	

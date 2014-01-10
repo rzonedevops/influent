@@ -418,9 +418,9 @@ define(
 
                 for (i = 0; i < fileChildren.length; i++) {
                     if (bIsFileSource) {
-                        xfLink.createInstance(fileUIObject, fileChildren[i], 1, xfLinkType.FILE);
+                        xfLink.createInstance(fileUIObject, fileChildren[i], 1, 1, xfLinkType.FILE);
                     } else {
-                        xfLink.createInstance(fileChildren[i], fileUIObject, 1, xfLinkType.FILE);
+                        xfLink.createInstance(fileChildren[i], fileUIObject, 1, 1, xfLinkType.FILE);
                     }
                 }
             };

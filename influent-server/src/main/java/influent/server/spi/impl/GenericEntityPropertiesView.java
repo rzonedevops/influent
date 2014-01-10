@@ -30,7 +30,7 @@ import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
-import influent.midtier.api.DataAccessException;
+import influent.server.dataaccess.DataAccessException;
 import influent.server.spi.EntityPropertiesViewService;
 
 import java.awt.Dimension;

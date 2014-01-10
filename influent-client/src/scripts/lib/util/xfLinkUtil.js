@@ -114,9 +114,10 @@ define(
                                     for (var i=0; i < incomingLinks.length; i++){
                                         var sourceDataId = incomingLinks[i].source;
                                         var amount = xfWorkspaceModule.getValueByTag(incomingLinks[i], 'AMOUNT');
+                                        var linkCount = xfWorkspaceModule.getValueByTag(incomingLinks[i], 'CONSTRUCTED');
                                         var sourceObj = targetDataIdMap[sourceDataId];
                                         if (sourceObj){
-                                            xfLink.createInstance(sourceObj, targetObj, amount);
+                                            xfLink.createInstance(sourceObj, targetObj, amount, linkCount);
                                         }
                                         else {
                                             console.error('Unable to find target UIObject for dataId: ' + targetDataId);
@@ -234,9 +235,10 @@ define(
                                     for (var i=0; i < outgoingLinks.length; i++){
                                         var targetDataId = outgoingLinks[i].target;
                                         var amount = xfWorkspaceModule.getValueByTag(outgoingLinks[i], 'AMOUNT');
+                                        var linkCount = xfWorkspaceModule.getValueByTag(outgoingLinks[i], 'CONSTRUCTED');
                                         var targetObj = targetDataIdMap[targetDataId];
                                         if (targetObj){
-                                            xfLink.createInstance(sourceObj, targetObj, amount);
+                                            xfLink.createInstance(sourceObj, targetObj, amount, linkCount);
                                         }
                                         else {
                                             console.error('Unable to find target UIObject for dataId: ' + targetDataId);

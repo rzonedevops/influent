@@ -168,6 +168,8 @@ define(
                 var rangeX = new aperture.TimeScalar('date');
                 var rangeY = new aperture.Scalar('value');
                 rangeY = rangeY.symmetric();
+                
+                var units = graphParams.units;
 
                 if (graphParams.credits.length != graphParams.debits.length) {
                     return;
@@ -322,7 +324,7 @@ define(
                 chart.map('point-count').from('data.length');
 
                 chart.yAxis().mapAll({
-                    'title' : 'Amount (USD)',
+                    'title' : 'Amount (' + units + ')',
                     'margin' : 60,
                     'tick-length' : 6,
                     'label-offset-x' : 2,
@@ -477,37 +479,30 @@ define(
 
             //----------------------------------------------------------------------------------------------------------
 
-            var _updateGraph = function() {
+            var _updateGraph = function(state) {
 
                 _getMaxDebitCredit(
+                    state,
                     function(focusMDC) {
-                        _getGraphData(focusMDC);
+                        _getGraphData(state, focusMDC);
                     }
                 );
             };
 
             //----------------------------------------------------------------------------------------------------------
 
-            function _getMaxDebitCredit(onReturn) {
+            function _getMaxDebitCredit(state, onReturn) {
 
-                if (_state.focusData == null) {
+                if (state.focusData == null) {
                     aperture.log.warn('no focus account in chart request. bailing out of request!');
                     return;
                 }
 
-                var focusId = _state.focusData.dataId;
+                var focusId = state.focusData.dataId;
                 var focusEntity = {
-                    contextId : _state.focusData.contextId,
+                    contextId : state.focusData.contextId,
                     dataId : focusId
                 };
-
-                //  HUGH?
-//                var startDate = _state.filterDates.startDate;
-//                var endDate = _state.filterDates.startDate;
-//                
-//                if (!duration.isDateValidForDuration(startDate, "P1D")) {
-//                	startDate = duration.roundDateByDuration(startDate, "P1D");
-//                }
                 
                 aperture.io.rest(
                     '/bigchart',
@@ -532,13 +527,13 @@ define(
                     },
                     {
                         postData: {
-                            sessionId : _state.sessionId,
+                            sessionId : state.sessionId,
                             entities : [focusEntity],
-                            startDate : _state.filterDates.startDate,
-                            endDate :  _state.filterDates.endDate,
+                            startDate : state.filterDates.startDate,
+                            endDate :  state.filterDates.endDate,
                             focusId : [focusId],
                             focusMaxDebitCredit : "",
-                            focuscontextid : _state.focusData.contextId
+                            focuscontextid : state.focusData.contextId
                         },
                         contentType: 'application/json'
                     }
@@ -547,22 +542,22 @@ define(
 
             //----------------------------------------------------------------------------------------------------------
 
-            var _getGraphData = function(focusMDC) {
+            var _getGraphData = function(state, focusMDC) {
                 aperture.io.rest(
                     '/bigchart',
                     'POST',
                     function(response) {
-                        _createBarChart(response[_state.selectedEntity.dataId]);
+                        _createBarChart(response[state.selectedEntity.dataId]);
                     },
                     {
                         postData: {
-                            sessionId : _state.sessionId,
-                            entities : [_state.selectedEntity],
-                            startDate : _state.filterDates.startDate,
-                            endDate :  _state.filterDates.endDate,
-                            focusId : [_state.focusData.dataId],
+                            sessionId : state.sessionId,
+                            entities : [state.selectedEntity],
+                            startDate : state.filterDates.startDate,
+                            endDate :  state.filterDates.endDate,
+                            focusId : [state.focusData.dataId],
                             focusMaxDebitCredit : focusMDC.toString(),
-                            focuscontextid : _state.focusData.contextId
+                            focuscontextid : state.focusData.contextId
                         },
                         contentType: 'application/json'
                     }
@@ -603,7 +598,7 @@ define(
                 if (!_.isNull(_state.selectedEntity)) {
                     graphDiv.empty();
                     graphDiv.css('background', _ajaxSpinner);
-                    _updateGraph();
+                    _updateGraph(_.clone(_state));
                 }
             };
 

@@ -40,6 +40,7 @@ public class ChartData implements Serializable{
 	private final Double maxDebit;
 	private final Double maxBalance;
 	private final Double minBalance;
+	private final String units;
 	private final List<Double> focusCredits;
 	private final List<Double> focusDebits;
 	private final List<Date> dates;
@@ -48,6 +49,7 @@ public class ChartData implements Serializable{
 	public ChartData(
 		Double startValue,
 		Double endValue,
+		String units,
 		List<Double> credits,
 		List<Double> debits,
 		Double maxCredit,
@@ -61,6 +63,7 @@ public class ChartData implements Serializable{
 	) {
 		this.startValue = startValue;
 		this.endValue = endValue;
+		this.units = units;
 		this.credits = credits;
 		this.debits = debits;
 		this.maxCredit = maxCredit;
@@ -72,79 +75,50 @@ public class ChartData implements Serializable{
 		this.dates = dates;
 		this.imageHash = imageHash;
 	}
-	
-	
-	
-	
+
+	public String getUnits() {
+		return this.units;
+	}
+		
 	public Double getStartValue() {
 		return this.startValue;
 	}
-	
-	
-	
 	
 	public Double getEndValue() {
 		return this.endValue;
 	}
 	
-	
-	
-	
 	public List<Double> getCredits() {
 		return this.credits;
 	}
-	
-	
-	
 	
 	public List<Double> getDebits() {
 		return this.debits;
 	}
 	
-	
-	
-	
 	public Double getMaxCredit() {
 		return this.maxCredit;
 	}
-	
-	
-	
 	
 	public Double getMaxDebit() {
 		return this.maxDebit;
 	}
 	
-	
-	
-	
 	public Double getMaxBalance() {
 		return this.maxBalance;
 	}
-	
-	
-	
 	
 	public Double getMinBalance() {
 		return this.minBalance;
 	}
 	
-	
-	
-	
 	public List<Double> getFocusCredits() {
 		return this.focusCredits;
 	}
 	
-	
-	
-	
 	public List<Double> getFocusDebits() {
 		return this.focusDebits;
 	}	
-	
-	
-	
 	
 	public Double getTotalCredits() { 
 		Double ret = 0.0;
@@ -154,9 +128,6 @@ public class ChartData implements Serializable{
 		return ret;
 	}
 	
-	
-	
-	
 	public Double getTotalDebits() { 
 		Double ret = 0.0;
 		for (int i = 0; i < this.debits.size(); i++) {
@@ -165,15 +136,9 @@ public class ChartData implements Serializable{
 		return ret;
 	}
 	
-	
-	
-	
 	public List<Date> getDates() {
 		return this.dates;
 	}
-	
-	
-	
 	
 	public String getImageHash() {
 		return this.imageHash;

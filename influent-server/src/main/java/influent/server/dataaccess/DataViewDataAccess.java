@@ -30,7 +30,9 @@ import influent.idl.FL_DateRange;
 import influent.idl.FL_DirectionFilter;
 import influent.idl.FL_Entity;
 import influent.idl.FL_EntitySearch;
+import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_Link;
+import influent.idl.FL_LinkEntityTypeFilter;
 import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyMatchDescriptor;
@@ -41,6 +43,7 @@ import influent.idl.FL_SearchResults;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.server.utilities.SQLConnectionPool;
+import influent.server.utilities.TypedId;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -90,7 +93,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 	}
 	
 	@Override
-	public List<FL_Entity> getEntities(List<String> entities) throws AvroRemoteException {
+	public List<FL_Entity> getEntities(List<String> entities, FL_LevelOfDetail levelOfDetail) throws AvroRemoteException {
 		//Construct the id search query for the search
 		
 		List<FL_Entity> results = new ArrayList<FL_Entity>();
@@ -134,6 +137,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			List<String> entities,
 			List<String> focusEntities,
 			FL_DirectionFilter direction,
+			FL_LinkEntityTypeFilter entityType,
 			FL_LinkTag tag,
 			FL_DateRange date) throws AvroRemoteException {
 		
@@ -153,7 +157,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 				if (!ns_focusEntities.isEmpty() && localFocusEntities == null) {
 					continue;
 				}
-					
+				
 				Statement stmt = connection.createStatement();
 			
 				DateTime startDate = DataAccessHelper.getStartDate(date);
@@ -163,7 +167,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 				
 				String finFlowTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.FLOW_TABLE);
 				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-				String finFlowDateColumn = getNamespaceHandler().tableName(namespace, "PeriodDate");		// TODO replace me when all the old db tables have gone away
+				String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");		// TODO replace me when all the old db tables have gone away
 				
 				List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
 				while (idsCopy.size() > 0) {
@@ -180,9 +184,10 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 						destDirectionClause += " and FromEntityId in ("+focusIds+")";				
 					}
 					String directionClause = (direction == FL_DirectionFilter.BOTH ) ? sourceDirectionClause+" and "+destDirectionClause : (direction == FL_DirectionFilter.DESTINATION ) ? destDirectionClause : (direction == FL_DirectionFilter.SOURCE ) ? sourceDirectionClause : "1=1";
-
-					String dateRespectingFlowSQL = "select FromEntityId, ToEntityId, sum(Amount) as Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+directionClause + " group by FromEntityId, ToEntityId";
-					String flowSQL = "select FromEntityId, ToEntityId from " + finFlowTable + " where "+directionClause;
+					String entityTypeClause = DataAccessHelper.linkEntityTypeClause(direction, entityType);
+					
+					String dateRespectingFlowSQL = "select FromEntityId, ToEntityId, sum(Amount) as Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+directionClause+" and "+entityTypeClause+" group by FromEntityId, ToEntityId";
+					String flowSQL = "select FromEntityId, FromEntityType, ToEntityId, ToEntityType from " + finFlowTable + " where "+directionClause+" and "+entityTypeClause;
 						
 					Map<String, Map<String, Double>> fromToAmountMap = new HashMap<String, Map<String, Double>>();
 					
@@ -211,15 +216,19 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
 							String from = rs.getString("FromEntityId");
+							String fromType = rs.getString("FromEntityType").toLowerCase();
 							String to = rs.getString("ToEntityId");
+							String toType = rs.getString("ToEntityType").toLowerCase();
 	
 							String keyId = from;
+							char type = fromType.charAt(0); // from type must be a single char
 							if (subIds.contains(to)) {
 								keyId = to;
+								type = toType.charAt(0); // to type must be a single char
 							}
 							
 							// globalize this for return
-							keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId);
+							keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId, type);
 							
 							List<FL_Link> linkList = results.get(keyId);
 							if (linkList == null) {
@@ -233,8 +242,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							properties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, amount));
 		
 							// globalize these for return
-							from = getNamespaceHandler().globalFromLocalEntityId(namespace, from);
-							to = getNamespaceHandler().globalFromLocalEntityId(namespace, to);
+							from = getNamespaceHandler().globalFromLocalEntityId(namespace, from, fromType.charAt(0));
+							to = getNamespaceHandler().globalFromLocalEntityId(namespace, to, toType.charAt(0));
 							
 							//Finally, create the link between the two, and add it to the map.
 							FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), from, to, true, null, null, properties);
@@ -293,7 +302,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 	
 				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
 				String finEntityIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.ENTITY_TABLE, date.getDurationPerBin().getInterval()));
-				String finFlowDateColumn = getNamespaceHandler().tableName(namespace, "PeriodDate");		// TODO replace me when all the old db tables have gone away
+				String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");
 				String dateColNoEscape = unescapeColumnName(finFlowDateColumn);
 				
 				List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
@@ -326,7 +335,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							}
 
 							// globalize this for return
-							keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId);
+							keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId, TypedId.ACCOUNT);
 							
 							List<FL_Link> linkList = results.get(keyId);
 							if (linkList == null) {
@@ -340,8 +349,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							properties.add(new PropertyHelper(FL_PropertyTag.DATE, rsDate));
 		
 							// globalize these for return
-							from = getNamespaceHandler().globalFromLocalEntityId(namespace, from);
-							to = getNamespaceHandler().globalFromLocalEntityId(namespace, to);
+							from = getNamespaceHandler().globalFromLocalEntityId(namespace, from, TypedId.ACCOUNT);
+							to = getNamespaceHandler().globalFromLocalEntityId(namespace, to, TypedId.ACCOUNT);
 							
 							FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), from, to, true, null, null, properties);
 							linkList.add(link);
@@ -360,7 +369,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							Date rsDate = rs.getDate(dateColNoEscape);
 	
 							// globalize this for return
-							entity = getNamespaceHandler().globalFromLocalEntityId(namespace, entity);
+							entity = getNamespaceHandler().globalFromLocalEntityId(namespace, entity, TypedId.ACCOUNT);
 							
 							List<FL_Link> linkList = results.get(entity);
 							if (linkList == null) {
@@ -401,7 +410,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 	@Override
 	public Map<String, List<FL_Entity>> getAccounts(List<String> entities) throws AvroRemoteException {
 		Map<String, List<FL_Entity>> map = new HashMap<String, List<FL_Entity>>();
-		for (FL_Entity entity : getEntities(entities)) {
+		for (FL_Entity entity : getEntities(entities, FL_LevelOfDetail.SUMMARY)) {
 			map.put(entity.getUid(), Collections.singletonList(entity));
 		}
 		return map;

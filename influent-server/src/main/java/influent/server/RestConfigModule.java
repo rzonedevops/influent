@@ -24,6 +24,7 @@
  */
 package influent.server;
 
+import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.rest.AggregatedLinkResource;
 import influent.server.rest.BigChartResource;
 import influent.server.rest.CacheStatsResource;
@@ -48,11 +49,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.google.inject.multibindings.MapBinder;
+import com.google.inject.name.Named;
 
 public class RestConfigModule extends AbstractModule {
 
 	private static final Logger s_logger = LoggerFactory.getLogger(RestConfigModule.class);
+
+	// not sure if this is the best place for this
+	@Provides @Singleton ClusterContextCache getClusterContextCache(
+			@Named("influent.midtier.ehcache.config") String ehCacheConfig,
+			@Named("influent.dynamic.clustering.cache.name") String cacheName
+			) {
+		return new ClusterContextCache(ehCacheConfig, cacheName);
+	}
 	
 	@Override
 	protected void configure() {

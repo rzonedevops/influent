@@ -46,6 +46,7 @@ define(
 
         var MAX_SEARCH_RESULTS = aperture.config.get()['influent.config']['maxSearchResults'];
         var MAX_PATTERN_SEARCH_RESULTS = aperture.config.get()['influent.config']['searchResultsPerPage'];
+        var SEARCH_GROUP_BY = aperture.config.get()['influent.config']['searchGroupBy'];
 
         var _UIObjectState = {
             xfId : '',
@@ -84,19 +85,48 @@ define(
 
         var _getLogger = function(){
             // If the Draper logger is available, return it.
-            if (_loggerState.enableLogging && activityLogger){
-                var logger = new activityLogger();
-                if (logger){
-                    logger.registerActivityLogger(logging.address, 'Initializing Draper instrumentation', '3.04',
-                        guid.generateGuid());
-                    for (var key in _loggerState.type){
-                        if (_loggerState.type.hasOwnProperty(key)) {
-                            _loggerState.type[key] = logger[key];
-                        }
-                    }
-
-                    return logger;
-                }
+            if (_loggerState.enableLogging) {
+            	if (_loggerState.provider == 'draper' && activityLogger) {
+	                var logger = new activityLogger();
+	                if (logger){
+	                    logger.registerActivityLogger(logging.address, 'Initializing Draper instrumentation', '3.04',
+	                    		_UIObjectState.sessionId);
+	                    for (var key in _loggerState.type){
+	                        if (_loggerState.type.hasOwnProperty(key)) {
+	                            _loggerState.type[key] = logger[key];
+	                        }
+	                    }
+	
+	                    return logger;
+	                }
+            	} 
+        		var apertureActivityLogger = {
+        			logUserActivity : function(description, eventChannel, type, metadata) {
+        				aperture.log.info({
+                            sessionId: _UIObjectState.sessionId,
+        					activityType: 'user',
+        					activity: {
+            					description: description,
+            					eventChannel: eventChannel,
+            					type: type,
+            					metadata: metadata
+        					}
+        				});
+        			},
+        			logSystemActivity : function(description) {
+        				aperture.log.info({
+                            sessionId: _UIObjectState.sessionId,
+        					activityType: 'system',
+        					activity: {
+            					description: description
+        					}
+        				});
+        			}
+        		};
+        		
+        		apertureActivityLogger.logSystemActivity('Initializing aperture instrumentation...');
+        		
+        		return apertureActivityLogger;
             }
             return null;
         };
@@ -107,30 +137,15 @@ define(
             if (!_loggerState.enableLogging){
                 return;
             }
+            
+            if (!_loggerState.logger) {
+            	_loggerState.logger = _getLogger();
+            }            
             if (activityType == 'user'){
-                if (_loggerState.logger){
-                    _loggerState.logger.logUserActivity(description, eventChannel, type, metadata);
-                }
-                else {
-                    // Stringify the top level of the metadata object.
-                    // Iterate through each object in the metadata and append it to the output string.
-                    var metaString = '';
-
-                    for (var key in metadata) {
-                        if (metadata.hasOwnProperty(key)) {
-                            metaString = metaString.concat((_.isEmpty(metaString)?'':' ') + key + ': ' + metadata[key] + ';');
-                        }
-                    }
-                    console.log(type + ' ' + eventChannel + ' ' + description + ' ' + metaString);
-                }
+                _loggerState.logger.logUserActivity(description, eventChannel, type, metadata);
             }
             else if (activityType == 'system'){
-                if (_loggerState.logger){
-                    _loggerState.logger.logSystemActivity(description);
-                }
-                else {
-                    console.log('System Activity: ' + description);
-                }
+                _loggerState.logger.logSystemActivity(description || eventChannel);
             }
         };
 
@@ -143,18 +158,6 @@ define(
             if (eventChannel != chan.ALL_MODULES_STARTED) {
                 return;
             }
-
-            $(function() {
-                $("#transactions").tabs(
-                    {
-                        select: function(event, ui) {
-                            if (ui.panel.id == 'chartTab') {
-                                _onCurrentStateRequest(chan.REQUEST_CURRENT_STATE);
-                            }
-                        }
-                    }
-                );
-            });
 
             $(window).bind( 'beforeunload',
                 function() {
@@ -190,6 +193,8 @@ define(
             _initWorkspaceState(
                 function() {
 
+                    _log('system', 'Workspace modules successfully initialized.');
+
                     _pruneColumns();
 
                     // publish selection event if the footer expands
@@ -209,11 +214,6 @@ define(
                             }
                         }
                     );
-
-                    if (_loggerState.enableLogging){
-                        _loggerState.logger = _getLogger();
-                        _log('system', 'Workspace modules successfully initialized.');
-                    }
 
                     if (_UIObjectState.focus != null) {
                         aperture.pubsub.publish(
@@ -288,6 +288,9 @@ define(
                     var workspaceUIObj = null;
 
                     if (response.data == null || response.data.length < 1) {
+                    	
+                        _log('system', 'New session started.');
+                        
                         // Set the flag for displaying/hiding charts.
                         var show = aperture.config.get()['influent.config']['defaultShowDetails'];
 
@@ -326,6 +329,7 @@ define(
                         );
 
                     } else {
+                        _log('system', 'Restoring existing session...');
 
                         var restoreState = JSON.parse(response.data);
 
@@ -458,6 +462,9 @@ define(
                 case chan.REQUEST_CURRENT_STATE :
                     _onCurrentStateRequest(eventChannel);
 					break;
+                case chan.REQUEST_OBJECT_BY_XFID :
+                    _onObjectRequest(eventChannel, data);
+                    break;
                 default :
                    break;
             }
@@ -777,7 +784,8 @@ define(
                         queryId: (new Date()).getTime(),
                         cluster: false,                         // Feature #6467 - searches no longer clustered
                         limit : MAX_SEARCH_RESULTS,
-                        contextid : column.getXfId()
+                        contextid : column.getXfId(),
+                        groupby : SEARCH_GROUP_BY
                     },
                     contentType: 'application/json'
                 }
@@ -922,8 +930,8 @@ define(
                 {
                     sessionId : _UIObjectState.sessionId,
                     startDate : _UIObjectState.dates.startDate,
-                    endDate :  _UIObjectState.dates.endDate,
-                    useAptima : (_getAllMatchCards().length > 3)
+                    endDate :  _UIObjectState.dates.endDate//,
+                    //useAptima : (_getAllMatchCards().length > 3)
                 }
             );
         };
@@ -1003,15 +1011,20 @@ define(
 
                 var UIObject = {};
 
-                if (specs[i].type === constants.MODULE_NAMES.CLUSTER_BASE || specs[i].type === constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
-                	UIObject = xfImmutableCluster.createInstance(specs[i]);
-                } else if (specs[i].type === constants.MODULE_NAMES.MUTABLE_CLUSTER) {
+                if (specs[i].type === constants.MODULE_NAMES.MUTABLE_CLUSTER) {
                     UIObject = xfMutableCluster.createInstance(specs[i]);
+                } else if (specs[i].type === constants.MODULE_NAMES.CLUSTER_BASE) {
+                    if (specs[i].subtype === constants.SUBTYPES.ACCOUNT_OWNER) {
+                        UIObject = xfImmutableCluster.createInstance(specs[i]);
+                    } else {
+                        UIObject = xfMutableCluster.createInstance(specs[i]);
+                    }
                 } else if (specs[i].type === constants.MODULE_NAMES.SUMMARY_CLUSTER) {
                     UIObject = xfSummaryCluster.createInstance(specs[i]);
                 } else {
                     UIObject =  xfCard.createInstance(specs[i]);
                 }
+
                 shownMatches = shownMatches+1;
 
                 UIObject.showDetails(_UIObjectState.showDetails);
@@ -1297,16 +1310,12 @@ define(
                     insertedCard,
                     cardColumn.getXfId(),
                     targetContainer,
-                    function(specs) {
+                    function(dataIds) {
 
                         _pruneColumns();
 
+                        var specs = (insertedCard.getSpecs(false))[0].members;
                         _UIObjectState.childModule.updateCardsWithCharts(specs);
-
-                        var dataIds = [];
-                        for (var i = 0; i < specs.length; i++) {
-                            dataIds.push(specs[i].dataId);
-                        }
 
                         if (targetContainer.getUIType() == constants.MODULE_NAMES.FILE){
                         	targetContainer = targetContainer.getClusterUIObject();
@@ -1353,15 +1362,15 @@ define(
             }
             
             //Draper instrumentation
-            _log('user', eventChannel, 'Add  to file', _loggerState.type.WF_MARSHAL,
+            _log('user', eventChannel, 'Add to file', _loggerState.type.WF_MARSHAL,
                 {
                     sessionId : _UIObjectState.sessionId,
                     fileId : targetContainer.getXfId(),
-                    fileLabel : targetContainer.getLabel(),
+                    //fileLabel : targetContainer.getLabel(),
                     xfId : addCard.getXfId(),
-                    dataId : addCard.getDataId(),
-                    contexId : containerColumn.getXfId(),
-                    childrenCount: targetContainer.getChildren().length
+                    //dataId : addCard.getDataId(),
+                    contextId : containerColumn.getXfId(),
+                    childCount: targetContainer.getChildren().length
                 }
             );
         };
@@ -1369,7 +1378,7 @@ define(
         //--------------------------------------------------------------------------------------------------------------
 
         var _useCopyMethod = function(addCard) {
-            return (xfUtil.isClusterTypeFromObject(addCard.getParent()));
+            return addCard.getParent().getUIType() == constants.MODULE_NAMES.IMMUTABLE_CLUSTER;
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -1545,8 +1554,8 @@ define(
                 _loggerState.type.WF_SEARCH,
                 {
                     sessionId : _UIObjectState.sessionId,
-                    xfId : data.xfId,
-                    dataId : sourceObj.getDataId()
+                    xfId : data.xfId//,
+                    //dataId : sourceObj.getDataId()
                 }
             );
             aperture.io.rest(
@@ -1684,6 +1693,7 @@ define(
                         var sourceDataId = serverLink.source;
                         var destDataId = serverLink.target;
                         var linkAmount = xfWorkspaceModule.getValueByTag(serverLink, 'AMOUNT');
+                        var linkCount = xfWorkspaceModule.getValueByTag(serverLink, 'CONSTRUCTED');
 
                         // Figure out the left and right column based on the branch type.   UILinks always
                         // flow left to right
@@ -1706,7 +1716,7 @@ define(
                                 var sourceObj = sourceUIObjects[sourceIdx];
                                 var destObj = destUIObjects[destIdx];
 
-                                xfLink.createInstance(sourceObj, destObj, linkAmount);
+                                xfLink.createInstance(sourceObj, destObj, linkAmount, linkCount);
                             }
                         }
                     }
@@ -1884,7 +1894,7 @@ define(
                 {
                     sessionId : _UIObjectState.sessionId,
                     clusterId : data.xfId,
-                    dataId : uiObj.getDataId(),
+                    //dataId : uiObj.getDataId(),
                     isExpanded : uiObj.isExpanded(),
                     contextId : column.getXfId()
                 }
@@ -1972,7 +1982,7 @@ define(
                 {
                     sessionId : _UIObjectState.sessionId,
                     clusterId : data.xfId,
-                    dataId : uiObj.getDataId(),
+                    //dataId : uiObj.getDataId(),
                     isExpanded : uiObj.isExpanded(),
                     contextId: column.getXfId()
                 }
@@ -2005,7 +2015,7 @@ define(
             _log('user', eventChannel, 'Remove UI Object', _loggerState.type.WF_MARSHAL, {
                 sessionId : _UIObjectState.sessionId,
                 xfId : objToRemove.getXfId(),
-                dataId : dataId,
+                //dataId : dataId,
                 type : objToRemove.getUIType(),
                 contextId : sourceColumn.getXfId()
             });
@@ -2556,12 +2566,7 @@ define(
         //--------------------------------------------------------------------------------------------------------------
 
         var _onNewWorkspace = function(eventChannel) {
-        	var cookieId = 
-        		aperture.config.get()["aperture.io"].restEndpoint.replace('%host%', 'sessionId');
-        	
-        	cookieUtil().eraseCookie(cookieId);
-        	
-        	window.location.reload();
+        	window.open(window.location.href, '_blank');
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -2673,6 +2678,27 @@ define(
                 chan.CURRENT_STATE,
                 currentState
             );
+        };
+
+        //--------------------------------------------------------------------------------------------------------------
+
+        var _onObjectRequest = function(eventChannel, data) {
+
+            if (eventChannel != chan.REQUEST_OBJECT_BY_XFID) {
+                return;
+            }
+
+            var actualObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
+
+            if (actualObject != null) {
+                var clonedObject = {};
+                $.extend(true, clonedObject, actualObject);
+
+                aperture.pubsub.publish(
+                    chan.OBJECT_FROM_XFID,
+                    {clonedObject: clonedObject}
+                );
+            }
         };
         
         //--------------------------------------------------------
@@ -2786,7 +2812,8 @@ define(
             };
 
             for (var i = 0; i < childCount; i++){
-                var memberSpec = _.clone(childObjects[i].getVisualInfo().spec);
+                var memberSpec = {};
+                $.extend(true, memberSpec, childObjects[i].getVisualInfo().spec);
 
                 // Process icons
                 for (var j = 0; j < memberSpec.icons.length; j++) {
@@ -2834,7 +2861,7 @@ define(
             // Set the cluster title to be that of the first child's.
             clusterUpdateSpec.label = childCount>0?childObjects[0].getLabel():'';
 
-            for (var i = 0; i < sortedIconTypes.length && i < 4; i++) {     // TODO:  max icons stored somewhere on client?
+            for (var i = 0; i < sortedIconTypes.length; i++) {     // TODO:  max icons stored somewhere on client?
                 var iconCount = sortedIconTypes[i].value;
                 icon = sortedIconTypes[i].key;
                 icon['title'] = iconLabelMap[icon.imgUrl] + (iconCount>1?' (+' + (iconCount-1) + ')':'');
@@ -3192,7 +3219,7 @@ define(
 
                 // add the spec
                 state['spec'] = {};
-                state['spec'] = _.clone(_UIObjectState.spec);
+                $.extend(true, state['spec'], _UIObjectState.spec);
 
                 // add the selected UI object if not null
                 state['selectedUIObject'] = null;
@@ -3456,6 +3483,7 @@ define(
             subTokens[chan.PIN_TOGGLE] = aperture.pubsub.subscribe(chan.PIN_TOGGLE, _pubsubHandler);
             subTokens[chan.HIGHLIGHT_SEARCH_ARGUMENTS] = aperture.pubsub.subscribe(chan.HIGHLIGHT_SEARCH_ARGUMENTS, _pubsubHandler);
             subTokens[chan.REQUEST_CURRENT_STATE] = aperture.pubsub.subscribe(chan.REQUEST_CURRENT_STATE, _pubsubHandler);
+            subTokens[chan.REQUEST_OBJECT_BY_XFID] = aperture.pubsub.subscribe(chan.REQUEST_OBJECT_BY_XFID, _pubsubHandler);
 
             _UIObjectState.subscriberTokens = subTokens;
         };

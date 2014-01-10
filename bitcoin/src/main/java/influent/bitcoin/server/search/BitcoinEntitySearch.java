@@ -39,8 +39,10 @@ import influent.idl.FL_SearchResults;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.PropertyMatchDescriptorHelper;
+import influent.server.dataaccess.DataAccessHelper;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.utilities.SQLConnectionPool;
+import influent.server.utilities.TypedId;
 
 import java.sql.Connection;
 import java.sql.Date;
@@ -50,6 +52,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +72,7 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 	
 	private final DataNamespaceHandler _namespaceHandler;
 	
-	private static final String DEFAULT_SCHEMA = "dbo";
+	private static final String DEFAULT_SCHEMA = "UNKNOWN_SCHEMA";
 
 	@Inject
 	public BitcoinEntitySearch(
@@ -85,7 +88,6 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 	@Override
 	public FL_SearchResults search(String searchTerms, List<FL_PropertyMatchDescriptor> terms, long start, long max, String type) throws AvroRemoteException {
 
-		// example of using type from advanced search to search different database schemas. Requires uncommenting code in BitcoinNamespaceHandler
 		String schema = type;
 		
 		FL_SearchResults results = FL_SearchResults.newBuilder()
@@ -181,6 +183,7 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 		if (max > 0) statement.setFetchSize((int) max);
 		
 		List<FL_SearchResult> matches = new ArrayList<FL_SearchResult>();
+		List<String> rawIds = new ArrayList<String>();
 
 		s_logger.trace("execute: " + sql);
 		if (statement.execute(sql)) {
@@ -189,6 +192,7 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 			ResultSet resultSet = statement.getResultSet();
 			while (resultSet.next() && matches.size() < max) {
 				String id = resultSet.getString(1);
+				rawIds.add(id);
 				long CountOfTransactions = resultSet.getLong(2);
 				long AvgTrasactionAmount = resultSet.getLong(3);
 				long MaxTransactionAmount = resultSet.getLong(4);
@@ -213,13 +217,45 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 					label = id;
 				}
 
-				id = _namespaceHandler.globalFromLocalEntityId(schema, id);
+				id = _namespaceHandler.globalFromLocalEntityId(schema, id, TypedId.ACCOUNT);
 				
 				FL_Entity entity = new EntityHelper(id, label,
 						FL_EntityTag.ACCOUNT.name(), FL_EntityTag.ACCOUNT, props);
 				matches.add(new FL_SearchResult(1.0, entity));
 			}
 			resultSet.close();
+			
+			Map<String, int[]> entityStats = new HashMap<String, int[]>();
+			
+			// separately grab the FinEntity stats
+			String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
+
+			sql = "select EntityId, UniqueInboundDegree, UniqueOutboundDegree " +
+				  " from " + finEntityTable +
+				  " where EntityId in " +  DataAccessHelper.createInClause(rawIds);
+			
+			if (statement.execute(sql)) {
+				ResultSet rs = statement.getResultSet();
+				while (rs.next()) {
+					String entityId = rs.getString("EntityId");
+					int inDegree = rs.getInt("UniqueInboundDegree");
+					int outDegree = rs.getInt("UniqueOutboundDegree");
+				
+					entityStats.put(entityId, new int[]{inDegree, outDegree});
+				}
+				rs.close();
+			}
+			
+			for (FL_SearchResult result : matches) {
+				FL_Entity fle = (FL_Entity)result.getResult();
+				int[] stats = entityStats.get( TypedId.fromTypedId( fle.getUid() ).getNativeId() );
+			
+				if (stats != null) {
+					// add degree stats
+					fle.getProperties().add( new PropertyHelper("inboundDegree", stats[0], FL_PropertyTag.INFLOWING) );
+					fle.getProperties().add( new PropertyHelper("outboundDegree", stats[1], FL_PropertyTag.OUTFLOWING) );
+				}
+			}
 		}
 		statement.close();
 		connection.close();

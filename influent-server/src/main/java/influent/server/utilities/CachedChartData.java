@@ -30,6 +30,7 @@ import java.util.List;
 public class CachedChartData implements Serializable {
 	private static final long serialVersionUID = 6313503145104634882L;
 	
+	String units;
 	List<Double> credits;
 	List<Double> debits;
 	List<Double> focusCredits;
@@ -38,11 +39,13 @@ public class CachedChartData implements Serializable {
 
 	public CachedChartData() {}
 
+	public void setUnits(String units) { this.units = units; }
 	public void setCredits(List<Double> credits) { this.credits = credits; }
 	public void setDebits(List<Double> debits) { this.debits = debits; }
 	public void setFocusCredits(List<Double> credits) { this.focusCredits = credits; }
 	public void setFocusDebits(List<Double> debits) { this.focusDebits = debits; }
 	public void setStartingBalance(Double startingBalance) { this.startingBalance = startingBalance; }
+	public String getUnits() { return this.units; }
 	public List<Double> getCredits() { return this.credits; }
 	public List<Double> getDebits() { return this.debits; }
 	public List<Double> getFocusCredits() { return this.focusCredits; }

@@ -195,5 +195,8 @@ define({
     PIN_TOGGLE : 'pin-toggle',
 
     REQUEST_CURRENT_STATE : 'request-current-state',
-    CURRENT_STATE : 'current-state'
+    CURRENT_STATE : 'current-state',
+
+    REQUEST_OBJECT_BY_XFID : 'request-object-by-xfid',
+    OBJECT_FROM_XFID : 'object-from-xfid'
 });

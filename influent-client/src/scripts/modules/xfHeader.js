@@ -82,14 +82,168 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
 
         var _initializeDetails = function() {
 
+            var headerDiv = $('#header');
+
+            var displayDiv = $('<div></div>');
+            displayDiv.attr('id', 'display');
+            headerDiv.append(displayDiv);
+
+            var exportButton = $('<button></button>');
+            exportButton.attr('id', 'export-button');
+            exportButton.addClass('nocapture');
+            exportButton.html('Workspace');
+            displayDiv.append(exportButton);
+
+            var exportOptions = $('<ul></ul>');
+            exportOptions.attr('id', 'export-options');
+            exportOptions.addClass('nocapture');
+            displayDiv.append(exportOptions);
+
+            var newWorkspaceOption = $('<li></li>');
+            var newWorkspaceHref = $('<a></a>');
+            newWorkspaceHref.attr('id', 'new-workspace');
+            newWorkspaceHref.attr('href', '#');
+            var newWorkspaceIcon = $('<span></span>');
+            newWorkspaceIcon.addClass('ui-icon new-chart-icon');
+            newWorkspaceHref.append(newWorkspaceIcon);
+            newWorkspaceHref.append($(document.createTextNode('New Workspace')));
+            newWorkspaceOption.append(newWorkspaceHref);
+            exportOptions.append(newWorkspaceOption);
+
+            var exportCaptureOption = $('<li></li>');
+            var exportCaptureHref = $('<a></a>');
+            exportCaptureHref.attr('id', 'export-capture');
+            exportCaptureHref.attr('href', '#');
+            exportCaptureHref.addClass('ui-state-disabled');
+            var exportCaptureIcon = $('<span></span>');
+            exportCaptureIcon.addClass('ui-icon export-capture-icon');
+            exportCaptureHref.append(exportCaptureIcon);
+            exportCaptureHref.append($(document.createTextNode('Export Image')));
+            exportCaptureOption.append(exportCaptureHref);
+            exportOptions.append(exportCaptureOption);
+
+            var exportNotebookOption = $('<li></li>');
+            var exportNotebookHref = $('<a></a>');
+            exportNotebookHref.attr('id', 'export-notebook');
+            exportNotebookHref.attr('href', '#');
+            exportNotebookHref.addClass('ui-state-disabled');
+            var exportNotebookIcon = $('<span></span>');
+            exportNotebookIcon.addClass('ui-icon export-notebook-icon');
+            exportNotebookHref.append(exportNotebookIcon);
+            exportNotebookHref.append($(document.createTextNode('Export Chart (XML)')));
+            exportNotebookOption.append(exportNotebookHref);
+            exportOptions.append(exportNotebookOption);
+
+
+            var USE_AUTH = aperture.config.get()['influent.config']['useAuth'] || false;
+            if (USE_AUTH) {
+                var logoutOption = $('<li></li>');
+                var logoutHref = $('<a></a>');
+                logoutHref.attr('id', 'logout');
+                logoutHref.attr('href', '#');
+                var logoutIcon = $('<span></span>');
+                logoutIcon.addClass('ui-icon logout-icon');
+                logoutHref.append(logoutIcon);
+                logoutHref.append($(document.createTextNode('Logout')));
+                logoutOption.append(logoutHref);
+                exportOptions.append(logoutOption);
+
+                logoutHref.click(
+                    function (e) {
+                        window.location = 'logout';
+                        e.preventDefault();
+                    }
+                );
+            }
+
+            var displayButton = $('<button></button>');
+            displayButton.attr('id', 'display-button');
+            displayButton.addClass('nocapture');
+            displayButton.html('View');
+            displayDiv.append(displayButton);
+
+            var displayOptions = $('<ul></ul>');
+            displayOptions.attr('id', 'display-options');
+            displayOptions.addClass('nocapture');
+            displayDiv.append(displayOptions);
+
+            var entitiesOption = $('<li></li>');
+            var entitiesHref = $('<a></a>');
+            entitiesHref.attr('id', 'display-entities');
+            entitiesHref.attr('href', '#');
+            var entitiesIcon = $('<span></span>');
+            entitiesIcon.addClass('ui-icon display-entity');
+            entitiesHref.append(entitiesIcon);
+            entitiesHref.append($(document.createTextNode('Account Holders')));
+            entitiesOption.append(entitiesHref);
+            displayOptions.append(entitiesOption);
+
+            var chartsOption = $('<li></li>');
+            var chartsHref = $('<a></a>');
+            chartsHref.attr('id', 'display-charts');
+            chartsHref.attr('href', '#');
+            var chartsIcon = $('<span></span>');
+            chartsIcon.addClass('ui-icon display-chart');
+            chartsHref.append(chartsIcon);
+            chartsHref.append($(document.createTextNode('Account Activity')));
+            chartsOption.append(chartsHref);
+            displayOptions.append(chartsOption);
+
+            var filterContainerDiv = $('<div></div>');
+            filterContainerDiv.attr('id', 'filter-container');
+            headerDiv.append(filterContainerDiv);
+
+            var filterDiv = $('<div></div>');
+            filterDiv.attr('id', 'filter');
+            filterContainerDiv.append(filterDiv);
+
+            var titleSpan = $('<span></span>');
+            titleSpan.addClass('title');
+            titleSpan.html('Transaction Flow:');
+            filterDiv.append(titleSpan);
+
+            var intervalSelect = $('<select></select>');
+            intervalSelect.attr('id', 'interval');
+            filterDiv.append(intervalSelect);
+
+            var datePickerFrom = $('<input/>');
+            datePickerFrom.attr('type', 'text');
+            datePickerFrom.attr('id', 'datepickerfrom');
+            datePickerFrom.addClass('dateinput dateinputfrom');
+            filterDiv.append(datePickerFrom);
+
+            var datePickerLabel = $('<label></label>');
+            datePickerLabel.attr('for', 'datepickerto');
+            datePickerLabel.addClass('datelabel');
+            datePickerLabel.html('to');
+            filterDiv.append(datePickerLabel);
+
+            var datePickerTo = $('<input/>');
+            datePickerTo.attr('type', 'text');
+            datePickerTo.attr('id', 'datepickerto');
+            datePickerTo.addClass('dateinput dateinputto');
+            filterDiv.append(datePickerTo);
+
+            var flowImage = $('<img>');
+            flowImage.attr('src', 'img/flow.png');
+            flowImage.attr('id', 'flow-cue');
+            flowImage.attr('alt', '');
+            filterDiv.append(flowImage);
+
+            var dateButton = $('<button></button>');
+            dateButton.attr('id', 'applydates');
+            dateButton.css('display', 'none');
+            dateButton.text('Apply');
+            filterDiv.append(dateButton);
+
             // create the display menu
-            $('#display-options').menu();
-            
-            $('#display-button').button().click(
+            displayOptions.menu();
+
+            displayButton.button().click(
                 function() {
-                	$('#export-options').hide();
+                	exportOptions.hide();
                 	
-                    var menu = $('#display-options').show().position(
+                    var menu = displayOptions.show().position(
                         {
                             my: 'right top',
                             at: 'right bottom',
@@ -108,7 +262,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
                 }
             );
 
-            $('#display-charts').click(
+            chartsHref.click(
                 function (e) {
                     e.preventDefault();
 
@@ -117,7 +271,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
                 }
             );
 
-            $('#display-entities').click(
+            entitiesHref.click(
                 function (e) {
                     e.preventDefault();
 
@@ -127,13 +281,13 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
             );
 
             // create the display menu
-            $('#export-options').menu();
+            exportOptions.menu();
 
-            $('#export-button').button({icons: {secondary: 'ui-icon-triangle-1-s'}}).click(
+            exportButton.button({icons: {secondary: 'ui-icon-triangle-1-s'}}).click(
                 function() {
-                	$('#display-options').hide();
+                	displayOptions.hide();
                 	
-                    var menu = $('#export-options').show().position(
+                    var menu = exportOptions.show().position(
                         {
                             my: 'right top',
                             at: 'right bottom',
@@ -152,35 +306,26 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
                 }
             );
 
-            $('#export-capture').click(
+            exportCaptureHref.click(
                 function (e) {
                     e.preventDefault();
 //                    aperture.pubsub.publish(chan.EXPORT_CAPTURED_IMAGE_REQUEST);
                 }
             );
 
-            $('#export-notebook').click(
+            exportNotebookHref.click(
                 function (e) {
                     e.preventDefault();
 //                    aperture.pubsub.publish(chan.EXPORT_GRAPH_REQUEST);
                 }
             );
             
-            $('#new-chart').click(
-                    function (e) {
-                        xfModalDialog.createInstance({
-                            title: "Clear Workspace?",
-                            contents: "Permanently clear the workspace?",
-                            buttons: {
-                                "Clear" : function() {
-                                    aperture.pubsub.publish(chan.NEW_WORKSPACE_REQUEST);
-                                },
-                                Cancel : function() {}
-                            }
-                        });
-                        return false;
-                    }
-                );
+            newWorkspaceHref.click(
+                function (e) {
+                    aperture.pubsub.publish(chan.NEW_WORKSPACE_REQUEST);
+                    e.preventDefault();
+                }
+            );
                 
             _updateDetails(null, {showDetails: _UIObjectState.showDetails});
         };

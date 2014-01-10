@@ -52,10 +52,9 @@ define(
             		if (cluster.properties[dist]) {
 		        		var iconMap = iconClassMap[iconClass].map;
 		        		var iconDist = cluster.properties[dist].range;
-		        		var iconLimit = iconClassMap[iconClass].limit || 1;
 		        		
 		        		if(iconMap != null) {
-		        			var newDistIcons = _generateDistIcons(iconClass, iconMap, iconDist, iconLimit, clusterCount);
+		        			var newDistIcons = _generateDistIcons(iconClass, iconMap, iconDist, clusterCount);
 		        			for(var j = 0; j < newDistIcons.length; j++) {
 		        				icons.push(newDistIcons[j]);
 		        			}
@@ -74,7 +73,7 @@ define(
 
         //--------------------------------------------------------------------------------------------------------------
 
-        var _generateDistIcons = function (iconClass, iconMap, iconDist, iconLimit, clusterCount) {
+        var _generateDistIcons = function (iconClass, iconMap, iconDist, clusterCount) {
         	var toReturn = [];
         	var count = 0;
         	var nextIcon = null;
@@ -94,6 +93,7 @@ define(
         		if (nextIcon) {
                     toReturn.push(
                         {
+                            type: iconClass,
         					imgUrl: nextIcon.url || aperture.palette.icon(nextIcon.icon),
         					title: (nextIcon.title || '') + ' ('+ count+ ')',
                             score : count / clusterCount
@@ -103,11 +103,6 @@ define(
             }
 
             toReturn.sort(function(a, b) {return b['score'] - a['score'];});
-
-            if (toReturn.length > iconLimit) {
-                toReturn.splice(iconLimit);
-            }
-            
             return toReturn;
         };
         
@@ -140,6 +135,8 @@ define(
             spec.icons = _getClusterIcons(elementData, entityCount);
             spec.count = entityCount;
             spec.label = label;
+            spec.inDegree = xfWorkspace.getValueByTag(elementData, 'INFLOWING');
+            spec.outDegree = xfWorkspace.getValueByTag(elementData, 'OUTFLOWING');
         };
 
         //----------------------------------------------------------------------------------------------------------
@@ -150,6 +147,8 @@ define(
             spec.type = constants.MODULE_NAMES.ENTITY;
             spec.subtype = elementData.entitytype;
             spec.label = xfWorkspace.getValueByTag(elementData, 'LABEL');
+            spec.inDegree = xfWorkspace.getValueByTag(elementData, 'INFLOWING');
+            spec.outDegree = xfWorkspace.getValueByTag(elementData, 'OUTFLOWING');
             spec.icons = [];
 
             // do icons
@@ -186,6 +185,7 @@ define(
 	
 	                			if (icon) {
 	                				spec.icons.push({
+                                        type: tag,
 	                					imgUrl: icon.url || aperture.palette.icon(icon.icon),
 	                					title: icon.title
 	                				});

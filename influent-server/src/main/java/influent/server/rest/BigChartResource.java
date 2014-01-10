@@ -24,16 +24,19 @@
  */
 package influent.server.rest;
 
-import influent.entity.clustering.utils.ClusterContextCache;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_Entity;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ContextRead;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.data.ChartData;
 import influent.server.utilities.ChartBuilder;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -65,14 +68,17 @@ public class BigChartResource extends ApertureServerResource {
 	final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private final ChartBuilder chartBuilder;
-	
+	private final ClusterContextCache contextCache;
+
 	@Inject
 	public BigChartResource(
 		FL_DataAccess entityAccess,
 		FL_ClusteringDataAccess clusterAccess,
-		@Named("influent.midtier.ehcache.config") String ehCacheConfig
+		@Named("influent.midtier.ehcache.config") String ehCacheConfig, 
+		ClusterContextCache contextCache
 	) {
 		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
+		this.contextCache = contextCache;
 	}
 	
 	
@@ -100,26 +106,57 @@ public class BigChartResource extends ApertureServerResource {
 			
 			List<String> focusIds = new LinkedList<String>();
 			JSONArray focusObj = jsonObj.getJSONArray("focusId");
+
+			final PermitSet permits = new PermitSet();
 			
-			for (int i=0; i < focusObj.length(); i++) {
-				String entityId = focusObj.getString(i);
-				// Check to see if this is a file cluster.
-				FL_Cluster flcluster = ClusterContextCache.instance.getFile(entityId, focusContextId);
-				List<String> entities = new ArrayList<String>();
-				// If this is a mutable cluster, add its contents.
-				if(flcluster != null) {
-					entities.addAll(flcluster.getSubclusters());
-					entities.addAll(flcluster.getMembers());
-				}
-				
-				else {
-					entities.add(entityId);
-				}
-				for (String id : entities){
-					if (!focusIds.contains(id)){
-						focusIds.add(id);
+			try {
+				ContextRead focusContext = null;
+
+				for (int i=0; i < focusObj.length(); i++) {
+					String entityId = focusObj.getString(i);
+					List<String> entities = new ArrayList<String>();
+
+					TypedId id = TypedId.fromTypedId(entityId);
+					
+					// Check to see if this is a file cluster.
+					if (id.getType() == TypedId.FILE) {
+						if (focusContext == null) {
+							focusContext = contextCache.getReadOnly(focusContextId, permits);						
+						}
+
+						if (focusContext != null) {
+							FL_Cluster flcluster = focusContext.getFile(entityId);
+						
+							// If this is a mutable cluster, add its contents.
+							if(flcluster != null) {
+								entities.addAll(flcluster.getSubclusters());
+								entities.addAll(flcluster.getMembers());
+							}
+						}
+						
+					// If this is a group cluster, add its contents (based on id currently)
+					} else if (id.getType() == TypedId.CLUSTER) {
+						String nId = id.getNativeId();  
+						if (nId.startsWith("|")) { // group cluster
+							for (String sId : nId.split("\\|")) {
+								entities.add(sId);
+							}
+						} else {
+							entities.add(entityId);
+						}
+					} else {
+						entities.add(entityId);
+					}
+					
+					for (String fid : entities){
+						if (!focusIds.contains(fid)){
+							focusIds.add(fid);
+						}
 					}
 				}
+				
+			} finally {
+				permits.revoke();
 			}
 			
 			String tempFocusMaxDebitCredit = jsonObj.getString("focusMaxDebitCredit");
@@ -157,16 +194,40 @@ public class BigChartResource extends ApertureServerResource {
 				final String entityContextId = entityRequest.getString("contextId");
 				
 				List<String> entities = new ArrayList<String>();
+
+				// Check to see if this entityId belongs to a group cluster.
+				TypedId id = TypedId.fromTypedId(entityId);
+				
 				// Check to see if this entityId belongs to a mutable cluster.
-				FL_Cluster flcluster = ClusterContextCache.instance.getFile(entityId, entityContextId);
-				if(flcluster != null) {
-					entities.addAll(flcluster.getSubclusters());
-					entities.addAll(flcluster.getMembers());
-				}
-				else {
+				if (id.getType() == TypedId.FILE) {
+					try {
+						final ContextRead entityContext = contextCache.getReadOnly(entityContextId, permits);
+	
+						if (entityContext != null) {
+							FL_Cluster flcluster = entityContext.getFile(entityId);
+							
+							if(flcluster != null) {
+								entities.addAll(flcluster.getSubclusters());
+								entities.addAll(flcluster.getMembers());
+							}
+						}
+					} finally {
+						permits.revoke();
+					}
+					
+				} else if (id.getType() == TypedId.CLUSTER) {
+					String nId = id.getNativeId();  
+					if (nId.startsWith("|")) {  // group cluster
+						for (String sId : nId.split("\\|")) {
+							entities.add(sId);
+						}
+					} else {
+						entities.add(entityId);
+					}
+				} else {
 					entities.add(entityId);
 				}
-				
+					
 				Hash hashed = new Hash(entityId, entities, startDate, endDate, focusIds, focusMaxDebitCredit, dateRange.getNumBins().intValue(), width, height, entityContextId, focusContextId, sessionId);
 				
 				ChartData chartData = chartBuilder.computeChart(dateRange, entities, focusIds, entityContextId, focusContextId, sessionId, dateRange.getNumBins().intValue(), hashed.makeHash());

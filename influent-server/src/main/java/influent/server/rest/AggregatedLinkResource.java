@@ -24,7 +24,6 @@
  */
 package influent.server.rest;
 
-import influent.entity.clustering.utils.ClusterContextCache;
 import influent.idl.FL_BoundedRange;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
@@ -37,12 +36,17 @@ import influent.idl.FL_PropertyType;
 import influent.idlhelper.LinkHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ContextRead;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -65,13 +69,15 @@ import com.google.inject.Inject;
 public class AggregatedLinkResource extends ApertureServerResource{
 
 	private final FL_ClusteringDataAccess clusterAccess;
+	private final ClusterContextCache contextCache;
 	
-	private static final String PROP_LINK_COUNT = "link-count";
+//	private static final String PROP_LINK_COUNT = "link-count";
 	private static final String PROP_DATE = "cluster-link-date-range";
 	
 	@Inject
-	public AggregatedLinkResource(FL_ClusteringDataAccess clusterAccess) {
+	public AggregatedLinkResource(FL_ClusteringDataAccess clusterAccess, ClusterContextCache contextCache) {
 		this.clusterAccess = clusterAccess;
+		this.contextCache = contextCache;
 	}
 
 	@Post
@@ -124,41 +130,70 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			List<String> srcEntities = new ArrayList<String>();
 			List<String> dstEntities = new ArrayList<String>();
 			Map<String, String> memberToClusterMap = new HashMap<String, String>();
-			// Check if any of the entities are actually mutable clusters (i.e. internal clusters of files).
-			// If they are, unroll them and create a map of parent-cluster-to-child-card ids.
-			for (String entityId : sEntities){
-				FL_Cluster flcluster = ClusterContextCache.instance.getFile(entityId, srcContextId);
-				if(flcluster != null) {
-					List<String>clusterMembers = new ArrayList<String>();
-					clusterMembers.addAll(flcluster.getSubclusters());
-					clusterMembers.addAll(flcluster.getMembers());
-					for (String memberId : clusterMembers){
-						memberToClusterMap.put(memberId, entityId);
-					}
-					srcEntities.addAll(clusterMembers);
-				}
-				else {
-					srcEntities.add(entityId);
-				}
-			}
 
-			// Check if any of the entities are actually mutable clusters (i.e. internal clusters of files).
-			// If they are, unroll them and create a map of parent-cluster-to-child-card ids.
-			for (String entityId : tEntities){
-				FL_Cluster flcluster = ClusterContextCache.instance.getFile(entityId, dstContextId);
-				if(flcluster != null) {
-					List<String>clusterMembers = new ArrayList<String>();
-					clusterMembers.addAll(flcluster.getSubclusters());
-					clusterMembers.addAll(flcluster.getMembers());
-					for (String memberId : clusterMembers){
-						memberToClusterMap.put(memberId, entityId);
+			PermitSet permits = new PermitSet();
+			
+			try {
+				ContextRead srcContext = null;
+				ContextRead dstContext = null;
+				
+				// Check if any of the entities are actually mutable clusters (i.e. internal clusters of files).
+				// If they are, unroll them and create a map of parent-cluster-to-child-card ids.
+				for (String entityId : sEntities){
+					final char etype = TypedId.fromTypedId(entityId).getType();
+					
+					if (etype == TypedId.FILE) {
+						if (srcContext == null) {
+							srcContext = contextCache.getReadOnly(srcContextId, permits);
+						}
+						if (srcContext != null) {
+							FL_Cluster flcluster = srcContext.getFile(entityId);
+							
+							if(flcluster != null) {
+								List<String>clusterMembers = new ArrayList<String>();
+								clusterMembers.addAll(flcluster.getSubclusters());
+								clusterMembers.addAll(flcluster.getMembers());
+								for (String memberId : clusterMembers){
+									memberToClusterMap.put(memberId, entityId);
+								}
+								srcEntities.addAll(clusterMembers);
+							}
+						}
+						
+					} else {
+						srcEntities.add(entityId);
 					}
-					dstEntities.addAll(clusterMembers);
 				}
-				else {
-					dstEntities.add(entityId);
-				}
-			}			
+	
+				// Check if any of the entities are actually mutable clusters (i.e. internal clusters of files).
+				// If they are, unroll them and create a map of parent-cluster-to-child-card ids.
+				for (String entityId : tEntities){
+					final char etype = TypedId.fromTypedId(entityId).getType();
+					
+					if (etype == TypedId.FILE) {
+						if (dstContext == null) {
+							dstContext = contextCache.getReadOnly(dstContextId, permits);
+						}
+						if (dstContext != null) {
+							FL_Cluster flcluster = dstContext.getFile(entityId);
+							if(flcluster != null) {
+								List<String>clusterMembers = new ArrayList<String>();
+								clusterMembers.addAll(flcluster.getSubclusters());
+								clusterMembers.addAll(flcluster.getMembers());
+								for (String memberId : clusterMembers){
+									memberToClusterMap.put(memberId, entityId);
+								}
+								dstEntities.addAll(clusterMembers);
+							}
+						}
+					} else {
+						dstEntities.add(entityId);
+					}
+				}			
+			} finally {
+				permits.revoke();
+			}
+			
 			links = clusterAccess.getFlowAggregation(srcEntities, dstEntities, direction, FL_LinkTag.FINANCIAL, dateRange, srcContextId, dstContextId, sessionId);			
 			
 			// Get the query id. This is used by the client to ensure
@@ -190,21 +225,23 @@ public class AggregatedLinkResource extends ApertureServerResource{
 							linkMap.put(linkName, link);
 						}
 					}
+				}
+				
+				// create the resulting links for each src entity
+				for (String key : linkMap.keySet()) {
+					FL_Link link = linkMap.get(key);
+				
+					String[] tokens = key.split("_:_");
+						
+					String src = (direction == FL_DirectionFilter.SOURCE) ? tokens[0] : tokens[1];
 					
-					if (memberToClusterMap.containsKey(key)){
-						key = memberToClusterMap.get(key);
-					}
+					List<FL_Link> linkset = dataMap.get(src);
 					
-					List<FL_Link> dataLinks = new ArrayList<FL_Link>();
-					for (FL_Link link : linkMap.values()) {
-						dataLinks.add(link);
+					if (linkset == null) {
+						linkset = new LinkedList<FL_Link>();
+						dataMap.put(src, linkset);
 					}
-					
-					if (dataMap.containsKey(key)) {
-						dataMap.get(key).addAll(dataLinks);
-					} else {
-						dataMap.put(key, dataLinks);
-					}
+					linkset.add(link);
 				}
 				
 				JSONObject dmap = new JSONObject();
@@ -236,14 +273,14 @@ public class AggregatedLinkResource extends ApertureServerResource{
 	
 	private void updateLinkWithNewProperties(FL_Link oldLink, FL_Link newLink) {
 
-		PropertyHelper oldLinkCount = LinkHelper.getFirstProperty(oldLink, PROP_LINK_COUNT);
+//		PropertyHelper oldLinkCount = LinkHelper.getFirstProperty(oldLink, PROP_LINK_COUNT);
 		PropertyHelper oldDateProp = LinkHelper.getFirstProperty(oldLink, PROP_DATE);
 		
-		PropertyHelper newLinkCount = LinkHelper.getFirstProperty(newLink, PROP_LINK_COUNT);
+//		PropertyHelper newLinkCount = LinkHelper.getFirstProperty(newLink, PROP_LINK_COUNT);
 		PropertyHelper newDateProp = LinkHelper.getFirstProperty(newLink, PROP_DATE);
 
-		int count = ((Integer)oldLinkCount.getValue()) + ((Integer)newLinkCount.getValue());
-		oldLinkCount.setRange(new SingletonRangeHelper(count, FL_PropertyType.LONG));
+//		int count = ((Integer)oldLinkCount.getValue()) + ((Integer)newLinkCount.getValue());
+//		oldLinkCount.setRange(new SingletonRangeHelper(count, FL_PropertyType.LONG));
 	
 		DateTime minDate = null;
 		DateTime maxDate = null;

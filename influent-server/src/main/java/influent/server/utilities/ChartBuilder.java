@@ -99,6 +99,8 @@ public class ChartBuilder {
 	) throws AvroRemoteException {
 		Double startingBalance = 0.0;
 		
+		String units = null;
+		
 		List<Double> credits = new ArrayList<Double>(bucketNo);
 		List<Double> debits = new ArrayList<Double>(bucketNo);
 		List<Double> focusCredits = new ArrayList<Double>(bucketNo);
@@ -118,6 +120,7 @@ public class ChartBuilder {
 				foundInCache = false;
 			} else {
 				CachedChartData data = (CachedChartData)element.getObjectValue();
+				units = data.units;
 				credits = data.credits;
 				debits = data.debits;
 				focusCredits = data.focusCredits;
@@ -133,9 +136,10 @@ public class ChartBuilder {
 		if (!foundInCache) {
 			Map<String, List<FL_Link>> links = da.getTimeSeriesAggregation(entities, focusEntities, FL_LinkTag.FINANCIAL, dateRange, contextId, focusContextId, sessionId);
 			if (links != null && links.size() > 0) {
+				
 				for (String entity : links.keySet()) {
 					List<FL_Link> financialLinks = links.get(entity);
-					for (FL_Link financialLink : financialLinks) {
+					for (FL_Link financialLink : financialLinks) {			
 						int bucket = 0;
 						Double amount = 0.0;
 						boolean skip = false;
@@ -150,6 +154,21 @@ public class ChartBuilder {
 							
 							if (property.hasTag(FL_PropertyTag.AMOUNT)) {
 								amount = (Double)property.getValue();
+							}
+							
+							if (units == null) {
+								if (property.hasTag(FL_PropertyTag.USD)) {
+									units = "USD";
+								}
+								else if (property.hasTag(FL_PropertyTag.DURATION)) {
+									units = "duration";
+								}
+								else if (property.hasTag(FL_PropertyTag.COUNT)) {
+									units = "count";
+								}
+								else {
+									units = "USD";
+								}
 							}
 						}
 						if (!skip) {
@@ -215,6 +234,7 @@ public class ChartBuilder {
 		
 		if (chartDataCache != null) {
 			CachedChartData data = new CachedChartData();
+			data.setUnits(units);
 			data.setCredits(credits);
 			data.setDebits(debits);
 			data.setFocusCredits(focusCredits);
@@ -224,7 +244,7 @@ public class ChartBuilder {
 			chartDataCache.put(element);
 		}
 		
-		return new ChartData(startingBalance, endBalance, credits, debits, maxCredit, maxDebit, maxBalance, minBalance, focusCredits, focusDebits, DataAccessHelper.getDateIntervals(dateRange), imageHash);
+		return new ChartData(startingBalance, endBalance, units, credits, debits, maxCredit, maxDebit, maxBalance, minBalance, focusCredits, focusDebits, DataAccessHelper.getDateIntervals(dateRange), imageHash);
 	}
 
 	private Double calcStartingBalance(DateTime minDate, List<String> memberIds) {

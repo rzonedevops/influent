@@ -333,7 +333,9 @@ define(
         //------------------------------------------------------------------------------------------------------------------
 
         var _getPositionMap = function(){
-            return _.clone(_layoutState.positionMap);
+            var clonedMap = {};
+            $.extend(true, clonedMap, _layoutState.positionMap);
+            return clonedMap;
         };
 
         //------------------------------------------------------------------------------------------------------------------

@@ -48,8 +48,6 @@ define(
 
         xfMutableCluster.createInstance = function(spec){
 
-            var guidId = guid.generateGuid();
-
             var _UIObjectState = {
                 xfId                : 'mutable_' + guid.generateGuid(),
                 UIType              : MODULE_NAME,
@@ -67,11 +65,59 @@ define(
                 links               : {}
             };
 
-            // Create a data id for this object.
-            _UIObjectState.spec.dataId =  'data_mutable_' + guidId;
+            //----------------
+            // private methods
+            //----------------
 
+            var _createChildrenFromSpec = function(showSpinner, showToolbar, setPinned) {
+
+                for (var i = 0; i < _UIObjectState.children.length; i++) {
+                    _UIObjectState.children[i].dispose();
+                    _UIObjectState.children[i] = null;
+                }
+                _UIObjectState.children.length = 0;
+
+                for (var i = 0; i < _UIObjectState.spec.members.length; i++) {
+
+                    var childMemberSpec = _UIObjectState.spec.members[i];
+
+                    var uiObject = {};
+                    if (childMemberSpec.type == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                        uiObject = xfSummaryCluster.createInstance(childMemberSpec);
+                    } else if (xfUtil.isClusterTypeFromSpec(childMemberSpec)) {
+                        uiObject =  xfMutableCluster.createInstance(childMemberSpec);
+                    } else if (childMemberSpec.type == constants.MODULE_NAMES.ENTITY) {
+                        uiObject = xfCard.createInstance(childMemberSpec);
+                    }
+                    uiObject.showDetails(_UIObjectState.showDetails);
+                    uiObject.showSpinner(showSpinner);
+                    uiObject.setPin(setPinned);
+
+                    // we set the children's toolbar state base on our toolbar state. However,
+                    // we need to specifically set our children to not allow close
+                    uiObject.updateToolbar(_UIObjectState.toolbarSpec);
+                    uiObject.updateToolbar({'allowClose': true});
+                    uiObject.showToolbar(showToolbar);
+
+                    // Add the child to the cluster.
+                    uiObject.setParent(xfClusterInstance);
+                    _UIObjectState.children.push(uiObject);
+                }
+            };
+
+            //---------------
+            // public methods
+            //---------------
+
+            // Create a data id for this object.
+            if (!spec.dataId) {
+                _UIObjectState.spec.dataId =  'f.data_mutable_' + guid.generateGuid();
+            }
             // create new object instance
             var xfClusterInstance = xfClusterBase.createInstance(_UIObjectState);
+
+            // create child placeholder cards from spec
+            _createChildrenFromSpec(true, false, _UIObjectState.isPinned);
 
             //----------
             // Overrides
@@ -133,6 +179,10 @@ define(
                         _UIObjectState.children.splice(i, 1);
                         _UIObjectState.spec.members.splice(i, 1);
 
+                        // Update the in/out degree in the spec
+                        _UIObjectState.spec.inDegree -= _UIObjectState.children[i].inDegree;
+                        _UIObjectState.spec.outDegree -= _UIObjectState.children[i].outDegree;
+                        
                         break;
                     }
                 }
@@ -157,19 +207,28 @@ define(
 
                 _UIObjectState.children.length = 0;
                 _UIObjectState.spec.members.length = 0;
+                
+                // Update the in/out degree in the spec
+                _UIObjectState.spec.inDegree = 0;
+                _UIObjectState.spec.outDegree = 0;
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfClusterInstance.insert = function(xfUIObj, beforeXfUIObj00) {
 
-                var memberSpec = _.clone(xfUIObj.getVisualInfo().spec);
+                var memberSpec = {};
+                $.extend(true, memberSpec, xfUIObj.getVisualInfo().spec);
                 memberSpec.parent = this;
 
                 if (beforeXfUIObj00 == null) {
                     _UIObjectState.children.push(xfUIObj);
                     // Update the member spec list.
                     _UIObjectState.spec.members.push(memberSpec);
+                    
+                    // Update the in/out degree in the spec
+                    _UIObjectState.spec.inDegree += memberSpec.inDegree;
+                    _UIObjectState.spec.outDegree += memberSpec.outDegree;
                 } else {
                     var inserted = false;
                     var childCount = _UIObjectState.children.length;
@@ -179,6 +238,10 @@ define(
                             // Update the member spec list.
                             _UIObjectState.spec.members.splice(i, 0, memberSpec);
 
+                            // Update the in/out degree in the spec
+                            _UIObjectState.spec.inDegree += memberSpec.inDegree;
+                            _UIObjectState.spec.outDegree += memberSpec.outDegree;
+                            
                             inserted = true;
                             break;
                         }
@@ -226,7 +289,7 @@ define(
                 _UIObjectState.spec.confidenceInAge = state.spec.confidenceInAge;
                 _UIObjectState.spec.flow = state.spec.flow;
                 _UIObjectState.spec.members = state.spec.members;
-
+               
                 _UIObjectState.children = [];
                 var childCount = state.children.length;
                 for (var i = 0; i < childCount; i++) {

@@ -27,6 +27,7 @@ package influent.server.rest;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_Entity;
+import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
@@ -85,7 +86,7 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 			DateTime startDate = DateTimeParser.parse(startDateStr);
 			DateTime endDate = DateTimeParser.parse(endDateStr);
 			String fileName = entityId;
-			List<FL_Entity> entityList = dataAccess.getEntities(entityIds);
+			List<FL_Entity> entityList = dataAccess.getEntities(entityIds, FL_LevelOfDetail.SUMMARY);
 			if(entityList.size() > 0) {
 				for(FL_Property p : entityList.get(0).getProperties()) {
 					PropertyHelper prop = PropertyHelper.from(p);
@@ -153,7 +154,7 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 		PropertyHelper property = PropertyHelper.from(prop);
 		
 		if (property.hasTag(FL_PropertyTag.DATE)) {
-			return csvDateFormat.format(DateTimeParser.fromFL(property.getValue()));
+			return csvDateFormat.format(DateTimeParser.fromFL(property.getValue()).toDate());
 		}
 
 		return String.valueOf(property.getValue());

@@ -14,6 +14,8 @@
 		
 		<!-- Uncomment this block for the refactored KIVA dataview implemenation with on-the-fly clustering-->
 		<param-value>
+            influent.server.auth.ShiroAuthModule:
+            influent.server.auth.SimpleShiroAuthModule:
 			influent.server.RestConfigModule:
 			oculus.aperture.icons.BaseIconModule: 
 			oculus.aperture.parchment.ParchmentModule:

@@ -5,13 +5,13 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.1.2</version>
+		<version>1.2.0</version>
 	</parent>
 
 	<artifactId>kiva</artifactId>
 	<packaging>war</packaging>
 
-	<name>kiva</name>
+	<name>${project.artifactId}</name>
 	<url></url>
 
 	<properties>
@@ -38,6 +38,7 @@
 				<filtering>true</filtering>
 				<includes>
 					<include>**/*.properties</include>
+					<include>**/config.js</include>
 				</includes>
 			</resource>
 
@@ -47,6 +48,7 @@
 				<filtering>false</filtering>
 				<excludes>
 					<exclude>**/*.properties</exclude>
+					<exclude>**/config.js</exclude>
 				</excludes>
 			</resource>
 		</resources>
@@ -203,7 +205,6 @@
 			</activation>
 			<properties>
 				<phantomBinType>exe</phantomBinType>
-				<phantomBinDir>${basedir}/bin/windows</phantomBinDir>
 				<phantomBinFile>phantomjs.exe</phantomBinFile>
 			</properties>
 		</profile>
@@ -217,7 +218,6 @@
 			</activation>
 			<properties>
 				<phantomBinType>linux-x86-64</phantomBinType>
-				<phantomBinDir>${basedir}/bin/linux-x86-64</phantomBinDir>
 				<phantomBinFile>phantomjs</phantomBinFile>
 			</properties>
 		</profile>
@@ -231,7 +231,6 @@
 			</activation>
 			<properties>
 				<phantomBinType>linux-i686</phantomBinType>
-				<phantomBinDir>${basedir}/bin/linux-i686</phantomBinDir>
 				<phantomBinFile>phantomjs</phantomBinFile>
 			</properties>
 		</profile>
@@ -244,7 +243,6 @@
 			</activation>
 			<properties>
 				<phantomBinType>macosx</phantomBinType>
-				<phantomBinDir>${basedir}/bin/macosx</phantomBinDir>
 				<phantomBinFile>phantomjs</phantomBinFile>
 			</properties>
 		</profile>
@@ -267,7 +265,8 @@
 						<artifactId>maven-war-plugin</artifactId>
 						<version>2.1.1</version>
 						<configuration>
-							<webXml>src\main\webapp\WEB-INF\web.xml</webXml>							
+							<webXml>src\main\webapp\WEB-INF\web.xml</webXml>
+							<packagingExcludes>WEB-INF/lib/*.jar</packagingExcludes>
 							<overlays>
 								<!-- Overlay client JS files -->
 								<overlay>
@@ -278,7 +277,7 @@
 								</overlay>
 								<overlay>
 									<artifactId>influent-client-dist</artifactId>
-									<groupId>${project.parent.groupId}</groupId>
+									<groupId>${project.groupId}</groupId>
 									<type>jar</type>
 									<targetPath>.</targetPath>
 								</overlay>
@@ -302,7 +301,7 @@
 				   	                  <artifactId>aperture-capture-phantom</artifactId>
 				   	                  <type>${phantomBinType}</type>
 				   	                  <version>${aperture.version}</version>
-				   	                  <outputDirectory>${phantomBinDir}</outputDirectory>
+				   	                  <outputDirectory>${basedir}/bin</outputDirectory>
 				   	                  <destFileName>${phantomBinFile}</destFileName>
 				   	                </artifactItem>
 				   	              </artifactItems>
@@ -361,7 +360,7 @@
 							</scanTargetPatterns>
 
 							<webAppConfig>
-								<contextPath>/kiva</contextPath>
+								<contextPath>/${project.artifactId}</contextPath>
 								<baseResource
 									implementation="org.eclipse.jetty.util.resource.ResourceCollection">
 									<!-- Use the development (source) code -->
@@ -463,7 +462,7 @@
         					</execution>
         					
         					<execution>
-            					<id>copy-kiva-src</id>
+            					<id>copy-app-src</id>
             					<phase>generate-resources</phase>
             					<goals>
                 					<goal>copy-resources</goal>
@@ -572,6 +571,7 @@
 							<!-- Use optimized sources -->
 							<warSourceDirectory>${project.build.directory}/webapp-build</warSourceDirectory>
 							<webXml>${project.build.directory}/webapp-build/WEB-INF/web.xml</webXml>							
+							<packagingExcludes>WEB-INF/lib/*.jar</packagingExcludes>
 							<overlays>
 								<!-- Overlay client JS files -->
 								<overlay>
@@ -607,7 +607,7 @@
 							</scanTargetPatterns>
 
 							<webAppConfig>
-								<contextPath>/kiva</contextPath>
+								<contextPath>/${project.artifactId}</contextPath>
 								<baseResource implementation="org.eclipse.jetty.util.resource.ResourceCollection">
 									<!-- Use the "built" version of the JS code (been run through the RequireJS optimizer) -->
 									<resourcesAsCSV>${project.build.directory}/${project.build.finalName}</resourcesAsCSV>
@@ -649,7 +649,7 @@
 								<deployables>
 									<deployable>
 										<properties>
-											<context>/kiva</context>
+											<context>/${project.artifactId}</context>
 										</properties>
 									</deployable>
 								</deployables>
@@ -664,20 +664,14 @@
 	<dependencies>
 		<dependency>
 			<artifactId>influent-server</artifactId>
-			<groupId>${project.parent.groupId}</groupId>
-			<version>${project.parent.version}</version>
+			<groupId>${project.groupId}</groupId>
+			<version>${project.version}</version>
 		</dependency>
 		
 		<dependency>
 			<artifactId>influent-client-dist</artifactId>
-			<groupId>${project.parent.groupId}</groupId>
-			<version>${project.parent.version}</version>
-		</dependency>
-		
-		<dependency>
-			<artifactId>influent-entity-clustering</artifactId>
-			<groupId>${project.parent.groupId}</groupId>
-			<version>${project.parent.version}</version>
+			<groupId>${project.groupId}</groupId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -690,24 +684,6 @@
 			<artifactId>solr-solrj</artifactId>
 			<groupId>org.apache.solr</groupId>
 			<version>4.1.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>joda-time</groupId>
-			<artifactId>joda-time</artifactId>
-			<version>2.2</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20090211</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<scope>runtime</scope> <!-- change this to compile if needed for tests -->
 		</dependency>
 	</dependencies>
 </project>

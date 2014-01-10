@@ -152,19 +152,38 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/extern/jquery.dataTables'],
                     }
                 },
 				'aaSorting': [],				//No sorting initially - results are in order from server
-				
-				// TODO: THIS NEEDS TO BE ADAPTABLE TO THE CLASS OF TRANSACTION DATA - not always financial
 				'aoColumnDefs': [
 				    // TODO: # column needs to be sortable but it doesn't actually exist yet.
 				    {'bSortable':false, 'aTargets':[0,2]},		//No sorting on # column or comment column
 				    {'sWidth': '40px', 'sName': '#', 'aTargets':[0]},				//Column name 0
 				    {'sWidth': '80px', 'sName': 'Date', 'aTargets':[1]},			//Column name 1
 				    {'sName': 'Comment', 'aTargets':[2]},		//Column name 2
-				    {'sClass': 'currency-table-column', 'sWidth': '80px', 'sName': 'Inflowing', 'aTargets':[3]},		//Column name 3
-				    {'sClass': 'currency-table-column', 'sWidth': '80px', 'sName': 'Outflowing', 'aTargets':[4]}		//Column name 4
+				    {'sClass': 'currency-table-column', 'sWidth': '100px', 'sName': 'Inflowing', 'aTargets':[3]},		//Column name 3
+				    {'sClass': 'currency-table-column', 'sWidth': '100px', 'sName': 'Outflowing', 'aTargets':[4]}		//Column name 4
                     //Column 5: Reserved for source entity ID
                     //Column 6: Reserved for target entity ID
 				],
+				'fnServerData': function ( sSource, aoData, fnCallback, oSettings ) {
+				      oSettings.jqXHR = $.ajax( {
+				        "dataType": 'json',
+				        "type": "GET",
+				        "url": sSource,
+				        "data": aoData,
+				        "success": function ( data ) {	
+				        	if (data.aoColumnUnits) {
+				        		if (data.aoColumnUnits[2].sUnits) {
+				        			oSettings.aoColumns[3].sTitle = 'In (' + data.aoColumnUnits[2].sUnits + ')';
+				        			oSettings.aoColumns[3].nTh.innerText = 'In (' + data.aoColumnUnits[2].sUnits + ')';
+				        		}
+				        		if (data.aoColumnUnits[3].sUnits) {
+				        			oSettings.aoColumns[4].sTitle = 'Out (' + data.aoColumnUnits[3].sUnits + ')';
+				        			oSettings.aoColumns[4].nTh.innerText = 'Out (' + data.aoColumnUnits[3].sUnits + ')';
+				        		}
+				        	}
+				        	fnCallback(data);
+				        }
+				      } );
+				},
                 'fnRowCallback' : processRowData
             });
 

@@ -24,8 +24,8 @@
  */
 package influent.midtier.spi;
 
-import influent.entity.clustering.GeneralEntityClusterer;
-import influent.midtier.api.EntityClusterer;
+import influent.server.clustering.EntityClusterer;
+import influent.server.clustering.GeneralEntityClusterer;
 
 import com.google.inject.AbstractModule;
 

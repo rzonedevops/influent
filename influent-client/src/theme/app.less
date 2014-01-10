@@ -45,6 +45,7 @@
 @influent-export-capture-url: url(../img/snapshot-img.png);
 @influent-export-notebook-url: url(../img/notebook.png);
 @influent-new-chart-url: url(../img/new-chart.png);
+@influent-logout-url: url(../img/logout.png);
 
 @influent-column-header-reserve: 24px;
 
@@ -297,19 +298,19 @@ body {
 #tableTab {
     padding: 0px;
     position: absolute;
-    top: 33px;
-    bottom: 1px;
-    right: 1px;
-    left: 1px;
+    top: 29px;
+    bottom: 0px;
+    right: 0px;
+    left: 0px;
 }
 
 #chartTab {
     padding: 0px;
     position: absolute;
-    top: 33px;
-    bottom: 1px;
-    right: 1px;
-    left: 1px;
+    top: 29px;
+    bottom: 0px;
+    right: 0px;
+    left: 0px;
 }
 
 .tabs {
@@ -410,17 +411,25 @@ body {
   background-image: @influent-export-capture-url;
   display: inline-block;
   width: 18px;
+  height: 16px;
 }
 .ui-menu .ui-icon.export-notebook-icon {
   background-image: @influent-export-notebook-url;
   display: inline-block;
   width: 18px;
+  height: 16px;
 }
 .ui-menu .ui-icon.new-chart-icon {
   background-image: @influent-new-chart-url;
   display: inline-block;
   width: 18px;
-  height: 11px;
+  height: 16px;
+}
+.ui-menu .ui-icon.logout-icon {
+  background-image: @influent-logout-url;
+  display: inline-block;
+  width: 18px;
+  height: 16px;
 }
 
 /* classes */
@@ -513,6 +522,7 @@ body {
     position : absolute;
 	width: 20px;
 	height: 20px;
+	text-align:center;
 }
 
 .rightOp {
@@ -520,6 +530,7 @@ body {
     position : absolute;
 	width: 20px;
 	height: 20px;
+	text-align:center;
 }
 
 .textNodeContainer {

@@ -31,31 +31,36 @@ public interface DataNamespaceHandler {
 
 	/**
 	 * Creates a globally unique entity id given a local entity id and a namespace.
-	 * The default implementation here simply returns the local entity id.
+	 * The default implementation here simply returns the typed local entity id.
 	 * An example override might look like this:
 	 * <code>
-	 * 		return namespace + "." + localEntityId;
+	 * 		return namespace + "." + entityType + "." + localEntityId;
 	 * </code>
+	 * 
+	 * @param namespace
+	 * 		the namespace the entity belongs to
 	 * 
 	 * @param localEntityId
 	 * 		the entity id as it exists in the data store
 	 * 
+	 * @param entityType
+	 * 		the type of entity : see influent.server.utilities.TypedId types
+	 * 
 	 * @return
 	 * 		a globally unique id used for reference in the system
 	 */
-	public String globalFromLocalEntityId(String namespace, String localEntityId);
+	public String globalFromLocalEntityId(String namespace, String localEntityId, char entityType);
 
 	/**
 	 * Translates an entity id from global to local namespace for querying in
-	 * the Data View. The default implementation returns the global id, since
-	 * by default namespaces are not used.
+	 * the Data View. The default implementation returns the local id.
 	 * 
 	 * An example override might look like this:
 	 * <code>
 	 *     final int i = globalEntityId.indexOf('.');
 	 *
 	 *     if (i >= 0) {
-	 *         return globalEntityId.substring(i+1);
+	 *         return TypedId.fromTypedId(globalEntityId.substring(i+1)).getNativeId();
 	 *     }
 	 *     return super.localFromGlobalEntityId(globalEntityId);
 	 * </code>
@@ -80,7 +85,7 @@ public interface DataNamespaceHandler {
 	 *     if (i >= 0) {
 	 *         return globalEntityId.substring(0, i);
 	 *     }
-	 *     return namespace + "." + localEntityId;
+	 *     return super.namespaceFromGlobalEntityId(globalEntityId);
 	 * </code>
 	 * 
 	 * @param globalEntityId
@@ -103,6 +108,18 @@ public interface DataNamespaceHandler {
 	 * 		The localized data view table name.
 	 */
 	public String tableName(String namespace, /*String namespace,*/String standardTableName);
+	
+	/**
+	 * Returns a data view column name. The default implementation here maps the name using 
+	 * any mappings defined in construction.
+	 *
+	 * @param standardColumnName
+	 * 		The standard data view column name.
+	 * 
+	 * @return
+	 * 		The localized data view column name.
+	 */
+	public String columnName(String standardColumnName);
 
 	/**
 	 * Localizes and organizes entities by namespace
@@ -137,7 +154,4 @@ public interface DataNamespaceHandler {
 	 * 		a full row limited statement, including the select keyword.
 	 */
 	public String rowLimit(String selectBody, long limit);
-
-
-
 }

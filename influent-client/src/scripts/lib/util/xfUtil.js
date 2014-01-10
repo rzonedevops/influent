@@ -80,12 +80,16 @@ define(
          */
         var _getAdjacentObjectInfo = function(positionMap, sourceObj, targetParent){
             var sPos = positionMap[sourceObj.getXfId()];
+            var tPos = {left:0, top:0};
+            var positionMapTargetPosition;
             // Now iterate through all the children of the target parent
             // and find the closest UI object.
             var children = targetParent.getVisualInfo().children;
             if (children.length == 0){
-                var tPos = positionMap[targetParent.getXfId()];
-                tPos = tPos == null?{left:0, top:0}:tPos;
+                positionMapTargetPosition = positionMap[targetParent.getXfId()];
+                if (positionMapTargetPosition != null) {
+                    tPos = positionMapTargetPosition;
+                }
                 return {
                     uiObject : targetParent,
                     position : tPos,
@@ -106,7 +110,11 @@ define(
                     if (nextTarget != null && nextTarget.getUIType() == constants.MODULE_NAMES.MATCH){
                         nextTarget = i+2 < children.length ? children[i+2] : null;
                     }
-                    var tPos = positionMap[targetObj.getXfId()];
+
+                    positionMapTargetPosition = positionMap[targetObj.getXfId()];
+                    if (positionMapTargetPosition != null) {
+                        tPos = positionMapTargetPosition;
+                    }
 
                     if (_isClusterTypeFromObject(targetObj) && targetObj.isExpanded()){
                         var neighbourInfo = _getAdjacentObjectInfo(positionMap, sourceObj, targetObj);

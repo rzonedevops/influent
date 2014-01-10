@@ -26,7 +26,8 @@ package influent.server.rest;
 
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
-import influent.midtier.api.DataAccessException;
+import influent.idl.FL_LevelOfDetail;
+import influent.server.dataaccess.DataAccessException;
 import influent.server.dataaccess.DataAccessHelper;
 import influent.server.spi.EntityPropertiesViewService;
 
@@ -49,14 +50,18 @@ public class EntityDetailsResource extends ApertureServerResource {
 	private static final Logger s_logger = LoggerFactory.getLogger(EntityDetailsResource.class);
 
 	private FL_DataAccess service;
-	private EntityPropertiesViewService popup;
+	private EntityPropertiesViewService propView;
 
+	
 	@Inject 
-	public EntityDetailsResource (FL_DataAccess service, EntityPropertiesViewService popup) {
+	public EntityDetailsResource (FL_DataAccess service, EntityPropertiesViewService propView) {
 		this.service = service;
-		this.popup = popup;
+		this.propView = propView;
 	}
-
+	
+	
+	
+	
 	@Get
 	public Map<String, Object> getContent()  {
 		Map<String, Object> props = new HashMap<String, Object> ();
@@ -69,10 +74,10 @@ public class EntityDetailsResource extends ApertureServerResource {
 		try {
 			String html = "";
 			try {
-				List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId));
+				List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId), FL_LevelOfDetail.FULL);
 				if (entities != null && !entities.isEmpty()) {
 					//html="<html><head>Found</head><body>Found entity for "+entityId+"</body></html>";
-					html = popup.getContent(entities.get(0));
+					html = propView.getContent(entities.get(0));
 				}
 				else{
 					s_logger.error("Unable to look up entity (for details pane) " + entityId);

@@ -32,15 +32,16 @@ import influent.idl.FL_Entity;
 import influent.idl.FL_EntityMatchDescriptor;
 import influent.idl.FL_EntityMatchResult;
 import influent.idl.FL_Future;
+import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_PatternDescriptor;
 import influent.idl.FL_PatternSearch;
 import influent.idl.FL_PatternSearchResult;
 import influent.idl.FL_PatternSearchResults;
 import influent.idl.FL_PropertyType;
 import influent.idlhelper.SerializationHelper;
-import influent.midtier.TypedId;
 import influent.server.utilities.AvroUtils;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
@@ -257,8 +258,8 @@ public class PatternSearchResource extends ApertureServerResource{
 			getLogger().info(trace.toString());
 			
 
-			// look up full entity details
-			final List<FL_Entity> entities = dataAccess.getEntities(new ArrayList<String>(entityInstances.keySet()));
+			// look up entity details
+			final List<FL_Entity> entities = dataAccess.getEntities(new ArrayList<String>(entityInstances.keySet()), FL_LevelOfDetail.SUMMARY);
 			
 			// and slot them into our enrichment set
 			for (FL_Entity entity : entities) {

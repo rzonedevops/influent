@@ -24,12 +24,16 @@
  */
 package influent.server.rest;
 
-import influent.entity.clustering.utils.ClusterContextCache;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
+import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
+import influent.idlhelper.FileHelper;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ContextReadWrite;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,13 +63,15 @@ public class PersistenceResource extends ApertureServerResource{
 	private final FL_Persistence persistence;
 	private final FL_ClusteringDataAccess clusterAccess;
 	private final FL_DataAccess entityAccess;
-	
+	private final ClusterContextCache contextCache;
+
 	
 	@Inject
-	public PersistenceResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess) {
+	public PersistenceResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
 		this.persistence = persistence;
 		this.clusterAccess = clusterAccess;
 		this.entityAccess = entityAccess;
+		this.contextCache = contextCache;
 	}
 	
 	
@@ -202,10 +208,7 @@ public class PersistenceResource extends ApertureServerResource{
 						}
 					}
 					
-					fileCluster = new FL_Cluster();
-					fileCluster.setUid((String) objectSpec.get("xfId"));
-					fileCluster.setMembers(clusterChildren);
-					fileCluster.setSubclusters(new ArrayList<String>());
+					fileCluster = new FileHelper((String) objectSpec.get("xfId"), clusterChildren);
 					
 					files.add(fileCluster);
 				}
@@ -223,17 +226,23 @@ public class PersistenceResource extends ApertureServerResource{
 			}
 			
 			if(files.size() > 0 || clusterIds.size() > 0 || entityIds.size() > 0) {
+				PermitSet permits = new PermitSet();
+				
 				try {
-					ClusterContextCache.instance.mergeIntoContext(files, 
+					final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
+					
+					contextRW.merge(files, 
 							clusterAccess.getClusters(clusterIds, contextId, sessionId), 
-							entityAccess.getEntities(entityIds), 
-							contextId, false, true);
+							entityAccess.getEntities(entityIds, FL_LevelOfDetail.SUMMARY), 
+							false, true);
 				} catch (AvroRemoteException e) {
 					throw new ResourceException(
 							Status.CLIENT_ERROR_BAD_REQUEST,
 							"Exception during AVRO processing",
 							e
 						);
+				} finally {
+					permits.revoke();
 				}
 			}
 		}

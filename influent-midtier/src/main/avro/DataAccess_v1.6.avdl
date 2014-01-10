@@ -45,7 +45,31 @@ protocol FL_DataAccess {
 		DESTINATION,
 		BOTH
 	}
+	
+	/**
+	 Type of entity associated with desired links
+	 
+	 ADDED IN 1.6
+	 
+	 */
+	enum FL_LinkEntityTypeFilter {
+		ACCOUNT_OWNER,
+		ACCOUNT,
+		CLUSTER_SUMMARY,
+		ANY
+	}
 
+	/**
+	 Amount of detail requested
+	 
+	 ADDED IN 1.6
+	 
+	 */
+	enum FL_LevelOfDetail {
+		SUMMARY,
+		FULL
+	}
+	
 	/**
 	 The set of transactions from a single call to getAllTransactions.
 		  
@@ -60,7 +84,9 @@ protocol FL_DataAccess {
 	}
 
 	/**
-	 Returns a set of entities by uid.
+	 Returns a set of entities by uid. Typically requested with a summary level of detail,
+	 appropriate for card display and clustering. Full details are requested for 
+	 detailed display views.
 	 
 	 Service URL: /entity/list
 	 HTTP Method: POST and GET
@@ -68,10 +94,12 @@ protocol FL_DataAccess {
 	 @param entities 	uids of entities to retrieve
 	 @return 			entities	
 	 */
-	array<FL_Entity> getEntities(array<string> entities);
+	array<FL_Entity> getEntities(array<string> entities, FL_LevelOfDetail levelOfDetail);
 	
 	/**
-	 Returns a set of accounts for each given entity.
+	 Returns a set of accounts for each given entity. Typically requested with a summary level of detail,
+	 appropriate for card display and cluster summarisation. Full details are requested for 
+	 detailed display views.
 	 
 	 Service URL: /entity/accounts
 	 HTTP Method: POST and GET
@@ -85,6 +113,9 @@ protocol FL_DataAccess {
 	 Returns links to other entities related to specify entities. Each Link returned should
 	 represent multiple records, used for displaying flow.
 	 
+	 CHANGED IN 1.6
+	   - Added entityType filter
+	 
 	 See the specification for the Flow Data View.
 	 See the specification for the Time Series Data View.
 	 
@@ -94,6 +125,7 @@ protocol FL_DataAccess {
 	 @param entities 		uids of entities to retrieve links for
 	 @param focusEntities 	uids of focus entities (may be null)
 	 @param direction 		one of: SOURCE, DESTINATION, BOTH
+	 @param entityType		one of: ACCOUNT_OWNER, ACCOUNT, CLUSTER_SUMMARY, ANY
 	 @param tag 			one of: FINANCIAL, SOCIAL, COMMUNICATION
 	 @param date 			in the given date range
 	 @return 				map of input entity IDs to an array of the links for that entity	
@@ -102,6 +134,7 @@ protocol FL_DataAccess {
 		array<string> entities,
 		union {array<string>, null} focusEntities,
 		FL_DirectionFilter direction,
+		FL_LinkEntityTypeFilter entityType,
 		union {FL_LinkTag, null} tag,
 		union {FL_DateRange, null} date);
 	

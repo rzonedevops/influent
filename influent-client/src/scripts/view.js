@@ -31,7 +31,7 @@ define(
         'jquery', 'lib/viewproto', 'lib/channels', 'lib/extern/cookieUtil', 'lib/util/GUID', 'lib/ui/xfModalDialog',
         'modules/xfCards', 'modules/xfRenderer', 'modules/xfHeader', 'modules/xfEntityDetails',
         'modules/xfAdvancedSearch', 'modules/xfSankey', 'modules/xfTransactionTable', 'modules/xfTransactionGraph',
-        'modules/xfDropTargetRenderer'
+        'modules/xfDropTargetRenderer', 'modules/xfTransactions'
     ],
     function($, View, chan, cookieUtil, GUID, dialog) {
 
@@ -143,6 +143,7 @@ define(
                     that.modules.start('xfEntityDetails', {div:'popup'});
                     that.modules.start('xfTransactionTable', {div:"tableTab"});
                     that.modules.start('xfTransactionGraph', {div:"chartTab"});
+                    that.modules.start('xfTransactions', {div:"transactions"});
                     that.modules.start('xfDropTargetRenderer', {div:"drop-target-canvas"});
                     that.modules.start('xfSankey', {div:'sankey', capture: settings.capture});
                     that.modules.start('xfRenderer', {div:'cards', capture: settings.capture});
@@ -155,7 +156,7 @@ define(
                         that.inited = true;
                         aperture.pubsub.publish(chan.ALL_MODULES_STARTED, {noRender : true});
                     }
-                }
+                };
 
                 var banner = aperture.config.get()['influent.config']['banner'];
                 if (banner) {

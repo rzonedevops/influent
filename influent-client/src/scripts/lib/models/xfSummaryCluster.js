@@ -59,7 +59,7 @@ define(
                 xfId                : guidId,
                 UIType              : MODULE_NAME,
                 spec                : _.clone(spec),
-                toolbarSpec         : xfClusterBase.getToolbarSpecTemplate(),
+                toolbarSpec         : xfSummaryCluster.getSpecTemplate(),
                 children            : [],
                 isExpanded          : false,
                 isSelected          : false,

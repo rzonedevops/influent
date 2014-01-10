@@ -73,6 +73,8 @@ define(
             label               : '',
             confidenceInSrc     : 1.0,
             confidenceInAge     : 1.0,
+            inDegree			: null,
+            outDegree			: null,
             leftOperation       : 'branch',
             rightOperation      : 'branch'
         };
@@ -502,6 +504,18 @@ define(
             xfClusterInstance.isHighlighted = function() {
                 return _UIObjectState.isHighlighted;
             };
+            
+            //----------------------------------------------------------------------------------------------------------
+
+            xfClusterInstance.getInDegree = function() {
+                return _UIObjectState.inDegree;
+            };
+
+            //----------------------------------------------------------------------------------------------------------
+            
+            xfClusterInstance.getOutDegree = function() {
+                return _UIObjectState.outDegree;
+            };
 
             //----------------------------------------------------------------------------------------------------------
 
@@ -689,7 +703,7 @@ define(
 
                 _UIObjectState.xfId = '';
                 _UIObjectState.UIType = MODULE_NAME;
-                _UIObjectState.spec = _.clone(xfClusterSpecTemplate);
+                _UIObjectState.spec = xfClusterModule.getSpecTemplate();
                 _UIObjectState.children = [];
                 _UIObjectState.isExpanded = false;
                 _UIObjectState.isSelected = false;
@@ -963,8 +977,11 @@ define(
 
         xfClusterModule.getSpecTemplate = function() {
 
-            var specTemplate = _.clone(xfClusterSpecTemplate);
-            specTemplate.chartSpec = _.clone(xfClusterChartSpecTemplate);
+            var specTemplate = {};
+            $.extend(true, specTemplate, xfClusterSpecTemplate);
+            var chartSpecTemplate = {};
+            $.extend(true, chartSpecTemplate, xfClusterChartSpecTemplate);
+            specTemplate.chartSpec = chartSpecTemplate;
 
             return specTemplate;
         };
@@ -972,7 +989,11 @@ define(
         //--------------------------------------------------------------------------------------------------------------
 
         xfClusterModule.getToolbarSpecTemplate = function() {
-            return _.clone(xfClusterToolBarSpecTemplate);
+
+            var specTemplate = {};
+            $.extend(true, specTemplate, xfClusterToolBarSpecTemplate);
+
+            return specTemplate;
         };
 
         //--------------------------------------------------------------------------------------------------------------

@@ -25,7 +25,7 @@
 package influent.server.spi;
 
 import influent.idl.FL_Entity;
-import influent.midtier.api.DataAccessException;
+import influent.server.dataaccess.DataAccessException;
 
 
 

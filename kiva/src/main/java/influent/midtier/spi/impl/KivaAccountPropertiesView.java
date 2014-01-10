@@ -29,10 +29,10 @@ import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
-import influent.midtier.TypedId;
-import influent.midtier.api.DataAccessException;
 import influent.midtier.kiva.data.KivaTypes;
+import influent.server.dataaccess.DataAccessException;
 import influent.server.spi.impl.GenericEntityPropertiesView;
+import influent.server.utilities.TypedId;
 
 import java.awt.Dimension;
 import java.math.BigDecimal;

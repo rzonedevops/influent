@@ -24,11 +24,16 @@
  */
 package influent.bitcoin.server.spi;
 
-import influent.bitcoin.server.data.BitcoinNamespaceHandler;
 import influent.bitcoin.server.dataaccess.BitcoinDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_EntitySearch;
+import influent.server.dataaccess.DataNamespaceHandler;
+import influent.server.dataaccess.MSSQLDataNamespaceHandler;
 import influent.server.utilities.SQLConnectionPool;
+
+import org.json.JSONException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -41,8 +46,21 @@ import com.google.inject.name.Named;
  */
 public class BitcoinFLDataAccessModule extends AbstractModule {
 
+	private static Logger s_logger = LoggerFactory.getLogger(BitcoinFLDataAccessModule.class);
+	
 	@Override
 	protected void configure() {
+	}
+	
+	@Provides @Singleton
+	public DataNamespaceHandler namespaceHandler(@Named("influent.data.view.tables") String tableNamesJson) {
+		try {
+			return new MSSQLDataNamespaceHandler(tableNamesJson);
+		} catch (JSONException e) {
+			s_logger.warn("Failed to load tables from json. ", e);
+		}
+		
+		return new MSSQLDataNamespaceHandler();
 	}
 	
 	/*
@@ -52,6 +70,7 @@ public class BitcoinFLDataAccessModule extends AbstractModule {
 	public FL_DataAccess connect (
 		SQLConnectionPool connectionPool,
 		FL_EntitySearch search,
+		DataNamespaceHandler namespaceHandler,
 		@Named("influent.data.view.tables") String tableNamesJson
 	) {
 
@@ -59,7 +78,7 @@ public class BitcoinFLDataAccessModule extends AbstractModule {
 			return new BitcoinDataAccess(
 				connectionPool,
 				search,
-				new BitcoinNamespaceHandler(tableNamesJson)
+				namespaceHandler
 			);
 		} catch (Exception e) {
 			addError("Failed to load Data Access", e);

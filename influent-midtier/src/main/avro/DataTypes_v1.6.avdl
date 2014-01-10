@@ -46,47 +46,58 @@ protocol FL_DataTypes {
 	   
 	 CHANGED in 1.6:
 	   - added ENTITY_TYPE
+	   - added ACCOUNT_OWNER, CLUSTER_SUMMARY, COUNTRY_CODE
+	   
 	 */
 	enum FL_PropertyTag {
-		ID, 		 // Underlying identifier in data set (not necessary a UID)	
-		TYPE,		 // Data set specific account type (e.g. in Kiva: Lender, Borrower, Partner, etc).
-					 // Shown to the user for context, and used in segmentation and clustering of data.
-		ENTITY_TYPE, // Data set specific entity type (e.g. person, organisation). 		 
-		NAME,		 // A name, often also used in the label.
-		LABEL,		 // A text label suitable for displaying to a user.
-		STAT,		 // A text label containing aggregate or statistical summaries of numeric data.
-		TEXT,		 // Comment or other arbitrarily long text field
-		STATUS,		 // Status indication in the form of a text field
-		ANNOTATION,	 // A generic annotation in the form of a text field
-		WARNING,	 // Warning annotation in the form of a text field
-		LINKED_DATA, // A LinkedData resource, with URL and a MIME type
-		IMAGE,		 // A LinkedData image that could be embedded in the app (e.g. person's picture, corporate logo, etc).
-		GEO,		 // A GeoData object 
-		DATE,		 // Date in Long format
-		AMOUNT,		 // Financial amount (any currency)
-		INFLOWING,	 // Amount flowing in (incoming messages, credits, etc)
-		OUTFLOWING,	 // Amount flowing out (outgoing messages, debits, etc)
-		COUNT,		 // When returned an aggregated Link (see below), this is the number of records.
-		SERIES,		 // Timeseries or other series data suitable for building charts
-		CONSTRUCTED, // This property was not in the original data, but was constructed by algorithms.
-				     // See Provenance and/or Uncertainty fields for more information.
-		RAW,	 	 // This property was present in the original data. See Provenance for more information.
-		USD,		 // flags an amount as being USD (for formatting purposes),
-		DURATION	 // An FL_Duration object
+		ID, 		 	// Underlying identifier in data set (not necessary a UID)	
+		TYPE,		 	// Data set specific account type (e.g. in Kiva: Lender, Borrower, Partner, etc).
+					 	// Shown to the user for context, and used in segmentation and clustering of data.
+		ENTITY_TYPE, 	// Data set specific entity type (e.g. person, organisation). 		 
+		ACCOUNT_OWNER,	// The account owner for an entity
+		CLUSTER_SUMMARY,// The associated cluster summary for an entity
+		NAME,		 	// A name, often also used in the label.
+		LABEL,		 	// A text label suitable for displaying to a user.
+		STAT,		 	// A text label containing aggregate or statistical summaries of numeric data.
+		TEXT,		 	// Comment or other arbitrarily long text field
+		STATUS,		 	// Status indication in the form of a text field
+		ANNOTATION,	 	// A generic annotation in the form of a text field
+		WARNING,	 	// Warning annotation in the form of a text field
+		LINKED_DATA, 	// A LinkedData resource, with URL and a MIME type
+		IMAGE,		 	// A LinkedData image that could be embedded in the app (e.g. person's picture, corporate logo, etc).
+		GEO,		 	// A GeoData object 
+		COUNTRY_CODE,	// An ISO 3 digit country code
+		DATE,		 	// Date in Long format
+		AMOUNT,		 	// Financial amount (any currency)
+		INFLOWING,	 	// Amount flowing in (incoming messages, credits, etc)
+		OUTFLOWING,	 	// Amount flowing out (outgoing messages, debits, etc)
+		COUNT,		 	// When returned an aggregated Link (see below), this is the number of records.
+		SERIES,		 	// Timeseries or other series data suitable for building charts
+		CONSTRUCTED, 	// This property was not in the original data, but was constructed by algorithms.
+				     	// See Provenance and/or Uncertainty fields for more information.
+		RAW,	 	 	// This property was present in the original data. See Provenance for more information.
+		USD,		 	// flags an amount as being USD (for formatting purposes),
+		DURATION	 	// An FL_Duration object
 	}
 
 	/**
 	 This is the current list of tags for Entities:
+	 
+	 CHANGED in 1.6:
+	   - added ACCOUNT_OWNER, CLUSTER_SUMMARY
+	  
 	 */
 	enum FL_EntityTag {
-		ACCOUNT,	// a financial/communications/social account (regardless of owner: person, corporate, shared or otherwise)
-		GROUP, 		// a social group
-		CLUSTER,	// group of entities (system-generated)
-		FILE,		// group of entities (user-created) e.g. in the sense of a "case file"
-		ANONYMOUS,	// This entity does not have a globally unique ID, and represents only a class of underlying data.
-					// The ID contains only sufficient information to perform searches, not to retrieve exact matches.
-					// For example, in Kiva, a Borrower has no UID, but is represented as a FirstName&LastName&Gender
-					// query in the Loans table.
+		ACCOUNT_OWNER,		// an owner of accounts
+		ACCOUNT,			// a financial/communications/social account (regardless of owner: person, corporate, shared or otherwise)
+		GROUP, 				// a social group
+		CLUSTER,			// group of entities (system-generated)
+		CLUSTER_SUMMARY,	// summarizes a group of entities (does not allow drill-down to group members)
+		FILE,				// group of entities (user-created) e.g. in the sense of a "case file"
+		ANONYMOUS,			// This entity does not have a globally unique ID, and represents only a class of underlying data.
+							// The ID contains only sufficient information to perform searches, not to retrieve exact matches.
+							// For example, in Kiva, a Borrower has no UID, but is represented as a FirstName&LastName&Gender
+							// query in the Loans table.
 		OTHER
 	}
 

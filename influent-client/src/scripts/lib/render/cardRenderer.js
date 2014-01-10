@@ -342,8 +342,6 @@ define(
 
         var _constructCard = function(visualInfo, state) {
 
-            var i;
-
             state.canvas.addClass('baseballcardContainer');
             state.canvas.addClass(aperture.palette.parchmentClass(state.spec.confidenceInSrc, state.spec.confidenceInAge));
             state.canvas.width(_renderDefaults.CARD_WIDTH);
@@ -383,11 +381,50 @@ define(
             }
 
             if (iconList) {
-                for (i = 0; i < iconList.length; i++) {
-                    icon = iconList[i];
-                    _insertIcon(state.iconContainer, 0, iconX, icon.imgUrl, icon.score, icon.title);
-                    iconX += _renderDefaults.ICON_WIDTH + _renderDefaults.ELEMENT_PADDING;
+
+                var iconClassOrder = aperture.config.get()['influent.config'].iconOrder;
+                var iconClassMap = aperture.config.get()['influent.config'].iconMap;
+
+                var visualIcons = {};
+
+                for (var i = 0; i < iconClassOrder.length; i++) {
+                    var iconClass = iconClassOrder[i];
+                    if (iconClassMap[iconClass]) {
+                        var iconLimit = iconClassMap[iconClass].limit || Number.MAX_VALUE;
+                        if (iconLimit > 0) {
+                            var iconCount = 0;
+                            for (var j = 0; j < iconList.length; j++) {
+                                icon = iconList[j];
+                                if (icon.type == iconClass) {
+                                    if (visualIcons.hasOwnProperty(iconClass)) {
+                                        visualIcons[iconClass].push(icon);
+                                    } else {
+                                        visualIcons[iconClass] = [icon];
+                                    }
+                                    iconCount++;
+                                }
+                                if (iconCount == iconLimit) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
+
+                var totalLimit =  4 - _.keys(visualIcons).length + 1;
+
+                for (var iconType in visualIcons) {
+                    if (visualIcons.hasOwnProperty(iconType)) {
+                        var iconList = visualIcons[iconType];
+                        for (var i = 0; i < iconList.length && i < totalLimit; i++) {
+                            icon = iconList[i];
+                            _insertIcon(state.iconContainer, 0, iconX, icon.imgUrl, icon.score, icon.title);
+                            iconX += _renderDefaults.ICON_WIDTH + _renderDefaults.ELEMENT_PADDING;
+                        }
+                    }
+
+                }
+
                 top += _renderDefaults.ICON_HEIGHT + _renderDefaults.SCORE_BAR_HEIGHT + _renderDefaults.ELEMENT_PADDING;
             }
 

@@ -253,32 +253,6 @@ define(
                 }
             }
 
-//            var fileParent = null;
-//            if (objectType == constants.MODULE_NAMES.ENTITY ||
-//                objectType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
-//                objectType == constants.MODULE_NAMES.MUTABLE_CLUSTER ||
-//                objectType == constants.MODULE_NAMES.SUMMARY_CLUSTER
-//            ) {
-//                fileParent = element.parents('.fileBody').first();
-//                if(fileParent.length == 0) {
-//                    fileParent = element.parents('.fileBodySelected').first();
-//                }
-//                if(fileParent.length == 0) {
-//                    fileParent = element.parents('.fileBodyHighlighted').first();
-//                }
-//            }
-//            else if(objectType == constants.MODULE_NAMES.FILE && visualInfo.clusterUIObject != null) {
-//                var cardXfId = visualInfo.clusterUIObject.getXfId();
-//                var bottomCard = $('#' + cardXfId);
-//                fileParent = bottomCard.parents('.fileBody').first();
-//                if(fileParent.length == 0) {
-//                    fileParent = bottomCard.parents('.fileBodySelected').first();
-//                }
-//                if(fileParent.length == 0) {
-//                    fileParent = bottomCard.parents('.fileBodyHighlighted').first();
-//                }
-//            }
-
             // Call the layout provider if a layout request is present.
             performLayout(data.layoutRequest);
         };

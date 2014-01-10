@@ -1,8 +1,12 @@
+
 Version 1.6
 ------------
 DataTypes
 - PropertyTag
 	- added ENTITY_TYPE
+	- added ACCOUNT_OWNER
+	- added CLUSTER_SUMMARY
+	- added COUNTRY_CODE
 - Uncertainty
 	- added currency as an optional indicator of degrading confidence over time
 - ContinentCode
@@ -17,15 +21,21 @@ DataTypes
 	- added DISTRIBUTION
 - Property
 	- added DistributionRange as an option for member range
-	
-ClusteringDataAccess
-- removed getAccounts() method
-- renamed getEntities() to getClusters()
+- EntityTag
+	- added ACCOUNT_OWNER and CLUSTER_SUMMARY
 
-DataAccess
+DataAcccess
+- added FL_LinkEntityTypeFilter
+- added entityType filter to getFlowAggregation
 - getAllTransactions
 	- changed return type to TransactionResults which include total result count
 	- added a start index
+- added FL_LevelOfDetail to getEntities call.
+
+ClusteringDataAccess
+- add getClusterSummary() method
+- removed getAccounts() method
+- renamed getEntities() to getClusters()
 		
 Version 1.5
 ------------

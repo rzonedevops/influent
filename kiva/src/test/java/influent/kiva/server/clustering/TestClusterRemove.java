@@ -68,7 +68,7 @@ public class TestClusterRemove {
 			FL_Geocoding geocoding = new BasicCountryLevelGeocoding();
 			KivaClusteringDataAccess clusteringda = new KivaClusteringDataAccess(connection, clusterer, geocoding, namespaceHandler);
 			
-			KivaEntitySearch search = new KivaEntitySearch(solrUrl, solrDescriptor, geocoding);
+			KivaEntitySearch search = new KivaEntitySearch(solrUrl, solrDescriptor, geocoding, connection, namespaceHandler);
 			FL_SearchResults results = search.search("daniel", null, 0, 100, null);
 			
 			List<String> entities = new LinkedList<String>();

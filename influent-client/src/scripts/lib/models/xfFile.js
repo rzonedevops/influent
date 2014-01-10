@@ -135,7 +135,7 @@ define(
                     _UIObjectState.spec[key] = spec[key];
                 }
             }
-            _UIObjectState.spec.dataId = 'data_' + _UIObjectState.xfId;
+            _UIObjectState.spec.dataId = 'f.' + _UIObjectState.xfId;
 
             // create new object instance
             var xfFileInstance = {};
@@ -1076,7 +1076,11 @@ define(
         //--------------------------------------------------------------------------------------------------------------
 
         xfFileModule.getSpecTemplate = function() {
-            return _.clone(xfFileSpecTemplate);
+
+            var specTemplate = {};
+            $.extend(true, specTemplate, xfFileSpecTemplate);
+
+            return specTemplate;
         };
 
         //--------------------------------------------------------------------------------------------------------------

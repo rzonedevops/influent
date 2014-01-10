@@ -24,10 +24,10 @@
  */
 define(
     [
-        'jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/ui/toolbarOperations', 'lib/ui/xfModalDialog', 'lib/constants'
+        'jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/ui/toolbarOperations', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/util/currency'
     ],
     function(
-        $, chan, xfUtil, toolbarOp, xfModalDialog, constants
+        $, chan, xfUtil, toolbarOp, xfModalDialog, constants, currency
     ) {
         var _toolbarState = {
             canvas : null,
@@ -91,76 +91,113 @@ define(
             var element = _toolbarState.canvas.children(selector).first();
             return (element.length == 0)?null:element;
         };
+        
+        var _getDegreeLabel = function(degree, shownDegree) {
+        	if (degree == '0') return "no links";
+        	if (degree == 'null') return "";
+        	var d = parseInt(degree);
+        	if (isNaN(d)) return "";
+        	return currency.formatNumber(shownDegree) + '/' + currency.formatNumber(d);
+        };
 
         var _createBranchControls = function(visualInfo, cardHeight){
             _toolbarState.leftOp = _getStateElement('.leftOp');
             var leftImg = null;
             var leftOp = null;
+            var inDegree = visualInfo.spec.inDegree;
+            var outDegree = visualInfo.spec.outDegree;
+            var shownInDegree = 0;
+            var shownOutDegree = 0;
+            
+            // compute the shown in/out degree
+            for (var xfId in visualInfo.links) {
+            	if (visualInfo.links.hasOwnProperty(xfId)) {
+                    var link = visualInfo.links[xfId];
+                    if (link.getDestination().getXfId() == visualInfo.xfId) {
+                    	shownInDegree+= link.getLinkCount();
+                    } else {
+                    	shownOutDegree+= link.getLinkCount();
+                    }
+            	}
+            }
+            
             if (_toolbarState.leftOp == null) {
                 leftOp = $('<div></div>');
-                leftImg = $('<img/>');
-                leftImg.addClass('toolbarOpImg');
-                leftOp.append(leftImg);
-                leftOp.addClass('leftOp');
-                leftOp.addClass('toolbarOpButton');
-                leftOp.addClass('selectedContainer');
-                _toolbarState.leftOp = leftOp;
-                _toolbarState.canvas.append(leftOp);
-                _toolbarState.leftOpState = toolbarOp.BRANCH;
+            	if (inDegree != '0') {
+            		leftImg = $('<img/>');
+            		leftImg.addClass('toolbarOpImg');
+            		leftOp.addClass('selectedContainer');
+            		leftOp.append(leftImg);
+            	}
+            	leftOp.addClass('leftOp');
+        		leftOp.addClass('toolbarOpButton');       		
+            	leftOp.append(document.createTextNode(_getDegreeLabel(inDegree, shownInDegree)));
+            	_toolbarState.leftOp = leftOp;
+            	_toolbarState.canvas.append(leftOp);
+            	_toolbarState.leftOpState = toolbarOp.BRANCH;
             } else {
-                leftOp = _toolbarState.leftOp;
-                leftImg = $(_toolbarState.leftOp.children()[0]);
+            	leftOp = _toolbarState.leftOp;
+            	leftImg = $(_toolbarState.leftOp.children()[0]);
             }
-
+            
             var requestedLeftOp = visualInfo.spec.leftOperation;
             leftOp.unbind('click');
-            if (requestedLeftOp == toolbarOp.BRANCH) {
-                leftImg.attr('src','img/expand_btn.png');
-                leftOp.click(
-                    function() {
-                        publishBranchRequest(chan.BRANCH_LEFT_EVENT, 'left');
-                        return true;
-                    }
-                );
-            } else if (requestedLeftOp == toolbarOp.WORKING) {
-                leftImg.attr('src','img/ajax-loader.gif');
+            
+            if (leftImg != null) {	
+            	if (requestedLeftOp == toolbarOp.BRANCH) {
+            		leftImg.attr('src','img/expand_btn.png');
+            		leftOp.click(
+            				function() {
+            					publishBranchRequest(chan.BRANCH_LEFT_EVENT, 'left');
+            					return true;
+            				}
+            		);
+            	} else if (requestedLeftOp == toolbarOp.WORKING) {
+            		leftImg.attr('src','img/ajax-loader.gif');
+            	}
+            	_toolbarState.leftOpState = requestedLeftOp;
             }
             leftOp.css('top', (cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/2);
-            _toolbarState.leftOpState = requestedLeftOp;
-
+            
             _toolbarState.rightOp = _getStateElement('.rightOp');
             var rightImg = null;
             var rightOp = null;
             if (_toolbarState.rightOp == null) {
                 rightOp = $('<div></div>');
-                rightImg = $('<img/>');
-                rightImg.addClass('toolbarOpImg');
-                rightOp.append(rightImg);
-                rightOp.addClass('rightOp');
-                rightOp.addClass('selectedContainer');
-                _toolbarState.rightOp = rightOp;
-                _toolbarState.canvas.append(rightOp);
+            	if (outDegree != '0') {
+            		rightImg = $('<img/>');
+            		rightImg.addClass('toolbarOpImg');
+            		rightOp.addClass('selectedContainer');
+            		rightOp.append(rightImg);
+            	}
+            	rightOp.addClass('rightOp');
+            	rightOp.append(document.createTextNode(_getDegreeLabel(outDegree, shownOutDegree)));
+            	_toolbarState.rightOp = rightOp;
+            	_toolbarState.canvas.append(rightOp);
             } else {
-                rightOp = _toolbarState.rightOp;
-                rightImg = $(_toolbarState.rightOp.children()[0]);
+            	rightOp = _toolbarState.rightOp;
+            	rightImg = $(_toolbarState.rightOp.children()[0]);
             }
 
             var requestedRightOp = visualInfo.spec.rightOperation;
             rightOp.unbind('click');
-            if (requestedRightOp == toolbarOp.BRANCH) {
-                rightImg.attr('src','img/expand_btn.png');
-                rightOp.click(
-                    function() {
-                        publishBranchRequest(chan.BRANCH_RIGHT_EVENT, 'right');
-                        return true;
-                    }
-                );
-            } else if (requestedRightOp == toolbarOp.WORKING ) {
-                rightImg.attr('src','img/ajax-loader.gif');
+            
+            if (rightImg != null) {
+            	if (requestedRightOp == toolbarOp.BRANCH) {
+            		rightImg.attr('src','img/expand_btn.png');
+            		rightOp.click(
+            				function() {
+            					publishBranchRequest(chan.BRANCH_RIGHT_EVENT, 'right');
+            					return true;
+            				}
+            		);
+            	} else if (requestedRightOp == toolbarOp.WORKING ) {
+            		rightImg.attr('src','img/ajax-loader.gif');
+            	}
+            	_toolbarState.rightOpState = requestedRightOp;
             }
             rightOp.css('top', (cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/2);
-            _toolbarState.rightOpState = requestedRightOp;
-
+            
             var publishBranchRequest = function(branchEvent, direction) {
                 aperture.pubsub.publish(
                     branchEvent,

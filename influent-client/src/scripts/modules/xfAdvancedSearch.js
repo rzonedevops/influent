@@ -523,7 +523,8 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
                                 queryId: (new Date()).getTime(),
                                 entities : ids,
                                 contextid : '',
-                                isFlattened : true
+                                isFlattened : true,
+                                details : true
                             },
                             contentType: 'application/json'
                         }

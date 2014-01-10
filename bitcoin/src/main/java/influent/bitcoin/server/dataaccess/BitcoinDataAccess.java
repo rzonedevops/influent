@@ -39,6 +39,7 @@ import influent.server.dataaccess.DataAccessHelper;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.DataViewDataAccess;
 import influent.server.utilities.SQLConnectionPool;
+import influent.server.utilities.TypedId;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -113,12 +114,11 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 		String schema = getNamespaceHandler().namespaceFromGlobalEntityId(id);
 		id = getNamespaceHandler().localFromGlobalEntityId(id);
 		
-		Long total= 0L;
-		
 		try {
 			Connection connection = _connectionPool.getConnection();
 			Statement statement = connection.createStatement();
 			
+			String top = max > 0 ? ("top " + max) : "";
 			String focusIds = "";
 			if (linkFilter != null) {
 				// we will never find links across schemas, so filter it down again.
@@ -131,9 +131,8 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				}
 			}
 			
-			String sql = "id,source_id,dest_id,dt,amount,usd";
-			sql += ", resultcount = COUNT(*) OVER()"; // comment out to leave out full record count
-			sql += " FROM Bitcoin.dbo.[bitcoin-20130410] ";
+			String sql = "SELECT " + top + " id,source_id,dest_id,dt,amount,usd " +
+					" FROM Bitcoin.dbo.[bitcoin-20130410] ";
 			
 			if (linkFilter == null) {
 				sql += "WHERE (source_id = '" + id + "' OR dest_id = '" + id + "') ";
@@ -145,14 +144,19 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				DateTime start = DataAccessHelper.getStartDate(date);
 				DateTime end = DataAccessHelper.getEndDate(date);
 				
+//				SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd");
+//						
+//				sql += " AND dt BETWEEN CONVERT (datetime, '" + format.format(start).trim() + "', 102) ";
+//				sql += "              AND CONVERT (datetime, '" + format.format(end).trim() + "', 102) ";
+				
 				sql += " AND dt BETWEEN '" + DataAccessHelper.format(start) + "' ";
 				sql += "              AND '" + DataAccessHelper.format(end) + "' ";
 			}
 			
-			sql += sort != null? " ORDER BY " + (sort == FL_SortBy.DATE ? "dt ASC" : "usd DESC"): "";
+			if (sort != null) {
+				sql += "ORDER BY " + (sort == FL_SortBy.DATE ? "dt ASC" : "amount DESC");
+			}
 			
-			sql = getNamespaceHandler().rowLimit(sql, max);
-
 			long start = System.currentTimeMillis();
 			s_logger.trace("execute: " + sql);
 			
@@ -169,11 +173,6 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				Date dt = new java.util.Date(resultSet.getTimestamp(4).getTime());
 				Double btc = resultSet.getDouble(5);
 				Double usd = resultSet.getDouble(6);
-
-				// comment out to leave out full record count
-				if (total != null && total == 0L) {
-					total = resultSet.getLong(7);
-				}
 				
 				List<FL_Property> props = new ArrayList<FL_Property>();
 				props.add(new PropertyHelper(FL_PropertyTag.ID, trans_id));
@@ -184,8 +183,8 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				props.add(new PropertyHelper("comment", "comment", comment, Collections.singletonList(FL_PropertyTag.ANNOTATION)));
 				
 				// globalize these for return
-				source_id = getNamespaceHandler().globalFromLocalEntityId(schema, source_id);
-				dest_id = getNamespaceHandler().globalFromLocalEntityId(schema, dest_id);
+				source_id = getNamespaceHandler().globalFromLocalEntityId(schema, source_id, TypedId.ACCOUNT);
+				dest_id = getNamespaceHandler().globalFromLocalEntityId(schema, dest_id, TypedId.ACCOUNT);
 				
 				records.add(new LinkHelper(FL_LinkTag.FINANCIAL, source_id, dest_id, props));
 			}
@@ -194,11 +193,7 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 			statement.close();
 			connection.close();
 			
-			if (total == null || total == 0) {
-				total = Long.valueOf(records.size());
-			}
-			
-			return new FL_TransactionResults(total, records);
+			return new FL_TransactionResults((long)records.size(), records);
 			
 		} catch (SQLException e) {
 			throw new AvroRemoteException(e);

@@ -27,6 +27,8 @@ package influent.kiva.server.spi;
 import influent.idl.FL_EntitySearch;
 import influent.idl.FL_Geocoding;
 import influent.kiva.server.search.KivaEntitySearch;
+import influent.server.dataaccess.DataNamespaceHandler;
+import influent.server.utilities.SQLConnectionPool;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -53,11 +55,13 @@ public class KivaFLEntitySearchModule extends AbstractModule {
 	public KivaEntitySearch connect (
 		@Named("influent.midtier.solr.url") String solrUrl,
 		@Named("influent.midtier.solr.descriptor") String solrDescriptor,
-		FL_Geocoding geocoding
+		FL_Geocoding geocoding,
+		SQLConnectionPool connectionPool,
+		DataNamespaceHandler namespaceHandler
 	) {
 
 		try {
-			return new KivaEntitySearch(solrUrl, solrDescriptor, geocoding);
+			return new KivaEntitySearch(solrUrl, solrDescriptor, geocoding, connectionPool, namespaceHandler);
 		} catch (Exception e) {
 			addError("Failed to EntitySearch", e);
 			return null;

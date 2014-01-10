@@ -26,6 +26,7 @@ package influent.server.utilities;
 
 import influent.idl.FL_Cluster;
 import influent.idl.FL_Entity;
+import influent.idl.FL_EntityTag;
 import influent.idl.FL_Link;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyDescriptor;
@@ -53,7 +54,14 @@ public class UISerializationHelper {
 		
 		fle.put("uid", cluster.getUid());
 		
-		fle.put("entitytype", "entity_cluster");
+		String entityType = "entity_cluster";
+		if (cluster.getTags().contains(FL_EntityTag.CLUSTER_SUMMARY)) {
+			entityType = "cluster_summary";
+		} else if (cluster.getTags().contains(FL_EntityTag.ACCOUNT_OWNER)) {
+			entityType = "account_owner";
+		}
+		
+		fle.put("entitytype", entityType);
 		fle.put("members", cluster.getMembers());
 		fle.put("subclusters", cluster.getSubclusters());
 		

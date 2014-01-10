@@ -34,9 +34,10 @@ import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
 import influent.idl.FL_SearchResult;
 import influent.idl.FL_Uncertainty;
+import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.kiva.server.dataaccess.KivaFLTagMaps;
-import influent.midtier.TypedId;
+import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -202,14 +203,13 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		
 		
 		String uid = (String)sd.getFieldValue("id");
-		
-		entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT, uid).getTypedId());
 
 		entityBuilder.setProvenance(null);
 		entityBuilder.setUncertainty(null);
 		
 		//Kiva specific type handling
 		String type = "";
+		
 		if (uid.startsWith("l")) {
 			type = "lender";
 			
@@ -396,12 +396,30 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		
 		props.add(propBuilder.build());
 		
+		List<FL_EntityTag> etags = new ArrayList<FL_EntityTag>();
+		
 		if (type.equals("partner")) {
 			 KivaFLTagMaps.INSTANCE.appendPartnerProperties(props);
+			 etags.add(FL_EntityTag.ACCOUNT_OWNER);  // partners are account owners
+			 entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT_OWNER, uid).getTypedId());
+			 
+			 // determine whether this a large account owner and if there is a cluster summary associated
+			 final FL_Property numLoans = PropertyHelper.getPropertyByKey(props, "partners_loansPosted");
+			
+			 if (numLoans != null) {
+				 final Number number = (Number) PropertyHelper.from(numLoans).getValue();
+				
+				 if (number != null && number.intValue() >= 1000) {
+					 props.add(new PropertyHelper(FL_PropertyTag.CLUSTER_SUMMARY, TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, 's' + uid).getTypedId()));
+					 entityBuilder.setUid(TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, uid).getTypedId());
+				 }
+			 }
+		}
+		else {
+			etags.add(FL_EntityTag.ACCOUNT);  // all others are raw accounts
+			entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT, uid).getTypedId());
 		}
 		
-		List<FL_EntityTag> etags = new ArrayList<FL_EntityTag>();
-		etags.add(FL_EntityTag.ACCOUNT);
 		entityBuilder.setTags(etags);
 		
 		entityBuilder.setProperties(props);

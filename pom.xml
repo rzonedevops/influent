@@ -5,7 +5,7 @@
 	<groupId>oculus.influent</groupId>
 	<artifactId>influent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.1.2</version>
+	<version>1.2.0</version>
 
 	<name>Influent Project Modules</name>
 	<description>Parent module for building Influent projects</description>
@@ -32,6 +32,7 @@
 	<properties>
 		<aperture.version>1.0.2</aperture.version>
 	</properties>
+
 	<build>
 		<plugins>
 			<plugin>
@@ -54,7 +55,6 @@
 	
 	<modules>
         	<module>influent-midtier</module>
-        	<module>influent-entity-clustering</module>
 	        <module>influent-server</module>
 	        <module>influent-client-dist</module>
         	<module>kiva</module>
@@ -85,14 +85,14 @@
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-log4j12</artifactId>
 				<version>1.7.5</version>
-				<scope>test</scope>
+				<!--scope>test</scope-->
 			</dependency>
 		
 			<dependency>
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
 				<version>4.11</version>
-				<scope>test</scope>
+				<!--scope>test</scope-->
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

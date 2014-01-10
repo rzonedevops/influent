@@ -35,11 +35,15 @@ import org.json.JSONException;
  */
 public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 
+	
 	/**
 	 * Constructs a handler which uses standard table names.
 	 */
 	public MSSQLDataNamespaceHandler() {
 	}
+	
+	
+	
 	
 	/**
 	 * Creates a new handler based on a configuration defined as a JSON object string
@@ -51,6 +55,9 @@ public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 		super(tableNamesJson);
 	}
 	
+	
+	
+	
 	/**
 	 * Constructs a namespace handler from a
 	 * map of standard names to localized names.
@@ -58,6 +65,8 @@ public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	public MSSQLDataNamespaceHandler(Map<String, String> tableNames) {
 		super(tableNames);
 	}
+	
+	
 	
 	
 	/* (non-Javadoc)
@@ -68,6 +77,9 @@ public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 		return '[' + columnName + ']';
 	}
 	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#createTempTable(java.lang.String, java.lang.String)
 	 */
@@ -75,7 +87,10 @@ public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	public String createTempTable(String tableName, String spec) {
 		return " CREATE TABLE "+ tempTableName(tableName) + " " + spec + "; ";
 	}
-
+	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#tempTableName(java.lang.String)
 	 */
@@ -88,6 +103,9 @@ public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 		return name.replaceAll("-", "_");
 	}
 	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#rowLimit(java.lang.String, long)
 	 */
@@ -98,5 +116,4 @@ public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 		}
 		return "select " + selectBody;
 	}
-
 }

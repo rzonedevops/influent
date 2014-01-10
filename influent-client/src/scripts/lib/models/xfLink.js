@@ -65,7 +65,7 @@ define(
 
         //--------------------------------------------------------------------------------------------------------------
 
-        xfLinkModule.createInstance = function(source, destination, amount, type){
+        xfLinkModule.createInstance = function(source, destination, amount, linkCount, type){
 
             var xfLinkInstance = {};
 
@@ -75,6 +75,7 @@ define(
                 source      : {},
                 destination : {},
                 amount      : 0,
+                linkCount	: 1,
                 type       : type ? type : xfLinkType.FLOW,
                 isSelected : false
             };
@@ -82,6 +83,7 @@ define(
             _UIObjectState.source = source;
             _UIObjectState.destination = destination;
             _UIObjectState.amount = amount;
+            _UIObjectState.linkCount = linkCount;
 
             // set the xfId
             _UIObjectState.xfId = 'link_'+guid.generateGuid();
@@ -141,6 +143,18 @@ define(
             xfLinkInstance.setAmount = function(amount) {
                 _UIObjectState.amount = amount;
             };
+            
+            //----------------------------------------------------------------------------------------------------------
+
+            xfLinkInstance.getLinkCount = function() {
+                return _UIObjectState.linkCount;
+            };
+
+            //----------------------------------------------------------------------------------------------------------
+
+            xfLinkInstance.setLinkCount = function(linkCount) {
+                _UIObjectState.linkCount = linkCount;
+            };
 
             //----------------------------------------------------------------------------------------------------------
             
@@ -192,6 +206,7 @@ define(
                 state['destination'] = (destinationFile) ? destinationFile.getXfId() : null;
                 state['amount'] = _UIObjectState.amount;
                 state['type'] = _UIObjectState.type;
+                state['linkCount'] = _UIObjectState.linkCount;
 
                 return state;
             };
@@ -208,6 +223,7 @@ define(
                 state['destination'] = _UIObjectState.destination.getXfId();
                 state['amount'] = _UIObjectState.amount;
                 state['type'] = _UIObjectState.type;
+                state['linkCount'] = _UIObjectState.linkCount;
 
                 return state;
             };

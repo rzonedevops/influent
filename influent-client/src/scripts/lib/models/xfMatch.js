@@ -25,12 +25,12 @@
 define(
     [
         'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
-        'lib/models/xfCard', 'lib/models/xfSummaryCluster', 'lib/constants',
+        'lib/models/xfCard', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster', 'lib/constants',
         'lib/extern/underscore'
     ],
     function(
         $, xfUIObject, chan, guid,
-        xfCard, xfSummaryCluster, constants
+        xfCard, xfMutableCluster, xfSummaryCluster, constants
     ) {
 
         //--------------------------------------------------------------------------------------------------------------
@@ -611,8 +611,14 @@ define(
                         cardUIObj.cleanState();
                         cardUIObj.restoreVisualState(state.children[i]);
                         this.insert(cardUIObj, null);
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
+                    	var clusterSpec = xfMutableCluster.getSpecTemplate();
+                        var clusterUIObj = xfMutableCluster.createInstance(clusterSpec);
+                        clusterUIObj.cleanState();
+                        clusterUIObj.restoreVisualState(state.children[i]);
+                        this.insert(clusterUIObj, null);
                     } else {
-                        console.error("Match children should only be of type " + constants.MODULE_NAMES.ENTITY + " or " + constants.MODULE_NAMES.SUMMARY_CLUSTER + ".");
+                        console.error("Match children should only be of type " + constants.MODULE_NAMES.ENTITY + ", " + constants.MODULE_NAMES.MUTABLE_CLUSTER + " or " + constants.MODULE_NAMES.SUMMARY_CLUSTER + ".");
                     }
                 }
             };

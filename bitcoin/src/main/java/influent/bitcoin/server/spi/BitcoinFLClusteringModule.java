@@ -24,20 +24,19 @@
  */
 package influent.bitcoin.server.spi;
 
-import influent.server.dataaccess.EntityClustering;
 import influent.bitcoin.server.clustering.BitcoinClusteringDataAccess;
-import influent.bitcoin.server.data.BitcoinNamespaceHandler;
-import influent.entity.clustering.GeneralEntityClusterer;
 import influent.idl.FL_Clustering;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_Geocoding;
-import influent.midtier.api.EntityClusterer;
+import influent.server.clustering.EntityClusterer;
+import influent.server.clustering.GeneralEntityClusterer;
+import influent.server.dataaccess.DataNamespaceHandler;
+import influent.server.dataaccess.EntityClustering;
 import influent.server.utilities.SQLConnectionPool;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 
 
 /**
@@ -58,11 +57,11 @@ public class BitcoinFLClusteringModule extends AbstractModule {
 	@Provides @Singleton
 	public EntityClustering clustering (
 			SQLConnectionPool connectionPool,
-			@Named("influent.data.view.tables") String tableNamesJson
+			DataNamespaceHandler namespaceHandler
 	) {
 
 		try {
-			return new EntityClustering(connectionPool, new BitcoinNamespaceHandler(tableNamesJson));
+			return new EntityClustering(connectionPool, namespaceHandler);
 		} catch (Exception e) {
 			addError("Failed to load Clustering", e);
 			return null;
@@ -76,11 +75,11 @@ public class BitcoinFLClusteringModule extends AbstractModule {
 			SQLConnectionPool connectionPool,
 			EntityClustering kivaCluster,
 			FL_Geocoding geocoding, 
-			@Named("influent.data.view.tables") String tableNamesJson
+			DataNamespaceHandler namespaceHandler
 	) {
 
 		try {
-			return new BitcoinClusteringDataAccess(connectionPool, kivaCluster, geocoding, new BitcoinNamespaceHandler(tableNamesJson));
+			return new BitcoinClusteringDataAccess(connectionPool, kivaCluster, geocoding, namespaceHandler);
 		} catch (Exception e) {
 			addError("Failed to load Clustering Data Access", e);
 			return null;

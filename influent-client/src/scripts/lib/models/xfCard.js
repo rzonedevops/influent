@@ -576,7 +576,7 @@ define(
 
                 _UIObjectState.xfId = '';
                 _UIObjectState.UIType = MODULE_NAME;
-                _UIObjectState.spec = _.clone(xfCardSpecTemplate);
+                _UIObjectState.spec = xfCardModule.getSpecTemplate();
                 _UIObjectState.links = {};
                 _UIObjectState.isSelected = false;
                 _UIObjectState.isHighlighted = false;
@@ -775,8 +775,11 @@ define(
 
         xfCardModule.getSpecTemplate = function() {
 
-            var specTemplate = _.clone(xfCardSpecTemplate);
-            specTemplate.chartSpec = _.clone(xfCardChartSpecTemplate);
+            var specTemplate = {};
+            $.extend(true, specTemplate, xfCardSpecTemplate);
+            var chartSpecTemplate = {};
+            $.extend(true, chartSpecTemplate, xfCardChartSpecTemplate);
+            specTemplate.chartSpec = chartSpecTemplate;
 
             return specTemplate;
         };
