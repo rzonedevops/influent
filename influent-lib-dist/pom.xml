@@ -7,7 +7,7 @@
 	</parent>
 	<artifactId>influent-lib-dist</artifactId>
 	<packaging>pom</packaging>
-	<name>Distribution Builder</name>
+	<name>Influent lib Distribution</name>
 	<description>This project builds distributions of the core influent libraries which are shared between web apps / wars</description>
 
 	<dependencies>

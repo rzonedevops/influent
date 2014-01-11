@@ -1,4 +1,65 @@
-influent
-========
+# influent
 
-Influent is an HTML5 tool for visually and interactively following transaction flow, rapidly revealing actors and behaviors of potential concern that might otherwise go unnoticed. Summary visualization of transactional patterns and actor characteristics, interactive link expansion and dynamic entity clustering enable Influent to operate effectively at scale with big data sources, in any modern web browser. Influent has been used to explore data sets with millions of entities and hundreds of millions of transactions.
+Influent is a new web based application for visually and interactively following transaction flow, revealing actors and behaviors of potential concern that might otherwise go unnoticed. Summary visualization of transactional patterns and actor characteristics, interactive link expansion and dynamic entity clustering enable Influent to operate effectively at scale with big data sources, in any modern web browser. Influent has been used to explore data sets with millions of entities and hundreds of millions of transactions.
+
+![Influent example with public Kiva data set](https://raw.github.com/oculusinfo/wiki-assets/master/influent/influent-kiva.jpg) 
+> Example Influent flow analysis. Begin by searching for an entity of interest (A). Entity cards summarize entity properties and histograms summarize transactions. Highlighted transactions are shown for entities of interest (B). Click [+] buttons to expand incoming/outgoing entity links (C). “Unstack” clusters of entities by clicking paperclip to drill down (D). Specify transaction filter (E).
+
+## Building Influent
+The Influent web app is a servlet, with server side Java and client side JavaScript + HTML5. To build Influent on the command line you will need the following to be installed first:
+
+ + [Java](http://www.java.com/). We recommend JDK 1.7+.
+ + [Maven](http://maven.apache.org/). We recommend version 3.1+
+
+Once installed, execute the following command in the root influent directory:
+```
+mvn clean install
+```
+The full collection of influent libraries and transitive dependencies (other libraries needed) will be zipped up at the tail end of the build and placed in the `influent-lib-dist/target` directory for the "skinny war" deployment options described [below](#Web App Deployment). Alternatively those libraries can be included in your influent app war file in conventional fashion. The `bitcoin` and `kiva` example apps use the skinny war option.
+
+## Building and Running Influent Apps
+Influent exposes APIs for integration of large enterprise data sources. For ease of integration with conventional relational databases, adapters are provided for MSSQL, Oracle, and MySQL. SQL scripts are provided in the `influent-midtier/src/main/dataviews` directory for creating the required Influent Data View tables.
+
+Example maven based applications are provided for public Kiva and Bitcoin transaction data, which connect to databases we have made available online for demonstration purposes. To import these applications into Eclipse, for example, use the `File > Import... > Maven > Existing Maven Projects...` command in Eclipse that comes with the [m2e](http://www.eclipse.org/m2e/) plugin.
+
+## Web App Deployment
+Typically your Influent application will be compiled to a war file. In some cases it might be advantageous to share Influent libraries across applications, or to separate them from your application code for other reasons. For instance you may wish to customize two applications to two different data sets, or you may wish to make it easier to drop in new Influent updates without having to rebuild your app. This approach is called the "skinny war" approach, where libraries are supplied outside of your war file.
+
+### Tomcat Configuration
+The "skinny war" approach can be implemented in a Tomcat configuration in `catalina.properties` using the `shared.loader` property. For instance the following adds `lib-influent/` as a shared directory for apps to load jars from, where the directory would contain the libs zipped up by `influent-lib-dist`.
+```properties
+shared.loader=${catalina.base}/lib-influent
+```
+
+### Standalone Jetty Configuration
+The "skinny war" approach can be implemented in a standalone Jetty server by configuring the web app's xml file in contexts, similar to the following example. Similar to above, in this example `lib-influent/` is the directory which contains the libs zipped up by `influent-lib-dist`.
+
+```xml
+<Configure class="org.eclipse.jetty.webapp.WebAppContext" id="context">
+
+  <!--Specify the path to the influent directory in Jetty here!!!-->
+  <Call name="newResource" id="jarpath">
+      <Arg>lib-influent/</Arg>
+  </Call>
+
+  <!--Trace path to lib directory for debugging purposes (Optional)-->
+  <Get class="java.lang.System" name="out">
+    <Call name="println">
+      <Arg>LOADING INFLUENT LIBS FROM <Ref id="jarpath"><Get name="file"/></Ref></Arg>
+    </Call>
+  </Get>
+
+  <!--Set the customized class loader (Boiler Plate)-->
+  <Get name="class"><Get name="classLoader" id="parentClassLoader"/></Get>
+  <Set name="classLoader">
+    <New class="org.eclipse.jetty.webapp.WebAppClassLoader">
+        <Arg><Ref id="parentClassLoader"/></Arg>
+        <Arg><Ref id="context"/></Arg>
+        <Call name="addJars">
+          <Arg><Ref id="jarpath"/></Arg>
+        </Call>
+    </New>
+  </Set>
+  
+</Configure>
+```

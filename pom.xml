@@ -57,6 +57,7 @@
         	<module>influent-midtier</module>
 	        <module>influent-server</module>
 	        <module>influent-client-dist</module>
+	        <module>influent-lib-dist</module>
         	<module>kiva</module>
         	<module>bitcoin</module>
 	</modules>
