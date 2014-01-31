@@ -4,8 +4,7 @@ Influent is a new web based application for visually and interactively following
 
 Service Provider Interfaces (SPIs) provide a plugin style framework for developers to provide runtime-injected modules for search, data access, clustering and other services. [Avro](http://avro.apache.org/) is used to define the SPI protocols in cross-language form in [influent-spi](influent-spi/src/main/avro). In process Java service implementations are injected via [Guice](https://code.google.com/p/google-guice/), which may optionally delegate to out of process providers using web services standards such as REST, for which Avro provides convenient serialization.
 
-![Influent example with public Kiva data set](https://raw.github.com/oculusinfo/wiki-assets/master/influent/influent-kiva.jpg) 
-> Example Influent flow analysis. Begin by searching for an entity of interest (A). Entity cards summarize entity properties and histograms summarize transactions. Highlighted transactions are shown for entities of interest (B). Click [+] buttons to expand incoming/outgoing entity links (C). “Unstack” clusters of entities by clicking paperclip to drill down (D). Specify transaction filter (E).
+![Influent example with public Kiva data set](https://raw.github.com/oculusinfo/wiki-assets/master/influent/influent-kiva.png) 
 
 ## Building Influent
 The Influent web app is a servlet, with server side Java and client side JavaScript + HTML5. To build Influent on the command line you will need the following to be installed first:
