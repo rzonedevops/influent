@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -444,7 +444,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 //				entityProps.add(new PropertyHelper("location-dist", "country code distribution", new HashMap<String, Integer>(), FL_PropertyType.OTHER, Collections.singletonList(FL_PropertyTag.STAT)));
 			}
 			
-			clusters.put(id, new ClusterHelper(id, label, "cluster", FL_EntityTag.CLUSTER, entityProps, parent, root, level));
+			clusters.put(id, new ClusterHelper(id, label, FL_EntityTag.CLUSTER, entityProps, parent, root, level));
 		}
 		
 		return clusters;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -54,6 +54,7 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrException;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 
@@ -191,6 +192,8 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 			}
 			
 			_nextLocalIdx = 0;
+		} catch (SolrException e) {
+			s_logger.error("Solr query error: " + e.getMessage());
 		} catch (Exception e) {
 			throw new AvroRuntimeException("Error paging search results "+e.getMessage(),e); 
 		}
@@ -224,7 +227,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		}
 		
 		props.add(FL_Property.newBuilder().setKey("type")
-				.setFriendlyText(null)
+				.setFriendlyText("Kiva Account Type")
 				.setProvenance(null)
 				.setUncertainty(null)
 				.setTags(Collections.singletonList(FL_PropertyTag.TYPE))
@@ -260,6 +263,8 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 					//continue;
 				} else if (key.equals("lenders_countryCode") || key.equals("loans_location_countryCode") || key.equals("partners_cc")) {
 					String cleanVal = val.toString().replaceAll(","," ").trim();
+					// correct kiva's invented country code for south sudan with the now official iso standard
+					cleanVal = cleanVal.replaceAll("QS", "SS");
 					if (!cleanVal.isEmpty()) {
 						geoBuilder.setCc(geoBuilder.getCc().isEmpty()? cleanVal : geoBuilder.getCc()+" "+cleanVal);
 						geoDataFound = true;
@@ -373,7 +378,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 			
 			FL_Property geoProp = FL_Property.newBuilder()
 					.setKey("geo")
-					.setFriendlyText("Geographic Data")
+					.setFriendlyText("Location")
 					.setTags(Collections.singletonList(FL_PropertyTag.GEO))
 					.setRange(geoVal)
 					.setProvenance(null)

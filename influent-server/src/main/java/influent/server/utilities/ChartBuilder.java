@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,6 +24,7 @@
  */
 package influent.server.utilities;
 
+import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DateInterval;
 import influent.idl.FL_DateRange;
@@ -32,11 +33,15 @@ import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.PropertyHelper;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
+import influent.server.clustering.utils.ContextRead;
 import influent.server.data.ChartData;
 import influent.server.dataaccess.DataAccessHelper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 
 import net.sf.ehcache.Cache;
@@ -55,7 +60,13 @@ public class ChartBuilder {
 	private final Cache chartDataCache;
 	private boolean bDebugChartData = false;
 	
-	public ChartBuilder(FL_ClusteringDataAccess da,  String ehCacheConfig) {
+	private ClusterContextCache contextCache;
+
+	public ChartBuilder(
+		FL_ClusteringDataAccess da, 
+		String ehCacheConfig, 
+		ClusterContextCache contextCache
+	) {
 		this.da = da;
 		
 		CacheManager cacheManager = null;
@@ -67,6 +78,7 @@ public class ChartBuilder {
 			return;
 		}
 		chartDataCache = cacheManager.getCache("ChartDataCache");
+		this.contextCache = contextCache;
 	}
 	
 	private final String separator = "|";
@@ -111,9 +123,80 @@ public class ChartBuilder {
 			focusCredits.add(0.0);
 			focusDebits.add(0.0);
 		}
+		
+		final PermitSet permits = new PermitSet();
 
+		// Make copies of the entity lists so that we can unroll file clusters if necessary
+		List<String> entitiesCopy = new ArrayList<String>(entities);
+		List<String> focusEntitiesCopy = new ArrayList<String>(focusEntities);
+		
+		// Unroll file cluster membership
+		ListIterator<String> entIt = entitiesCopy.listIterator();
+		while(entIt.hasNext())
+		{
+			String entity = entIt.next();
+			
+			TypedId id = TypedId.fromTypedId(entity);
+
+			// Check to see if this entityId belongs to a mutable cluster.
+			if (id.getType() == TypedId.FILE) {
+				try {
+					final ContextRead entityContext = contextCache.getReadOnly(contextId, permits);
+
+					if (entityContext != null) {
+						FL_Cluster flcluster = entityContext.getFile(entity);
+						
+						if (flcluster != null) {
+							entIt.remove();
+							
+							for (String subcluster : flcluster.getSubclusters())
+								entIt.add(subcluster);
+							
+							for (String member : flcluster.getMembers())
+								entIt.add(member);
+						}
+					}
+				} finally {
+					permits.revoke();
+				}
+			}
+		}
+		
+		// Unroll focus file cluster membership
+		ListIterator<String> focIt = focusEntitiesCopy.listIterator();
+		while(focIt.hasNext())
+		{
+			String focusEntity = focIt.next();
+			
+			TypedId id = TypedId.fromTypedId(focusEntity);
+
+			// Check to see if this entityId belongs to a mutable cluster.
+			if (id.getType() == TypedId.FILE) {
+				try {
+					final ContextRead focusEntityContext = contextCache.getReadOnly(focusContextId, permits);
+
+					if (focusEntityContext != null) {
+						FL_Cluster flcluster = focusEntityContext.getFile(focusEntity);
+						
+						if (flcluster != null) {
+							focIt.remove();
+							
+							for (String subcluster : flcluster.getSubclusters())
+								focIt.add(subcluster);
+							
+							for (String member : flcluster.getMembers())
+								focIt.add(member);
+						}
+					}
+				} finally {
+					permits.revoke();
+				}
+			}
+		}		
+		
 		boolean foundInCache = false;
-		String key = getKey(dateRange.getStartDate(), dateRange.getDurationPerBin().getInterval(), entities, focusEntities, bucketNo);
+		String key = getKey(dateRange.getStartDate(), dateRange.getDurationPerBin().getInterval(), entitiesCopy, focusEntitiesCopy, bucketNo);
+		
 		if (chartDataCache != null) {
 			Element element = chartDataCache.get(key);
 			if (element == null) {
@@ -128,13 +211,13 @@ public class ChartBuilder {
 				foundInCache = true;
 			}
 		}
-		if (!foundInCache) startingBalance = calcStartingBalance(DateTimeParser.fromFL(dateRange.getStartDate()), entities); 
+		if (!foundInCache) startingBalance = calcStartingBalance(DateTimeParser.fromFL(dateRange.getStartDate()), entitiesCopy); 
 		Double runningBalance = startingBalance;
 		Double maxBalance = startingBalance;
 		Double minBalance = startingBalance;
 
 		if (!foundInCache) {
-			Map<String, List<FL_Link>> links = da.getTimeSeriesAggregation(entities, focusEntities, FL_LinkTag.FINANCIAL, dateRange, contextId, focusContextId, sessionId);
+			Map<String, List<FL_Link>> links = da.getTimeSeriesAggregation(entitiesCopy, focusEntitiesCopy, FL_LinkTag.FINANCIAL, dateRange, contextId, focusContextId, sessionId);
 			if (links != null && links.size() > 0) {
 				
 				for (String entity : links.keySet()) {
@@ -175,7 +258,7 @@ public class ChartBuilder {
 							boolean focusOverride = false;
 							String sourceId = financialLink.getSource();
 							String targetId = financialLink.getTarget();
-							if ((sourceId != null && focusEntities.contains(sourceId)) || (targetId != null && focusEntities.contains(targetId))) {
+							if ((sourceId != null && focusEntitiesCopy.contains(sourceId)) || (targetId != null && focusEntitiesCopy.contains(targetId))) {
 								focusOverride = true;
 							}
 							if (financialLink.getDirected()) {

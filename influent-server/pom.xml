@@ -26,41 +26,41 @@
 		<dependency>
 			<groupId>oculus.aperture</groupId>
 			<artifactId>aperture-spi</artifactId>
-			<version>1.0.2-SNAPSHOT</version>
+			<version>${aperture.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>oculus.aperture</groupId>
 			<artifactId>aperture-server-core</artifactId>
-			<version>1.0.2-SNAPSHOT</version>
+			<version>${aperture.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>oculus.aperture.service</groupId>
 			<artifactId>aperture-icons</artifactId>
-			<version>1.0.2-SNAPSHOT</version>
+			<version>${aperture.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>oculus.aperture.service</groupId>
 			<artifactId>aperture-parchment</artifactId>
-			<version>1.0.2-SNAPSHOT</version>
+			<version>${aperture.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>oculus.aperture.service</groupId>
 			<artifactId>aperture-cms</artifactId>
-			<version>1.0.2-SNAPSHOT</version>
+			<version>${aperture.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>oculus.aperture.service</groupId>
 			<artifactId>aperture-capture-phantom</artifactId>
-			<version>1.0.2-SNAPSHOT</version>
+			<version>${aperture.version}</version>
 		</dependency>
 		
 		<dependency>
-		  <artifactId>influent-midtier</artifactId>
+		  <artifactId>influent-spi</artifactId>
 			<groupId>${project.parent.groupId}</groupId>
 			<version>${project.parent.version}</version>
 		</dependency>
@@ -177,38 +177,76 @@
 		</plugins>
 	</build>
 
+	<!-- BUILD DISTRIBUTION IN ZIP FORM OF ALL LIBRARIES. -->
+	<!-- SOLR variation is for skinny war convenience only for solr apps (NOT REQUIRED) -->
 	<profiles>
-		<!-- Deployment Profile Runs optimized version of JavaScript -->
 		<profile>
-			<id>Deployment</id>
-
+			<id>nosolr</id>
+		    <activation>
+		      <activeByDefault>true</activeByDefault>
+		    </activation>			
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.2.2</version>
+						<executions>
+							<execution>
+								<id>compile-dist</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/main/assembly/distribution.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		
+		<profile>
+			<id>solr</id>
 			<activation>
 				<property>
-					<name>environment</name>
-					<value>deployment</value>
+					<name>influent.server.dist</name>
+					<value>solr</value>
 				</property>
 			</activation>
-
-		</profile>
-
-		<!-- Windows Profile - run windows-specific requireJs compiler -->
-		<profile>
-			<id>windows</id>
-			<activation>
-				<os>
-					<family>Windows</family>
-				</os>
-			</activation>
-		</profile>
-
-		<!-- *nix Profile - run unix requireJs compiler -->
-		<profile>
-			<id>unix</id>
-			<activation>
-				<os>
-					<family>unix</family>
-				</os>
-			</activation>
+		    <dependencies>
+				<dependency>
+					<artifactId>solr-solrj</artifactId>
+					<groupId>org.apache.solr</groupId>
+					<version>4.1.0</version>
+				</dependency>
+		    </dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.2.2</version>
+						<executions>
+							<execution>
+								<id>compile-dist</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/main/assembly/distribution-solr.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
+
 </project>

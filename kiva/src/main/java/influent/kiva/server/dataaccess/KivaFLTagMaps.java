@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -28,7 +28,6 @@ import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.PropertyHelper;
 
-import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -47,8 +46,6 @@ public class KivaFLTagMaps {
 	private Map<String,String> lenderGeoMap = new HashMap<String,String>(17);
 	private Map<String,String> teamGeoMap = new HashMap<String,String>(17);
 	private Map<String,String> borrowersGeoMap = new HashMap<String,String>(17);
-	
-	private DecimalFormat rateFormat = new DecimalFormat("0.##%");
 	
 	private KivaFLTagMaps() {
 		lenderMap.put("lenders_uid", new FL_PropertyTag[]{FL_PropertyTag.ID,FL_PropertyTag.RAW } );
@@ -188,8 +185,7 @@ public class KivaFLTagMaps {
 			final Number number = (Number) PropertyHelper.from(delinquency).getValue();
 			
 			if (number != null && number.doubleValue() >= 5.0) {
-				props.add(new PropertyHelper(FL_PropertyTag.WARNING, 
-						"high delinquency rate: "+ rateFormat.format(number.doubleValue()/100)));
+				props.add(new PropertyHelper(FL_PropertyTag.WARNING, "high delinquency rate"));
 			}
 		}
 		
@@ -199,8 +195,7 @@ public class KivaFLTagMaps {
 			final Number number = (Number) PropertyHelper.from(defaultRate).getValue();
 			
 			if (number != null && number.doubleValue() >= 1.0) {
-				props.add(new PropertyHelper(FL_PropertyTag.WARNING, 
-						"high default rate: "+ rateFormat.format(number.doubleValue()/100)));
+				props.add(new PropertyHelper(FL_PropertyTag.WARNING, "high default rate"));
 			}
 		}
 	}

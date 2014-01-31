@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc. 
+ * Copyright (c) 2013-2014 Oculus Info Inc. 
  * http://www.oculusinfo.com/
  * 
  * Released under the MIT License.
@@ -24,15 +24,29 @@
  */
 package influent.server.auth;
 
+import java.io.IOException;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.HttpHeaders;
 
 import org.apache.shiro.authc.credential.CredentialsMatcher;
 import org.apache.shiro.authc.credential.HashedCredentialsMatcher;
 import org.apache.shiro.config.Ini;
 import org.apache.shiro.guice.web.ShiroWebModule;
 import org.apache.shiro.realm.text.IniRealm;
+import org.apache.shiro.web.filter.authc.LogoutFilter;
+import org.apache.shiro.web.servlet.AbstractFilter;
 
+import com.google.inject.Key;
 import com.google.inject.Provides;
+import com.google.inject.name.Names;
 
 /**
  * @author rharper
@@ -64,13 +78,17 @@ public class SimpleShiroAuthModule extends ShiroWebModule {
         bind(CredentialsMatcher.class).to(HashedCredentialsMatcher.class);
         bind(HashedCredentialsMatcher.class);
 
+        addFilterChain("/", Key.get(NoCacheFilter.class), AUTHC); 
+        addFilterChain("/index.html", Key.get(NoCacheFilter.class), AUTHC); 
 
         // Configure filters in the order they should be applied
         // Make the /** filter last so that it doesn't catch everything and never to get /logout
 
         // Configure auto logout when accessing /logout
 		// Logout when the user hits this url
-		addFilterChain("/logout", LOGOUT);
+        bindConstant().annotatedWith(Names.named("myRedirectUrl")).to("/login.jsp"); 
+        Key<MyLogoutFilter> MYLOGOUT = Key.get(MyLogoutFilter.class);	
+        addFilterChain("/logout", MYLOGOUT); 
 
         // Configure all URLs to be protected by AuthC filter
         // You may replace filter chain definition with more complex authentication
@@ -87,4 +105,26 @@ public class SimpleShiroAuthModule extends ShiroWebModule {
 		// Load INI file from specified path
         return Ini.fromResourcePath("classpath:shiro.ini");
     }
+
+	public static class NoCacheFilter extends AbstractFilter {
+
+		@Override
+		public void doFilter(ServletRequest request, ServletResponse response,
+				FilterChain chain) throws IOException, ServletException {
+			HttpServletResponse httpResponse = (HttpServletResponse)response;
+			httpResponse.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate"); // HTTP 1.1.
+			httpResponse.setDateHeader(HttpHeaders.EXPIRES, 0); // Proxies.
+			chain.doFilter(request, httpResponse);
+		}
+		
+	}
+
+	public static class MyLogoutFilter extends LogoutFilter {
+
+		@Inject
+		@Override
+		public void setRedirectUrl(@Named("myRedirectUrl") String redirectUrl) {
+			super.setRedirectUrl(redirectUrl);
+		}
+	}
 }

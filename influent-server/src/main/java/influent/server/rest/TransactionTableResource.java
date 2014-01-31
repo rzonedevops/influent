@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -38,6 +38,7 @@ import influent.idlhelper.PropertyHelper;
 import influent.server.data.LedgerResult;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.TypedId;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -141,13 +142,12 @@ public class TransactionTableResource extends ApertureServerResource {
 					focusIdList = new ArrayList<String>();
 					for (String id : parsedIds) {
 						List<Object> response = new ArrayList<Object>();
-//						EntityCluster cluster = null;//MemoryTransientClusterStore.getInstance().getMap().get(id.trim());
-//						if (cluster != null) {
-//							response.add(cluster);
-//						} else {
+						
+						// transaction filtering does not yet work on clusters - see #6090
+						if (TypedId.fromTypedId(id).getType() == TypedId.ACCOUNT) {
 							response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
-//						}
-						focusIdList.addAll(ChartResource.getLeafNodes(response));
+						}
+						focusIdList.addAll(TypedId.nativeFromTypedIds(ChartResource.getLeafNodes(response)));
 					}
 				}
 				
@@ -328,8 +328,8 @@ public class TransactionTableResource extends ApertureServerResource {
 				newRow.add(comment);      // Comment
 				newRow.add(inflowing); 
 				newRow.add(outflowing); 
-				newRow.add(link.getSource()); //Source entityId
-				newRow.add(link.getTarget()); //Destination entityId
+				newRow.add(TypedId.fromNativeId(TypedId.ACCOUNT, link.getSource()).toString()); //Source entityId
+				newRow.add(TypedId.fromNativeId(TypedId.ACCOUNT, link.getTarget()).toString()); //Destination entityId
 				tableData.add(newRow);
 			}
 			

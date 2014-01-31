@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
@@ -63,7 +64,10 @@ import com.google.inject.name.Named;
 
 public class BigChartResource extends ApertureServerResource {
 	
-	private static final String SEPARATOR = "|";
+	private static final String SEPARATOR 		= "|";
+	private static final String ID_SECTION 		= SEPARATOR + ":I:";
+	private static final String FOCUS_ID 		= ":F:";
+	private static final String UUID_SEPARATOR	= ":U:";
 	
 	final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -77,8 +81,8 @@ public class BigChartResource extends ApertureServerResource {
 		@Named("influent.midtier.ehcache.config") String ehCacheConfig, 
 		ClusterContextCache contextCache
 	) {
-		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
 		this.contextCache = contextCache;
+		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig, contextCache);
 	}
 	
 	
@@ -107,57 +111,33 @@ public class BigChartResource extends ApertureServerResource {
 			List<String> focusIds = new LinkedList<String>();
 			JSONArray focusObj = jsonObj.getJSONArray("focusId");
 
-			final PermitSet permits = new PermitSet();
-			
-			try {
-				ContextRead focusContext = null;
 
-				for (int i=0; i < focusObj.length(); i++) {
-					String entityId = focusObj.getString(i);
-					List<String> entities = new ArrayList<String>();
+			for (int i=0; i < focusObj.length(); i++) {
+				String entityId = focusObj.getString(i);
+				List<String> entities = new ArrayList<String>();
 
-					TypedId id = TypedId.fromTypedId(entityId);
-					
-					// Check to see if this is a file cluster.
-					if (id.getType() == TypedId.FILE) {
-						if (focusContext == null) {
-							focusContext = contextCache.getReadOnly(focusContextId, permits);						
-						}
-
-						if (focusContext != null) {
-							FL_Cluster flcluster = focusContext.getFile(entityId);
-						
-							// If this is a mutable cluster, add its contents.
-							if(flcluster != null) {
-								entities.addAll(flcluster.getSubclusters());
-								entities.addAll(flcluster.getMembers());
-							}
-						}
-						
-					// If this is a group cluster, add its contents (based on id currently)
-					} else if (id.getType() == TypedId.CLUSTER) {
-						String nId = id.getNativeId();  
-						if (nId.startsWith("|")) { // group cluster
-							for (String sId : nId.split("\\|")) {
-								entities.add(sId);
-							}
-						} else {
-							entities.add(entityId);
+				TypedId id = TypedId.fromTypedId(entityId);
+				
+				if (id.getType() == TypedId.CLUSTER) {
+					String nId = id.getNativeId();  
+					if (nId.startsWith("|")) { // group cluster
+						for (String sId : nId.split("\\|")) {
+							entities.add(sId);
 						}
 					} else {
 						entities.add(entityId);
 					}
-					
-					for (String fid : entities){
-						if (!focusIds.contains(fid)){
-							focusIds.add(fid);
-						}
-					}
+				} else {
+					entities.add(entityId);
 				}
 				
-			} finally {
-				permits.revoke();
+				for (String fid : entities){
+					if (!focusIds.contains(fid)){
+						focusIds.add(fid);
+					}
+				}
 			}
+				
 			
 			String tempFocusMaxDebitCredit = jsonObj.getString("focusMaxDebitCredit");
 			Double focusMaxDebitCredit = null;
@@ -198,24 +178,7 @@ public class BigChartResource extends ApertureServerResource {
 				// Check to see if this entityId belongs to a group cluster.
 				TypedId id = TypedId.fromTypedId(entityId);
 				
-				// Check to see if this entityId belongs to a mutable cluster.
-				if (id.getType() == TypedId.FILE) {
-					try {
-						final ContextRead entityContext = contextCache.getReadOnly(entityContextId, permits);
-	
-						if (entityContext != null) {
-							FL_Cluster flcluster = entityContext.getFile(entityId);
-							
-							if(flcluster != null) {
-								entities.addAll(flcluster.getSubclusters());
-								entities.addAll(flcluster.getMembers());
-							}
-						}
-					} finally {
-						permits.revoke();
-					}
-					
-				} else if (id.getType() == TypedId.CLUSTER) {
+				if (id.getType() == TypedId.CLUSTER) {
 					String nId = id.getNativeId();  
 					if (nId.startsWith("|")) {  // group cluster
 						for (String sId : nId.split("\\|")) {
@@ -230,7 +193,7 @@ public class BigChartResource extends ApertureServerResource {
 					
 				Hash hashed = new Hash(entityId, entities, startDate, endDate, focusIds, focusMaxDebitCredit, dateRange.getNumBins().intValue(), width, height, entityContextId, focusContextId, sessionId);
 				
-				ChartData chartData = chartBuilder.computeChart(dateRange, entities, focusIds, entityContextId, focusContextId, sessionId, dateRange.getNumBins().intValue(), hashed.makeHash());
+				ChartData chartData = chartBuilder.computeChart(dateRange, entities, focusIds, entityContextId, focusContextId, sessionId, dateRange.getNumBins().intValue(), hashed.hash);
 
 				infoList.put(
 						entityId, //memberIds.get(0), 
@@ -289,6 +252,7 @@ public class BigChartResource extends ApertureServerResource {
 		Integer numBuckets;
 		Integer width;
 		Integer height;
+		String hash;
 		String id;
 		String contextId;
 		String focusContextId;
@@ -307,8 +271,9 @@ public class BigChartResource extends ApertureServerResource {
 			this.contextId = contextId;
 			this.focusContextId = focusContextId;
 			this.sessionId = sessionId;
+			this.hash = makeHash();
 		}
-		
+
 		private String makeHash() {
 			StringBuilder buffer = new StringBuilder();
 			buffer.append(sessionId+SEPARATOR);
@@ -322,17 +287,79 @@ public class BigChartResource extends ApertureServerResource {
 			buffer.append(width.toString() + SEPARATOR);
 			buffer.append(height.toString() + SEPARATOR);
 			buffer.append(id.replaceAll(" ", "%20"));					// URL hash CANNOT have spaces!!
+			buffer.append(ID_SECTION); 									// Define where ids start 
+			
+			final PermitSet permits = new PermitSet();
 			
 			for (String id : ids) {
 				buffer.append(SEPARATOR + id.replaceAll(" ", "%20"));
+				
+				TypedId tId = TypedId.fromTypedId(id);
+				
+				// Extract the membership of files to form UUIDs from them
+				String membershipUUID = "";
+				if (tId.getType() == TypedId.FILE) {
+					try {
+						final ContextRead entityContext = contextCache.getReadOnly(contextId, permits);
+	
+						if (entityContext != null) {
+							FL_Cluster flcluster = entityContext.getFile(id);
+							
+							if (flcluster != null) {
+								
+								for (String subcluster : flcluster.getSubclusters()) {
+									membershipUUID += subcluster;
+								}
+								for (String member : flcluster.getMembers()) {
+									membershipUUID += member;
+								}
+								
+							}
+						}
+					} finally {
+						permits.revoke();
+					}
+					
+					buffer.append(UUID_SEPARATOR + UUID.nameUUIDFromBytes(membershipUUID.getBytes()));
+				}	
 			}
 			
 			for (String id : focusIds) {
-				buffer.append(SEPARATOR + ":F:" + id.replaceAll(" ", "%20"));
+				buffer.append(SEPARATOR + FOCUS_ID + id.replaceAll(" ", "%20"));
+				
+				TypedId tId = TypedId.fromTypedId(id);
+				
+				// Extract the membership of files to form UUIDs from them
+				String membershipUUID = "";
+				if (tId.getType() == TypedId.FILE) {
+					try {
+						final ContextRead focusContext = contextCache.getReadOnly(focusContextId, permits);
+	
+						if (focusContext != null) {
+							FL_Cluster flcluster = focusContext.getFile(id);
+							
+							if (flcluster != null) {
+								
+								for (String subcluster : flcluster.getSubclusters()) {
+									membershipUUID += subcluster;
+								}
+								for (String member : flcluster.getMembers()) {
+									membershipUUID += member;
+								}
+								
+							}
+						}
+					} finally {
+						permits.revoke();
+					}
+					
+					buffer.append(UUID_SEPARATOR + UUID.nameUUIDFromBytes(membershipUUID.getBytes()));
+				}	
+				
 			}
 			
 			return buffer.toString();
 		}
-		
+
 	}
 }

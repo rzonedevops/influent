@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -105,6 +105,10 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 						"WHERE [id] = '" + searchTerms.trim() + "' " +
 						"OR [label] = '" + searchTerms.trim() + "'";
 				
+				if (schema == null) {
+					schema = "dbo";
+				}
+				
 				matches.addAll(searchEntities(schema, where, max));
 				
 			} catch (SQLException e) {
@@ -122,10 +126,10 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 				String key = term.getKey();
 				if (!key.equals("uid")) {
 					// we only support "search" but id right now
-					throw new AvroRemoteException("Invalid Property term: " + key);
+					s_logger.error("Invalid Property term in search: " + key);
+				} else {
+					ids.add((String)term.getValue());
 				}
-
-				ids.add((String)term.getValue());
 			}
 
 			if (!ids.isEmpty()) {

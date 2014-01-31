@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -200,7 +200,7 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			// it only processes the latest response.
 			queryId = jsonObj.getString("queryId").trim();
 
-			if (!links.isEmpty()) {
+			if (links != null && !links.isEmpty()) {
 				
 				Map<String, FL_Link> linkMap = new HashMap<String, FL_Link>();
 				Map<String, List<FL_Link>> dataMap = new HashMap<String, List<FL_Link>>();

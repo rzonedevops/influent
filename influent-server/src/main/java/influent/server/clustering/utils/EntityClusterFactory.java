@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -240,6 +240,8 @@ public class EntityClusterFactory {
 		// Find all the member entities for this cluster
 		for (String memberId : cluster.getMembers()) {
 			FL_Entity member = relatedEntities.get(memberId);
+
+			if(member == null) continue;
 			members.add(member);
 		}
 		
@@ -368,14 +370,6 @@ public class EntityClusterFactory {
 				FL_PropertyTag.TEXT);
 		properties.add(p);
 		
-		p = new PropertyHelper(
-				"type",
-				"type",
-				"entitycluster",
-				FL_PropertyType.STRING,
-				FL_PropertyTag.TYPE);
-		properties.add(p);
-		
 		// Add the cluster distribution properties
 		properties.addAll( createDistProperties(distSummaries) );
 
@@ -429,7 +423,6 @@ public class EntityClusterFactory {
 		// create the entity cluster and return
 		ClusterHelper ch = new ClusterHelper(clusterId, 
 											 label,
-											 "entitycluster",
 											 FL_EntityTag.CLUSTER,
 											 properties,
 											 new LinkedList<String>(childEntityIds),

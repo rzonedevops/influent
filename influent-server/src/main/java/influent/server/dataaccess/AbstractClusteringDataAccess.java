@@ -269,7 +269,6 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 			
 			summaries.add( new ClusterHelper( TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, id).getTypedId(), 
 					 						  label,
-					 						  "entitycluster",
 					 						  FL_EntityTag.CLUSTER_SUMMARY,
 					 						  props,
 					 						  new ArrayList<String>(0),

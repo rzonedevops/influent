@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -196,7 +196,7 @@ public class EntitySearchResource extends ApertureServerResource{
 			PermitSet permits = new PermitSet();
 			
 			try {				
-				final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
+//				final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
 				
 				// Ok, now process the entities.  If the entity key is in the accounts map, construct account owner, otherwise use the entity
 				for (FL_SearchResult sResult : sResponse.getResults()) {
@@ -206,9 +206,9 @@ public class EntitySearchResource extends ApertureServerResource{
 					if (accountsForAccountOwners.containsKey(entity.getUid())) {
 						List<FL_Entity> accounts = accountsForAccountOwners.get(entity.getUid());
 						if (accounts != null) {
-							List<String> accountClusterIds = clusterer.clusterEntities(accounts, contextId, sessionId);
-							List<FL_Cluster> accountClusters = clusterAccess.getClusters(accountClusterIds, contextId, sessionId);
-							FL_Cluster owner = clusterFactory.toAccountOwnerSummary(entity, new ArrayList<FL_Entity>(0), accountClusters);
+//							List<String> accountClusterIds = clusterer.clusterEntities(accounts, contextId, sessionId);
+//							List<FL_Cluster> accountClusters = clusterAccess.getClusters(accountClusterIds, contextId, sessionId);
+							FL_Cluster owner = clusterFactory.toAccountOwnerSummary(entity, accounts, new ArrayList<FL_Cluster>(0));
 							owners.add(owner);
 						}
 					} else if (!clusterSummaries.containsKey(entity.getUid())) {  // if not a cluster summary then add entity
@@ -216,13 +216,13 @@ public class EntitySearchResource extends ApertureServerResource{
 					}
 				}
 				
-				if (!owners.isEmpty()) {
-					List<FL_Cluster> clusterContext = clusterAccess.getContext(contextId, sessionId, false);
-					clusterContext.addAll(owners);
-					Pair<Collection<String>,Collection<FL_Cluster>> simpleContext = ClusterCollapser.collapse(clusterContext,true,false,null);
-					
-					contextRW.merge(simpleContext.second, false, true);
-				}
+//				if (!owners.isEmpty()) {
+//					List<FL_Cluster> clusterContext = clusterAccess.getContext(contextId, sessionId, false);
+//					clusterContext.addAll(owners);
+//					Pair<Collection<String>,Collection<FL_Cluster>> simpleContext = ClusterCollapser.collapse(clusterContext,true,false,null);
+//					
+//					contextRW.merge(simpleContext.second, false, true);
+//				}
 				
 				// group entities if a grouping field was provided
 				if (groupByTagOrFieldName != null) {
@@ -259,6 +259,8 @@ public class EntitySearchResource extends ApertureServerResource{
 				if (groupByTagOrFieldName == null && doCluster && entities.size()>4){
 					
 					//Clear the cached context - refs#6300
+					
+					final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
 					
 					long ams = System.currentTimeMillis();
 					

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -247,7 +247,7 @@ public class KivaEntitySearch implements FL_EntitySearch {
 			
 			s_logger.info(sql);
 			
-			if (stmt.execute(sql)) {
+			if (!rawIds.isEmpty() && stmt.execute(sql)) {
 				ResultSet rs = stmt.getResultSet();
 				while (rs.next()) {
 					String entityId = rs.getString("EntityId");

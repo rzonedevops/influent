@@ -16,23 +16,41 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		
-		<!-- path to influent base from project base.  -->
-		<!-- IF MACHINE SPECIFIC, COMMENT OUT!! and run the maven build with -Dinfluent.base.directory=MY_PATH_HERE\influent.-->
-		<influent.base.directory>..</influent.base.directory>
-		
-		<baseProjectSrc>${influent.base.directory}/influent-client/src</baseProjectSrc>
-		<tempWebappDir>tempWebapp</tempWebappDir>
+		<!-- default exclusions -->
+		<influent.war.exclusions>WEB-INF/lib/servlet*.jar,WEB-INF/lib/jetty*.jar</influent.war.exclusions>
 	</properties>
 
-	<ciManagement>
-		<system>hudson</system>
-		<url>http://maven/jenkins/</url>
-	</ciManagement>
+	<!-- NOTE ONLY THE REQUIRED!!! SECTIONS are needed to build the ware. 
+		The rest of the configuration is for dynamic editing in a development environment. -->
+	<dependencies>
+	
+		<!-- REQUIRED!!!: Server files -->
+		<dependency>
+			<artifactId>influent-server</artifactId>
+			<groupId>${project.groupId}</groupId>
+			<version>${project.version}</version>
+		</dependency>
 
+		<!-- REQUIRED!!!: Client files are overlaid in WAR -->		
+		<dependency>
+			<groupId>oculus.aperture</groupId>
+			<artifactId>aperture-client</artifactId>
+			<version>${aperture.version}</version>
+		</dependency>		
+		<dependency>
+			<artifactId>influent-client</artifactId>
+			<groupId>${project.groupId}</groupId>
+			<version>${project.version}</version>
+			<classifier>${influent.client.optimization}</classifier>
+			<type>zip</type>
+		</dependency>
+		
+	</dependencies>
+	
 	<build>
+	
+		<!-- OPTIONAL: Set a few config properties from here -->
 		<resources>
-			<!-- Resources to filter -->
 			<resource>
 				<directory>src/main/resources</directory>
 				<filtering>true</filtering>
@@ -41,8 +59,6 @@
 					<include>**/config.js</include>
 				</includes>
 			</resource>
-
-			<!-- Resources to leave alone -->
 			<resource>
 				<directory>src/main/resources</directory>
 				<filtering>false</filtering>
@@ -54,8 +70,8 @@
 		</resources>
 		
 		<plugins>
-			<!-- | Create a "Build Number" that contains the time of the build (available
-				as ${buildNumber}) -->
+		
+			<!-- OPTIONAL: Set a "build number" in filtered config properties -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>buildnumber-maven-plugin</artifactId>
@@ -77,31 +93,8 @@
 					</items>
 				</configuration>
 			</plugin>
-
-			<!-- JSLint - run manually with jslint4java:lint -->
-			<plugin>
-				<groupId>com.googlecode.jslint4java</groupId>
-				<artifactId>jslint4java-maven-plugin</artifactId>
-				<version>2.0.0</version>
-				<configuration>
-					<failOnError>false</failOnError>
-					<options>
-						<undef>true</undef>
-						<white>true</white>
-						<vars>true</vars>
-						<sloppy>true</sloppy>
-						<plusplus>true</plusplus>
-						<nomen>true</nomen>	<!-- Allows _ -->
-						<regexp>true</regexp>
-						<eqeq>true</eqeq>
-						<confusion>true</confusion>
-						<continue>true</continue>
-						<newcap>true</newcap>
-						<passfail>false</passfail>
-					</options>
-				</configuration>
-			</plugin>
-
+			
+			<!-- OPTIONAL: Runnable with Java 1.6 -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -117,7 +110,36 @@
 					</archive>
 				</configuration>
 			</plugin>
+			
+			<!-- REQUIRED!!!: Overlay other client files (JS/CSS/etc) in WAR -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>2.1.1</version>
+				<configuration>
+					<webXml>src/main/webapp/WEB-INF/web.xml</webXml>
+					<packagingExcludes>${influent.war.exclusions}</packagingExcludes>
+					<overlays>
+						<overlay>
+							<artifactId>aperture-client</artifactId>
+							<groupId>oculus.aperture</groupId>
+							<type>jar</type>
+							<targetPath>aperture</targetPath>
+						</overlay>
+						<overlay>
+							<artifactId>influent-client</artifactId>
+							<groupId>${project.groupId}</groupId>
+							<type>zip</type>
+							<classifier>${influent.client.optimization}</classifier>
+							<targetPath>.</targetPath>
+						</overlay>
+					</overlays>
+				</configuration>
+			</plugin>
 		</plugins>
+		
+		
+		<!-- OPTIONAL: Appease Eclipse m2e Maven integration -->
 		<pluginManagement>
 			<plugins>
 				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
@@ -156,6 +178,11 @@
 	</build>
 	
 	<profiles>
+	
+		<!-- OPTIONAL: Appease Eclipse m2e Maven integration -->
+		<!-- Various switches on web.xml: the dev version which is configured to reserve
+			a smaller mem/disk cache than the deployment version, the deployment version,
+			or the filename of a custom web.xml passed in via the influent.dev.web.xml system property -->
 		<profile>
 			<id>DevelopmentDefaults</id>
 			<activation>
@@ -164,7 +191,7 @@
 				</property>
 			</activation>
 			<properties>
-				<default.web.xml>src/main/config/dev-override-web.xml</default.web.xml>
+				<default.influent.dev.web.xml>src/main/config/dev-override-web.xml</default.influent.dev.web.xml>
 			</properties>
 		</profile>
 		<profile>
@@ -176,7 +203,7 @@
 				</property>
 			</activation>
 			<properties>
-				<default.web.xml>src/main/webapp/WEB-INF/web.xml</default.web.xml>
+				<default.influent.dev.web.xml>src/main/webapp/WEB-INF/web.xml</default.influent.dev.web.xml>
 			</properties>
 		</profile>
 		
@@ -184,71 +211,47 @@
 			<id>WebXmlDefaults</id>
 			<activation>
 				<property>
-					<name>!web.xml</name>
+					<name>!influent.dev.web.xml</name>
 				</property>
 			</activation>
 			<properties>
-				<!-- override by running the maven build with -Dweb.xml=MY_PATH_HERE. -->
-				<web.xml>${default.web.xml}</web.xml>
+				<!-- override by running the maven build with -Dinfluent.dev.web.xml=MY_PATH_HERE. -->
+				<influent.dev.web.xml>${default.influent.dev.web.xml}</influent.dev.web.xml>
 			</properties>
 		</profile>
 		
-		<!-- For development convenience these settings are used to copy out 
-			the appropriate phantom capture executable based on the OS. In a production 
-			environment the appropriate version and the path to it must be set up manually. -->
+		<!-- Sets minified setting for WAR builder if running the deployment build -->
 		<profile>
-			<id>windows</id>
+			<id>Minified</id>
 			<activation>
-				<os>
-					<family>windows</family>
-				</os>
+				<property>
+					<name>environment</name>
+					<value>deployment</value>
+				</property>
 			</activation>
+			
 			<properties>
-				<phantomBinType>exe</phantomBinType>
-				<phantomBinFile>phantomjs.exe</phantomBinFile>
+				<influent.client.optimization>min</influent.client.optimization>
 			</properties>
 		</profile>
 
+		<!-- Handles skinny setting for WAR builder if requested in system properties -->
 		<profile>
-			<id>linux</id>
+			<id>Skinny</id>
 			<activation>
-				<os>
-					<family>unix</family>
-				</os>
+				<property>
+					<name>influent.war.skinny</name>
+					<value>true</value>
+				</property>
 			</activation>
 			<properties>
-				<phantomBinType>linux-x86-64</phantomBinType>
-				<phantomBinFile>phantomjs</phantomBinFile>
+				<influent.war.exclusions>WEB-INF/lib/*.jar</influent.war.exclusions>
 			</properties>
 		</profile>
-		<profile>
-			<id>linux-i686</id>
-			<activation>
-				<os>
-					<family>unix</family>
-					<arch>i686</arch>
-				</os>
-			</activation>
-			<properties>
-				<phantomBinType>linux-i686</phantomBinType>
-				<phantomBinFile>phantomjs</phantomBinFile>
-			</properties>
-		</profile>
-		<profile>
-			<id>macosx</id>
-			<activation>
-				<os>
-					<family>mac</family>
-				</os>
-			</activation>
-			<properties>
-				<phantomBinType>macosx</phantomBinType>
-				<phantomBinFile>phantomjs</phantomBinFile>
-			</properties>
-		</profile>
-	
-		<!-- Development Profile Runs unoptimized (raw) version of JavaScript,
-			also provides access to test files -->
+
+		<!-- OPTIONAL: Development profile runs source versions of everything
+			with runtime hotswappping and updates of all server and client files, with a few
+			exceptions like config.js -->
 		<profile>
 			<id>Development</id>
 			
@@ -258,31 +261,14 @@
 				</property>
 			</activation>
 
+			<properties>
+				<influent.client.optimization>src</influent.client.optimization>
+			</properties>
+			
 			<build>
 				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-war-plugin</artifactId>
-						<version>2.1.1</version>
-						<configuration>
-							<webXml>src\main\webapp\WEB-INF\web.xml</webXml>							
-							<overlays>
-								<!-- Overlay client JS files -->
-								<overlay>
-									<artifactId>aperture-client</artifactId>
-									<groupId>oculus.aperture</groupId>
-									<type>jar</type>
-									<targetPath>aperture</targetPath>
-								</overlay>
-								<overlay>
-									<artifactId>influent-client-dist</artifactId>
-									<groupId>${project.groupId}</groupId>
-									<type>jar</type>
-									<targetPath>.</targetPath>
-								</overlay>
-							</overlays>
-						</configuration>
-					</plugin>
+				
+					<!-- OPTIONAL: Copy phantomjs binary into local directory for launching with Jetty below. -->
 			   	    <plugin>
 			   	        <groupId>org.codehaus.mojo</groupId>
 			   	        <artifactId>dependency-maven-plugin</artifactId>
@@ -298,10 +284,10 @@
 				   	                <artifactItem>
 				   	                  <groupId>oculus.aperture.service</groupId>
 				   	                  <artifactId>aperture-capture-phantom</artifactId>
-				   	                  <type>${phantomBinType}</type>
+				   	                  <type>${influent.dev.phantomjs.type}</type>
 				   	                  <version>${aperture.version}</version>
 				   	                  <outputDirectory>${basedir}/bin</outputDirectory>
-				   	                  <destFileName>${phantomBinFile}</destFileName>
+				   	                  <destFileName>${influent.dev.phantomjs.binary}</destFileName>
 				   	                </artifactItem>
 				   	              </artifactItems>
 				   	            </configuration>
@@ -309,36 +295,8 @@
 		   	        	</executions>
 			   	    </plugin>
 					
-					<!-- Compile application .less file -->
+					<!-- OPTIONAL: For running Jetty in Eclipse -->
 					<plugin>
-    					<groupId>org.lesscss</groupId>
-    					<artifactId>lesscss-maven-plugin</artifactId>
-    					<version>1.3.3</version>
-    					<configuration>
-    						<lessJs>${baseProjectSrc}/scripts/lib/extern/less-1.3.3.min.js</lessJs>
-        					<sourceDirectory>${baseProjectSrc}/theme</sourceDirectory>
-        					<outputDirectory>${project.build.directory}/${project.build.finalName}/theme</outputDirectory>
-					        <compress>true</compress>
-					        <force>true</force>
-					        <includes>
-					            <include>app.less</include>
-					        </includes>
-    					</configuration>
-    					<executions>
-    						<!-- If you see a less related error here about the path to influent-client, resolve it by running the maven build with
-    							-Dinfluent.base.directory=MY_PATH_HERE\influent. By default we look for it in the parent directory -->
-				        	<execution>
-				        		<id>process-less</id>
-            					<phase>process-resources</phase>
-				            	<goals>
-				                	<goal>compile</goal>
-				            	</goals>
-				        	</execution>
-				    	</executions>
-					</plugin>
-
-					<plugin>
-						<!-- Jetty For Dev Builds Only -->
 						<groupId>org.mortbay.jetty</groupId>
 						<artifactId>jetty-maven-plugin</artifactId>
 						<version>7.2.0.v20101020</version>
@@ -349,268 +307,18 @@
 							<scanTargetPatterns>
 								<scanTargetPattern>
 									<directory>src/main/resources</directory>
-									<includes>
-										<include>**/*</include>
-									</includes>
-									<excludes>
-										<exclude>**/.svn/**/*</exclude>
-									</excludes>
 								</scanTargetPattern>
 							</scanTargetPatterns>
 
+							<!-- Use the local web.xml overrides and watch the source files for changes to swap in -->
 							<webAppConfig>
 								<contextPath>/${project.artifactId}</contextPath>
-								<baseResource
-									implementation="org.eclipse.jetty.util.resource.ResourceCollection">
-									<!-- Use the development (source) code -->
-									<resourcesAsCSV>${baseProjectSrc},src/main/webapp,${project.build.directory}/${project.build.finalName}</resourcesAsCSV>
-								</baseResource>
-
-								<overrideDescriptor>${web.xml}</overrideDescriptor>
-
-							</webAppConfig>
-
-						</configuration>
-
-						<dependencies>
-							<dependency>
-								<groupId>org.eclipse.jetty</groupId>
-								<artifactId>jetty-server</artifactId>
-								<version>7.2.0.v20101020</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
-		<!-- Deployment Profile Runs optimized version of JavaScript -->
-		<profile>
-			<id>Deployment</id>
-
-			<activation>
-				<property>
-					<name>environment</name>
-					<value>deployment</value>
-				</property>
-			</activation>
-
-			<build>
-				<plugins>
-				
-					<!--  Create new directory to store webapp -->
-					<plugin>
-  						<artifactId>maven-antrun-plugin</artifactId>
-  						<executions>
-    						<execution>
-      							<id>create-webapp-directory</id>
-      							<phase>generate-resources</phase>
-      							<configuration>
-        							<tasks>
-        								<delete dir="${project.build.directory}/${tempWebappDir}"/>
-          								<mkdir dir="${project.build.directory}/${tempWebappDir}"/>
-          							</tasks>
-                    			</configuration>
-                    			<goals>
-                        			<goal>run</goal>
-                    			</goals>
-                			</execution>
-            			</executions>
-         			</plugin>
-					
-					<!--  Copy scripts from base projects -->
-					<plugin>
-						<artifactId>maven-resources-plugin</artifactId>
-        				<version>2.6</version>
-    					<executions>
-    						<execution>
-            					<id>copy-requirejs</id>
-            					<phase>generate-resources</phase>
-            					<goals>
-                					<goal>copy-resources</goal>
-            					</goals>
-            					<configuration>
-            						<outputDirectory>${project.build.directory}/${tempWebappDir}/requirejs</outputDirectory>
-                					<overwrite>true</overwrite>
-                					<resources>
-                    					<resource>
-                        					<directory>${baseProjectSrc}/../requirejs</directory>
-                    					</resource>
-                					</resources>
-            					</configuration>
-        					</execution>
-    					
-        					<execution>
-            					<id>copy-client-src</id>
-            					<phase>generate-resources</phase>
-            					<goals>
-                					<goal>copy-resources</goal>
-            					</goals>
-            					<configuration>
-            						<outputDirectory>${project.build.directory}/${tempWebappDir}/webapp</outputDirectory>
-                					<overwrite>true</overwrite>
-                					<resources>
-                    					<resource>
-                        					<directory>${baseProjectSrc}</directory>
-                        					<excludes>
-          										<exclude>app.less</exclude>
-          									</excludes>
-                    					</resource>
-                					</resources>
-            					</configuration>
-        					</execution>
-        					
-        					<execution>
-            					<id>copy-app-src</id>
-            					<phase>generate-resources</phase>
-            					<goals>
-                					<goal>copy-resources</goal>
-            					</goals>
-            					<configuration>
-            						<outputDirectory>${project.build.directory}/${tempWebappDir}/webapp</outputDirectory>
-                					<overwrite>true</overwrite>
-                					<resources>
-                    					<resource>
-                        					<directory>${project.basedir}/src/main/webapp</directory>
-                    					</resource>
-                					</resources>
-            					</configuration>
-        					</execution>
-        					
-        					<execution>
-            					<id>copy-app-build</id>
-            					<phase>generate-resources</phase>
-            					<goals>
-                					<goal>copy-resources</goal>
-            					</goals>
-            					<configuration>
-            						<outputDirectory>${project.build.directory}/${tempWebappDir}</outputDirectory>
-                					<overwrite>true</overwrite>
-                					<resources>
-                    					<resource>
-                        					<directory>${project.basedir}/src/main</directory>
-                        					<includes>
-                        						<include>app.build.js</include>
-                        					</includes>
-                    					</resource>
-                					</resources>
-            					</configuration>
-        					</execution>
-    					</executions>
-					</plugin>
-					
-					<!-- Compile application .less file -->
-					<plugin>
-    					<groupId>org.lesscss</groupId>
-    					<artifactId>lesscss-maven-plugin</artifactId>
-    					<version>1.3.3</version>
-    					<configuration>
-    						<lessJs>${project.build.directory}/${tempWebappDir}/webapp/scripts/lib/extern/less-1.3.3.min.js</lessJs>
-        					<sourceDirectory>${baseProjectSrc}/theme</sourceDirectory>
-        					<outputDirectory>${project.build.directory}/${tempWebappDir}/webapp/theme</outputDirectory>
-					        <compress>true</compress>
-					        <force>true</force>
-					        <includes>
-					            <include>app.less</include>
-					        </includes>
-    					</configuration>
-    					<executions>
-				        	<execution>
-				        		<id>process-less</id>
-            					<phase>process-resources</phase>
-				            	<goals>
-				                	<goal>compile</goal>
-				            	</goals>
-				        	</execution>
-				    	</executions>
-					</plugin>
-
-					<plugin>
-						<groupId>com.github.mcheely</groupId>
-    					<artifactId>requirejs-maven-plugin</artifactId>
-    					<version>2.0.0</version>
-    					<executions>
-      						<execution>
-      							<phase>compile</phase>
-        						<goals>
-          							<goal>optimize</goal>
-        						</goals>
-      						</execution>
-    					</executions>
-    					<configuration>
-        					<!-- path to optimizer json config file -->
-        					<configFile>
-            					${project.build.directory}/${tempWebappDir}/app.build.js
-        					</configFile>
-        					<!-- optional path to optimizer executable -->
-        					<optimizerFile>
-            					${project.build.directory}/${tempWebappDir}/requirejs/r.js
-        					</optimizerFile>
-					        <!--
-					        Whether or not to process configFile with maven filters.
-					        If you use this option, some options in your configFile
-					        must resolve to absolute paths (see below)
-					        -->
-					        <filterConfig>
-					            true
-					        </filterConfig>
-					        <!-- Skip requirejs optimization if true -->
-					        <skip>
-					            false
-					        </skip>
-					    </configuration>
-					</plugin>
-					
-					<!-- WAR configuration -->
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-war-plugin</artifactId>
-						<version>2.1.1</version>
-						<configuration>
-							<!-- Use optimized sources -->
-							<warSourceDirectory>${project.build.directory}/webapp-build</warSourceDirectory>
-							<webXml>${project.build.directory}/webapp-build/WEB-INF/web.xml</webXml>							
-							<overlays>
-								<!-- Overlay client JS files -->
-								<overlay>
-									<groupId>oculus.aperture</groupId>
-									<artifactId>aperture-client</artifactId>
-									<type>jar</type>
-									<targetPath>aperture</targetPath>
-								</overlay>
-							</overlays>
-						</configuration>
-					</plugin>
-
-					<!-- Jetty configuration -->
-					<plugin>
-						<!-- Jetty For Dev Builds Only -->
-						<groupId>org.mortbay.jetty</groupId>
-						<artifactId>jetty-maven-plugin</artifactId>
-						<version>7.2.0.v20101020</version>
-						<configuration>
-
-							<reload>manual</reload>
-
-							<scanTargetPatterns>
-								<scanTargetPattern>
-									<directory>src/main/resources</directory>
-									<includes>
-										<include>**/*</include>
-									</includes>
-									<excludes>
-										<exclude>**/.svn/**/*</exclude>
-									</excludes>
-								</scanTargetPattern>
-							</scanTargetPatterns>
-
-							<webAppConfig>
-								<contextPath>/${project.artifactId}</contextPath>
+								<overrideDescriptor>${influent.dev.web.xml}</overrideDescriptor>
 								<baseResource implementation="org.eclipse.jetty.util.resource.ResourceCollection">
-									<!-- Use the "built" version of the JS code (been run through the RequireJS optimizer) -->
-									<resourcesAsCSV>${project.build.directory}/${project.build.finalName}</resourcesAsCSV>
+									<resourcesAsCSV>${influent.dev.client.src},src/main/webapp,${project.build.directory}/${project.build.finalName}</resourcesAsCSV>
 								</baseResource>
 							</webAppConfig>
+
 						</configuration>
 
 						<dependencies>
@@ -625,8 +333,8 @@
 			</build>
 		</profile>
 
-		<!-- Continuous Integration Profile
-			Uses Cargo to deploy the built WAR to the local Jetty server -->
+		<!-- OPTIONAL: Continuous Integration Profile
+			Uses Cargo to deploy the built WAR to a standalone Jetty server -->
 		<profile>
 			<id>CI</id>
 
@@ -658,36 +366,11 @@
 			</build>
 		</profile>
 	</profiles>
-	
-	<dependencies>
-		<dependency>
-			<artifactId>influent-server</artifactId>
-			<groupId>${project.groupId}</groupId>
-			<version>${project.version}</version>
-		</dependency>
-		
-		<dependency>
-			<artifactId>influent-client-dist</artifactId>
-			<groupId>${project.groupId}</groupId>
-			<version>${project.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>oculus.aperture</groupId>
-			<artifactId>aperture-client</artifactId>
-			<version>${aperture.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20090211</version>
-		</dependency>
 
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<scope>compile</scope>
-		</dependency>
-	</dependencies>
+	<!--  OPTIONAL: Continuous Integration configuration for above -->	
+	<ciManagement>
+		<system>hudson</system>
+		<url>http://maven/jenkins/</url>
+	</ciManagement>
+
 </project>

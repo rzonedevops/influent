@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -280,7 +280,7 @@ public class RelatedLinkResource extends ApertureServerResource{
 			
 				// collapse context entity cluster hierarchy by simplifying the tree for usability
 				// returns root level entities that have no containing cluster and all the simplified clusters in the context
-				simpleContext = ClusterCollapser.collapse(context, true, !prunedClusterCounts.isEmpty(), redirect);
+				simpleContext = ClusterCollapser.collapse(context, false, !prunedClusterCounts.isEmpty(), redirect);
 				
 				// revise the context stored in the cache to use the new simplified context
 				targetContextRW.merge(simpleContext.second, false, true);

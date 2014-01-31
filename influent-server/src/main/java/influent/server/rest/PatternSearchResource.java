@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -160,7 +160,10 @@ public class PatternSearchResource extends ApertureServerResource{
 
 				// get native entity id refs from globals and substitute
 				for (String uid : emd.getExamplars()) {
-					ids.add(TypedId.fromTypedId(uid).getNativeId());
+					String nid = TypedId.fromTypedId(uid).getNativeId();
+					if (nid != null) {
+						ids.add(nid);
+					}
 				}
 				
 				emd.setExamplars(ids);
