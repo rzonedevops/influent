@@ -2,7 +2,7 @@
 
 Influent is a new web based application for visually and interactively following transaction flow, revealing actors and behaviors of potential concern that might otherwise go unnoticed. Summary visualization of transactional patterns and actor characteristics, interactive link expansion and dynamic entity clustering enable Influent to operate effectively at scale with big data sources, in any modern web browser. Influent has been used to explore data sets with millions of entities and hundreds of millions of transactions.
 
-Service Provider Interfaces (SPIs) provide a plugin style framework for developers to provide runtime-injected modules for search, data access, clustering and other services. [Avro](http://avro.apache.org/) is used to define the SPIs in language independent form in [influent-spi](influent-midtier/src/main/avro).
+Service Provider Interfaces (SPIs) provide a plugin style framework for developers to provide runtime-injected modules for search, data access, clustering and other services. [Avro](http://avro.apache.org/) is used to define the SPI protocols in cross-language form in [influent-spi](influent-spi/src/main/avro). In process Java service implementations are injected via [Guice](https://code.google.com/p/google-guice/), which may optionally delegate to out of process providers using web services standards such as REST, for which Avro provides convenient serialization.
 
 ![Influent example with public Kiva data set](https://raw.github.com/oculusinfo/wiki-assets/master/influent/influent-kiva.jpg) 
 > Example Influent flow analysis. Begin by searching for an entity of interest (A). Entity cards summarize entity properties and histograms summarize transactions. Highlighted transactions are shown for entities of interest (B). Click [+] buttons to expand incoming/outgoing entity links (C). “Unstack” clusters of entities by clicking paperclip to drill down (D). Specify transaction filter (E).
@@ -17,14 +17,14 @@ Once installed, execute the following command in the root influent directory:
 ```
 mvn clean install
 ```
-The full collection of influent libraries and transitive dependencies (other libraries needed) will be bundled at the tail end of the `influent-server` build and placed in a zip file in the `influent-server/target` directory for the "skinny war" deployment options described [below](#Web App Deployment). Alternatively those libraries can be included in your influent app war file in conventional fashion, as in the `bitcoin` and `kiva` example apps.
+The full collection of influent libraries and transitive dependencies (other libraries needed) will be bundled at the tail end of the `influent-server` build and placed in a zip file in the `influent-server/target` directory for the "skinny war" deployment options described [below](#web-app-deployment). Alternatively those libraries can be included in your influent app war file in conventional fashion, as in the `bitcoin` and `kiva` example apps.
 
 The full collection of client-side resources files (JavaScript, CSS, etc) are bundled at the tail end of the `influent-client` build and two variations are placed in zip files in the `influent-client/target` directory. One contains the file in raw source form useful for debugging, and one contains them in minimized form for optimal loading in a deployed scenario.
 
 ## Building and Running Influent Apps
-Influent exposes APIs for integration of large enterprise data sources. For ease of integration with conventional relational databases, adapters are provided for MSSQL, Oracle, and MySQL. SQL scripts are provided in the `influent-spi/src/main/dataviews` directory for creating the required Influent Data View tables.
+Influent exposes APIs for integration of large enterprise data sources. For ease of integration with conventional relational databases, adapters are provided for MSSQL, Oracle, and MySQL. SQL scripts are provided in the `influent-spi` [dataviews](influent-spi/src/main/dataviews) directory for creating the required Influent Data View tables.
 
-Clustering is configurable for each data set. The integrator chooses ordered fields by which to cluster as well as the fields to compute distributions for that will be mapped to icons in `config.js` in the same way as individual icons (see Kiva's [config.js](kiva/src/main/resources/config.js) as an example). Clustering configuration is documented in the following [README](influent-server/src/main/resources/README.md).
+Clustering is configurable for each data set. The integrator chooses ordered fields by which to cluster as well as the fields to compute distributions for that will be mapped to icons in `config.js` in the same way as individual icons (see Kiva's [config.js](kiva/src/main/resources/config.js) as an example). Clustering configuration is documented in the `influent-server` clustering [README](influent-server/src/main/resources/influent/server/clustering/README.md).
 
 Example maven based applications are provided for public Kiva and Bitcoin transaction data, which connect to databases we have made available online for demonstration purposes. To import these applications into Eclipse, for example, use the `File > Import... > Maven > Existing Maven Projects...` command in Eclipse that comes with the [m2e](http://www.eclipse.org/m2e/) plugin.
 
@@ -36,6 +36,7 @@ The "skinny war" approach can be implemented in a Tomcat configuration in `catal
 ```properties
 shared.loader=${catalina.base}/lib-influent/*.jar
 ```
+EDITOR's NOTE: An issue has been discovered with this approach which is currently being looked into. In the meantime please use the conventional self-contained war approach.
 
 ### Standalone Jetty Configuration
 The "skinny war" approach can be implemented in a standalone Jetty server by configuring the web app's xml file in contexts, similar to the following example. Similar to above, in this example `lib-influent/` is the directory into which you would extract the contents of the zip file produced by the server build process.
