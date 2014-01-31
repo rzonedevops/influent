@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,12 +24,15 @@
  */
 package influent.server.rest;
 
-import influent.entity.clustering.utils.ClusterContextCache;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
-import influent.midtier.TypedId;
+import influent.idl.FL_LevelOfDetail;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ContextReadWrite;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
+import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
@@ -54,27 +57,30 @@ public class EntityLookupResource extends ApertureServerResource{
 	
 	private final FL_DataAccess service;
 	private final FL_ClusteringDataAccess clusterAccess;
-	
-	private List<String> flattenEntityCluster(List<String> entityIds, String contextid, String sessionId, boolean isFlattened) throws AvroRemoteException{
+	private final ClusterContextCache contextCache;
+
+	private List<String> flattenEntityCluster(List<String> entityIds, String contextId, ContextReadWrite context, String sessionId, boolean isFlattened) throws AvroRemoteException{
 		List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
 		List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
 		
 		List<String> flatIdList = new ArrayList<String>();
 		//First, check to see how many of the ids are clusters without summaries
-		List<String> nosumClusters = ClusterContextCache.instance.getClusterIdsWithoutSummaries(clusterIds, contextid);
+		List<String> nosumClusters = context.getClusterIdsWithoutSummaries(clusterIds);
 		
 		if (!nosumClusters.isEmpty()) {
-			List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(clusterIds, contextid, sessionId);
-			ClusterContextCache.instance.mergeIntoContext(computeClusterSums, contextid, true, false);
+			List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(clusterIds, contextId, sessionId);
+			
+			context.merge(computeClusterSums, true, false);
 		}
 		
-		List<FL_Cluster> clusterResults = ClusterContextCache.instance.getClusters(clusterIds, contextid);
-		List<FL_Entity> entityResults = service.getEntities(accountIds);
+		List<FL_Cluster> clusterResults = context.getClusters(clusterIds);
+		// DJ: why is this here?
+		List<FL_Entity> entityResults = service.getEntities(accountIds, FL_LevelOfDetail.SUMMARY);
 		if (isFlattened){
 			for (FL_Cluster cluster : clusterResults){
 				List<String> childIds = cluster.getMembers();
 				childIds.addAll(cluster.getSubclusters());
-				flatIdList.addAll(flattenEntityCluster(childIds, contextid, sessionId, isFlattened));
+				flatIdList.addAll(flattenEntityCluster(childIds, contextId, context, sessionId, isFlattened));
 			}
 			for (FL_Entity entity : entityResults){
 				flatIdList.add(entity.getUid());
@@ -85,9 +91,10 @@ public class EntityLookupResource extends ApertureServerResource{
 	}
 	
 	@Inject
-	public EntityLookupResource(FL_DataAccess service, FL_ClusteringDataAccess clusterDataAccess) {
+	public EntityLookupResource(FL_DataAccess service, FL_ClusteringDataAccess clusterDataAccess, ClusterContextCache contextCache) {
 		this.service = service;
 		clusterAccess = clusterDataAccess;
+		this.contextCache = contextCache;
 	}
 	
 	@Post("json")
@@ -106,6 +113,7 @@ public class EntityLookupResource extends ApertureServerResource{
 			String contextid = jsonObj.getString("contextid").trim();
 			
 			Boolean isFlattened = jsonObj.has("isFlattened")?jsonObj.getBoolean("isFlattened"):false;
+			Boolean details = jsonObj.has("details")? jsonObj.getBoolean("details"):false;
 			
 			// get the root node ID from the form
 			JSONArray entityNodes = jsonObj.getJSONArray("entities");
@@ -118,26 +126,41 @@ public class EntityLookupResource extends ApertureServerResource{
 				entityIds.add(id);
 			}
 
+			List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
+			List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
 			
-			//First, check to see how many of the ids are clusters without summaries
-			List<String> nosumClusters = ClusterContextCache.instance.getClusterIdsWithoutSummaries(entityIds, contextid);
-			
-			if (!nosumClusters.isEmpty()) {
-				List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(entityIds, contextid, sessionId);
-				ClusterContextCache.instance.mergeIntoContext(computeClusterSums, contextid, true, false);
-			}
-			
+			PermitSet permits = new PermitSet();
 			List<FL_Cluster> clusterResults = new ArrayList<FL_Cluster>();
-			if (isFlattened){
-				entityIds.addAll(flattenEntityCluster(entityIds, contextid, sessionId, isFlattened));
-			}
-			else {
-				clusterResults.addAll(ClusterContextCache.instance.getClusters(entityIds, contextid));
+			
+			try {
+				// technically there is only one write op, which is the merge calls, and don't like holding
+				// this lock while calling getClusters but there are recursive merge calls in flatten cluster
+				ContextReadWrite contextRW = contextCache.getReadWrite(contextid, permits);
+				
+				//First, check to see how many of the ids are clusters without summaries
+				List<String> nosumClusters = contextRW.getClusterIdsWithoutSummaries(clusterIds);
+				
+				if (!nosumClusters.isEmpty()) {
+					List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(clusterIds, contextid, sessionId);
+
+					contextRW.merge(computeClusterSums, true, false);
+				}
+			
+				if (isFlattened){
+					accountIds.addAll(flattenEntityCluster(clusterIds, contextid, contextRW, sessionId, isFlattened));
+				}
+				else {
+					clusterResults.addAll(contextRW.getClusters(clusterIds));
+				}
+									
+			} finally {
+				permits.revoke();
 			}
 			
 			//List<FL_Cluster> clusterResults = clusterAccess.getEntities(entityIds, contextid);
 		
-			List<FL_Entity> entityResults = service.getEntities(entityIds);
+			List<FL_Entity> entityResults = service.getEntities(accountIds, 
+					details? FL_LevelOfDetail.FULL: FL_LevelOfDetail.SUMMARY);
 
 			JSONArray ja = new JSONArray();
 			

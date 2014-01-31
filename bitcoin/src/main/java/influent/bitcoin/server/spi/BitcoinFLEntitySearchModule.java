@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,9 +24,9 @@
  */
 package influent.bitcoin.server.spi;
 
-import influent.bitcoin.server.data.BitcoinNamespaceHandler;
 import influent.bitcoin.server.search.BitcoinEntitySearch;
 import influent.idl.FL_EntitySearch;
+import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.utilities.SQLConnectionPool;
 
 import com.google.inject.AbstractModule;
@@ -48,11 +48,12 @@ public class BitcoinFLEntitySearchModule extends AbstractModule {
 	 */
 	@Provides @Singleton
 	public BitcoinEntitySearch connect (
-			SQLConnectionPool connectionPool
+			SQLConnectionPool connectionPool,
+			DataNamespaceHandler namespaceHandler
 	) {
 
 		try {
-			return new BitcoinEntitySearch(connectionPool, new BitcoinNamespaceHandler());
+			return new BitcoinEntitySearch(connectionPool, namespaceHandler);
 		} catch (Exception e) {
 			addError("Failed to EntitySearch", e);
 			return null;

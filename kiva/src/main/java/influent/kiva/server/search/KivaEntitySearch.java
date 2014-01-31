@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -32,15 +32,23 @@ import influent.idl.FL_ListRange;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyDescriptor;
 import influent.idl.FL_PropertyMatchDescriptor;
+import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
 import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
 import influent.idl.FL_SingletonRange;
-import influent.idlhelper.PropertyMatchDescriptorHelper;
-import influent.midtier.TypedId;
+import influent.idlhelper.PropertyHelper;
+import influent.idlhelper.SolrUtils;
 import influent.midtier.solr.search.ConfigFileDescriptors;
+import influent.server.dataaccess.DataAccessHelper;
+import influent.server.dataaccess.DataNamespaceHandler;
+import influent.server.utilities.SQLConnectionPool;
+import influent.server.utilities.TypedId;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -63,6 +71,8 @@ public class KivaEntitySearch implements FL_EntitySearch {
 	private final FL_Geocoding _geocoding;
 	private String _solrURL;
 	private SolrServer _solr;
+	private final SQLConnectionPool _connectionPool;
+	private final DataNamespaceHandler _namespaceHandler;
 	
 	private final ConfigFileDescriptors _cfd = new ConfigFileDescriptors();
 	
@@ -75,10 +85,12 @@ public class KivaEntitySearch implements FL_EntitySearch {
 	}
 	
 	
-	public KivaEntitySearch(String solrURL, String solrDescriptor, FL_Geocoding geocoding) {
+	public KivaEntitySearch(String solrURL, String solrDescriptor, FL_Geocoding geocoding, SQLConnectionPool connectionPool, DataNamespaceHandler namespaceHandler) {
 		_solrURL = solrURL;
 		_solr = new HttpSolrServer(_solrURL);
 		_geocoding = geocoding;
+		_connectionPool = connectionPool;
+		_namespaceHandler = namespaceHandler;
 		
 		try {
 			_cfd.readDescriptorsFromFile(solrDescriptor);
@@ -167,7 +179,7 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		}
 		
 		// form the query
-		final String searchStr = PropertyMatchDescriptorHelper.toSolrQuery(searchTerms, s_basicSearchKeys, filteredTerms);
+		final String searchStr = SolrUtils.toSolrQuery(searchTerms, s_basicSearchKeys, filteredTerms);
 	
 		// issue the query.
 		s_logger.info("Issuing Solr Query "+ searchStr);
@@ -185,11 +197,13 @@ public class KivaEntitySearch implements FL_EntitySearch {
 			ssr.setMaxResults((int)max);
 		}
 		
+		List<String> rawIds = new ArrayList<String>();
 		List<FL_SearchResult> results = new ArrayList<FL_SearchResult>();
 		while (ssr.hasNext()) {
 			FL_SearchResult fsr = ssr.next();
 			FL_Entity fle = (FL_Entity)fsr.getResult();
 			String rawId = TypedId.fromTypedId(fle.getUid()).getNativeId();
+			
 			if (brokerIds.containsKey(rawId)) {
 				List<String> realIds = brokerIds.get(rawId);
 				for (String rid : realIds) {
@@ -197,15 +211,68 @@ public class KivaEntitySearch implements FL_EntitySearch {
 					for (FL_Property oldProp : fle.getProperties()) {
 						copyProps.add(FL_Property.newBuilder(oldProp).build());
 					}
-					
+					// add owner property
+					copyProps.add( new PropertyHelper(
+							"owner", 
+							"Account Owner", 
+							fle.getUid(), 
+							Arrays.asList(
+								FL_PropertyTag.ACCOUNT_OWNER
+							)
+						));
 					FL_Entity copy = FL_Entity.newBuilder().setUid(TypedId.fromNativeId(TypedId.ACCOUNT, rid).getTypedId()).setProperties(copyProps).setTags(Arrays.asList(FL_EntityTag.ACCOUNT)).setProvenance(null).setUncertainty(null).build();
 					FL_SearchResult srcopy = FL_SearchResult.newBuilder().setResult(copy).setScore(fsr.getScore()).build();
 					
 					results.add(srcopy);
+					rawIds.add(rid);
 				}
 			} else {
 				results.add(fsr);
+				rawIds.add(rawId);
 			}
+		}
+		
+		try {
+			Map<String, int[]> entityStats = new HashMap<String, int[]>();
+			
+			Connection connection = _connectionPool.getConnection();
+			Statement stmt = connection.createStatement();
+			
+			// separately grab the FinEntity stats
+			String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
+
+			String sql = "select EntityId, UniqueInboundDegree, UniqueOutboundDegree " +
+							" from " + finEntityTable +
+							" where EntityId in " +  DataAccessHelper.createInClause(rawIds);
+			
+			s_logger.info(sql);
+			
+			if (!rawIds.isEmpty() && stmt.execute(sql)) {
+				ResultSet rs = stmt.getResultSet();
+				while (rs.next()) {
+					String entityId = rs.getString("EntityId");
+					int inDegree = rs.getInt("UniqueInboundDegree");
+					int outDegree = rs.getInt("UniqueOutboundDegree");
+				
+					entityStats.put(entityId, new int[]{inDegree, outDegree});
+				}
+				rs.close();
+			}
+			
+			for (FL_SearchResult result : results) {
+				FL_Entity fle = (FL_Entity)result.getResult();
+				int[] stats = entityStats.get( TypedId.fromTypedId( fle.getUid() ).getNativeId() );
+			
+				if (stats != null) {
+					// add degree stats
+					fle.getProperties().add( new PropertyHelper("inboundDegree", stats[0], FL_PropertyTag.INFLOWING) );
+					fle.getProperties().add( new PropertyHelper("outboundDegree", stats[1], FL_PropertyTag.OUTFLOWING) );
+				}
+			}
+			stmt.close();
+			connection.close();
+		} catch (Exception e) {
+			throw new AvroRemoteException(e);
 		}
 		return new FL_SearchResults((long)ssr.getTotalResults(), results);
 	}

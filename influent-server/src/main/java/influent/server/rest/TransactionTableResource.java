@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -27,20 +27,24 @@ package influent.server.rest;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_Duration;
+import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idl.FL_SortBy;
 import influent.idl.FL_TransactionResults;
+import influent.idlhelper.LinkHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.data.LedgerResult;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.TypedId;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 import oculus.aperture.common.rest.ApertureServerResource;
@@ -83,6 +87,19 @@ public class TransactionTableResource extends ApertureServerResource {
 	private final FL_DataAccess dataAccess;
 	public static final long REQUEST_CAP = 1000;
 	
+	// TODO: see #6090
+	private static final List<FL_Property> NO_CLUSTER_FILTER_MESSAGE_PROPS;
+	static {
+		List<FL_Property> p = new ArrayList<FL_Property>();
+		p.add(new PropertyHelper(FL_PropertyTag.INFLOWING, 0));
+		p.add(new PropertyHelper(FL_PropertyTag.OUTFLOWING, 0));
+		p.add(new PropertyHelper(FL_PropertyTag.DATE, new Date()));
+		p.add(new PropertyHelper(FL_PropertyTag.ANNOTATION, 
+				"Sorry, transaction filtering by highlighted clusters is not yet supported."));
+		
+		NO_CLUSTER_FILTER_MESSAGE_PROPS = Collections.unmodifiableList(p);
+	}
+
 	@Inject
 	public TransactionTableResource(FL_DataAccess dataAccess) {
 		this.dataAccess = dataAccess;
@@ -100,20 +117,12 @@ public class TransactionTableResource extends ApertureServerResource {
 			String entityId = form.getFirstValue("entityId");
 			try {
 				if (entityId == null || entityId.trim().isEmpty()) {
-					JSONObject result = new JSONObject();
-					JSONArray dataArray = new JSONArray();
-					result.put("aaData", dataArray);
-					//result.put("aoColumns", columnArray);
-					result.put("sEcho",sEcho);
-					result.put("iTotalDisplayRecords",0);
-					result.put("iTotalRecords",0);
-					
-					return new StringRepresentation(result.toString(), MediaType.TEXT_PLAIN);
+					return emptyResult(sEcho);
 				}
 				entityId = entityId.trim();
 				
 				List<String> entities = new ArrayList<String>();
-				entities.add(entityId);
+				if (!entityId.isEmpty()) entities.add(entityId);
 				
 				String startDateStr = form.getFirstValue("startDate").trim();
 				String endDateStr = form.getFirstValue("endDate").trim();
@@ -135,27 +144,46 @@ public class TransactionTableResource extends ApertureServerResource {
 
 				String focusIds = form.getFirstValue("focusIds");
 				List<String> focusIdList = null;
+				LedgerResult ledgerResult = null;
 				if (focusIds != null && focusIds.length() > 0) {
 					String[] parsedIds = focusIds.split(",");
 					focusIdList = new ArrayList<String>();
 					for (String id : parsedIds) {
 						List<Object> response = new ArrayList<Object>();
-//						EntityCluster cluster = null;//MemoryTransientClusterStore.getInstance().getMap().get(id.trim());
-//						if (cluster != null) {
-//							response.add(cluster);
-//						} else {
-							response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim())));
-//						}
-						focusIdList.addAll(ChartResource.getLeafNodes(response));
+						
+						// transaction filtering does not yet work on clusters - see #6090
+						if (TypedId.fromTypedId(id).getType() == TypedId.ACCOUNT) {
+							response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
+							focusIdList.addAll(TypedId.nativeFromTypedIds(ChartResource.getLeafNodes(response)));
+						}
+					}
+					
+					// TODO: see #6090
+					if (focusIdList.isEmpty()) {
+						final FL_Link message = new LinkHelper(
+							FL_LinkTag.OTHER, "", "",
+							NO_CLUSTER_FILTER_MESSAGE_PROPS
+							);
+						
+						ledgerResult = buildForClient(FL_TransactionResults.newBuilder()
+							.setTotal(1)
+							.setResults(Collections.singletonList(message))
+							.build(), 0,1);
+						
+						List<String> cols = ledgerResult.getTableData().get(0);
+						cols.set(cols.size()-1, focusIds);
+						cols.set(cols.size()-2, focusIds);
 					}
 				}
 				
-				FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
-				long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
-				FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
-				LedgerResult ledgerResult = buildForClient(results, startRow, startRow+totalRows);
+				if (ledgerResult == null) {
+					FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
+					long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
+					FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
+					ledgerResult = buildForClient(results, startRow, startRow+totalRows);
+				}
 				
-				List<String> colNames = ledgerResult.getColumnNames();
+				List<String> colNames = ledgerResult.getColumnUnits();
 				List<List<String>> data = ledgerResult.getTableData();
 				
 				JSONArray dataArray = new JSONArray();
@@ -174,14 +202,14 @@ public class TransactionTableResource extends ApertureServerResource {
 				JSONArray columnArray = new JSONArray();
 				for (String column : colNames) {
 					JSONObject colObj = new JSONObject();
-					colObj.put("sTitle", column);
+					colObj.put("sUnits", column);
 					columnArray.put(colObj);
 				}
 				
 				JSONObject result = new JSONObject();
 				
 				result.put("sEcho",sEcho);
-				result.put("aoColumns", columnArray);
+				result.put("aoColumnUnits", columnArray);
 				result.put("iTotalDisplayRecords",ledgerResult.getTotalRows());
 				result.put("iTotalRecords",ledgerResult.getTotalRows());
 				result.put("aaData", dataArray);
@@ -198,6 +226,18 @@ public class TransactionTableResource extends ApertureServerResource {
 				dae
 			);
 		}
+	}
+	
+	static private StringRepresentation emptyResult(String sEcho) throws JSONException {
+		JSONObject result = new JSONObject();
+		JSONArray dataArray = new JSONArray();
+		result.put("aaData", dataArray);
+		//result.put("aoColumns", columnArray);
+		result.put("sEcho",sEcho);
+		result.put("iTotalDisplayRecords",0);
+		result.put("iTotalRecords",0);
+		
+		return new StringRepresentation(result.toString(), MediaType.TEXT_PLAIN);
 	}
 	
 	private static DecimalFormat us_df = new DecimalFormat("$#,##0.00;$-#,##0.00");
@@ -265,6 +305,9 @@ public class TransactionTableResource extends ApertureServerResource {
 
 		List<List<String>> tableData = new ArrayList<List<String>>();
 		
+		String inflowingUnits = null;
+		String outflowingUnits = null;
+		
 		for (FL_Link link : results.getResults()) { 
 			if(index >= beginIndex && index < endIndex) {
 
@@ -277,20 +320,39 @@ public class TransactionTableResource extends ApertureServerResource {
 					PropertyHelper property = PropertyHelper.from(prop);
 					
 					if (property.hasTag(FL_PropertyTag.INFLOWING) && property.hasValue()) {
-						if (property.hasTag(FL_PropertyTag.DURATION))
+						if (property.hasTag(FL_PropertyTag.DURATION)) {
 							inflowing = formatDur((FL_Duration)property.getValue());
-						else
+							if (inflowingUnits == null) inflowingUnits = FL_PropertyTag.DURATION.toString().toLowerCase();
+						} else {
 							inflowing = formatCur((Number)property.getValue(), property.hasTag(FL_PropertyTag.USD));
+							if (inflowingUnits == null) inflowingUnits = FL_PropertyTag.USD.toString();
+						}
 					} else if (property.hasTag(FL_PropertyTag.OUTFLOWING) && property.hasValue()) {
-						if (property.hasTag(FL_PropertyTag.DURATION))
+						if (property.hasTag(FL_PropertyTag.DURATION)) {
 							outflowing = formatDur((FL_Duration)property.getValue());
-						else
+							if (outflowingUnits == null) outflowingUnits = FL_PropertyTag.DURATION.toString().toLowerCase();
+						} else {
 							outflowing = formatCur((Number)property.getValue(), property.hasTag(FL_PropertyTag.USD));
+							if (outflowingUnits == null) outflowingUnits = FL_PropertyTag.USD.toString();
+						}
 					} else if (property.hasTag(FL_PropertyTag.AMOUNT) && property.hasValue()) {
 						Number value = (Number)property.getValue();
-						String fvalue = (property.hasTag(FL_PropertyTag.COUNT))? formatCount(value) : formatCur(value, property.hasTag(FL_PropertyTag.USD));
-						if (value.doubleValue() < 0) outflowing = fvalue;
-						else inflowing = fvalue;
+						String fvalue = null;
+						String flowUnits = null;
+						if (property.hasTag(FL_PropertyTag.COUNT)) {
+							fvalue = formatCount(value);
+							flowUnits = FL_PropertyTag.COUNT.toString().toLowerCase();
+						} else {
+							fvalue = formatCur(value, property.hasTag(FL_PropertyTag.USD));
+							flowUnits = FL_PropertyTag.USD.toString();
+						}
+						if (value.doubleValue() < 0) {
+							outflowing = fvalue;
+							if (outflowingUnits == null) outflowingUnits = flowUnits;
+						} else {
+							inflowing = fvalue;
+							if (inflowingUnits == null) inflowingUnits = flowUnits;
+						}
 
 					// date or comments?
 					} else if (property.hasTag(FL_PropertyTag.DATE)) {
@@ -305,8 +367,8 @@ public class TransactionTableResource extends ApertureServerResource {
 				newRow.add(comment);      // Comment
 				newRow.add(inflowing); 
 				newRow.add(outflowing); 
-				newRow.add(link.getSource()); //Source entityId
-				newRow.add(link.getTarget()); //Destination entityId
+				newRow.add(TypedId.fromNativeId(TypedId.ACCOUNT, link.getSource()).toString()); //Source entityId
+				newRow.add(TypedId.fromNativeId(TypedId.ACCOUNT, link.getTarget()).toString()); //Destination entityId
 				tableData.add(newRow);
 			}
 			
@@ -319,13 +381,13 @@ public class TransactionTableResource extends ApertureServerResource {
 		
 		int cols = 5;
 		
-		List<String> columnNames = new ArrayList<String>();
-		columnNames.add("Date");
-		columnNames.add("Comment");
-		columnNames.add("Inflowing");
-		columnNames.add("Outflowing");
+		List<String> columnUnits = new ArrayList<String>(4);
+		columnUnits.add("Date");
+		columnUnits.add("Comment");
+		columnUnits.add(inflowingUnits);
+		columnUnits.add(outflowingUnits);
 		
-		return new LedgerResult(cols, endIndex - beginIndex, columnNames, tableData, results.getTotal());
+		return new LedgerResult(cols, endIndex - beginIndex, columnUnits, tableData, results.getTotal());
 	}
 	
 }

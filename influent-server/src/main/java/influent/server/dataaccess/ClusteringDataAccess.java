@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -88,6 +88,13 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 	
 	protected DataNamespaceHandler getNamespaceHandler() {
 		return _namespaceHandler;
+	}
+	
+	@Override
+	public List<FL_Cluster> getClusterSummary(List<String> entities)
+			throws AvroRemoteException {
+		// TODO Auto-generated method stub
+		return null;
 	}
 	
 	private Map<String, Map<String, List<String>>> getEntityMembers(Collection<String> clusterIds, String contextId, String sessionId, Statement stmt) throws SQLException {
@@ -437,7 +444,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 //				entityProps.add(new PropertyHelper("location-dist", "country code distribution", new HashMap<String, Integer>(), FL_PropertyType.OTHER, Collections.singletonList(FL_PropertyTag.STAT)));
 			}
 			
-			clusters.put(id, new ClusterHelper(id, label, "cluster", FL_EntityTag.CLUSTER, entityProps, parent, root, level));
+			clusters.put(id, new ClusterHelper(id, label, FL_EntityTag.CLUSTER, entityProps, parent, root, level));
 		}
 		
 		return clusters;
@@ -754,7 +761,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			
 			String finFlowTable = getNamespaceHandler().tableName(null, DataAccessHelper.FLOW_TABLE);
 			String finFlowIntervalTable = getNamespaceHandler().tableName(null, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-			String finFlowDateColumn = getNamespaceHandler().tableName(null, "PeriodDate");		// TODO replace me when all the old db tables have gone away
+			String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");
 			
 			long start = System.currentTimeMillis();
 			
@@ -995,7 +1002,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 					DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
 			String finEntityIntervalTable = getNamespaceHandler().tableName(null, DataAccessHelper.standardTableName(
 					DataAccessHelper.ENTITY_TABLE, date.getDurationPerBin().getInterval()));
-			String finFlowDateColumn = getNamespaceHandler().tableName(null, "PeriodDate");		// TODO replace me when all the old db tables have gone away
+			String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");
 			String dateColNoEscape = unescapeColumnName(finFlowDateColumn);
 
 			// process src nodes in batches 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -36,11 +36,15 @@ import org.json.JSONException;
  */
 public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 
+	
 	/**
 	 * Constructs a handler which uses standard table names.
 	 */
 	public OracleDataNamespaceHandler() {
 	}
+	
+	
+	
 	
 	/**
 	 * Creates a new handler based on a configuration defined as a JSON object string
@@ -52,6 +56,9 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 		super(tableNamesJson);
 	}
 	
+	
+	
+	
 	/**
 	 * Constructs a namespace handler from a
 	 * map of standard names to localized names.
@@ -61,6 +68,8 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	}
 	
 	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataViewNamespaceHandler#escapeColumnName(java.lang.String)
 	 */
@@ -68,7 +77,10 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	public String escapeColumnName(String columnName) {
 		return '"' + columnName + '"';
 	}
-
+	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataViewNamespaceHandler#rowLimit(java.lang.String, long)
 	 */
@@ -79,9 +91,9 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 		}
 		return "select " + selectBody;
 	}
-
 	
-
+	
+	
 	
 	/**
 	 * Only used for pre-clustering, which we are not using.
@@ -91,7 +103,10 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	public String createTempTable(String tableName, String spec) {
 		throw new UnsupportedOperationException();
 	}
-
+	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataViewNamespaceHandler#tempTableName(java.lang.String)
 	 */
@@ -99,5 +114,4 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	public String tempTableName(String tableName) {
 		return tableName;
 	}
-
 }

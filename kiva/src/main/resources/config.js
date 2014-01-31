@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc. 
+ * Copyright (c) 2013-2014 Oculus Info Inc. 
  * http://www.oculusinfo.com/
  * 
  * Released under the MIT License.
@@ -39,8 +39,8 @@
 	 * The endpoint locations for Aperture services accessed through the io interface
 	 */
 	'aperture.io' : {
-		'rpcEndpoint' : '%host%/kiva/rpc',
-		'restEndpoint' : '%host%/kiva/rest'
+		'rpcEndpoint' : '%host%/${project.artifactId}/rpc',
+		'restEndpoint' : '%host%/${project.artifactId}/rest'
 	},
 
 	/*
@@ -114,6 +114,7 @@
 
 	// EXAMPLES.
 	'influent.config' : {
+        'useAuth' : true,
 		'banner' : 'Kiva',
 		'title' : 'Kiva',
 		'workspaceWidth' : 1100,
@@ -126,11 +127,12 @@
 		    P16Y : '16 years'
 		},
         'startingDateRange' : 'P16M',
-        'defaultShowDetails' : false,
+        'defaultShowDetails' : true,
         'doubleEncodeSourceUncertainty' : true,
         'maxSearchResults' : 50,
         'searchResultsPerPage' : 12,
         'sessionTimeoutInMinutes' : 24*60,
+        'usePatternSearch' : true,
         'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
         	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
         	+ 'set of model accounts, specified here, will match accounts with similar activity. To match on a pattern of activity '
@@ -139,12 +141,14 @@
         	+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
         	+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
         
-        iconOrder : ['TYPE', 'GEO'],
-        
         activityLogging : {
         	enabled: false,
-        	address: 'http://172.16.98.9:1337'
+        	address: 'rest/activity'
+        	//address: 'http://172.16.98.9:1337'
+        	//provider: 'draper',
         },
+        
+        iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],
         
         // maps property tags to icons.
 		// for each, can supply an icon spec or a url, and optionally a title.
@@ -169,7 +173,6 @@
 	    	        	};
         			}
         		},
-        		distName : 'type-dist',
         		limit : 1
         	},
         	
@@ -178,11 +181,10 @@
         			if (value && value.cc) {
 	        			return {
 	        				title: value.text || value.cc,
-	        				icon: {type: 'Place', attributes: {code: value.cc}}
+	        				icon: {type: 'Place', attributes: {code: value.cc, country: value.cc}}
 	        			};
         			}
         		},
-        		distName : 'location-dist',
         		limit: 3
         	},
         	
@@ -201,7 +203,6 @@
         				};
         			}
         		},
-        		
         		limit: 1
         	},
         	

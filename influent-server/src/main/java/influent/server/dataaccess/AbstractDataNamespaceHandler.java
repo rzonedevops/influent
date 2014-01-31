@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,7 +24,7 @@
  */
 package influent.server.dataaccess;
 
-import influent.midtier.TypedId;
+import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,12 +46,16 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	private final Map<String, String> _tableNames;
 	
 	
+	
 	/**
 	 * Constructs a handler which uses standard table names.
 	 */
 	public AbstractDataNamespaceHandler() {
 		_tableNames = Collections.emptyMap();
 	}
+	
+	
+	
 	
 	/**
 	 * Creates a new handler based on a configuration defined as a JSON object string
@@ -71,7 +75,10 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 			_tableNames.put(key, map.getString(key));
 		}
 	}
-
+	
+	
+	
+	
 	/**
 	 * Constructs a namespace handler from a
 	 * map of standard names to localized names.
@@ -82,14 +89,18 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	
 	
 	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#globalFromLocalEntityId(java.lang.String, java.lang.String)
 	 */
 	@Override
-	public String globalFromLocalEntityId(String namespace, String localEntityId) {
-		return TypedId.fromNativeId(TypedId.ACCOUNT, localEntityId).getTypedId();
+	public String globalFromLocalEntityId(String namespace, String localEntityId, char entityType) {		
+		return TypedId.fromNativeId(entityType, namespace, localEntityId).getTypedId();
 	}
-
+	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#localFromGlobalEntityId(java.lang.String)
 	 */
@@ -98,13 +109,19 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 		return TypedId.fromTypedId(globalEntityId).getNativeId();
 	}
 	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#namespaceFromGlobalEntityId(java.lang.String)
 	 */
 	@Override
 	public String namespaceFromGlobalEntityId(String globalEntityId) {
-		return null;
+		return TypedId.fromTypedId(globalEntityId).getNamespace();
 	}
+	
+	
+	
 	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#tableName(java.lang.String)
@@ -116,9 +133,33 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 		if (mappedName == null) {
 			mappedName = standardTableName;
 		}
-		
+
+		if (namespace != null && !namespace.isEmpty()) {
+			return namespace + "." + mappedName;
+		}
+			
 		return mappedName;
 	}
+	
+	
+	
+	
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.DataNamespaceHandler#columnName(java.lang.String)
+	 */
+	@Override
+	public String columnName(String standardColumnName) {
+		String mappedName = _tableNames.get(standardColumnName);
+		
+		if (mappedName == null) {
+			mappedName = standardColumnName;
+		}
+			
+		return mappedName;
+	}
+	
+	
+	
 	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#entitiesByNamespace(java.util.List)
@@ -142,6 +183,8 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	}
 	
 	
+	
+	
 	/**
 	 * Finds or creates a namespace in the existing map of namespaces.
 	 */
@@ -155,6 +198,4 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 		
 		return ns;
 	}
-
-	
 }

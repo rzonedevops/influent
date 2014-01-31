@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -25,7 +25,7 @@
 package influent.server.spi;
 
 import influent.idl.FL_Entity;
-import influent.midtier.api.DataAccessException;
+import influent.server.dataaccess.DataAccessException;
 
 
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,9 +24,11 @@
  */
 package influent.server.rest;
 
-import influent.entity.clustering.utils.ClusterContextCache;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_DataAccess;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ContextRead;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
@@ -49,24 +51,26 @@ import com.google.inject.Inject;
 public class ContainedEntitiesResource extends ApertureServerResource{
 	
 	final FL_DataAccess dataAccess;
-	
+	private final ClusterContextCache contextCache;
+
 	@Inject
-	public ContainedEntitiesResource(FL_DataAccess dataAccess) {
+	public ContainedEntitiesResource(FL_DataAccess dataAccess, ClusterContextCache contextCache) {
 		this.dataAccess = dataAccess;
+		this.contextCache = contextCache;
 	}
 	
-	private void getContainedEntitiesHelper(List<String> clusterIds, List<String> leafEntities, String contextId) {
+	private void getContainedEntitiesHelper(List<String> clusterIds, List<String> leafEntities, ContextRead context) {
 		
 		if (clusterIds == null || clusterIds.size() == 0) {
 			return;
 		}
 		
-		List<FL_Cluster> clusterResults = ClusterContextCache.instance.getClusters(clusterIds, contextId);
+		List<FL_Cluster> clusterResults = context.getClusters(clusterIds);
 		for (FL_Cluster result : clusterResults) {
 			if (result.getMembers() != null && result.getMembers().size() > 0 ) {
 				leafEntities.addAll(result.getMembers());
 			}
-			getContainedEntitiesHelper(result.getSubclusters(), leafEntities, contextId);
+			getContainedEntitiesHelper(result.getSubclusters(), leafEntities, context);
 		}
 	}
 	
@@ -87,8 +91,19 @@ public class ContainedEntitiesResource extends ApertureServerResource{
 			// it only processes the latest response.
 			List<String> rawIds = UISerializationHelper.buildListFromJson(jsonObj, "clusterIds");
 			List<String> leafIds = new ArrayList<String>();
+
+			PermitSet permits = new PermitSet();
 			
-			getContainedEntitiesHelper(rawIds,leafIds,contextid);
+			try {
+				ContextRead contextRO = contextCache.getReadOnly(contextid, permits);
+				
+				if (contextRO != null) {
+					getContainedEntitiesHelper(rawIds,leafIds,contextRO);
+				}
+				
+			} finally {
+				permits.revoke();
+			}
 
 			JSONObject result = new JSONObject();
 			result.put("queryId", queryId);

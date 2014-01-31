@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,21 +24,27 @@
  */
 package influent.bitcoin.server.spi;
 
-import java.io.InputStream;
-
-import influent.cluster.DynamicClustering;
-import influent.entity.clustering.GeneralEntityClusterer;
-import influent.entity.clustering.utils.PropertyManager;
 import influent.idl.FL_Clustering;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Geocoding;
-import influent.midtier.api.EntityClusterer;
+import influent.server.clustering.EntityClusterer;
+import influent.server.clustering.GeneralEntityClusterer;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.EntityClusterFactory;
+import influent.server.clustering.utils.PropertyManager;
+import influent.server.dataaccess.DataNamespaceHandler;
+import influent.server.dataaccess.DynamicClustering;
+import influent.server.utilities.IdGenerator;
+import influent.server.utilities.SQLConnectionPool;
+import influent.server.utilities.TypedId;
+
+import java.io.InputStream;
+import java.util.UUID;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 
 
 /**
@@ -53,32 +59,82 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 		bind(EntityClusterer.class).to(GeneralEntityClusterer.class);
 	}
 	
+	
+	
+	
+	@Provides @Singleton
+	public PropertyManager clusterPropertiesManager() {
+		try {
+			InputStream configStream = BitcoinFLDynamicClusteringModule.class.getResourceAsStream("/clusterer.properties");
+			return new PropertyManager(configStream);
+		} catch (Exception e) {
+			addError("Failed to load Clustering Properties", e);
+			return null;
+		}
+	}
+	
+	
+	
+	
+	@Provides @Singleton
+	public IdGenerator clusterIdGenerator() {
+		return new IdGenerator() {
+			@Override
+			public String nextId() {
+				return TypedId.fromNativeId(TypedId.CLUSTER, "dbo", UUID.randomUUID().toString()).getTypedId();
+			}
+		};
+	}
+	
+	
+	
+	
+	@Provides @Singleton
+	public EntityClusterFactory clusterFactory(
+			IdGenerator idGen,
+			PropertyManager pMgr,
+			FL_Geocoding geocoding
+	) {
+		try {	
+			return new EntityClusterFactory(idGen, geocoding, pMgr);
+		} catch (Exception e) {
+			addError("Failed to load Clustering Properties", e);
+			return null;
+		}
+	}
+	
+	
+	
+	
 	/*
 	 * Provide the clustering service
 	 */
 	@Provides @Singleton
 	public DynamicClustering clustering (
 			FL_DataAccess dataAccess,
+			SQLConnectionPool connectionPool,
+			DataNamespaceHandler namespaceHandler,
 			FL_Geocoding geocoding,
 			EntityClusterer clusterer,
-			@Named("influent.midtier.ehcache.config") String ehCacheConfig,
-			@Named("influent.dynamic.clustering.cache.name") String cacheName
+			EntityClusterFactory clusterFactory,
+			PropertyManager pMgr,
+			ClusterContextCache cache
 	) {
 
 		try {
-			InputStream configStream = BitcoinFLDynamicClusteringModule.class.getResourceAsStream("/clusterer.properties");
 			return new DynamicClustering(
+				connectionPool, 
+				namespaceHandler,
 				dataAccess, 
 				geocoding, 
 				clusterer, 
-				new PropertyManager(configStream),
-				ehCacheConfig,
-				cacheName
+				clusterFactory,
+				pMgr,
+				cache
 			);
 		} catch (Exception e) {
 			addError("Failed to load Clustering", e);
 			return null;
 		}
 	}
-	
 }

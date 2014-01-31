@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -30,7 +30,7 @@ import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
-import influent.midtier.api.DataAccessException;
+import influent.server.dataaccess.DataAccessException;
 import influent.server.spi.EntityPropertiesViewService;
 
 import java.awt.Dimension;

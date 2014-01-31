@@ -24,8 +24,7 @@
 			influent.bitcoin.server.spi.BitcoinFLEntitySearchModule:
 			<!--influent.bitcoin.server.spi.BitcoinFLClusteringModule:-->
 			influent.bitcoin.server.spi.BitcoinFLDynamicClusteringModule:
-			influent.bitcoin.server.spi.BitcoinDatabasePersistenceModule:
-			<!--influent.bitcoin.server.spi.BitcoinCachedPersistenceModule:-->
+			influent.bitcoin.server.spi.BitcoinCachedPersistenceModule:
 			influent.server.spi.RestPatternSearchModule:
 		</param-value>
 	</context-param>

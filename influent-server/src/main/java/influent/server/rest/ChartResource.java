@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,24 +24,28 @@
  */
 package influent.server.rest;
 
-import influent.entity.clustering.utils.ClusterContextCache;
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_Entity;
+import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ContextRead;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.data.ChartData;
 import influent.server.data.ChartImage;
 import influent.server.data.ImageRepresentation;
 import influent.server.utilities.ChartBuilder;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
@@ -67,22 +71,28 @@ import com.google.inject.name.Named;
 
 public class ChartResource extends ApertureServerResource {
 	
-	private static final String SEPARATOR = "|";
+	private static final String SEPARATOR 		= "|";
+	private static final String ID_SECTION 		= SEPARATOR + ":I:";
+	private static final String FOCUS_ID 		= ":F:";
+	private static final String UUID_SEPARATOR	= ":U:";
 	
 	final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private final int maxCacheAge;
+	private final ClusterContextCache contextCache;
 	private final ChartBuilder chartBuilder;
-	
+
 	@Inject
 	public ChartResource(
 		@Named("influent.charts.maxage") Integer maxCacheAge,
 		FL_DataAccess entityAccess,
 		FL_ClusteringDataAccess clusterAccess,
-		@Named("influent.midtier.ehcache.config") String ehCacheConfig
+		@Named("influent.midtier.ehcache.config") String ehCacheConfig, 
+		ClusterContextCache contextCache
 	) {
 		this.maxCacheAge = maxCacheAge;
-		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
+		this.contextCache = contextCache;
+		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig, contextCache);
 	}
 	
 	
@@ -158,25 +168,30 @@ public class ChartResource extends ApertureServerResource {
 			
 			for (int i=0; i < focusObj.length(); i++) {
 				String entityId = focusObj.getString(i);
-				// Check to see if this is a file cluster.
-				FL_Cluster flcluster = ClusterContextCache.instance.getFile(entityId, focusContextId);
 				List<String> entities = new ArrayList<String>();
-				// If this is a mutable cluster, add its contents.
-				if(flcluster != null) {
-					entities.addAll(flcluster.getSubclusters());
-					entities.addAll(flcluster.getMembers());
-				}
 				
-				else {
+				TypedId id = TypedId.fromTypedId(entityId);
+				
+				if (id.getType() == TypedId.CLUSTER) {
+					String nId = id.getNativeId();  
+					if (nId.startsWith("|")) {  // group cluster
+						for (String sId : nId.split("\\|")) {
+							entities.add(sId);
+						}
+					} else {
+						entities.add(entityId);
+					}
+				} else {
 					entities.add(entityId);
 				}
-				for (String id : entities){
-					if (!focusIds.contains(id)){
-						focusIds.add(id);
+				
+				for (String fid : entities){
+					if (!focusIds.contains(fid)){
+						focusIds.add(fid);
 					}
 				}
 			}
-			
+				
 			String tempFocusMaxDebitCredit = jsonObj.getString("focusMaxDebitCredit");
 			Double focusMaxDebitCredit = null;
 			try {
@@ -219,19 +234,25 @@ public class ChartResource extends ApertureServerResource {
 				final String entityContextId = entityRequest.getString("contextId");
 				
 				List<String> entities = new ArrayList<String>();
-				// Check to see if this entityId belongs to a mutable cluster.
-				FL_Cluster flcluster = ClusterContextCache.instance.getFile(entityId, entityContextId);
-				if(flcluster != null) {
-					entities.addAll(flcluster.getSubclusters());
-					entities.addAll(flcluster.getMembers());
-				}
-				else {
+				
+				TypedId id = TypedId.fromTypedId(entityId);
+
+				if (id.getType() == TypedId.CLUSTER) {
+					String nId = id.getNativeId();  
+					if (nId.startsWith("|")) {
+						for (String sId : nId.split("\\|")) {
+							entities.add(sId);
+						}
+					} else {
+						entities.add(entityId);
+					}
+				} else {
 					entities.add(entityId);
 				}
 				
 				Hash hashed = new Hash(entityId, entities, startDate, endDate, focusIds, focusMaxDebitCredit, numBuckets, width, height, entityContextId, focusContextId, sessionId);
 				
-				ChartData chartData = chartBuilder.computeChart(dateRange, entities, focusIds, entityContextId, focusContextId, sessionId, numBuckets, hashed.makeHash());
+				ChartData chartData = chartBuilder.computeChart(dateRange, entities, focusIds, entityContextId, focusContextId, sessionId, numBuckets, hashed.hash);
 
 				infoList.put(
 						entityId, //memberIds.get(0), 
@@ -330,21 +351,83 @@ public class ChartResource extends ApertureServerResource {
 			buffer.append(width.toString() + SEPARATOR);
 			buffer.append(height.toString() + SEPARATOR);
 			buffer.append(id.replaceAll(" ", "%20"));					// URL hash CANNOT have spaces!!
+			buffer.append(ID_SECTION); 									// Define where ids start 
+			
+			final PermitSet permits = new PermitSet();
 			
 			for (String id : ids) {
 				buffer.append(SEPARATOR + id.replaceAll(" ", "%20"));
+				
+				TypedId tId = TypedId.fromTypedId(id);
+				
+				// Extract the membership of files to form UUIDs from them
+				String membershipUUID = "";
+				if (tId.getType() == TypedId.FILE) {
+					try {
+						final ContextRead entityContext = contextCache.getReadOnly(contextId, permits);
+	
+						if (entityContext != null) {
+							FL_Cluster flcluster = entityContext.getFile(id);
+							
+							if (flcluster != null) {
+								
+								for (String subcluster : flcluster.getSubclusters()) {
+									membershipUUID += subcluster;
+								}
+								for (String member : flcluster.getMembers()) {
+									membershipUUID += member;
+								}
+								
+							}
+						}
+					} finally {
+						permits.revoke();
+					}
+					
+					buffer.append(UUID_SEPARATOR + UUID.nameUUIDFromBytes(membershipUUID.getBytes()));
+				}	
 			}
 			
 			for (String id : focusIds) {
-				buffer.append(SEPARATOR + ":F:" + id.replaceAll(" ", "%20"));
+				buffer.append(SEPARATOR + FOCUS_ID + id.replaceAll(" ", "%20"));
+				
+				TypedId tId = TypedId.fromTypedId(id);
+				
+				// Extract the membership of files to form UUIDs from them
+				String membershipUUID = "";
+				if (tId.getType() == TypedId.FILE) {
+					try {
+						final ContextRead focusContext = contextCache.getReadOnly(focusContextId, permits);
+	
+						if (focusContext != null) {
+							FL_Cluster flcluster = focusContext.getFile(id);
+							
+							if (flcluster != null) {
+								
+								for (String subcluster : flcluster.getSubclusters()) {
+									membershipUUID += subcluster;
+								}
+								for (String member : flcluster.getMembers()) {
+									membershipUUID += member;
+								}
+								
+							}
+						}
+					} finally {
+						permits.revoke();
+					}
+					
+					buffer.append(UUID_SEPARATOR + UUID.nameUUIDFromBytes(membershipUUID.getBytes()));
+				}	
+				
 			}
 			
 			return buffer.toString();
 		}
 		
 		private void parseHash() {
-			String[] hashParts = hash.split("\\" + SEPARATOR);
 			final int numParts = 10;
+			String[] hashParts = hash.split("\\" + SEPARATOR, numParts);
 			
 			if (hashParts.length < numParts) {
 				throw new AssertionError("Chart data hash is not of the right format");
@@ -359,15 +442,31 @@ public class ChartResource extends ApertureServerResource {
 			numBuckets = Integer.parseInt(hashParts[6]);
 			width = Integer.parseInt(hashParts[7]);
 			height = Integer.parseInt(hashParts[8]);
-			id = hashParts[9].replaceAll("%20", " "); 			// Restore any encoded spaces
+			
+			// Find where the id section starts
+			final int idSectionIdx = hashParts[9].indexOf(ID_SECTION);						
+			
+			// the id is everything before the id section
+			// Restore any encoded spaces
+			id = hashParts[9].substring(0, idSectionIdx).replaceAll("%20", " "); 			
+			
+			// Split everything after the id section
+			String[] idParts = hashParts[9].substring(idSectionIdx + ID_SECTION.length() + SEPARATOR.length()).split("\\" + SEPARATOR);
 			
 			ids = new ArrayList<String>();
 			focusIds = new ArrayList<String>();
-			for (int i = numParts; i < hashParts.length; i++) {
+			for (int i = 0; i < idParts.length; i++) {
 				
-				String id = hashParts[i].replaceAll("%20", " ");
-				if (id.startsWith(":F:")) {
-					focusIds.add(id.substring(3));
+				String id = idParts[i].replaceAll("%20", " ");
+
+				// If there's a UUID, discard it.
+				final int uuidIdx = id.indexOf(UUID_SEPARATOR);
+				
+				if (uuidIdx != -1)
+					id = id.substring(0, uuidIdx);
+				
+				if (id.startsWith(FOCUS_ID)) {
+					focusIds.add(id.substring(FOCUS_ID.length()));
 				}
 				else {
 					ids.add(id);

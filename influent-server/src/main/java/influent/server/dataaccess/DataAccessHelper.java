@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -26,6 +26,8 @@ package influent.server.dataaccess;
 
 import influent.idl.FL_DateInterval;
 import influent.idl.FL_DateRange;
+import influent.idl.FL_DirectionFilter;
+import influent.idl.FL_LinkEntityTypeFilter;
 
 import java.io.Serializable;
 import java.util.AbstractList;
@@ -83,6 +85,7 @@ public class DataAccessHelper {
     
 	public static final String ENTITY_TABLE = "FinEntity";
 	public static final String FLOW_TABLE = "FinFlow";
+	public static final String CLUSTER_SUMMARY_TABLE = "ClusterSummary";
 	public static final String GLOBAL_CLUSTER_TABLE = "global_cluster_dataview";
 	public static final String DYNAMIC_CLUSTER_TABLE = "dynamic_cluster_dataview";
 	
@@ -304,5 +307,32 @@ public class DataAccessHelper {
 			resultString.append(")");
 		}
 		return resultString.toString();
+	}
+	
+	public static String linkEntityTypeClause(FL_DirectionFilter direction, FL_LinkEntityTypeFilter entityType) {
+		if (entityType == FL_LinkEntityTypeFilter.ANY) return " 1=1 ";
+		
+		StringBuilder clause = new StringBuilder();
+		String type = "A";
+		if (entityType == FL_LinkEntityTypeFilter.ACCOUNT_OWNER) {
+			type = "O";
+		} else if (entityType == FL_LinkEntityTypeFilter.CLUSTER_SUMMARY) {
+			type = "S";
+		}
+		
+		// reverse direction - we are filtering on other entity
+		switch (direction) {
+		case DESTINATION:
+			clause.append(" FromEntityType = '" + type + "' ");
+			break;
+		case SOURCE:
+			clause.append(" ToEntityType = '" + type + "' ");
+			break;
+		case BOTH:
+			clause.append(" ToEntityType = '" + type + "' AND FromEntityType = '" + type + "' ");
+			break;
+		}
+		
+		return clause.toString();
 	}
 }

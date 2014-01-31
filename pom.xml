@@ -5,7 +5,7 @@
 	<groupId>oculus.influent</groupId>
 	<artifactId>influent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.1.2</version>
+	<version>1.2.0</version>
 
 	<name>Influent Project Modules</name>
 	<description>Parent module for building Influent projects</description>
@@ -30,8 +30,65 @@
 	</developers>
 
 	<properties>
-		<aperture.version>1.0.2</aperture.version>
+		<aperture.version>1.0.3</aperture.version>
+		<influent.dev.client.src>../influent-client/influent-clientjs/src</influent.dev.client.src>
 	</properties>
+
+	<!-- For development convenience these properties may be used to copy out 
+		the appropriate phantom capture executable based on the OS. In a production 
+		environment the appropriate version and the path to it must be set up manually. -->
+	<profiles>
+		<profile>
+			<id>windows</id>
+			<activation>
+				<os>
+					<family>windows</family>
+				</os>
+			</activation>
+			<properties>
+				<influent.dev.phantomjs.type>exe</influent.dev.phantomjs.type>
+				<influent.dev.phantomjs.binary>phantomjs.exe</influent.dev.phantomjs.binary>
+			</properties>
+		</profile>
+		<profile>
+			<id>linux</id>
+			<activation>
+				<os>
+					<family>unix</family>
+				</os>
+			</activation>
+			<properties>
+				<influent.dev.phantomjs.type>linux-x86-64</influent.dev.phantomjs.type>
+				<influent.dev.phantomjs.binary>phantomjs</influent.dev.phantomjs.binary>
+			</properties>
+		</profile>
+		<profile>
+			<id>linux-i686</id>
+			<activation>
+				<os>
+					<family>unix</family>
+					<arch>i686</arch>
+				</os>
+			</activation>
+			<properties>
+				<influent.dev.phantomjs.type>linux-i686</influent.dev.phantomjs.type>
+				<influent.dev.phantomjs.binary>phantomjs</influent.dev.phantomjs.binary>
+			</properties>
+		</profile>
+		<profile>
+			<id>macosx</id>
+			<activation>
+				<os>
+					<family>mac</family>
+				</os>
+			</activation>
+			<properties>
+				<influent.dev.phantomjs.type>macosx</influent.dev.phantomjs.type>
+				<influent.dev.phantomjs.binary>phantomjs</influent.dev.phantomjs.binary>
+			</properties>
+		</profile>
+	</profiles>
+		
 	<build>
 		<plugins>
 			<plugin>
@@ -53,10 +110,9 @@
 	</build>
 	
 	<modules>
-        	<module>influent-midtier</module>
-        	<module>influent-entity-clustering</module>
+        	<module>influent-spi</module>
 	        <module>influent-server</module>
-	        <module>influent-client-dist</module>
+	        <module>influent-client</module>
         	<module>kiva</module>
         	<module>bitcoin</module>
 	</modules>
@@ -85,14 +141,14 @@
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-log4j12</artifactId>
 				<version>1.7.5</version>
-				<scope>test</scope>
+				<!--scope>test</scope-->
 			</dependency>
 		
 			<dependency>
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
 				<version>4.11</version>
-				<scope>test</scope>
+				<!--scope>test</scope-->
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

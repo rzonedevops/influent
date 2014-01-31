@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -30,22 +30,22 @@ public class LedgerResult {
 
 	final private Integer numColumns;
 	final private Integer numRows;
-	final private List<String> columnNames;
+	final private List<String> columnUnits;
 	final private List<List<String>> tableData;
 	final private Long totalRows;
 	
-	public LedgerResult(List<String> columnNames, List<List<String>> tableData){
-		this(columnNames.size(), tableData.size(), columnNames, tableData, (long)tableData.size());
+	public LedgerResult(List<String> columnUnits, List<List<String>> tableData){
+		this(columnUnits.size(), tableData.size(), columnUnits, tableData, (long)tableData.size());
 	}
 	
 	public LedgerResult(Integer numColumns,
 			Integer numRows,
-			List<String> columnNames,
+			List<String> columnUnits,
 			List<List<String>> tableData,
 			Long totalRows){
 		this.numColumns = numColumns;
 		this.numRows = numRows;
-		this.columnNames = columnNames;
+		this.columnUnits = columnUnits;
 		this.tableData = tableData;
 		this.totalRows = totalRows;
 	}
@@ -58,8 +58,8 @@ public class LedgerResult {
 		return numRows;
 	}
 	
-	public List<String> getColumnNames() {
-		return columnNames;
+	public List<String> getColumnUnits() {
+		return columnUnits;
 	}
 	
 	public List<List<String>> getTableData() {

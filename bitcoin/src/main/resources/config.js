@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc. 
+ * Copyright (c) 2013-2014 Oculus Info Inc. 
  * http://www.oculusinfo.com/
  * 
  * Released under the MIT License.
@@ -39,8 +39,8 @@
 	 * The endpoint locations for Aperture services accessed through the io interface
 	 */
 	'aperture.io' : {
-		'rpcEndpoint' : '%host%/bitcoin/rpc',
-		'restEndpoint' : '%host%/bitcoin/rest'
+		'rpcEndpoint' : '%host%/${project.artifactId}/rpc',
+		'restEndpoint' : '%host%/${project.artifactId}/rest'
 	},
 
 	/*
@@ -61,6 +61,7 @@
 
 	// EXAMPLES.
 	'influent.config' : {
+        'useAuth' : false,
 		'banner' : 'Bitcoin',
 		'title' : 'Bitcoin',
 		'workspaceWidth' : 1100,
@@ -74,9 +75,11 @@
 		},
         'startingDateRange' : 'P4Y',
         'defaultEndDate': new Date(2013, 6, 1),
-        'defaultShowDetails' : false,
+        'defaultShowDetails' : true,
         'maxSearchResults' : 50,
         'searchResultsPerPage' : 12,
+        'searchGroupBy' : 'GEO',
+        'usePatternSearch' : false,
         'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
         	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
         	+ 'set of model accounts, specified here, will match accounts with similar activity. To match on a pattern of activity '

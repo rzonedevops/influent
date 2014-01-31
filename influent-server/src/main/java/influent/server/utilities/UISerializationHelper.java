@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -26,10 +26,14 @@ package influent.server.utilities;
 
 import influent.idl.FL_Cluster;
 import influent.idl.FL_Entity;
+import influent.idl.FL_EntityTag;
 import influent.idl.FL_Link;
 import influent.idl.FL_Property;
+import influent.idl.FL_PropertyType;
 import influent.idl.FL_PropertyDescriptor;
 import influent.idl.FL_SingletonRange;
+import influent.idlhelper.SingletonRangeHelper;
+import influent.idlhelper.PropertyHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +57,14 @@ public class UISerializationHelper {
 		
 		fle.put("uid", cluster.getUid());
 		
-		fle.put("entitytype", "entity_cluster");
+		String entityType = "entity_cluster";
+		if (cluster.getTags().contains(FL_EntityTag.CLUSTER_SUMMARY)) {
+			entityType = "cluster_summary";
+		} else if (cluster.getTags().contains(FL_EntityTag.ACCOUNT_OWNER)) {
+			entityType = "account_owner";
+		}
+		
+		fle.put("entitytype", entityType);
 		fle.put("members", cluster.getMembers());
 		fle.put("subclusters", cluster.getSubclusters());
 		
@@ -64,10 +75,29 @@ public class UISerializationHelper {
 		JSONObject props = new JSONObject();
 		fle.put("properties", props);
 		
+		// Append number of cluster count to label (temporary fix for #6942)
+		final FL_Property countProp = PropertyHelper.getPropertyByKey(cluster.getProperties(), "count");
+		FL_Property labelProp = PropertyHelper.getPropertyByKey(cluster.getProperties(), "LABEL");
+		if (labelProp != null && countProp != null)	{
+			
+			long count = (long)(Long)PropertyHelper.from(countProp).getValue();
+			
+			if (count > 1) {
+				String labelStr = PropertyHelper.from(labelProp).getValue().toString();
+				
+				// Check to see if it has already been appended
+				if (!(labelStr.contains("(+") && labelStr.endsWith(")"))) {
+					
+					labelStr += " (+" + (count - 1) + ")";
+					labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
+				}
+			}
+		}
+		
 		for (FL_Property prop : cluster.getProperties()) {
 			try {
 				props.put(prop.getKey(), toUIJson(prop));
-			} catch (JSONException e) {				
+			} catch (JSONException e) {		
 			}
 		}
 

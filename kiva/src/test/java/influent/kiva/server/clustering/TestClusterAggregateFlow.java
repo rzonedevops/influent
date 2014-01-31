@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -215,7 +215,7 @@ public class TestClusterAggregateFlow {
 			FL_Geocoding geocoding = new BasicCountryLevelGeocoding();
 			KivaClusteringDataAccess clusteringda = new KivaClusteringDataAccess(connection, clusterer, geocoding, namespaceHandler);
 			
-			KivaEntitySearch search = new KivaEntitySearch(solrUrl, solrDescriptor, geocoding);
+			KivaEntitySearch search = new KivaEntitySearch(solrUrl, solrDescriptor, geocoding, connection, namespaceHandler);
 			FL_SearchResults results = search.search("daniel", null, 0, 100, null);
 			
 			List<String> entities = new LinkedList<String>();

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 Oculus Info Inc.
+ * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
  * Released under the MIT License.
@@ -24,8 +24,8 @@
  */
 package influent.midtier.spi;
 
-import influent.entity.clustering.GeneralEntityClusterer;
-import influent.midtier.api.EntityClusterer;
+import influent.server.clustering.EntityClusterer;
+import influent.server.clustering.GeneralEntityClusterer;
 
 import com.google.inject.AbstractModule;
 
