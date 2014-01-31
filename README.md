@@ -20,6 +20,8 @@ The full collection of influent libraries and transitive dependencies (other lib
 
 The full collection of client-side resources files (JavaScript, CSS, etc) are bundled at the tail end of the `influent-client` build and two variations are placed in zip files in the `influent-client/target` directory. One contains the file in raw source form useful for debugging, and one contains them in minimized form for optimal loading in a deployed scenario.
 
+Release Notes are provided [here](RELEASE_NOTES.md) in the root directory alongside this README.
+
 ## Building and Running Influent Apps
 Influent exposes APIs for integration of large enterprise data sources. For ease of integration with conventional relational databases, adapters are provided for MSSQL, Oracle, and MySQL. SQL scripts are provided in the `influent-spi` [dataviews](influent-spi/src/main/dataviews) directory for creating the required Influent Data View tables.
 
