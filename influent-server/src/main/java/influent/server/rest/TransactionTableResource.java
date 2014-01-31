@@ -34,6 +34,7 @@ import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idl.FL_SortBy;
 import influent.idl.FL_TransactionResults;
+import influent.idlhelper.LinkHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.data.LedgerResult;
 import influent.server.utilities.DateRangeBuilder;
@@ -43,6 +44,7 @@ import influent.server.utilities.TypedId;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 import oculus.aperture.common.rest.ApertureServerResource;
@@ -85,6 +87,19 @@ public class TransactionTableResource extends ApertureServerResource {
 	private final FL_DataAccess dataAccess;
 	public static final long REQUEST_CAP = 1000;
 	
+	// TODO: see #6090
+	private static final List<FL_Property> NO_CLUSTER_FILTER_MESSAGE_PROPS;
+	static {
+		List<FL_Property> p = new ArrayList<FL_Property>();
+		p.add(new PropertyHelper(FL_PropertyTag.INFLOWING, 0));
+		p.add(new PropertyHelper(FL_PropertyTag.OUTFLOWING, 0));
+		p.add(new PropertyHelper(FL_PropertyTag.DATE, new Date()));
+		p.add(new PropertyHelper(FL_PropertyTag.ANNOTATION, 
+				"Sorry, transaction filtering by highlighted clusters is not yet supported."));
+		
+		NO_CLUSTER_FILTER_MESSAGE_PROPS = Collections.unmodifiableList(p);
+	}
+
 	@Inject
 	public TransactionTableResource(FL_DataAccess dataAccess) {
 		this.dataAccess = dataAccess;
@@ -102,15 +117,7 @@ public class TransactionTableResource extends ApertureServerResource {
 			String entityId = form.getFirstValue("entityId");
 			try {
 				if (entityId == null || entityId.trim().isEmpty()) {
-					JSONObject result = new JSONObject();
-					JSONArray dataArray = new JSONArray();
-					result.put("aaData", dataArray);
-					//result.put("aoColumns", columnArray);
-					result.put("sEcho",sEcho);
-					result.put("iTotalDisplayRecords",0);
-					result.put("iTotalRecords",0);
-					
-					return new StringRepresentation(result.toString(), MediaType.TEXT_PLAIN);
+					return emptyResult(sEcho);
 				}
 				entityId = entityId.trim();
 				
@@ -137,6 +144,7 @@ public class TransactionTableResource extends ApertureServerResource {
 
 				String focusIds = form.getFirstValue("focusIds");
 				List<String> focusIdList = null;
+				LedgerResult ledgerResult = null;
 				if (focusIds != null && focusIds.length() > 0) {
 					String[] parsedIds = focusIds.split(",");
 					focusIdList = new ArrayList<String>();
@@ -146,15 +154,34 @@ public class TransactionTableResource extends ApertureServerResource {
 						// transaction filtering does not yet work on clusters - see #6090
 						if (TypedId.fromTypedId(id).getType() == TypedId.ACCOUNT) {
 							response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
+							focusIdList.addAll(TypedId.nativeFromTypedIds(ChartResource.getLeafNodes(response)));
 						}
-						focusIdList.addAll(TypedId.nativeFromTypedIds(ChartResource.getLeafNodes(response)));
+					}
+					
+					// TODO: see #6090
+					if (focusIdList.isEmpty()) {
+						final FL_Link message = new LinkHelper(
+							FL_LinkTag.OTHER, "", "",
+							NO_CLUSTER_FILTER_MESSAGE_PROPS
+							);
+						
+						ledgerResult = buildForClient(FL_TransactionResults.newBuilder()
+							.setTotal(1)
+							.setResults(Collections.singletonList(message))
+							.build(), 0,1);
+						
+						List<String> cols = ledgerResult.getTableData().get(0);
+						cols.set(cols.size()-1, focusIds);
+						cols.set(cols.size()-2, focusIds);
 					}
 				}
 				
-				FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
-				long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
-				FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
-				LedgerResult ledgerResult = buildForClient(results, startRow, startRow+totalRows);
+				if (ledgerResult == null) {
+					FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
+					long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
+					FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
+					ledgerResult = buildForClient(results, startRow, startRow+totalRows);
+				}
 				
 				List<String> colNames = ledgerResult.getColumnUnits();
 				List<List<String>> data = ledgerResult.getTableData();
@@ -199,6 +226,18 @@ public class TransactionTableResource extends ApertureServerResource {
 				dae
 			);
 		}
+	}
+	
+	static private StringRepresentation emptyResult(String sEcho) throws JSONException {
+		JSONObject result = new JSONObject();
+		JSONArray dataArray = new JSONArray();
+		result.put("aaData", dataArray);
+		//result.put("aoColumns", columnArray);
+		result.put("sEcho",sEcho);
+		result.put("iTotalDisplayRecords",0);
+		result.put("iTotalRecords",0);
+		
+		return new StringRepresentation(result.toString(), MediaType.TEXT_PLAIN);
 	}
 	
 	private static DecimalFormat us_df = new DecimalFormat("$#,##0.00;$-#,##0.00");
