@@ -4,21 +4,26 @@
 	<target name="war">
 		<!-- Stop the currently running jetty server -->
      	<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="/cygdrive/c/apache-tomcat-8.0.0-RC10/bin/remote_shutdown.bat"/>
+		
 		<!-- Wait a bit for stop to take effect, subsequent steps fail may otherwise -->
 		<sleep seconds="10"/>		
 
 		<!-- Delete the old kiva WAR file -->
-		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f /cygdrive/c/apache-tomcat-8.0.0-RC10/webapps/kiva.*"/>
+		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -rf /cygdrive/c/apache-tomcat-8.0.0-RC10/webapps/kiva*"/>
+		
 		<!-- Copy the WAR snapshot and rename to kiva.war -->
 		<scp file="kiva/target/kiva-${version}.war" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/apache-tomcat-8.0.0-RC10/webapps/kiva.war" trust="yes"/>
+		
 		<!-- Copy the app.properties file for merging -->
 		<scp file="kiva/src/main/resources/app.properties" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/apache-tomcat-8.0.0-RC10/tempApp.properties" trust="yes"/>
+		
 		<!-- Merge app.properties in with the host copy -->
 		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="&quot;/cygdrive/C/Program Files/Java/jre7/bin/java&quot; -jar $(cygpath -w /cygdrive/c/apache-tomcat-8.0.0-RC10/ProtectedPropertyMerge.jar) &quot;C:\apache-tomcat-8.0.0-RC10\tempApp.properties&quot; &quot;C:\apache-tomcat-8.0.0-RC10\conf\kiva-config.properties&quot; &quot;C:\apache-tomcat-8.0.0-RC10\conf\kiva-config.properties&quot; -p ATLAS_PROPERTY"/>
 
         <!-- Delete the old bitcoin WAR file -->
-        <sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f /cygdrive/c/apache-tomcat-8.0.0-RC10/webapps/bitcoin.*"/>
-        <!-- Copy the WAR snapshot and rename to bitcoin.war -->
+        <sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -rf /cygdrive/c/apache-tomcat-8.0.0-RC10/webapps/bitcoin*"/>
+        
+		<!-- Copy the WAR snapshot and rename to bitcoin.war -->
         <scp file="bitcoin/target/bitcoin-${version}.war" remoteToFile="${username}:${password}@${webhost}:/cygdrive/c/apache-tomcat-8.0.0-RC10/webapps/bitcoin.war" trust="yes"/>
 		
 		<!-- Delete any lingering temp files -->
