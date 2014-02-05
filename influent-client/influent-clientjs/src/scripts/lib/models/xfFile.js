@@ -116,6 +116,7 @@ define(
                 isHovered		    : false,
                 showToolbar         : true,
                 showDetails         : true,
+                showSpinner         : false,
                 titleInitialized    : false
             };
 
@@ -524,14 +525,21 @@ define(
             //----------------------------------------------------------------------------------------------------------
 
             xfFileInstance.showSpinner = function(bShow) {
+                if (bShow != null) {
+                    if (_UIObjectState.showSpinner != bShow) {
+                        _UIObjectState.showSpinner = bShow;
+                    }
+                	
+                    if (_hasMatchcard(_UIObjectState)) {
+                        _UIObjectState.matchUIObject.showSpinner(bShow);
+                    }
 
-                if (_hasMatchcard(_UIObjectState)) {
-                    _UIObjectState.matchUIObject.showSpinner(bShow);
+                    if (_hasCluster(_UIObjectState)) {
+                        _UIObjectState.clusterUIObject.showSpinner(bShow);
+                    }
                 }
 
-                if (_hasCluster(_UIObjectState)) {
-                    _UIObjectState.clusterUIObject.showSpinner(bShow);
-                }
+                return _UIObjectState.showSpinner;
             };
             //----------------------------------------------------------------------------------------------------------
 

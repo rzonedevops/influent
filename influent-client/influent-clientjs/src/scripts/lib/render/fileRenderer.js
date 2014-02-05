@@ -167,6 +167,21 @@ define(
             fileEmpty.css('position', 'relative');
             fileEmpty.css('top', -_renderDefaults.MARGIN_TOP+'px');
             fileEmpty.css('left', _renderDefaults.MARGIN_LEFT+'px');
+            
+            
+            // Determine if the top-level wait spinner is visible.
+            if (visualInfo.showSpinner){
+                var spinnerContainer = $('<div></div>');
+                spinnerContainer.attr('id', 'spinnerContainer_'+visualInfo.xfId);
+                fileEmpty.append(spinnerContainer);
+                spinnerContainer.css('background', constants.AJAX_SPINNER_BG);
+                spinnerContainer.width(_renderDefaults.FILE_WIDTH);
+                spinnerContainer.height(cardRenderer.getCardHeight(showDetails));
+                spinnerContainer.css('top', -_renderDefaults.MARGIN_TOP+'px');
+                spinnerContainer.css('left', _renderDefaults.MARGIN_LEFT+'px');
+            }
+
+            
             fileBody.append(fileEmpty);
             // Attach selection listener to the empty file placeholder.
             fileEmpty.click(state.onClick);
@@ -260,19 +275,21 @@ define(
                     }
                 }
 
-                var dropSpec = {
-                    containerId : dropId,
-                    cardId: dragId
-                };
-
                 // Check if the drop target has children, and if
                 // so, does it exceed our threshold value.
                 var entityType = ui.draggable.data('entityType');
                 var clusterCount = ui.draggable.data('clusterCount');
+                var isLargeCluster = clusterCount && clusterCount > _fileRendererState.maxClusterCount;
+                
+                var dropSpec = {
+                        containerId : dropId,
+                        cardId: dragId,
+                        showSpinner: isLargeCluster
+                    };
+                
                 if (entityType &&
                     (entityType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER || entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) &&
-                    clusterCount &&
-                    clusterCount > _fileRendererState.maxClusterCount
+                    isLargeCluster
                 ){
                     var parentUIObject = ui.draggable.data('parent');
                     xfModalDialog.createInstance({

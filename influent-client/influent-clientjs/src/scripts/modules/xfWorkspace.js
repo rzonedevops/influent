@@ -1321,6 +1321,11 @@ define(
                 );
             }
 
+            if(targetContainer.getUIType() == constants.MODULE_NAMES.FILE && data.showSpinner) {
+            	targetContainer.showSpinner(true);
+            	renderCallback();
+            }
+            
             // If this is a cluster, flatten out the cluster hierarchy
             // and create a flattened out list of all child cards.
             if (xfUtil.isClusterTypeFromObject(insertedCard) && insertedCard.getUIType() != constants.MODULE_NAMES.SUMMARY_CLUSTER) {
@@ -2260,6 +2265,7 @@ define(
             var fileSpec = xfFile.getSpecTemplate();
             var fileUIObj = xfFile.createInstance(fileSpec);
             fileUIObj.showDetails(_UIObjectState.singleton.showDetails());
+            fileUIObj.showSpinner(data.showSpinner);
             // Add the file to the very top of the column.
             var topObj = null;
             if (columnUIObj.getVisualInfo().children.length > 0){
@@ -2270,6 +2276,10 @@ define(
             // Link it to all files to the columns to the left and right of our column
             _addFileLinks(fileUIObj, columnUIObj, true, true);
 
+            if(data.showSpinner) {
+            	renderCallback();
+        	}
+            
             var linkCallback = function() {
                 if(sourceObjOriginalParent != null && sourceObjOriginalParent.getChildren().length == 0) {
                     aperture.pubsub.publish(
@@ -2485,7 +2495,7 @@ define(
                     $.blockUI({
                         theme: true,
                         title: 'Capture In Progress',
-                        message: '<img src="img/ajax-loader.gif" style="display:block;margin-left:auto;margin-right:auto"/>'
+                        message: '<img src="' + constants.AJAX_SPINNER_FILE + '" style="display:block;margin-left:auto;margin-right:auto"/>'
                     });
 
                     var timestamp = (new Date().getTime());
@@ -2577,7 +2587,7 @@ define(
                     $.blockUI({
                         theme: true,
                         title: 'Export In Progress',
-                        message: '<img src="img/ajax-loader.gif" style="display:block;margin-left:auto;margin-right:auto"/>'
+                        message: '<img src="' + constants.AJAX_SPINNER_FILE + '" style="display:block;margin-left:auto;margin-right:auto"/>'
                     });
 
                     var timestamp = (new Date().getTime());
