@@ -45,6 +45,7 @@ import java.util.UUID;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 
 
 /**
@@ -63,9 +64,9 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 	
 	
 	@Provides @Singleton
-	public PropertyManager clusterPropertiesManager() {
+	public PropertyManager clusterPropertiesManager(@Named("influent.midtier.clusterer.properties") String clustererProperties) {
 		try {
-			InputStream configStream = BitcoinFLDynamicClusteringModule.class.getResourceAsStream("/clusterer.properties");
+			InputStream configStream = BitcoinFLDynamicClusteringModule.class.getResourceAsStream(clustererProperties);
 			return new PropertyManager(configStream);
 		} catch (Exception e) {
 			addError("Failed to load Clustering Properties", e);
