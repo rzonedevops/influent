@@ -55,6 +55,8 @@ define(
             BORDER_WIDTH        : 1
         };
 
+        var _ajaxSpinner = 'url("img/ajax-loader.gif") no-repeat center center';
+
         //------------------------------------------------------------------------------------------------------------------
         // Private Functions
         //------------------------------------------------------------------------------------------------------------------
@@ -316,7 +318,7 @@ define(
                 state.spinnerContainer.css('position','absolute');
                 state.spinnerContainer.css('top', top);
                 state.spinnerContainer.css('left', _renderDefaults.MARGIN);
-                state.spinnerContainer.css('background', constants.AJAX_SPINNER_BG);
+                state.spinnerContainer.css('background', _ajaxSpinner);
                 state.spinnerContainer.width(_renderDefaults.CARD_WIDTH);
                 state.spinnerContainer.height(_getCardHeight(visualInfo.showDetails));
             }
@@ -442,7 +444,7 @@ define(
                 	state.graphContainer.css('background', 'url("' + graphUrl + '") no-repeat center center');
             	}
         	} else {
-            	state.graphContainer.css('background', constants.AJAX_SPINNER_BG);
+            	state.graphContainer.css('background', _ajaxSpinner);
         	}
 
             top += _renderDefaults.GRAPH_HEIGHT;

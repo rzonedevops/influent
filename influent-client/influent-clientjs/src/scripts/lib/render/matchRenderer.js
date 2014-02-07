@@ -43,6 +43,7 @@ define(
         	SEARCH_RESULT_HEIGHT : 100,
         	TAB_HEIGHT : 12
     	};
+        var _ajaxSpinner = 'url(img/ajax-loader.gif) no-repeat center center';
 
         //--------------------------------------------------------------------------------------------------------------
 
@@ -323,7 +324,7 @@ define(
                 searchingDiv.addClass('emptyMatchBackground');
                 searchingDiv.width(_renderDefaults.MATCHCARD_WIDTH);
                 searchingDiv.css('height', _renderDefaults.SEARCH_RESULT_HEIGHT);
-                searchingDiv.css('background', constants.AJAX_SPINNER_BG);
+                searchingDiv.css('background', _ajaxSpinner);
                 cardDiv.append(searchingDiv);
                 aperture.pubsub.publish(chan.SET_SEARCH_PAGE_REQUEST, {xfId: visualInfo.xfId, page: 0, noRender: true});
             } else {

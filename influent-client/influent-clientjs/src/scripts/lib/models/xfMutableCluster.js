@@ -63,7 +63,6 @@ define(
                 showSpinner         : false,
                 links               : {}
             };
-            _UIObjectState.spec.type = MODULE_NAME;
 
             //----------------
             // private methods

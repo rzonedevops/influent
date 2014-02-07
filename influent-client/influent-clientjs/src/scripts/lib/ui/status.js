@@ -23,11 +23,11 @@
  * SOFTWARE.
  */
 
-define(["jquery", "lib/module", "lib/constants", "lib/extern/underscore"], function($, modules, constants) {
+define(["jquery", "lib/module", "lib/extern/underscore"], function($, modules) {
 
 	var statusDialog = (function() {
 		var status = $('<div id="ajax-status">'
-				+ '<img id="ajax-status-icon" src="' + constants.AJAX_SPINNER_FILE + '"/>'
+				+ '<img id="ajax-status-icon" src="img/ajax-loader.gif"/>'
 				+ '<div id="ajax-status-message"></div>'
 				+ '<div id="ajax-status-error" style="display: none;">'
 				+ '<div id="ajax-status-retry"></div>'

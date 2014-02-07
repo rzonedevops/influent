@@ -57,6 +57,7 @@ define(
             var FOCUS_DEBIT_COLOR = 'rgb(176, 97, 0)';
             
             var _numberFormatter = aperture.Format.getNumberFormat(0.01);
+            var _ajaxSpinner = 'url("img/ajax-loader.gif") no-repeat center center';
 
             //----------------------------------------------------------------------------------------------------------
 
@@ -620,7 +621,7 @@ define(
 
                 if (!_.isNull(_state.selectedEntity)) {
                     graphDiv.empty();
-                    graphDiv.css('background', constants.AJAX_SPINNER_BG);
+                    graphDiv.css('background', _ajaxSpinner);
                     _updateGraph(_.clone(_state));
                 }
             };
