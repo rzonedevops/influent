@@ -12,6 +12,9 @@ Highlights of the version 1.2.* releases include the following features. Minor r
 
   The new clustering architecture uses dynamic clustering exclusively, but with improvements from the first generation and incorporation of capabilities for pre-computing accounts summaries of large account owners and large branch clusters to address scalability edge cases. In addition, unlike previous generations a simple config file can be used to tailor it to a data set, and since the clusters are computed dynamically a configuration can be tested quickly before committing. This approach will also make it feasible to support end user control over clustering in the future as they use the tool, as may be appropriate to different analytic investigations.
 
+**Search for Like Accounts**
++ Clicking the search button on a card toolbar now begins the process of launching a search for like accounts by populating the advanced search dialog with match criteria from the account(s) clicked. The match criteria may be further edited before executing the search.
+
 **Search Support for Account Owners**
 + The search architecture now supports the ability to return *all* accounts belonging to the same individual or organization when a match is found against one of the accounts, and have them stacked in the results display. This makes it easier to disambiguate account owners when sorting through results, and makes it easy to search around an account discovered through branching to expand it to all accounts belonging to that owner.
 
