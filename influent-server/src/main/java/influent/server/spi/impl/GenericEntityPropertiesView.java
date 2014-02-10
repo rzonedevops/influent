@@ -88,6 +88,10 @@ public class GenericEntityPropertiesView implements EntityPropertiesViewService 
 		StringBuilder html = new StringBuilder();		
 		String imageUrl = getImageUrl(entity, 200, 150);
 		Dimension imageDim = getImageBoxSize();
+		PropertyHelper imagep = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.IMAGE);
+		if(imagep.getUncertainty() != null) {
+			imageDim = new Dimension(imagep.getUncertainty().getConfidence().intValue(), imagep.getUncertainty().getCurrency().intValue());
+		}
 		
 		List<FL_Property> properties = entity.getProperties();
 		processProperties(properties);
@@ -116,6 +120,10 @@ public class GenericEntityPropertiesView implements EntityPropertiesViewService 
 		insertRow("uid", entity.getUid(), html);
 		
 		for (FL_Property prop : properties){
+			if(prop.getTags().contains(FL_PropertyTag.IMAGE)) {
+				continue;
+			}
+			
 			PropertyHelper property = PropertyHelper.from(prop);
 			
 			String friendlyText = property.getFriendlyText();
