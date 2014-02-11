@@ -260,20 +260,21 @@ define(
                             // Check if this cluster is within the max. cluster count threshold.
                             // If it isn't, alert the user that this action may take a while.
                             var clusterCount = visualInfo.spec.count;
-                            if (clusterCount && clusterCount > _toolbarState.maxClusterCount){
+                            var isLargeCluster = clusterCount && clusterCount > _toolbarState.maxClusterCount;
+                            if (isLargeCluster){
                                 xfModalDialog.createInstance({
                                     title : 'Add Cluster to File?',
                                     contents : 'Adding large clusters to file may take longer than expected. Do you wish to continue?',
                                     buttons : {
                                         "Add File" : function() {
-                                            aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId});
+                                            aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : true});
                                         },
                                         "Cancel" : function() {}
                                     }
                                 });
                             }
                             else {
-                                aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId});
+                                aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : false});
                             }
                             return false;
                         });

@@ -19,6 +19,10 @@
 		<baseProjectSrc>influent-clientjs/src</baseProjectSrc>
 	</properties>
 	
+	<modules>
+		<module>influent-docs</module>
+	</modules>
+	
 	<build>
 		<plugins>
 			<!--  Copy scripts from base projects -->

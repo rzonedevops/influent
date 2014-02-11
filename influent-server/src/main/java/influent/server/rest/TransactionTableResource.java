@@ -94,9 +94,9 @@ public class TransactionTableResource extends ApertureServerResource {
 		p.add(new PropertyHelper(FL_PropertyTag.INFLOWING, 0));
 		p.add(new PropertyHelper(FL_PropertyTag.OUTFLOWING, 0));
 		p.add(new PropertyHelper(FL_PropertyTag.DATE, new Date()));
-		p.add(new PropertyHelper(FL_PropertyTag.ANNOTATION, 
+		p.add(new PropertyHelper(FL_PropertyTag.ANNOTATION,
 				"Sorry, transaction filtering by highlighted clusters is not yet supported."));
-		
+
 		NO_CLUSTER_FILTER_MESSAGE_PROPS = Collections.unmodifiableList(p);
 	}
 
@@ -157,32 +157,32 @@ public class TransactionTableResource extends ApertureServerResource {
 							focusIdList.addAll(TypedId.nativeFromTypedIds(ChartResource.getLeafNodes(response)));
 						}
 					}
-					
+
 					// TODO: see #6090
 					if (focusIdList.isEmpty()) {
 						final FL_Link message = new LinkHelper(
 							FL_LinkTag.OTHER, "", "",
 							NO_CLUSTER_FILTER_MESSAGE_PROPS
 							);
-						
+
 						ledgerResult = buildForClient(FL_TransactionResults.newBuilder()
 							.setTotal(1)
 							.setResults(Collections.singletonList(message))
 							.build(), 0,1);
-						
+
 						List<String> cols = ledgerResult.getTableData().get(0);
 						cols.set(cols.size()-1, focusIds);
 						cols.set(cols.size()-2, focusIds);
 					}
 				}
-				
+
 				if (ledgerResult == null) {
 					FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
 					long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
 					FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
 					ledgerResult = buildForClient(results, startRow, startRow+totalRows);
 				}
-				
+
 				List<String> colNames = ledgerResult.getColumnUnits();
 				List<List<String>> data = ledgerResult.getTableData();
 				
@@ -236,10 +236,10 @@ public class TransactionTableResource extends ApertureServerResource {
 		result.put("sEcho",sEcho);
 		result.put("iTotalDisplayRecords",0);
 		result.put("iTotalRecords",0);
-		
+
 		return new StringRepresentation(result.toString(), MediaType.TEXT_PLAIN);
 	}
-	
+
 	private static DecimalFormat us_df = new DecimalFormat("$#,##0.00;$-#,##0.00");
 	private static DecimalFormat world_df = new DecimalFormat("#,##0.00;-#,##0.00");
 	private static DecimalFormat world_if = new DecimalFormat("#,##0;-#,##0");

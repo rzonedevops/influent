@@ -641,10 +641,8 @@ define(
                 _UIObjectState.spec.parent = null;
                 _UIObjectState.spec = null;
 
-                for (var i = 0; i < _UIObjectState.children.length; i++) {
-                    _UIObjectState.children[i].dispose();
-                    _UIObjectState.children[i] = null;
-                }
+                this.removeAllChildren();
+
                 _UIObjectState.children = null;
 
                 _UIObjectState = null;

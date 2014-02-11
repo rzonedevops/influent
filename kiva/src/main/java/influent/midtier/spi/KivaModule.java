@@ -24,8 +24,9 @@
  */
 package influent.midtier.spi;
 
-import influent.midtier.spi.impl.KivaAccountPropertiesView;
+//import influent.midtier.spi.impl.KivaAccountPropertiesView;
 import influent.server.spi.EntityPropertiesViewService;
+import influent.server.spi.impl.GenericEntityPropertiesView;
 
 import com.google.inject.AbstractModule;
 
@@ -34,6 +35,6 @@ public class KivaModule extends AbstractModule {
 	
 	@Override
 	protected void configure() {
-		bind(EntityPropertiesViewService.class).to(KivaAccountPropertiesView.class);
+		bind(EntityPropertiesViewService.class).to(GenericEntityPropertiesView.class);
 	}
 }

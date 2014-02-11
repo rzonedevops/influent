@@ -143,6 +143,7 @@ define(
             spec.label = label;
             spec.inDegree = xfWorkspace.getValueByTag(elementData, 'INFLOWING');
             spec.outDegree = xfWorkspace.getValueByTag(elementData, 'OUTFLOWING');
+            spec.ownerId = xfWorkspace.getValueByTag(elementData, 'ACCOUNT_OWNER');
         };
 
         //----------------------------------------------------------------------------------------------------------

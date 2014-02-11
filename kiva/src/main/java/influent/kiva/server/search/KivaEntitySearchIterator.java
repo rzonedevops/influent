@@ -36,7 +36,8 @@ import influent.idl.FL_SearchResult;
 import influent.idl.FL_Uncertainty;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
-import influent.kiva.server.dataaccess.KivaFLTagMaps;
+import influent.kiva.server.dataaccess.KivaPropertyMapping;
+import influent.kiva.server.dataaccess.KivaPropertyMaps;
 import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
@@ -234,6 +235,16 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 				.setRange(new SingletonRangeHelper(type, FL_PropertyType.STRING))
 				.build());
 		
+		// Add a Kiva image
+		props.add(FL_Property.newBuilder().setKey("image")
+				.setFriendlyText("Image")
+				.setProvenance(null)
+				.setUncertainty(null)
+				.setTags(Collections.singletonList(FL_PropertyTag.IMAGE))
+				.setRange(new SingletonRangeHelper("img/kiva.png", FL_PropertyType.STRING))
+				.build());
+				
+		
 		//TODO : get tags once added to solr.
 		
 		//Read and build properties.
@@ -283,18 +294,29 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 				
 				propBuilder = FL_Property.newBuilder();
 				propBuilder.setKey(key);
+
+				KivaPropertyMapping keyMapping = KivaPropertyMaps.INSTANCE.getPropMap().get(key);
 				
 				if (val instanceof Collection) {
 					s_logger.warn("Prop "+key+" has a "+val.getClass()+" value, skipping for now");
 					continue;
 				} else {
-					propBuilder.setFriendlyText(key);
+					if (keyMapping != null) {
+						String friendlyName = KivaPropertyMaps.INSTANCE.getPropMap().get(key).getFriendlyName();
+						propBuilder.setFriendlyText(friendlyName);
+					} else {
+						propBuilder.setFriendlyText(key);
+					}
 				}
 				
 				propBuilder.setProvenance(null);
 				propBuilder.setUncertainty(null);
 
-				tags = KivaFLTagMaps.INSTANCE.getPropTagMap().get(key);
+				tags = null;
+				if (keyMapping != null) {
+					tags = keyMapping.getPropertyTags();
+				}
+				
 				if (tags == null || tags.length==0) {
 					ltags = new ArrayList<FL_PropertyTag>();
 					ltags.add(FL_PropertyTag.RAW);
@@ -404,7 +426,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		List<FL_EntityTag> etags = new ArrayList<FL_EntityTag>();
 		
 		if (type.equals("partner")) {
-			 KivaFLTagMaps.INSTANCE.appendPartnerProperties(props);
+			 KivaPropertyMaps.INSTANCE.appendPartnerProperties(props);
 			 etags.add(FL_EntityTag.ACCOUNT_OWNER);  // partners are account owners
 			 entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT_OWNER, uid).getTypedId());
 			 

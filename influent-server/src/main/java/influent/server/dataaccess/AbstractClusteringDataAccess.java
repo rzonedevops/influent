@@ -199,10 +199,12 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 		
 		PropertyHelper prop = null;
 		Object propValue = null;
+		String friendlyText = null;
 		
 		// handle special properties
 		if (propTag == FL_PropertyTag.COUNTRY_CODE) {
 			property = "location-dist";  // UI expects the property to be named location-dist so rename
+			friendlyText = "Location Distribution";
 			propTag = FL_PropertyTag.GEO;
 			FL_GeoData geo = new FL_GeoData(null, null, null, value);
 			try {
@@ -212,18 +214,20 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 			propValue = geo;
 		} else if (propTag == FL_PropertyTag.TYPE) {
 			property = "type-dist";   // UI expects the property to be named type-dist so rename
+			friendlyText = "Type Distribution";
 			propValue = value;
 		} else {  // otherwise we build non-special properties
 			propValue = getPropertyValue(propType, value);
+			friendlyText = property;
 		}
 		
 		if (isDist) {
 			List<FL_Frequency> freqs = new ArrayList<FL_Frequency>();
 			freqs.add( new FL_Frequency(propValue, new Double(stat)) );
 			FL_DistributionRange range = new FL_DistributionRange(freqs, FL_RangeType.DISTRIBUTION, propType, false);
-			prop = new PropertyHelper(property, property, null, null, Collections.singletonList(propTag), range);
+			prop = new PropertyHelper(property, friendlyText, null, null, Collections.singletonList(propTag), range);
 		} else {
-			prop = new PropertyHelper(property, property, propValue, propType, propTag);
+			prop = new PropertyHelper(property, friendlyText, propValue, propType, propTag);
 		}
 			
 		return prop;

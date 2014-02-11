@@ -238,7 +238,7 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 				  " from " + finEntityTable +
 				  " where EntityId in " +  DataAccessHelper.createInClause(rawIds);
 			
-			if (statement.execute(sql)) {
+			if (!rawIds.isEmpty() && statement.execute(sql)) {
 				ResultSet rs = statement.getResultSet();
 				while (rs.next()) {
 					String entityId = rs.getString("EntityId");

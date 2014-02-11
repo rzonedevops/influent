@@ -45,6 +45,8 @@ define(
             CLUSTER_SUMMARY : 'cluster_summary',
             ACCOUNT_OWNER : 'account_owner',
             ENTITY : 'entity'
-        }
+        },
+        AJAX_SPINNER_FILE : 'img/ajax-loader.gif',
+        AJAX_SPINNER_BG	: 'url("img/ajax-loader.gif") no-repeat center center' 
     }
 );

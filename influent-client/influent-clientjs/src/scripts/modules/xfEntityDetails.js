@@ -66,6 +66,7 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
                 ) {
                     // cache icon set
                     var iconList = xfWorkspace.getUIObjectByXfId(data.xfId).getVisualInfo().spec['icons'];
+                    var obj = xfWorkspace.getUIObjectByXfId(data.xfId);
 
                     // get details for entity here
                     aperture.io.rest(
@@ -73,6 +74,11 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
                         'GET',
                         function(response){
                             $('#details').html(response.content);
+
+                            // HACK: Ensure clusters are named by their visual info labels in order to pick up count
+                            $('#detailsHeaderInfo')
+                                .find('.textNodeContainer')
+                                .html("<b>" + obj.getVisualInfo().spec.label + "</b>");
 
                             var parent = $('<div class="detailsIconContainer"></div>').appendTo('#detailsHeaderInfo');
                             var url;
@@ -99,6 +105,18 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
                             }
                         }
                     );
+                } else if (data.uiType == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                	var detailsId = (data.ownerId !== null) ? data.ownerId : data.dataId;
+                    // get details for entity here
+                    aperture.io.rest(
+                        '/entitydetails?queryId='+(new Date()).getTime()+'&entityId=' + detailsId,
+                        'GET',
+                        function(response){
+                            $('#details').html(response.content);
+                            _createClusterSummaryDetails(data.xfId);
+                        }
+                    );
+
                 } else {
                     $('#details').empty();
                     aperture.pubsub.publish(chan.REQUEST_OBJECT_BY_XFID, {xfId:data.xfId});
@@ -140,6 +158,60 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
                     label += " (+" + (spec.count - 1) + ")";
                 }
             }
+
+            detailsHeader.append('<span class="detailsEntityLabel">'+ label+ '<span>');
+
+            var detailsBody = $('<div></div>');
+            detailsBody.attr('id', 'detailsBody');
+            div.append(detailsBody);
+
+            var iconClassOrder = aperture.config.get()['influent.config'].iconOrder;
+            var iconClassMap = aperture.config.get()['influent.config'].iconMap;
+
+            for(var i = 0; i < iconClassOrder.length; i++) {
+                _addPropertyBlock(detailsBody, iconClassOrder[i], iconClassMap, spec);
+            }
+        };
+
+        //--------------------------------------------------------------------------------------------------------------
+
+        var _createClusterSummaryDetails = function(xfId) {
+
+            var obj = xfWorkspace.getUIObjectByXfId(xfId);
+            var iconList = xfWorkspace.getUIObjectByXfId(xfId).getVisualInfo().spec['icons'];
+
+            var parent = $('<div class="detailsIconContainer"></div>').appendTo('#detailsHeaderInfo');
+            var url;
+            var icon;
+            var i;
+
+            if (iconList) {
+                for (i = 0; i < iconList.length; i++) {
+                    icon = iconList[i];
+
+                    // supersize it
+                    url = icon.imgUrl
+                        .replace(/iconWidth=[0-9]+/, 'iconWidth=32')
+                        .replace(/iconHeight=[0-9]+/, 'iconHeight=32');
+
+                    parent.append(
+                        '<img class= "detailsIcon" src="' +
+                            url +
+                            '" title="' +
+                            icon.title +
+                            '"/>'
+                    );
+                }
+            }
+
+            var spec = obj.getVisualInfo().spec;
+
+            var div = $('#details');
+
+            var detailsHeader = $('<div class="clusterDetailsHeader"></div>').appendTo(div);
+            detailsHeader.append('<span class="clusterDetailsTitle">Owner Account Summary<span><br>');
+
+            var label = spec.label;
 
             detailsHeader.append('<span class="detailsEntityLabel">'+ label+ '<span>');
 

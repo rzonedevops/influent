@@ -44,7 +44,7 @@ public class EntitySearchTerms {
 	
 	public EntitySearchTerms(String term) {
 		Pattern extraTermRegEx = Pattern.compile("\\A([^:]*)(\\s*$| [^:\\s]+:.*)");
-		Pattern tagsRegEx = Pattern.compile("([^:\\s]+):([^:]*)( |$)");
+		Pattern tagsRegEx = Pattern.compile("([^:\\s]+):(\"([^\"]*)\"|[^:]*)( |$)");
 		
 		Matcher extraTermMatcher = extraTermRegEx.matcher(term);
 		StringBuilder extraTermsBuilder = new StringBuilder();

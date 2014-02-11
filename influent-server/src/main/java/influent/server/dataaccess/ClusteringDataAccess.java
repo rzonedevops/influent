@@ -400,7 +400,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 						typeFreqs.add( new FL_Frequency(key, typeSummary.get(key)) );
 					}
 					FL_DistributionRange range = new FL_DistributionRange(typeFreqs, FL_RangeType.DISTRIBUTION, FL_PropertyType.STRING, false);
-					FL_Property dist = new FL_Property("type-dist", "type-dist", range, null, null, Collections.singletonList(FL_PropertyTag.TYPE));
+					FL_Property dist = new FL_Property("type-dist", "Type Distribution", range, null, null, Collections.singletonList(FL_PropertyTag.TYPE));
 					entityProps.add(dist);
 					
 //					entityProps.add(new PropertyHelper("type-dist", "distribution of entity types", dist, FL_PropertyType.OTHER, Collections.singletonList(FL_PropertyTag.STAT)));
@@ -420,7 +420,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 						locFreqs.add( new FL_Frequency(geo, locationSummary.get(key)) );
 					}
 					FL_DistributionRange range = new FL_DistributionRange(locFreqs, FL_RangeType.DISTRIBUTION, FL_PropertyType.GEO, false);
-					FL_Property dist = new FL_Property("location-dist", "location-dist", range, null, null, Collections.singletonList(FL_PropertyTag.GEO));
+					FL_Property dist = new FL_Property("location-dist", "Location Distribution", range, null, null, Collections.singletonList(FL_PropertyTag.GEO));
 					entityProps.add(dist);
 				}
 				else {
@@ -438,7 +438,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			
 			if (props.containsKey("location-dist") == false) {
 				FL_DistributionRange range = new FL_DistributionRange(null, FL_RangeType.DISTRIBUTION, FL_PropertyType.GEO, false);
-				FL_Property dist = new FL_Property("location-dist", "location-dist", range, null, null, Collections.singletonList(FL_PropertyTag.GEO));
+				FL_Property dist = new FL_Property("location-dist", "Location Distribution", range, null, null, Collections.singletonList(FL_PropertyTag.GEO));
 				entityProps.add(dist);
 		
 //				entityProps.add(new PropertyHelper("location-dist", "country code distribution", new HashMap<String, Integer>(), FL_PropertyType.OTHER, Collections.singletonList(FL_PropertyTag.STAT)));

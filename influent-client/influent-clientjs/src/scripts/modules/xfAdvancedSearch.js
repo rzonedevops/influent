@@ -117,7 +117,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
                     _initializeModalComponents(entityColumns);
                     currentProps = entityColumns[0]['data'];
 
-                    _buildForType = function () {
+                    _buildForType = function (properties) {
                         var propertyContainer = $('#propertyContainer');
                         var propertyLine;
                         var oldFriendlyNames = [];
@@ -243,13 +243,13 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
                         propertyContainer.append('<br><br>');
 
                         _UIObjectState.properties = currentProps;
-                        _constructDialog(_UIObjectState);
+                        _constructDialog(_UIObjectState, properties.id.value.length !== 0);
                     };
                     
-                    $('#entities').change(_buildForType);
+                    $('#entities').change(function(event) { _buildForType(properties) });
 
                     _UIObjectState.properties = currentProps;
-                    _constructDialog(_UIObjectState);
+                    _constructDialog(_UIObjectState, false);
                 },
                 {}
             );
@@ -415,6 +415,15 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
                 idfield.attr('id', 'likeIdProperty');
                 idfield.addClass('textPropertyClass');
                 idfield.css('width', 140);
+                idfield.bind('change keyup', function(event) {
+                	var numButtons = $('.ui-dialog-buttonset')[0].childNodes.length;
+                	if(idfield.val().length === 0 && numButtons === 3) {
+                		_constructDialog(_UIObjectState, false);
+                	}
+                	else if(idfield.val().length > 0 && numButtons === 2) {
+                		_constructDialog(_UIObjectState, true);
+                	}
+                });
                 idline.append(idfield);
 
                 var patternEngineDescription =
@@ -555,7 +564,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
             if (properties.datatype) {
                 $('#entities').val(properties.datatype.value);
                 if (_buildForType) {
-                    _buildForType.call($('#entities').get(0));
+                    _buildForType.call($('#entities').get(0), properties);
                 }
             }
 
@@ -603,7 +612,39 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
 
         //--------------------------------------------------------------------------------------------------------------
 
-        var _constructDialog = function(state){
+        var _constructDialog = function(state, showApply){
+        	var dialogButtons = {};
+        	dialogButtons['Search'] = function () {
+        		var searchString = assembleSearchString(state);
+        		
+        		aperture.pubsub.publish(chan.SEARCH_REQUEST, assembleSearchData(searchString, true));
+        		
+        		$(this).dialog('close');
+        	};
+        	if(showApply) {
+	        	dialogButtons['Apply'] = function () {
+	                var searchString = "";
+	                var isPattern = $('#advancedTabs').tabs( 'option', 'selected' );
+	
+	                if (isPattern) {
+	                	var id = $('#likeIdProperty').val();
+	                	if (id) {
+	                    	searchString = "like:"+ id;
+	                	}
+	                	
+	                } else {
+	                	searchString = assembleSearchString(state);
+	                }
+	
+	                aperture.pubsub.publish(chan.SEARCH_REQUEST, assembleSearchData(searchString, false));
+	
+	                $(this).dialog('close');
+	            };
+        	}
+            dialogButtons['Cancel'] = function() {
+                $(this).dialog('close');
+            }
+        	
         	$('#advancedTabs').tabs({ 
         		heightStyle: 'auto'
         	});
@@ -611,51 +652,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
             	height: 450,
                 autoOpen: false,
                 modal: true,
-                buttons: {
-                    'Apply': function () {
-                        var searchString = "";
-                        var isPattern = $('#advancedTabs').tabs( 'option', 'selected' );
-
-                        if (isPattern) {
-                        	var id = $('#likeIdProperty').val();
-                        	if (id) {
-                            	searchString = "like:"+ id;
-                        	}
-                        	
-                        } else {
-	                        for (var x = 0; x < state.properties.length; x++) {
-	                            if ($('#textProperty'+x).val() != "") {
-	
-	                            	var key = state.properties[x]['key'];
-	                                var val = $('#textProperty'+x).val();
-	                                if ($('#not'+x).is(':checked')) {
-	                                    key = '-' + key;
-	                                } 
-	                                if (!$('#fuzzy'+x).is(':checked')) {
-	                                    val = '"' + val + '"';
-	                                }
-	
-	                                searchString += key + ':' + val + ' ';
-	                            }
-	                        }
-	
-	                        searchString += 'datatype:'+ $('#entities').val();
-                        }
-                        
-                        var searchData = {
-                            xfId : _UIObjectState.fileId,
-                            searchTerm : searchString,
-                            noRender : true
-                        };
-
-                        aperture.pubsub.publish(chan.SEARCH_REQUEST, searchData);
-
-                        $(this).dialog('close');
-                    },
-                    'Cancel': function() {
-                        $(this).dialog('close');
-                    }
-                },
+                buttons: dialogButtons,
                 show: {
                     effect: 'clip',
                     duration: 100
@@ -670,6 +667,38 @@ define(['jquery', 'lib/module', 'lib/channels', 'modules/xfWorkspace'],
             $('#advancedDialog').css('display', '');
         };
 
+        function assembleSearchData(searchString, doSearch) {
+           return {
+                    xfId : _UIObjectState.fileId,
+                    searchTerm : searchString,
+                    noRender : true,
+                    executeSearch : doSearch
+                };
+        }
+        
+        function assembleSearchString(state) {
+        	var searchString = "";
+        	
+            for (var x = 0; x < state.properties.length; x++) {
+                if ($('#textProperty'+x).val() != "") {
+
+                	var key = state.properties[x]['key'];
+                    var val = $('#textProperty'+x).val();
+                    if ($('#not'+x).is(':checked')) {
+                        key = '-' + key;
+                    } 
+                    if (!$('#fuzzy'+x).is(':checked')) {
+                        val = '"' + val + '"';
+                    }
+
+                    searchString += key + ':' + val + ' ';
+                }
+            }
+
+            searchString += 'datatype:'+ $('#entities').val();
+            return searchString;
+        }
+        
         //--------------------------------------------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------------------------------------------

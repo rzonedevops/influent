@@ -698,8 +698,9 @@ define(
                 return;
             }
 
-            if (_isAdvancedSearch(data)) {
-                var matchUIObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId).getMatchUIObject();
+            var matchUIObject;
+            if (_isAdvancedSearch(data)) {            	
+                matchUIObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId).getMatchUIObject();
                 matchUIObject.setSearchTerm(data.searchTerm);
                 aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : matchUIObject});
 
@@ -717,7 +718,12 @@ define(
                     }
                 );
 
-                return;
+                if(!data.executeSearch) {
+                	return;
+            	}
+            }
+            else {
+            	matchUIObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
             }
 
             // Create groups of pattern searches and basic searches
@@ -729,7 +735,7 @@ define(
             if (!USE_PATTERN_SEARCH ||
                 (matchcardObjects.length == 1 && !_isPartialQBESearch(matchcardObjects[0].getSearchTerm()))
             ) {
-                _basicSearchOnMatchcard(_UIObjectState.singleton.getUIObjectByXfId(data.xfId), renderCallback, eventChannel);
+                _basicSearchOnMatchcard(matchUIObject, renderCallback, eventChannel);
             } else {
                 var patternGroups = [];
                 var currentPatternGroup = [];
@@ -1321,6 +1327,18 @@ define(
                 );
             }
 
+            if(targetContainer.getUIType() == constants.MODULE_NAMES.FILE && data.showSpinner) {
+
+                var fileCluster = targetContainer.getClusterUIObject();
+                if (fileCluster != null) {
+                    fileCluster.showSpinner(true);
+                    aperture.pubsub.publish(
+                        chan.RENDER_UPDATE_REQUEST,
+                        {UIObject :  fileCluster}
+                    );
+                }
+            }
+            
             // If this is a cluster, flatten out the cluster hierarchy
             // and create a flattened out list of all child cards.
             if (xfUtil.isClusterTypeFromObject(insertedCard) && insertedCard.getUIType() != constants.MODULE_NAMES.SUMMARY_CLUSTER) {
@@ -1357,6 +1375,9 @@ define(
                             }
                         }
 
+                        if (fileCluster != null) {
+                            fileCluster.showSpinner(false);
+                        }
                         renderCallback(dataIds);
                     }
                 );
@@ -1387,14 +1408,28 @@ define(
                     }
                 }
 
+                if (fileCluster != null) {
+                    fileCluster.showSpinner(false);
+                }
+
                 // Update the server side cache with the new cluster hierarchy.
-                _modifyContext(containerColumn.getXfId(), 'insert', targetContainer.getDataId(), targetContainer.getContainedCardDataIds(),
-                    // Callback to be performed after the modify context operation has completed.
+                _modifyContext(
+                    containerColumn.getXfId(),
+                    'insert',
+                    targetContainer.getDataId(),
+                    targetContainer.getContainedCardDataIds(),
                     function(){
                         // Update any incoming/outgoing links.
                         var isCollapsedCluster = xfUtil.isClusterTypeFromObject(targetContainer) && !targetContainer.isExpanded();
-                        _updateLinks(true, true, [isCollapsedCluster?targetContainer:insertedCard], renderCallback, [targetContainer, insertedCard]);
-                    });
+                        _updateLinks(
+                            true,
+                            true,
+                            [isCollapsedCluster?targetContainer:insertedCard],
+                            renderCallback,
+                            [targetContainer, insertedCard]
+                        );
+                    }
+                );
             }
             
             //Draper instrumentation
@@ -1485,6 +1520,12 @@ define(
                     uiSubtype: objectToBeSelected.getUISubtype(),
                     contextId: xfUtil.getUITypeAncestor(objectToBeSelected, 'xfColumn').getXfId()
                 };
+
+                // Add owner ID for summary clusters
+                if (objectToBeSelected.getUIType() === constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                    _UIObjectState.selectedUIObject.ownerId = objectToBeSelected.getOwnerId();
+                }
+
                 _UIObjectState.singleton.setSelection(objectToBeSelected.getXfId());
             }
 
@@ -1989,13 +2030,6 @@ define(
 
             if (!uiObj.isExpanded()) {
 
-                // HACK for #7077
-                // Force an update of the cluster face specifically when creating a file from a cluster
-                _updateClusterSpec(uiObj);
-                if (_UIObjectState.showDetails) {
-                    _UIObjectState.childModule.updateCardsWithCharts(uiObj.getSpecs(false));
-                }
-
                 renderCallback();
                 return;
             }
@@ -2260,6 +2294,7 @@ define(
             var fileSpec = xfFile.getSpecTemplate();
             var fileUIObj = xfFile.createInstance(fileSpec);
             fileUIObj.showDetails(_UIObjectState.singleton.showDetails());
+            fileUIObj.showSpinner(data.showSpinner);
             // Add the file to the very top of the column.
             var topObj = null;
             if (columnUIObj.getVisualInfo().children.length > 0){
@@ -2270,6 +2305,10 @@ define(
             // Link it to all files to the columns to the left and right of our column
             _addFileLinks(fileUIObj, columnUIObj, true, true);
 
+            if(data.showSpinner) {
+            	renderCallback();
+        	}
+            
             var linkCallback = function() {
                 if(sourceObjOriginalParent != null && sourceObjOriginalParent.getChildren().length == 0) {
                     aperture.pubsub.publish(
@@ -2314,24 +2353,6 @@ define(
                 }
             };
 
-            var modifyContextCallback = function(){
-                _modifyContext(columnUIObj.getXfId(), 'insert', fileUIObj.getClusterUIObject().getDataId(),
-                    fileUIObj.getClusterUIObject().getContainedCardDataIds(), showMatchcardCallback);
-            };
-
-            var collapseCallback = function() {
-                if (collapseFile) {
-                    _onCollapseEvent(chan.COLLAPSE_EVENT, {xfId : fileUIObj.getClusterUIObject().getXfId()}, modifyContextCallback);
-                } else {
-                    if (fileUIObj.getClusterUIObject()){
-                        _onExpandEvent(chan.EXPAND_EVENT, {xfId : fileUIObj.getClusterUIObject().getXfId()}, modifyContextCallback);
-                    }
-                    else {
-                        _pruneColumns();
-                        renderCallback();
-                    }
-                }
-            };
             _log(
                 'user',
                 eventChannel,
@@ -2343,35 +2364,17 @@ define(
                     contextId : columnUIObj.getXfId()
                 }
             );
+
             if (!data.isColumn) {
-                var insertedCard;
-                if (_useCopyMethod(sourceObj)) {
-                    copied = true;
-                    insertedCard = sourceObj.clone();
-                } else {
-                    insertedCard = sourceObj;
-                    _removeObject(
-                        insertedCard,
-                        chan.REMOVE_REQUEST,
-                        true,
-                        false
-                    );
-                }
 
-                if (xfUtil.isClusterTypeFromObject(insertedCard)){
-                    collapseFile = true;
-                    _flattenCluster(insertedCard, columnUIObj.getXfId(), fileUIObj, collapseCallback);
-                    return;
-                }
-                else {
-                    // Add the source uiObject into the file.
-                    collapseFile = false;
-                    fileUIObj.insert(insertedCard, null);
-                    insertedCard.showToolbar(true);
-                }
+                aperture.pubsub.publish(chan.ADD_TO_FILE_REQUEST, {
+                    containerId : fileUIObj.getXfId(),
+                    cardId: sourceObj.getXfId()
+                });
+            } else {
+                _pruneColumns();
+                renderCallback();
             }
-
-            collapseCallback();
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -2485,7 +2488,7 @@ define(
                     $.blockUI({
                         theme: true,
                         title: 'Capture In Progress',
-                        message: '<img src="img/ajax-loader.gif" style="display:block;margin-left:auto;margin-right:auto"/>'
+                        message: '<img src="' + constants.AJAX_SPINNER_FILE + '" style="display:block;margin-left:auto;margin-right:auto"/>'
                     });
 
                     var timestamp = (new Date().getTime());
@@ -2577,7 +2580,7 @@ define(
                     $.blockUI({
                         theme: true,
                         title: 'Export In Progress',
-                        message: '<img src="img/ajax-loader.gif" style="display:block;margin-left:auto;margin-right:auto"/>'
+                        message: '<img src="' + constants.AJAX_SPINNER_FILE + '" style="display:block;margin-left:auto;margin-right:auto"/>'
                     });
 
                     var timestamp = (new Date().getTime());

@@ -70,6 +70,7 @@ define(
                 showSpinner         : false,
                 links               : {}
             };
+            _UIObjectState.spec.type = MODULE_NAME;
 
             //----------------
             // private methods
@@ -171,6 +172,7 @@ define(
                 _UIObjectState.spec.members = state.spec.members;
                 _UIObjectState.spec.inDegree = state.spec.inDegree;
                 _UIObjectState.spec.outDegree = state.spec.outDegree;
+                _UIObjectState.spec.ownerId = state.spec.ownerId;
 
                 _UIObjectState.children = [];
             };

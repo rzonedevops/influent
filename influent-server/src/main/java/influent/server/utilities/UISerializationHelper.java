@@ -29,9 +29,11 @@ import influent.idl.FL_Entity;
 import influent.idl.FL_EntityTag;
 import influent.idl.FL_Link;
 import influent.idl.FL_Property;
+import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
 import influent.idl.FL_PropertyDescriptor;
 import influent.idl.FL_SingletonRange;
+import influent.idlhelper.EntityHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.idlhelper.PropertyHelper;
 
@@ -84,10 +86,15 @@ public class UISerializationHelper {
 			
 			if (count > 1) {
 				String labelStr = PropertyHelper.from(labelProp).getValue().toString();
-				
-				// Check to see if it has already been appended
-				if (!(labelStr.contains("(+") && labelStr.endsWith(")"))) {
-					
+
+				// For summary clusters, show number of accounts, otherwise show cluster count
+				if (cluster.getTags().contains(FL_EntityTag.CLUSTER_SUMMARY))
+				{
+					labelStr += " (" + (count - 1) + " accounts)";
+					labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
+				}
+				else
+				{
 					labelStr += " (+" + (count - 1) + ")";
 					labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
 				}

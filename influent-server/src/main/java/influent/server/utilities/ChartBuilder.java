@@ -191,6 +191,9 @@ public class ChartBuilder {
 				} finally {
 					permits.revoke();
 				}
+			} else if(id.getType() == TypedId.ACCOUNT_OWNER || id.getType() == TypedId.CLUSTER_SUMMARY) {
+				focIt.remove();
+				focIt.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNativeId()).toString());
 			}
 		}		
 		

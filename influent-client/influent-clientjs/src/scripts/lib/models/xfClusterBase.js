@@ -75,7 +75,8 @@ define(
             inDegree			: 0,
             outDegree			: 0,
             leftOperation       : 'branch',
-            rightOperation      : 'branch'
+            rightOperation      : 'branch',
+            ownerId             : ''
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -521,6 +522,12 @@ define(
 
             //----------------------------------------------------------------------------------------------------------
 
+            xfClusterInstance.getOwnerId = function() {
+                return _UIObjectState.spec.ownerId;
+            };
+
+            //----------------------------------------------------------------------------------------------------------
+
             xfClusterInstance.highlightId = function(xfId) {
 
                 var i;
@@ -746,6 +753,7 @@ define(
                 state['node']['minBalance'] = _UIObjectState.spec.chartSpec.minBalance;
                 state['node']['inDegree'] = _UIObjectState.spec.inDegree;
                 state['node']['outDegree'] = _UIObjectState.spec.outDegree;
+                state['node']['ownerId'] = _UIObjectState.spec.ownerId;
 
                 state['link'] = {};
                 for (i = 0; i < _UIObjectState.links; i++) {
@@ -795,6 +803,7 @@ define(
                 state['spec']['members'] = _UIObjectState.spec.members;
                 state['spec']['inDegree'] = _UIObjectState.spec.inDegree;
                 state['spec']['outDegree'] = _UIObjectState.spec.outDegree;
+                state['spec']['ownerId'] = _UIObjectState.spec.ownerId;
 
                 state['children'] = [];
                 for (i = 0; i < _UIObjectState.children.length; i++) {
