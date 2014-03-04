@@ -25,12 +25,12 @@
 define(
     [
         'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
-        'lib/models/xfCard', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster', 'lib/constants',
+        'lib/models/xfCard', 'lib/models/xfImmutableCluster', 'lib/models/xfSummaryCluster', 'lib/constants',
         'lib/extern/underscore'
     ],
     function(
         $, xfUIObject, chan, guid,
-        xfCard, xfMutableCluster, xfSummaryCluster, constants
+        xfCard, xfImmutableCluster, xfSummaryCluster, constants
     ) {
 
         //--------------------------------------------------------------------------------------------------------------
@@ -250,7 +250,7 @@ define(
             //----------------------------------------------------------------------------------------------------------
 
             xfMatchInstance.collapseLinks = function(direction) {
-                console.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -266,7 +266,7 @@ define(
                     );
                 }
                 else {
-                	console.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
+                	aperture.log.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
                 }
             };
 
@@ -457,7 +457,7 @@ define(
 
             xfMatchInstance.isSelected = function() {
                 // Columns cannot be selected, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -510,14 +510,14 @@ define(
 
             xfMatchInstance.expand = function() {
                 // Match objects cannot be expanded, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "expand".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "expand".');
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfMatchInstance.collapse = function() {
                 // Match objects cannot be collapsed, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "collapse".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapse".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -610,14 +610,14 @@ define(
                         cardUIObj.cleanState();
                         cardUIObj.restoreVisualState(state.children[i]);
                         this.insert(cardUIObj, null);
-                    } else if (state.children[i].UIType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-                    	var clusterSpec = xfMutableCluster.getSpecTemplate();
-                        var clusterUIObj = xfMutableCluster.createInstance(clusterSpec);
+                    } else if (state.children[i].UIType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
+                    	var clusterSpec = xfImmutableCluster.getSpecTemplate();
+                        var clusterUIObj = xfImmutableCluster.createInstance(clusterSpec);
                         clusterUIObj.cleanState();
                         clusterUIObj.restoreVisualState(state.children[i]);
                         this.insert(clusterUIObj, null);
                     } else {
-                        console.error("Match children should only be of type " + constants.MODULE_NAMES.ENTITY + ", " + constants.MODULE_NAMES.MUTABLE_CLUSTER + " or " + constants.MODULE_NAMES.SUMMARY_CLUSTER + ".");
+                        aperture.log.error("Restoring a child of type "+ state.children[i].UIType+ " but match children should only be of type " + constants.MODULE_NAMES.ENTITY + ", " + constants.MODULE_NAMES.IMMUTABLE_CLUSTER + " or " + constants.MODULE_NAMES.SUMMARY_CLUSTER + ".");
                     }
                 }
             };
@@ -676,7 +676,7 @@ define(
                     state != 'searching' &&
                     state != 'results'
                 ) {
-                    console.error(MODULE_NAME + ': Invalid search state requested.');
+                    aperture.log.error(MODULE_NAME + ': Invalid search state requested.');
                 }
 
                 _UIObjectState.spec.searchState = state;

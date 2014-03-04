@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 //Load scripts.
-require(['lib/app'], function(app) {
+require(['lib/app', 'lib/plugins'], function(app) {
 
 	app.setup();
 

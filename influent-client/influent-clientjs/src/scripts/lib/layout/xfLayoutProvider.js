@@ -191,7 +191,7 @@ define(
                         break;
                     }
                     default :{
-                        console.error('Attempted to process Sankey node positions of an unsupported UIObject type: ' + objectType);
+                        aperture.log.error('Attempted to process Sankey node positions of an unsupported UIObject type: ' + objectType);
                     }
                 }
                 if (uiObjectHeight > 0){
@@ -252,7 +252,7 @@ define(
                         break;
                     }
                     default :{
-                        console.error('Attempted to process Sankey node positions of an unsupported UIObject type: ' + objectType);
+                        aperture.log.error('Attempted to process Sankey node positions of an unsupported UIObject type: ' + objectType);
                     }
                 }
                 if (updatePosition){

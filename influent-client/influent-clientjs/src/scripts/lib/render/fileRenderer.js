@@ -99,7 +99,7 @@ define(
                         break;
                     }
                     default : {
-                        console.error('Attempted to add an unsupported UIObject type to file');
+                        aperture.log.error('Attempted to add an unsupported UIObject type to file');
                     }
                 }
 

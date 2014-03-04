@@ -28,9 +28,21 @@ define(
 
         // Note that the use of ((http|ftp|https)://)* means that this also includes valid hash keys for charts, not just general URIs
         var VALID_URI_REGEX = new RegExp('((http|ftp|https)://)*[a-z0-9\-_]+(\.[a-z0-9\-_]+)+([a-z0-9\-\.,@\?^=%&;:/~\+#]*[a-z0-9\-@\?^=%&;/~\+#])?', 'i');
+        var COLUMN_CLASS = 'columnContainer';
 
         //--------------------------------------------------------------------------------------------------------------
+        
+        /**
+         * Returns true if the given dom target is in whitespace, else false.
+         */
+        function _isWorkspaceWhitespace(elem) {
+        	var clicked = $(elem);
 
+        	// anything but a descendent of column class
+        	return $.contains(document, elem) && 
+        		(clicked.hasClass(COLUMN_CLASS) || !clicked.parents().hasClass(COLUMN_CLASS) || clicked.hasClass('clusterExpanded'));
+        }
+        
         /**
          * Returns true if the visualInfo from a given
          * uiObject is a descendant of the given uiType.
@@ -192,7 +204,7 @@ define(
                 return request;
             }
             // If the request type is unrecognized, report the error.
-            console.error('Unrecognized layout request type: ' + type);
+            aperture.log.error('Unrecognized layout request type: ' + type);
             return null;
         };
 
@@ -211,7 +223,7 @@ define(
                 return toCheck;
             }
             else {
-                console.warn('Cannot parse URI; the URI syntax is invalid: ' + toCheck);
+                aperture.log.warn('Cannot parse URI; the URI syntax is invalid: ' + toCheck);
                 return encodeURI(toCheck);
             }
         };
@@ -505,7 +517,8 @@ define(
             outgoingDescendingSort : _outgoingDescendingSort,
             outgoingAscendingSort : _outgoingAscendingSort,
             bothDescendingSort : _bothDescendingSort,
-            bothAscendingSort : _bothAscendingSort
+            bothAscendingSort : _bothAscendingSort,
+            isWorkspaceWhitespace : _isWorkspaceWhitespace
         };
     }
 );

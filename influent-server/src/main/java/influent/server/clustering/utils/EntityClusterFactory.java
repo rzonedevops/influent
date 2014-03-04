@@ -54,6 +54,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import oculus.aperture.spi.common.Properties;
+
 import org.apache.avro.AvroRemoteException;
 
 public class EntityClusterFactory {
@@ -67,14 +69,14 @@ public class EntityClusterFactory {
 		public final Set<FL_PropertyTag> tags = new HashSet<FL_PropertyTag>();
 	}
 	
-	public EntityClusterFactory(IdGenerator idGen, FL_Geocoding geocoding, PropertyManager pMgr) {
+	public EntityClusterFactory(IdGenerator idGen, FL_Geocoding geocoding, Properties pMgr) {
 		this.idGenerator = idGen;
 		this.geocoder = geocoding;
 		initDistProperties(pMgr);
 	}
 	
-	private void initDistProperties(PropertyManager pMgr) {
-		String[] properties = pMgr.getProperty(PropertyManager.CLUSTER_PROPERTIES, "TYPE:type-dist,GEO:location-dist").split(",");
+	private void initDistProperties(Properties pMgr) {
+		String[] properties = pMgr.getString(ClustererProperties.CLUSTER_PROPERTIES, "TYPE:type-dist,GEO:location-dist").split(",");
 		
 		for (String property : properties) {
 			String[] tokens = property.split(":");

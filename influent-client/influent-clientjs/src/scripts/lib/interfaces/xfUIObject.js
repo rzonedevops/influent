@@ -31,186 +31,186 @@ define(['jquery', 'lib/module', 'lib/channels'], function($, modules, chan) {
     module.implementedBy = function(implementingObject, implementingObjectModuleName) {
 
         implementingObject.clone = function() {
-            console.error(unimpMethod + ': "clone" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "clone" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getXfId = function() {
-            console.error(unimpMethod + ': "getXfId" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getXfId" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getDataId = function() {
-            console.error(unimpMethod + ': "getDataId" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getDataId" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getUIType = function() {
-            console.error(unimpMethod + ': "getUIType" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getUIType" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getLabel = function() {
-            console.error(unimpMethod + ': "getLabel" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getLabel" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getUIObjectByXfId = function(xfId) {
-            console.error(unimpMethod + ': "getUIObjectByXfId" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getUIObjectByXfId" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getUIObjectsByDataId = function(dataId) {
-            console.error(unimpMethod + ': "getUIObjectByDataId" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getUIObjectByDataId" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getParent = function() {
-            console.error(unimpMethod + ': "getParent" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getParent" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.setParent = function(xfUIObj) {
-            console.error(unimpMethod + ': "setParent" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "setParent" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getLinks = function() {
-            console.error(unimpMethod + ': "getLinks" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getLinks" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getIncomingLinks = function() {
-            console.error(unimpMethod + ': "getIncomingLinks" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getIncomingLinks" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getOutgoingLinks = function() {
-            console.error(unimpMethod + ': "getOutgoingLinks" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getOutgoingLinks" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.addLink = function(link) {
-            console.error(unimpMethod + ': "addLink" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "addLink" by module ' + implementingObjectModuleName);
             return false;
         };
 
         implementingObject.removeLink = function(xfId) {
-            console.error(unimpMethod + ': "removeLink" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "removeLink" by module ' + implementingObjectModuleName);
             return false;
         };
 
         implementingObject.removeAllLinks = function() {
-            console.error(unimpMethod + ': "removeAllLinks" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "removeAllLinks" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.collapseLinks = function(direction, deleteAfterCollapse) {
-            console.error(unimpMethod + ': "collapseLinks" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "collapseLinks" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.isLinkedTo = function(uiObject) {
-            console.error(unimpMethod + ': "isLinkedTo" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "isLinkedTo" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.remove = function(eventChannel, dispose) {
-            console.error(unimpMethod + ': "remove" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "remove" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.removeChild = function(xfId, disposeObject, preserveLinks) {
-            console.error(unimpMethod + ': "removeChild" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "removeChild" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.removeAllChildren = function() {
-            console.error(unimpMethod + ': "removeAllChildren" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "removeAllChildren" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.insert = function(xfUIObj, beforeXfUIObj00) {
-            console.error(unimpMethod + ': "insert" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "insert" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.update = function(spec) {
-            console.error(unimpMethod + ': "update" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "update" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.showDetails = function(bShow) {
-            console.error(unimpMethod + ': "showDetails" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "showDetails" by module ' + implementingObjectModuleName);
             return false;
         };
 
         implementingObject.getSpecs = function(bOnlyEmptySpecs) {
-            console.error(unimpMethod + ': "getSpecs" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getSpecs" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getVisualInfo = function() {
-            console.error(unimpMethod + ': "getVisualInfo" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getVisualInfo" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getFocus = function() {
-            console.error(unimpMethod + ': "getFocus" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getFocus" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.setFocus = function(data) {
-            console.error(unimpMethod + ': "setFocus" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "setFocus" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.isSelected = function() {
-            console.error(unimpMethod + ': "isSelected" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "isSelected" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.setSelection = function(xfId) {
-            console.error(unimpMethod + ': "setSelection" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "setSelection" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.isHovered = function() {
-            console.error(unimpMethod + ': "isHovered" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "isHovered" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.setHovering = function(xfId) {
-            console.error(unimpMethod + ': "setHovering" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "setHovering" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.expand = function() {
-            console.error(unimpMethod + ': "expand" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "expand" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.collapse = function() {
-            console.error(unimpMethod + ': "collapse" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "collapse" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.setDuplicateCount = function(count) {
-            console.error(unimpMethod + ': "setDuplicateCount" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "setDuplicateCount" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getVisibleDataIds = function() {
-            console.error(unimpMethod + ': "getVisibleDataIds" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getVisibleDataIds" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getLabel = function() {
-            console.error(unimpMethod + ': "getLabel" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getLabel" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.allowHover = function(bAllowHover) {
-            console.error(unimpMethod + ': "allowHover" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "allowHover" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.cleanState = function() {
-            console.error(unimpMethod + ': "cleanState" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "cleanState" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.exportState = function() {
-            console.error(unimpMethod + ': "exportState" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "exportState" by module ' + implementingObjectModuleName);
         };
         
         implementingObject.saveState = function() {
-            console.error(unimpMethod + ': "saveState" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "saveState" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.restoreVisualState = function(state) {
-            console.error(unimpMethod + ': "restoreState" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "restoreState" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.restoreHierarchy = function(state, workspace) {
-            console.error(unimpMethod + ': "restoreHierarchy" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "restoreHierarchy" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.dispose = function() {
-            console.error(unimpMethod + ': "dispose" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "dispose" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.sortChildren = function(sortFunction) {
-            console.error(unimpMethod + ': "sortChildren" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "sortChildren" by module ' + implementingObjectModuleName);
         };
 
         implementingObject.getTotalLinkAmount = function(includeIncoming, includeOutgoing) {
-            console.error(unimpMethod + ': "getTotalLinkAmount" by module ' + implementingObjectModuleName);
+            aperture.log.error(unimpMethod + ': "getTotalLinkAmount" by module ' + implementingObjectModuleName);
         };
     };
 

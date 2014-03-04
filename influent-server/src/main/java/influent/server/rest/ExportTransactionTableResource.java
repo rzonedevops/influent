@@ -99,7 +99,7 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 			
 			FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
 			FL_TransactionResults results = dataAccess.getAllTransactions(
-					entityIds, FL_LinkTag.FINANCIAL, dateRange, FL_SortBy.DATE, null, 0, Long.MAX_VALUE);
+					entityIds, FL_LinkTag.FINANCIAL, dateRange, FL_SortBy.DATE, null, 0, 1000000);
 			ArrayList<String> colHeader = null;
 			if(results.getResults().size() > 0) {
 				colHeader = new ArrayList<String>();

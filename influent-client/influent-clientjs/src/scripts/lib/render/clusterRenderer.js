@@ -158,7 +158,7 @@ define(
                         break;
                     }
                     default : {
-                        console.error('Attempted to add an unsupported UIObject type to column');
+                        aperture.log.error('Attempted to add an unsupported UIObject type to column');
                     }
                 }
                 if (element){

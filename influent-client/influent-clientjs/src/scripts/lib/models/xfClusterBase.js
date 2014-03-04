@@ -100,7 +100,7 @@ define(
             //------------------------
 
             xfClusterInstance.clone = function() {
-                console.error(MODULE_NAME + " is an abstract base class and should not be cloned");
+                aperture.log.error(MODULE_NAME + " is an abstract base class and should not be cloned");
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -430,7 +430,7 @@ define(
                     );
                 }
                 else {
-                    console.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
+                    aperture.log.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
                 }
             };
 
@@ -524,6 +524,12 @@ define(
 
             xfClusterInstance.getOwnerId = function() {
                 return _UIObjectState.spec.ownerId;
+            };
+
+            //----------------------------------------------------------------------------------------------------------
+
+            xfClusterInstance.setOwnerId = function(ownerId) {
+                _UIObjectState.spec.ownerId = ownerId;
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -676,7 +682,6 @@ define(
                 }
 
                 _UIObjectState.spec.duplicateCount = count;
-                aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfClusterInstance});
             };
 
             //----------------------------------------------------------------------------------------------------------

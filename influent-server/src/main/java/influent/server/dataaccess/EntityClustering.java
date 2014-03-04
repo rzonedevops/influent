@@ -100,7 +100,7 @@ public class EntityClustering implements FL_Clustering {
 				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 				
-				String ids = DataAccessHelper.createInClause(subIds);
+				String ids = DataAccessHelper.createInClause(subIds, getNamespaceHandler(), null);
 				
 				sql = new StringBuilder();
 				sql.append("INSERT INTO " + dClusterTable + " ( rowid ) ");
@@ -132,7 +132,7 @@ public class EntityClustering implements FL_Clustering {
 				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 				
-				String ids = DataAccessHelper.createInClause(subIds);
+				String ids = DataAccessHelper.createInClause(subIds, getNamespaceHandler(), null);
 
 				// Return back the resulting clusters ids
 				sql = new StringBuilder();

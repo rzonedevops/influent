@@ -24,10 +24,10 @@
  */
 define(
     [
-        'jquery', 'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnRenderer'
+        'jquery', 'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnRenderer', 'lib/util/xfUtil'
     ],
     function(
-        $, chan, cardRenderer, columnRenderer
+        $, chan, cardRenderer, columnRenderer, xfUtil
     ) {
 
         var workspaceRenderer = {};
@@ -63,8 +63,27 @@ define(
 
         //------------------------------------------------------------------------------------------------------------------
 
-
+        $('#workspace').click(function(event) {
+        	// deselect?
+        	if (xfUtil.isWorkspaceWhitespace(event.target)) {
+                aperture.pubsub.publish(
+                    chan.SELECTION_CHANGE_REQUEST,
+                    {
+                        xfId: null,
+                        selected : true,
+                        noRender: false
+                    }
+                );
+        	}
+        });
+        
         workspaceRenderer.createElement = function(visualInfo){
+
+            // Remember the workspace scrollPos
+            var workspace = $('#workspace');
+            var scrollPosX =  workspace.scrollLeft();
+            var scrollPosY =  workspace.scrollTop();
+
             var canvas = $('#' + visualInfo.xfId);
             if (canvas.length > 0){
                 canvas.empty();
@@ -75,6 +94,10 @@ define(
             }
 
             processColumns(visualInfo.children, canvas);
+
+            // Restore the previous workspace scrollpos
+            workspace.scrollLeft(scrollPosX);
+            workspace.scrollTop(scrollPosY);
 
             return canvas;
         };

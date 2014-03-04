@@ -154,7 +154,7 @@ public class TransactionTableResource extends ApertureServerResource {
 						// transaction filtering does not yet work on clusters - see #6090
 						if (TypedId.fromTypedId(id).getType() == TypedId.ACCOUNT) {
 							response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
-							focusIdList.addAll(TypedId.nativeFromTypedIds(ChartResource.getLeafNodes(response)));
+							focusIdList.addAll(ChartResource.getLeafNodes(response));
 						}
 					}
 
@@ -367,8 +367,8 @@ public class TransactionTableResource extends ApertureServerResource {
 				newRow.add(comment);      // Comment
 				newRow.add(inflowing); 
 				newRow.add(outflowing); 
-				newRow.add(TypedId.fromNativeId(TypedId.ACCOUNT, link.getSource()).toString()); //Source entityId
-				newRow.add(TypedId.fromNativeId(TypedId.ACCOUNT, link.getTarget()).toString()); //Destination entityId
+				newRow.add(link.getSource()); //Source entityId
+				newRow.add(link.getTarget()); //Destination entityId
 				tableData.add(newRow);
 			}
 			

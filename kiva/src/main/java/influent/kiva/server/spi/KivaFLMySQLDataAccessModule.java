@@ -31,6 +31,7 @@ import influent.midtier.spi.KivaDataAccessModule;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.MySQLDataNamespaceHandler;
 import influent.server.utilities.SQLConnectionPool;
+import oculus.aperture.spi.common.Properties;
 
 import org.json.JSONException;
 import org.slf4j.Logger;
@@ -57,9 +58,9 @@ public class KivaFLMySQLDataAccessModule extends AbstractModule {
 	}
 	
 	@Provides @Singleton
-	public DataNamespaceHandler namespaceHandler(@Named("influent.data.view.tables") String tableNamesJson) {
+	public DataNamespaceHandler namespaceHandler(@Named("aperture.server.config") Properties config) {
 		try {
-			return new MySQLDataNamespaceHandler(tableNamesJson);
+			return new MySQLDataNamespaceHandler(config);
 		} catch (JSONException e) {
 			s_logger.warn("Failed to load tables from json. ", e);
 		}

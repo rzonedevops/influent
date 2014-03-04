@@ -39,9 +39,9 @@
 --   LastTransaction - datetime of last transaction
 --   Amount - aggregate amount
 --
-create table FinFlow (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), FirstTransaction datetime, LastTransaction datetime, Amount float);
+create table FinFlow (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), FirstTransaction datetime, LastTransaction datetime, Amount float, CONSTRAINT pk_ID PRIMARY KEY (FromEntityId, ToEntityId));
 
-create table FinEntity(EntityId varchar(100), InboundDegree int, UniqueInboundDegree int,  OutboundDegree int, UniqueOutboundDegree int);
+create table FinEntity(EntityId varchar(100) PRIMARY KEY, InboundDegree int, UniqueInboundDegree int,  OutboundDegree int, UniqueOutboundDegree int);
 
 --
 -- FINANCIAL FLOW - AGGREGATED BY TIME
@@ -55,11 +55,11 @@ create table FinEntity(EntityId varchar(100), InboundDegree int, UniqueInboundDe
 --   Amount - aggregate amount for this time period
 --   Date - start of the time period
 --
-create table FinFlowDaily     (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime);
-create table FinFlowWeekly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime);
-create table FinFlowMonthly   (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime);
-create table FinFlowQuarterly (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime);
-create table FinFlowYearly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime);
+create table FinFlowDaily     (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowWeekly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowMonthly   (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowQuarterly (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowYearly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
 
 --
 -- FINANCIAL ENTITY SUMMARY
@@ -73,11 +73,11 @@ create table FinFlowYearly    (FromEntityId varchar(100), FromEntityType varchar
 --   OutboundDegree - unique outbound transations by entity
 --   Balance - aggregate credits - debits up until this time period
 --
-create table FinEntityDaily     (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float);
-create table FinEntityWeekly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float);
-create table FinEntityMonthly   (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float);
-create table FinEntityQuarterly (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float);
-create table FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float);
+create table FinEntityDaily     (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityWeekly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityMonthly   (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityQuarterly (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_ID PRIMARY KEY (EntityId, PeriodDate));
 
 --
 -- CLUSTER SUMMARY
@@ -91,7 +91,7 @@ create table FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, Inb
 --   Value - the string representation of the property value
 --   Stat - an associated stat for the propety value such as frequency or weight
 --
-create table ClusterSummary	(EntityId varchar(100), Property varchar(50), Tag varchar(50), Type varchar(50), Value varchar(200), Stat float);
+create table ClusterSummary	(EntityId varchar(100), Property varchar(50), Tag varchar(50), Type varchar(50), Value varchar(200), Stat float, CONSTRAINT pk_ID PRIMARY KEY (EntityId, Property, Value));
 
 --
 -- CLUSTER SUMMARY MEMBERS
@@ -101,7 +101,7 @@ create table ClusterSummary	(EntityId varchar(100), Property varchar(50), Tag va
 --   SummaryId - UID of cluster summary
 --   EntityId - member entity UID
 --
-create table ClusterSummaryMembers (SummaryId varchar(100), EntityId varchar(100));
+create table ClusterSummaryMembers (SummaryId varchar(100), EntityId varchar(100), CONSTRAINT pk_ID PRIMARY KEY (SummaryId, EntityId));
 
 --
 -- DATA VIEW DRIVERS

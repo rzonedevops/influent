@@ -34,6 +34,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import oculus.aperture.spi.common.Properties;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -43,8 +45,13 @@ import org.json.JSONObject;
  */
 public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandler {
 
+	public enum ID_TYPE {
+		NUMERIC, STRING
+	}
+
 	private final Map<String, String> _tableNames;
-	
+	protected final ID_TYPE _idType;
+	private final Properties _config;
 	
 	
 	/**
@@ -52,6 +59,8 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 */
 	public AbstractDataNamespaceHandler() {
 		_tableNames = Collections.emptyMap();
+		_idType = ID_TYPE.STRING;
+		_config = null;
 	}
 	
 	
@@ -64,8 +73,14 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 * @throws JSONException 
 	 */
 	@SuppressWarnings("unchecked")
-	public AbstractDataNamespaceHandler(String tableNamesJson) throws JSONException {
+	public AbstractDataNamespaceHandler(Properties config) throws JSONException {
+
+		String tableNamesJson = config.getString("influent.data.view.tables", "");
+		String idType = config.getString("influent.data.view.idType", "STRING");
+
 		_tableNames = new HashMap<String, String>();
+		_idType = Enum.valueOf(ID_TYPE.class, idType.toUpperCase());
+		_config = config;
 		
 		// parse table names
 		JSONObject map = new JSONObject(tableNamesJson);
@@ -85,6 +100,8 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 */
 	public AbstractDataNamespaceHandler(Map<String, String> tableNames) {
 		_tableNames = tableNames;
+		_idType = ID_TYPE.STRING;
+		_config = null;
 	}
 	
 	
@@ -185,6 +202,44 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	
 	
 	
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.DataNamespaceHandler#toSQLId(java.lang.String)
+	 */
+	@Override
+	public String toSQLId(String id, String namespace) {
+		ID_TYPE type;
+		if(namespace == null) {
+			type = _idType;
+		} else {
+			String idStr = _config.getString("influent.data.view." + namespace + ".idType", null);
+			if(idStr == null) {
+				type = _idType;
+			} else {
+				type = Enum.valueOf(ID_TYPE.class, idStr.toUpperCase());;
+			}
+		}
+
+		if(type == ID_TYPE.NUMERIC) {
+			return id;
+		} else {
+			return "'" + id + "'";
+		}
+	}
+
+
+
+
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.DataNamespaceHandler#fromSQLId(java.lang.String)
+	 */
+	@Override
+	public String fromSQLId(String id) {
+		return id;
+	}
+
+
+
+
 	/**
 	 * Finds or creates a namespace in the existing map of namespaces.
 	 */

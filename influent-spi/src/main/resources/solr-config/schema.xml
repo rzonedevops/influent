@@ -271,18 +271,18 @@
 	<field name="image_id" type="integer" indexed="false" stored="true"/>
 	
 	<!-- Lenders -->
-	<field name="lenders_name" type="text" indexed="true" stored="true" multivalued="true"/>
+	<field name="lenders_name" type="text" indexed="true" stored="true" multiValued="true"/>
 	<field name="lenders_memberSince" type="date" indexed="true" stored="true"/>
 	<field name="lenders_wherebouts" type="text" indexed="true" stored="true"/>
 	<field name="lenders_countryCode" type="text" indexed="true" stored="true"/>
 	<field name="lenders_personalUrl" type="text" indexed="true" stored="true"/>
 	<field name="lenders_occupation" type="text" indexed="true" stored="true"/>
-    <field name="lenders_occupationalInfo" type="text" indexed="true" stored="true" multivalied="true"/>
+    <field name="lenders_occupationalInfo" type="text" indexed="true" stored="true" multiValued="true"/>
 	<field name="lenders_inviterId" type="string" indexed="true" stored="true"/>
 	<field name="lenders_inviteeCount" type="integer" indexed="true" stored="true"/>
 	<field name="lenders_loanCount" type="integer" indexed="true" stored="true"/>
-	<field name="lenders_loanBecause" type="text" indexed="true" stored="true" multivalied="true"/>
-	<field name="lender_teams" type="text" indexed="true" stored="true" multivalued="true"/>
+	<field name="lenders_loanBecause" type="text" indexed="true" stored="true" multiValued="true"/>
+	<field name="lender_teams" type="text" indexed="true" stored="true" multiValued="true"/>
 	
    
 	<!-- Loans -->
@@ -295,16 +295,16 @@
 	<field name="loans_fundedAmount" type="float" indexed="true" stored="true"/>
 	<field name="loans_basketAmount" type="float" indexed="true" stored="true"/>
 	<field name="loans_paidAmount" type="float" indexed="true" stored="true"/>
-	<field name="loans_currencyExchangeLossAmount" type="integer" indexed="true" stored="true"/>
+	<field name="loans_currencyExchangeLossAmount" type="float" indexed="true" stored="true"/>
 	<field name="loans_postedDate" type="date" indexed="true" stored="true"/>
 	<field name="loans_paidDate" type="date" indexed="true" stored="true"/>
-	<field name="loans_delinquent" type="integer" indexed="true" stored="true"/>
+	<field name="loans_delinquent" type="boolean" indexed="true" stored="true"/>
    	<field name="loans_fundedDate" type="date" indexed="true" stored="true"/>
 	<field name="loans_plannedExpirationDate" type="date" indexed="true" stored="true"/>
-	<field name="loans_description_texts_en" type="text" indexed="true" stored="true" multivalued="true"/> <!-- English description -->
-	<!-- field name="loans_description_texts_ru" type="text" indexed="true" stored="true" multivalued="true"/>
-	<field name="loans_description_texts_fr" type="text" indexed="true" stored="true" multivalued="true"/>
-	<field name="loans_description_texts_es" type="text" indexed="true" stored="true" multivalued="true"/ -->
+	<field name="loans_description_texts_en" type="text" indexed="true" stored="true" multiValued="true"/> <!-- English description -->
+	<!-- field name="loans_description_texts_ru" type="text" indexed="true" stored="true" multiValued="true"/>
+	<field name="loans_description_texts_fr" type="text" indexed="true" stored="true" multiValued="true"/>
+	<field name="loans_description_texts_es" type="text" indexed="true" stored="true" multiValued="true"/ -->
    
 	<field name="loans_location_geo_level" type="string" indexed="true" stored="true"/>
 	<field name="loans_location_geo_pairs" type="string" indexed="true" stored="true"/>	<!-- TODO : investigate SOLR geo-indexing -->
@@ -339,9 +339,9 @@
 	<field name="teams_name" type="text" indexed="true" stored="true"/>
 	<field name="teams_shortname" type="text" indexed="true" stored="true"/>
 	<field name="teams_category" type="text" indexed="true" stored="true"/>
-	<field name="teams_whereabouts" type="text" indexed="true" stored="true" multivalued="true"/>
-	<field name="teams_loanBecause" type="text" indexed="true" stored="true" multivalued="true"/>
-	<field name="teams_description" type="text" indexed="true" stored="true" multivalued="true"/>
+	<field name="teams_whereabouts" type="text" indexed="true" stored="true" multiValued="true"/>
+	<field name="teams_loanBecause" type="text" indexed="true" stored="true" multiValued="true"/>
+	<field name="teams_description" type="text" indexed="true" stored="true" multiValued="true"/>
 	<field name="teams_websiteUrl" type="string" indexed="true" stored="true"/>
 	<field name="teams_teamSince" type="date" indexed="true" stored="true"/>
 	<field name="teams_membershipType" type="text" indexed="true" stored="true"/>

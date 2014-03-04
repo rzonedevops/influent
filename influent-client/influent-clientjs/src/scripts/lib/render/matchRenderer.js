@@ -74,10 +74,13 @@ define(
             // Create the controls
             var form  = $('<div></div>');
             var searchBox = $('<input/>');
-            var advancedOptionsButton = $('<button id="advancedOptionsButton"></button>').button({icons: {primary:'searchIcon'}, text: false});
+            var advancedOptionsButton = $('<button id="advancedOptionsButton"></button>')
+            	.text('advanced search options')
+            	.button({icons: {primary:'searchIcon'}, text: false});
             var removeButton = $('<div></div>');
 			var searchType = $('<div></div>');
-            var globalSearchButton = $('<button id= "globalSearchButton">Search</button>').button();
+            var globalSearchButton = $('<button id= "globalSearchButton">Search</button>')
+            	.button().attr('title', 'execute search');
 
             // Add the controls.
             form.append(searchBox);
@@ -110,7 +113,7 @@ define(
 
             form.append(searchType);
 
-            removeButton.addClass('matchRemoveButton');
+            removeButton.addClass('matchRemoveButton').attr('title', 'remove');
             globalSearchButton.addClass('searchButton globalSearchButton');
 
             searchBox.keypress(
@@ -238,7 +241,7 @@ define(
                         break;
                     }
                     default : {
-                        console.error('Attempted to add an unsupported UIObject type to column');
+                        aperture.log.error('Attempted to add an unsupported UIObject type to column');
                     }
                 }
                 if (element){
@@ -391,11 +394,12 @@ define(
             canvas.mousedown (
                 function(eventObject) {
                 	var focusChanged = false;
-                	if(eventObject != null && eventObject.target != null && eventObject.target.classList != null) {
-                		focusChanged = 	eventObject.target.classList.contains('matchCardSearchBox') || 
-                						eventObject.target.classList.contains('advancedOptionsButton') || 
-                						eventObject.target.classList.contains('searchResults') ||
-                						eventObject.target.classList.contains('searchPagingControls');
+                	if(eventObject != null && eventObject.target != null) {
+                		var elem = $(eventObject.target);
+                		focusChanged = 	elem.hasClass('matchCardSearchBox') || 
+				                		elem.hasClass('advancedOptionsButton') || 
+				                		elem.hasClass('searchResults') ||
+				                		elem.hasClass('searchPagingControls');
                 	}
                 	
                     if(!visualInfo.isSearchControlFocused && focusChanged) {
@@ -406,10 +410,9 @@ define(
                             }
                         );
                     }
-                    return true;
                 }
             );
-
+            
             return canvas;
         };
 

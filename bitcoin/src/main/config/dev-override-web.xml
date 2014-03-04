@@ -4,7 +4,7 @@
 
 	<!-- Config File Location -->
 	<!-- context-param>
-		<param-name>apertureConfig</param-name>
+		<param-name>apertureConfigOverrides</param-name>
 		<param-value>res:///app-my.properties</param-value>
 	</context-param -->
 	

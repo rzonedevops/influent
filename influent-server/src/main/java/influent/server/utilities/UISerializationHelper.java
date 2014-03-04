@@ -29,11 +29,9 @@ import influent.idl.FL_Entity;
 import influent.idl.FL_EntityTag;
 import influent.idl.FL_Link;
 import influent.idl.FL_Property;
-import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
 import influent.idl.FL_PropertyDescriptor;
 import influent.idl.FL_SingletonRange;
-import influent.idlhelper.EntityHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.idlhelper.PropertyHelper;
 

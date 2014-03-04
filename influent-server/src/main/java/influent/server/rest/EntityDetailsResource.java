@@ -70,6 +70,7 @@ public class EntityDetailsResource extends ApertureServerResource {
 		String queryId = form.getFirstValue("queryId").trim();
 		props.put("queryId", queryId);
 		String entityId = form.getFirstValue("entityId").trim();
+		int imageIdx = Integer.parseInt(form.getFirstValue("imageIdx").trim());
 
 		try {
 			String html = "";
@@ -77,7 +78,7 @@ public class EntityDetailsResource extends ApertureServerResource {
 				List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId), FL_LevelOfDetail.FULL);
 				if (entities != null && !entities.isEmpty()) {
 					//html="<html><head>Found</head><body>Found entity for "+entityId+"</body></html>";
-					html = propView.getContent(entities.get(0));
+					html = propView.getContent(entities.get(0), imageIdx);
 				}
 				else{
 					s_logger.error("Unable to look up entity (for details pane) " + entityId);

@@ -40,15 +40,14 @@
 	top: 0px;
 	left: 20px;
 	right: 0px;
-	z-index: 999999999;
 }
+
 #banner-2 {
 	display:none;
 	position: absolute;
 	bottom: 0px;
 	left: 20px;
 	right: 0px;
-	z-index: 999999999;
 }
 
 .banner-text {
@@ -61,6 +60,8 @@
 	text-align: center;
 	white-space: nowrap;
 	padding-bottom: 2px;
+	z-index: 999999999;
+	position: relative;
 }
 
 #banner-1-text {

@@ -31,9 +31,9 @@ import influent.idl.FL_Entity;
 import influent.idl.FL_LevelOfDetail;
 import influent.idlhelper.FileHelper;
 import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
@@ -49,11 +49,10 @@ import org.apache.avro.AvroRemoteException;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.restlet.data.MediaType;
+import org.restlet.data.Status;
 import org.restlet.representation.StringRepresentation;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 
@@ -64,7 +63,7 @@ public class ModifyContextResource extends ApertureServerResource{
 	private final FL_DataAccess entityAccess;
 	private final ClusterContextCache contextCache;
 
-	private static final Logger s_logger = LoggerFactory.getLogger(ModifyContextResource.class);
+	private static final String OK_RESPONSE = "{\"response\":\"ok\"}";
 
 	@Inject
 	public ModifyContextResource(
@@ -114,18 +113,18 @@ public class ModifyContextResource extends ApertureServerResource{
 							erroneousArgument = "'childIds'";
 						} else {
 							insert(fileId, childIds, contextRW, sessionId);
-							return new StringRepresentation("insert complete", MediaType.APPLICATION_JSON);
+							return new StringRepresentation(OK_RESPONSE, MediaType.APPLICATION_JSON);
 						}
 					} else if ("remove".equals(edit)) {
 						if (childIds == null || childIds.size() == 0) {
 							erroneousArgument = "'childIds'";
 						} else {
 							remove(fileId, childIds, contextId, contextRW, sessionId);
-							return new StringRepresentation("remove complete", MediaType.APPLICATION_JSON);
+							return new StringRepresentation(OK_RESPONSE, MediaType.APPLICATION_JSON);
 						}
 					} else if ("create".equals(edit)) {
 						create(fileId, contextRW, sessionId);
-						return new StringRepresentation("create complete", MediaType.APPLICATION_JSON);
+						return new StringRepresentation(OK_RESPONSE, MediaType.APPLICATION_JSON);
 					}
 					else {
 						erroneousArgument = "edit";
@@ -136,12 +135,12 @@ public class ModifyContextResource extends ApertureServerResource{
 				}
 			}
 			
-			s_logger.error("Argument" + erroneousArgument + " is invalid; unable to modify context");
-			return new StringRepresentation("", MediaType.APPLICATION_JSON);
+			throw new ResourceException(Status.CLIENT_ERROR_BAD_REQUEST,
+					"Argument" + erroneousArgument + " is invalid; unable to modify context");
 		} catch (JSONException e) {
-			throw new ResourceException(e);
+			throw new ResourceException(Status.CLIENT_ERROR_BAD_REQUEST, "Failed to parse modify context request", e);
 		} catch (AvroRemoteException e) {
-			throw new ResourceException(e);
+			throw new ResourceException(Status.SERVER_ERROR_INTERNAL, "Error serializing context modifications.", e);
 		}
 	}
 	
@@ -220,7 +219,7 @@ public class ModifyContextResource extends ApertureServerResource{
 			entities.addAll(entityAccess.getEntities(newEntities, FL_LevelOfDetail.SUMMARY));
 		}
 		
-		List<FL_Cluster> clusters = new ArrayList<FL_Cluster>(context.getClusters(eIds));
+		List<FL_Cluster> clusters = new ArrayList<FL_Cluster>(context.getClusters(sIds));
 		List<String> newClusters = new ArrayList<String>(sIds);
 		for (FL_Cluster cluster : clusters) {
 			newClusters.remove(cluster.getUid());

@@ -125,7 +125,7 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				linkFilter = getNamespaceHandler().entitiesByNamespace(linkFilter).get(schema);
 				
 				if (linkFilter != null) {
-					focusIds = DataAccessHelper.createNodeIdListFromCollection(linkFilter, true, false);
+					focusIds = DataAccessHelper.createNodeIdListFromCollection(linkFilter, true, false, getNamespaceHandler(), schema);
 				} else {
 					return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
 				}

@@ -98,6 +98,13 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		
 		List<FL_Entity> results = new ArrayList<FL_Entity>();
 		
+		// Build a map of native Ids against searched-for entities, for comparison against results 
+		HashMap<String, String> entityNativeIdMap = new HashMap<String, String>();
+		for (String e : entities) {
+			TypedId tId = TypedId.fromTypedId(e);
+			entityNativeIdMap.put(tId.getNativeId(), e);
+		}				
+		
 		List<FL_PropertyMatchDescriptor> idList = new ArrayList<FL_PropertyMatchDescriptor>();
 		
 		int maxFetch = 100;
@@ -117,11 +124,35 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			if (qCount == (maxFetch-1) || !idIter.hasNext()) {
 				FL_SearchResults searchResult = _search.search(null, idList, 0, 100, null);
 				
-				s_logger.info("Searched for "+qCount+" ids, found "+searchResult.getTotal());
+				s_logger.debug("Searched for "+qCount+" ids, found "+searchResult.getTotal());
 				
 				for (FL_SearchResult r : searchResult.getResults()) {
 					FL_Entity fle = (FL_Entity)r.getResult();
-					results.add(fle);
+					TypedId rTId = TypedId.fromTypedId(fle.getUid());
+					String rNId = rTId.getNativeId();
+					
+					if (entityNativeIdMap.containsKey(rNId)) {
+						String mEId = entityNativeIdMap.get(rNId);
+						TypedId mTId = TypedId.fromTypedId(mEId);
+						
+						// Check if the namespaces and types returned are what we were searching for
+						if (((rTId.getNamespace() == null && mTId.getNamespace() == null) ||
+							  rTId.getNamespace().equals(mTId.getNamespace())) &&
+							(rTId.getType() == mTId.getType() ||
+							 (rTId.getType() == TypedId.ACCOUNT_OWNER && mTId.getType() == TypedId.CLUSTER_SUMMARY) ||
+							 (rTId.getType() == TypedId.CLUSTER_SUMMARY && mTId.getType() == TypedId.ACCOUNT_OWNER)
+							)
+						) {
+							 results.add(fle);
+						} else {
+							s_logger.error("Got entity "+fle.getUid()+" that doesn't match the type/namespace of the search");
+						}
+
+							
+					} else {
+						s_logger.error("Got entity "+fle.getUid()+" that wasn't in search");
+					}
+					
 				}
 				
 				qCount=0;
@@ -163,11 +194,16 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 				DateTime startDate = DataAccessHelper.getStartDate(date);
 				DateTime endDate = DataAccessHelper.getEndDate(date);
 				
-				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, true, false);
+				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, true, false, getNamespaceHandler(), namespace);
 				
 				String finFlowTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.FLOW_TABLE);
 				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-				String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");		// TODO replace me when all the old db tables have gone away
+				String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
+				String finFlowFromEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_TYPE);
+				String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
+				String finFlowToEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_TYPE);
+				String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
+				String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
 				
 				List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
 				while (idsCopy.size() > 0) {
@@ -175,19 +211,19 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 		
-					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, true, false);
-					String sourceDirectionClause = "FromEntityId in ("+ids+")";
-					String destDirectionClause = "ToEntityId in ("+ids+")";
+					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, true, false, getNamespaceHandler(), namespace);
+					String sourceDirectionClause = finFlowFromEntityIdColumn + " in ("+ids+")";
+					String destDirectionClause = finFlowToEntityIdColumn + " in ("+ids+")";
 					
 					if (focusIds != null) {
-						sourceDirectionClause += " and ToEntityId in ("+focusIds+")";
-						destDirectionClause += " and FromEntityId in ("+focusIds+")";				
+						sourceDirectionClause += " and " + finFlowToEntityIdColumn + " in ("+focusIds+")";
+						destDirectionClause += " and " + finFlowFromEntityIdColumn + " in ("+focusIds+")";				
 					}
 					String directionClause = (direction == FL_DirectionFilter.BOTH ) ? sourceDirectionClause+" and "+destDirectionClause : (direction == FL_DirectionFilter.DESTINATION ) ? destDirectionClause : (direction == FL_DirectionFilter.SOURCE ) ? sourceDirectionClause : "1=1";
-					String entityTypeClause = DataAccessHelper.linkEntityTypeClause(direction, entityType);
+					String entityTypeClause = linkEntityTypeClause(direction, entityType);
 					
-					String dateRespectingFlowSQL = "select FromEntityId, ToEntityId, sum(Amount) as Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+directionClause+" and "+entityTypeClause+" group by FromEntityId, ToEntityId";
-					String flowSQL = "select FromEntityId, FromEntityType, ToEntityId, ToEntityType from " + finFlowTable + " where "+directionClause+" and "+entityTypeClause;
+					String dateRespectingFlowSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", sum(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+directionClause+" and "+entityTypeClause+" group by " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn;
+					String flowSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowFromEntityTypeColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowToEntityTypeColumn + " from " + finFlowTable + " where "+directionClause+" and "+entityTypeClause;
 						
 					Map<String, Map<String, Double>> fromToAmountMap = new HashMap<String, Map<String, Double>>();
 					
@@ -195,9 +231,9 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					if (stmt.execute(dateRespectingFlowSQL)) {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
-							String from = rs.getString("FromEntityId");
-							String to = rs.getString("ToEntityId");
-							Double amount = rs.getDouble("Amount");
+							String from = rs.getString(finFlowFromEntityIdColumn);
+							String to = rs.getString(finFlowToEntityIdColumn);
+							Double amount = rs.getDouble(finFlowAmountColumn);
 							if (fromToAmountMap.containsKey(from)) {
 								if (fromToAmountMap.get(from).containsKey(to)) {
 									throw new AssertionError("Group by clause in dateRespectingFlowSQL erroneously created duplicates"); 
@@ -215,10 +251,10 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					if (stmt.execute(flowSQL)) {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
-							String from = rs.getString("FromEntityId");
-							String fromType = rs.getString("FromEntityType").toLowerCase();
-							String to = rs.getString("ToEntityId");
-							String toType = rs.getString("ToEntityType").toLowerCase();
+							String from = rs.getString(finFlowFromEntityIdColumn);
+							String fromType = rs.getString(finFlowFromEntityTypeColumn).toLowerCase();
+							String to = rs.getString(finFlowToEntityIdColumn);
+							String toType = rs.getString(finFlowToEntityTypeColumn).toLowerCase();
 	
 							String keyId = from;
 							char type = fromType.charAt(0); // from type must be a single char
@@ -298,12 +334,21 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 	
 				Statement stmt = connection.createStatement();
 	
-				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, true, false);
+				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, true, false, getNamespaceHandler(), namespace);
 	
 				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
+				String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
+				String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
+				String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
+				String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
+				String finFlowDateColNoEscape = unescapeColumnName(finFlowDateColumn);
+
 				String finEntityIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.ENTITY_TABLE, date.getDurationPerBin().getInterval()));
-				String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");
-				String dateColNoEscape = unescapeColumnName(finFlowDateColumn);
+				String finEntityEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
+				String finEntityInboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_INBOUND_AMOUNT);
+				String finEntityOutboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_OUTBOUND_AMOUNT);
+				String finEntityDateColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_PERIOD_DATE);
+				String finEntityDateColNoEscape = unescapeColumnName(finFlowDateColumn);
 				
 				List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
 				while (idsCopy.size() > 0) {
@@ -311,23 +356,23 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 		
-					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, true, false);
-					String sourceDirectionClause = "FromEntityId in ("+ids+") and ToEntityId in ("+focusIds+")";
-					String destDirectionClause = "ToEntityId in ("+ids+") and FromEntityId in ("+focusIds+")";
-					String focusedSQL = "select FromEntityId, ToEntityId, " + finFlowDateColumn + ", Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+sourceDirectionClause +
+					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, true, false, getNamespaceHandler(), namespace);
+					String sourceDirectionClause = finFlowFromEntityIdColumn + " in ("+ids+") and " + finFlowToEntityIdColumn + " in ("+focusIds+")";
+					String destDirectionClause = finFlowToEntityIdColumn + " in ("+ids+") and " + finFlowFromEntityIdColumn + " in ("+focusIds+")";
+					String focusedSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+sourceDirectionClause +
 										" union " +
-										"select FromEntityId, ToEntityId, " + finFlowDateColumn + ", Amount from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+destDirectionClause;
-					String tsSQL = "select EntityId, " + finFlowDateColumn + ", InboundAmount, OutboundAmount from "+finEntityIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and EntityId in ("+ids+")" ;
+										"select " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and "+destDirectionClause;
+					String tsSQL = "select " + finEntityEntityIdColumn + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " from "+finEntityIntervalTable+" where " + finEntityDateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+"' and " + finEntityEntityIdColumn + " in ("+ids+")" ;
 	
 					s_logger.trace(focusedSQL);
 	
 					if (stmt.execute(focusedSQL)) {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
-							String from = rs.getString("FromEntityId");
-							String to = rs.getString("ToEntityId");
-							Double amount = rs.getDouble("Amount");
-							Date rsDate = rs.getDate(dateColNoEscape);
+							String from = rs.getString(finFlowFromEntityIdColumn);
+							String to = rs.getString(finFlowToEntityIdColumn);
+							Double amount = rs.getDouble(finFlowAmountColumn);
+							Date rsDate = rs.getDate(finFlowDateColNoEscape);
 	
 							String keyId = from;
 							if (subIds.contains(to)) {
@@ -363,10 +408,10 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					if (stmt.execute(tsSQL)) {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
-							String entity = rs.getString("EntityId");
-							Double inboundAmount = rs.getDouble("InboundAmount");
-							Double outboundAmount = rs.getDouble("OutboundAmount");
-							Date rsDate = rs.getDate(dateColNoEscape);
+							String entity = rs.getString(finEntityEntityIdColumn);
+							Double inboundAmount = rs.getDouble(finEntityInboundAmountColumn);
+							Double outboundAmount = rs.getDouble(finEntityOutboundAmountColumn);
+							Date rsDate = rs.getDate(finEntityDateColNoEscape);
 	
 							// globalize this for return
 							entity = getNamespaceHandler().globalFromLocalEntityId(namespace, entity, TypedId.ACCOUNT);
@@ -483,7 +528,6 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 	}
 
 	
-	
 	private static Pattern COLUMN_PATTERN = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*", 0);
 	
 	private static String unescapeColumnName(String columnName) {
@@ -494,6 +538,36 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		return columnName;
 
 	}
+	
+	private String linkEntityTypeClause(FL_DirectionFilter direction, FL_LinkEntityTypeFilter entityType) {
+		if (entityType == FL_LinkEntityTypeFilter.ANY) return " 1=1 ";
+		
+		StringBuilder clause = new StringBuilder();
+		String type = "A";
+		if (entityType == FL_LinkEntityTypeFilter.ACCOUNT_OWNER) {
+			type = "O";
+		} else if (entityType == FL_LinkEntityTypeFilter.CLUSTER_SUMMARY) {
+			type = "S";
+		}
+		
+		String finFlowFromEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_TYPE);
+		String finFlowToEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_TYPE);
+
+		// reverse direction - we are filtering on other entity
+		switch (direction) {
+		case DESTINATION:
+			clause.append(" " + finFlowFromEntityTypeColumn + " = '" + type + "' ");
+			break;
+		case SOURCE:
+			clause.append(" " + finFlowToEntityTypeColumn + " = '" + type + "' ");
+			break;
+		case BOTH:
+			clause.append(" " + finFlowFromEntityTypeColumn + " = '" + type + "' AND " + finFlowToEntityTypeColumn + " = '" + type + "' ");
+			break;
+		}
+		
+		return clause.toString();
+	}	
 	
 }
 

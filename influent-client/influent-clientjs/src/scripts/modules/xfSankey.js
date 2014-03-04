@@ -82,17 +82,17 @@ define(
                         style['sankey-color'] = '#359EB8';
                     }
                     else {
-                        style['sankey-color'] = '#999';
+                        style['sankey-color'] = '#8F8263';
                     }
                     break;
                 case xfLinkType.TPS:
                     style['sankey-style'] = 'solid';
-                    style['sankey-color'] = '#999';
+                    style['sankey-color'] = '#8F8263';
                     break;
                 case xfLinkType.FLOW:
                 default:
                     style['sankey-style'] = 'solid';
-                    style['sankey-color'] = '#ccc';
+                    style['sankey-color'] = '#C4BDAD';
                 break;
             }
             return style;
@@ -136,10 +136,10 @@ define(
                 };
             }
             else if (uiType == constants.MODULE_NAMES.MATCH) {
-                console.error('Matchcards do not currently support branching operations and should not contain any links');
+                aperture.log.error('Matchcards do not currently support branching operations and should not contain any links');
             }
             else {
-                console.error('Unable to determine value of Sankey source-offset for card of type: ' + uiType);
+                aperture.log.error('Unable to determine value of Sankey source-offset for card of type: ' + uiType);
             }
         };
 
@@ -300,7 +300,7 @@ define(
 
                     if(positionMap[sourceId] == null || positionMap[targetId] == null) {
                         var missingId = (positionMap[sourceId] == null) ? sourceId : targetId;
-                        console.error('Position map is missing value for ' +
+                        aperture.log.warn('Position map is missing value for ' +
                                 ((positionMap[sourceId] == null) ? 'source' : 'target') + ' key ' + missingId);
                         continue;
                     }

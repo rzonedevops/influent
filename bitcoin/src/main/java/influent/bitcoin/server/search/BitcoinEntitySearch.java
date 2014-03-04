@@ -233,17 +233,20 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 			
 			// separately grab the FinEntity stats
 			String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
+			String finEntityEntityIdColumn = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
+			String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
+			String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
 
-			sql = "select EntityId, UniqueInboundDegree, UniqueOutboundDegree " +
+			sql = "select " + finEntityEntityIdColumn + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " " +
 				  " from " + finEntityTable +
-				  " where EntityId in " +  DataAccessHelper.createInClause(rawIds);
+				  " where " + finEntityEntityIdColumn + " in " +  DataAccessHelper.createInClause(rawIds);
 			
 			if (!rawIds.isEmpty() && statement.execute(sql)) {
 				ResultSet rs = statement.getResultSet();
 				while (rs.next()) {
-					String entityId = rs.getString("EntityId");
-					int inDegree = rs.getInt("UniqueInboundDegree");
-					int outDegree = rs.getInt("UniqueOutboundDegree");
+					String entityId = rs.getString(finEntityEntityIdColumn);
+					int inDegree = rs.getInt(finEntityUniqueInboundDegree);
+					int outDegree = rs.getInt(finEntityUniqueOutboundDegree);
 				
 					entityStats.put(entityId, new int[]{inDegree, outDegree});
 				}

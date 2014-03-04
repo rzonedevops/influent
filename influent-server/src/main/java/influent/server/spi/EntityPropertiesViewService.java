@@ -32,5 +32,5 @@ import influent.server.dataaccess.DataAccessException;
 
 public interface EntityPropertiesViewService {
 
-	public String getContent(FL_Entity entity) throws DataAccessException;
+	public String getContent(FL_Entity entity, int imageIdx) throws DataAccessException;
 }

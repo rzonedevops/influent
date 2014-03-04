@@ -32,7 +32,6 @@ import influent.idl.FL_ListRange;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
-import influent.idl.FL_SearchResult;
 import influent.idl.FL_Uncertainty;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
@@ -46,17 +45,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.AvroRemoteException;
-import org.apache.avro.AvroRuntimeException;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
-import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrException;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 
@@ -67,145 +62,27 @@ import org.slf4j.Logger;
  *
  */
 
-public class KivaAnonEntitySearchIterator implements Iterator<FL_SearchResult> {
+public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 
 	private static Logger s_logger = org.slf4j.LoggerFactory.getLogger(KivaAnonEntitySearchIterator.class);
 	
-	private int REFRESH_SIZE=200;
 	private static HashSet<String> LENDER_IGNORE_FIELDS = new HashSet<String>(Arrays.asList("id", "lender_personalURL", "text", "image_id"));
 	
-	private SolrServer _server;
-	private SolrQuery _query;
-	
-	private final FL_Geocoding _geocoding;
-	
-	//Current query response
-	private QueryResponse _qResp;
-	private int _curIdx=0;
-	private int _nextLocalIdx=0;
-
-	private int _totalResults;
-	private int _maxResults=-1;
-	private int _startIdx = 0;
-	
-	private List<FL_SearchResult> _curResults;
-	
-	//Handle id prefixes for 'federated' management
-	@SuppressWarnings("unused")
-	private String _idPrefix="";
-	
 	public KivaAnonEntitySearchIterator(SolrServer server, SolrQuery q, FL_Geocoding geocoding) {
-		_server = server;
-		_query = q;
-		_geocoding = geocoding;
-		_totalResults = -1;
-		_curResults = new ArrayList<FL_SearchResult>(REFRESH_SIZE);
-		for (int i=0;i<REFRESH_SIZE;i++) {
-			_curResults.add(null);
-		}
-	}
-	
-	public void setIdPrefix(Character c) {
-		_idPrefix = c.toString();
-	}
-	
-	public void setStartIndex(int startIdx) {
-		_curIdx = startIdx;
-		_startIdx = startIdx;
-	}
-	
-	public void setMaxResults(int maxResults) {
-		_maxResults = maxResults;
-		if (_maxResults < REFRESH_SIZE) {
-			REFRESH_SIZE = _maxResults+1;
-		}
+		super(server, q, geocoding);
+
 	}
 	
 	@Override
-	public boolean hasNext() {
-		//Check for refresh
-		
-		if (needsRefresh()) doRefresh(_curIdx,REFRESH_SIZE);
-		if (_maxResults != -1) {
-			if (_curIdx < _startIdx+_maxResults && _curIdx < _totalResults) return true;
-			return false;
-		}
-		if (_curIdx < _totalResults) return true;
-		
-		return false;
-	}
-
-	@Override
-	public FL_SearchResult next() {
-		
-		if (needsRefresh()) doRefresh(_curIdx,REFRESH_SIZE);
-		FL_SearchResult e = _curResults.get(_nextLocalIdx);
-		_curIdx++;
-		_nextLocalIdx++;
-		return e;
-		
-	}
-
-	@Override
-	public void remove() {
-		
-	}
-
-	public int getTotalResults() {
-		if (needsRefresh()) doRefresh(_curIdx,REFRESH_SIZE);
-		
-		return _totalResults;
-	}
-
-	/**
-	 * Returns true if there are more results to fetch but we've already
-	 * iterated over the current set.
-	 * @return
-	 */
-	private boolean needsRefresh() {
-		if (_qResp == null) return true;
-		if (_totalResults == -1) return true;
-		
-		if (_nextLocalIdx>=REFRESH_SIZE) return true;
-		
-		
-		return false;
-	}
-
-	private void doRefresh(int startIdx, int pageSize)  {
-		try {
-			s_logger.warn("fetching solr page : (@"+startIdx+" of size "+pageSize+")");
-			_query.setRows(pageSize).setStart(startIdx);
-			_qResp = _server.query(_query);
-			if (_totalResults == -1) {
-				_totalResults = (int)_qResp.getResults().getNumFound();
-			}
-			_curResults.clear();
-			
-			//Go through the results, and keep a map of id->score, as well as ids to fetch
-			for (int i=0;i<_qResp.getResults().size();i++) {
-				SolrDocument sd = _qResp.getResults().get(i);
-				FL_SearchResult es = new FL_SearchResult();
-				FL_Entity entity = buildEntityFromDocument(sd);
-				es.setResult(entity);
-				double score = ((Float)sd.getFieldValue("score")).doubleValue();
-				es.setScore(score);
-				_curResults.add(es);
-			}
-			
-			_nextLocalIdx = 0;
-		} catch (SolrException e) {
-			s_logger.error("Solr query error: " + e.getMessage());
-		} catch (Exception e) {
-			throw new AvroRuntimeException("Error paging search results "+e.getMessage(),e); 
-		}
+	protected Logger getLogger() {
+		return s_logger;
 	}
 	
-	private FL_Entity buildEntityFromDocument(SolrDocument sd) {
+	@Override
+	protected FL_Entity buildEntityFromDocument(SolrDocument sd) {
 		
 		FL_Entity.Builder entityBuilder = FL_Entity.newBuilder();
 		List<FL_Property> props = new ArrayList<FL_Property>();
-		
 		
 		String uid = (String)sd.getFieldValue("id");
 
@@ -236,28 +113,28 @@ public class KivaAnonEntitySearchIterator implements Iterator<FL_SearchResult> {
 				.setRange(new SingletonRangeHelper(type, FL_PropertyType.STRING))
 				.build());
 		
-		String imageURL;
-		double imageWidth, imageHeight;
-		if(type.equals("lender")) {
-			imageURL = "726677";
-			imageWidth = 150.0;
-			imageHeight = 100.0;
-		}
-		else {
-			imageURL = sd.getFieldValue("image_id").toString();
-			imageWidth = 125.0;
-			imageHeight = 50.0;
-		}
-		imageURL = "http://www.kiva.org/img/w200/" + imageURL + ".jpg";
+		Collection<Object> imageURLs = null;
 		
-		// Add a Kiva image
-		props.add(FL_Property.newBuilder().setKey("image")
-				.setFriendlyText("Image")
-				.setProvenance(null)
-				.setUncertainty(new FL_Uncertainty(imageWidth,imageHeight))		// TODO refactor this to make sense; someday...
-				.setTags(Collections.singletonList(FL_PropertyTag.IMAGE))
-				.setRange(new SingletonRangeHelper(imageURL, FL_PropertyType.OTHER))
-				.build());
+		if(type.equals("lender")) {
+			imageURLs = new ArrayList<Object>();
+			imageURLs.add("726677");
+			
+		} else {
+			imageURLs = sd.getFieldValues("image_id");
+		}
+		
+		for (Object url :  imageURLs) {
+		
+			String imageURL = "http://www.kiva.org/img/w400/" + url.toString() + ".jpg";
+			
+			// Add a Kiva image
+			props.add(FL_Property.newBuilder().setKey("image")
+					.setFriendlyText("Image")
+					.setProvenance(null)
+					.setTags(Collections.singletonList(FL_PropertyTag.IMAGE))
+					.setRange(new SingletonRangeHelper(imageURL, FL_PropertyType.OTHER))
+					.build());
+		}
 				
 		
 		//TODO : get tags once added to solr.
@@ -316,7 +193,7 @@ public class KivaAnonEntitySearchIterator implements Iterator<FL_SearchResult> {
 				KivaPropertyMapping keyMapping = KivaPropertyMaps.INSTANCE.getPropMap().get(key);
 				
 				if (val instanceof Collection) {
-					s_logger.warn("Prop "+key+" has a "+val.getClass()+" value, skipping for now");
+					getLogger().warn("Prop "+key+" has a "+val.getClass()+" value, skipping for now");
 					continue;
 				} else {
 					if (keyMapping != null) {
@@ -406,7 +283,7 @@ public class KivaAnonEntitySearchIterator implements Iterator<FL_SearchResult> {
 			try {
 				_geocoding.geocode(geos);
 			} catch (AvroRemoteException e) {
-				s_logger.info("Failed to geocode entity", e);
+				getLogger().info("Failed to geocode entity", e);
 			}
 			
 			Object geoVal = (geos.size() > 1)? 

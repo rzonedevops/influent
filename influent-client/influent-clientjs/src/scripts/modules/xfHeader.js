@@ -108,6 +108,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
             newWorkspaceHref.append(newWorkspaceIcon);
             newWorkspaceHref.append($(document.createTextNode('New Workspace')));
             newWorkspaceOption.append(newWorkspaceHref);
+            newWorkspaceOption.attr('title', 'open a blank workspace in a new tab');
             exportOptions.append(newWorkspaceOption);
 
             var exportCaptureOption = $('<li></li>');
@@ -120,6 +121,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
             exportCaptureHref.append(exportCaptureIcon);
             exportCaptureHref.append($(document.createTextNode('Export Image')));
             exportCaptureOption.append(exportCaptureHref);
+            exportCaptureOption.attr('title', 'export an image of the workspace');
             exportOptions.append(exportCaptureOption);
 
             var exportNotebookOption = $('<li></li>');
@@ -132,6 +134,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
             exportNotebookHref.append(exportNotebookIcon);
             exportNotebookHref.append($(document.createTextNode('Export Chart (XML)')));
             exportNotebookOption.append(exportNotebookHref);
+            exportNotebookOption.attr('title', 'export workspace to file');
             exportOptions.append(exportNotebookOption);
 
 
@@ -176,6 +179,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
             entitiesHref.append(entitiesIcon);
             entitiesHref.append($(document.createTextNode('Account Holders')));
             entitiesOption.append(entitiesHref);
+            entitiesOption.attr('title', 'view cards without activity charts');
             displayOptions.append(entitiesOption);
 
             var chartsOption = $('<li></li>');
@@ -187,6 +191,7 @@ define(['jquery', 'lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/x
             chartsHref.append(chartsIcon);
             chartsHref.append($(document.createTextNode('Account Activity')));
             chartsOption.append(chartsHref);
+            chartsOption.attr('title', 'view cards with activity charts');
             displayOptions.append(chartsOption);
 
             var filterContainerDiv = $('<div></div>');

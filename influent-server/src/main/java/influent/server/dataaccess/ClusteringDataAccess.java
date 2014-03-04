@@ -564,7 +564,7 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				stmt.execute(getNamespaceHandler().createTempTable(dClusterTable, " ( rowid bigint ) "));
 			} catch (Exception e) { /* ignore */ }
 			
-			String inClause = DataAccessHelper.createInClause(entities);
+			String inClause = DataAccessHelper.createInClause(entities, getNamespaceHandler(), null);
 			
 			StringBuilder deleteSQL = new StringBuilder();
 			deleteSQL.append(" DELETE c ");
@@ -629,13 +629,13 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			StringBuilder flowSQL = new StringBuilder();
 			
 			String inClause = DataAccessHelper.createInClause(srcNodes);
-			
-			String clusterField = "ToEntityId";
-			String filterField = "FromEntityId";
+
+			String clusterField = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
+			String filterField = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
 		
 			if (direction == FL_DirectionFilter.DESTINATION) {
-				filterField = "ToEntityId";
-				clusterField = "FromEntityId";
+				filterField = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
+				clusterField = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
 			}
 			
 			long start = System.currentTimeMillis();
@@ -761,7 +761,10 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			
 			String finFlowTable = getNamespaceHandler().tableName(null, DataAccessHelper.FLOW_TABLE);
 			String finFlowIntervalTable = getNamespaceHandler().tableName(null, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-			String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");
+			String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
+			String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
+			String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
+			String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
 			
 			long start = System.currentTimeMillis();
 			
@@ -772,8 +775,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 				
-				String fromClause = DataAccessHelper.createInClause(subIds);
-				String toClause = DataAccessHelper.createInClause(dstNodes);
+				String fromClause = DataAccessHelper.createInClause(subIds, getNamespaceHandler(), null);
+				String toClause = DataAccessHelper.createInClause(dstNodes, getNamespaceHandler(), null);
 				
 				//
 				/// flow can be from: 1) cluster -> cluster; 2) cluster -> entity; 3) entity -> cluster; 3) entity -> entity  
@@ -781,115 +784,115 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 							
 				StringBuilder dateRespectingFlowSQL = new StringBuilder();
 				
-				dateRespectingFlowSQL.append("SELECT g1.cid as FromEntityId, g2.cid as ToEntityId, SUM(Amount) as Amount ");
+				dateRespectingFlowSQL.append("SELECT g1.cid as " + finFlowFromEntityIdColumn + ", g2.cid as " + finFlowToEntityIdColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				dateRespectingFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				dateRespectingFlowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				dateRespectingFlowSQL.append("          FROM " + gClusterTable + " g ");
 				dateRespectingFlowSQL.append("          JOIN " + dSrcClusterTable + " c ");
 				dateRespectingFlowSQL.append("            ON g.id = c.rowid ");
 				dateRespectingFlowSQL.append("         WHERE g.clusterid IN " + fromClause);
-				dateRespectingFlowSQL.append("       ) g1 ON f.FromEntityId = g1.eid ");
+				dateRespectingFlowSQL.append("       ) g1 ON f." + finFlowFromEntityIdColumn + " = g1.eid ");
 				dateRespectingFlowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				dateRespectingFlowSQL.append("          FROM " + gClusterTable + " g ");
 				dateRespectingFlowSQL.append("          JOIN " + dDstClusterTable + " c ");
 				dateRespectingFlowSQL.append("            ON g.id = c.rowid ");
 				dateRespectingFlowSQL.append("         WHERE g.clusterid IN " + toClause);
-				dateRespectingFlowSQL.append("       ) g2 ON f.ToEntityId = g2.eid ");
+				dateRespectingFlowSQL.append("       ) g2 ON f." + finFlowToEntityIdColumn + " = g2.eid ");
 				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
 				dateRespectingFlowSQL.append(" GROUP BY g1.cid, g2.cid ");
 				
 				dateRespectingFlowSQL.append(" UNION ALL ");
 				
-				dateRespectingFlowSQL.append("SELECT g1.cid as FromEntityId, f.ToEntityId, SUM(Amount) as Amount ");
+				dateRespectingFlowSQL.append("SELECT g1.cid as " + finFlowFromEntityIdColumn + ", f." + finFlowToEntityIdColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				dateRespectingFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				dateRespectingFlowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				dateRespectingFlowSQL.append("          FROM " + gClusterTable + " g ");
 				dateRespectingFlowSQL.append("          JOIN " + dSrcClusterTable + " c ");
 				dateRespectingFlowSQL.append("            ON g.id = c.rowid ");
 				dateRespectingFlowSQL.append("         WHERE g.clusterid IN " + fromClause);
-				dateRespectingFlowSQL.append("       ) g1 ON f.FromEntityId = g1.eid ");
+				dateRespectingFlowSQL.append("       ) g1 ON f." + finFlowFromEntityIdColumn + " = g1.eid ");
 				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				dateRespectingFlowSQL.append("   AND f.ToEntityId IN " + toClause);
-				dateRespectingFlowSQL.append(" GROUP BY g1.cid, f.ToEntityId ");
+				dateRespectingFlowSQL.append("   AND f." + finFlowToEntityIdColumn + " IN " + toClause);
+				dateRespectingFlowSQL.append(" GROUP BY g1.cid, f." + finFlowToEntityIdColumn + " ");
 				
 				dateRespectingFlowSQL.append(" UNION ALL ");
 				
-				dateRespectingFlowSQL.append("SELECT f.FromEntityId, g2.cid as ToEntityId, SUM(Amount) as Amount ");
+				dateRespectingFlowSQL.append("SELECT f." + finFlowFromEntityIdColumn + ", g2.cid as " + finFlowToEntityIdColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				dateRespectingFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				dateRespectingFlowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				dateRespectingFlowSQL.append("          FROM " + gClusterTable + " g ");
 				dateRespectingFlowSQL.append("          JOIN " + dDstClusterTable + " c ");
 				dateRespectingFlowSQL.append("            ON g.id = c.rowid ");
 				dateRespectingFlowSQL.append("         WHERE g.clusterid IN " + toClause);
-				dateRespectingFlowSQL.append("       ) g2 ON f.ToEntityId = g2.eid ");
+				dateRespectingFlowSQL.append("       ) g2 ON f." + finFlowToEntityIdColumn + " = g2.eid ");
 				dateRespectingFlowSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				dateRespectingFlowSQL.append("   AND f.FromEntityId IN " + fromClause);
-				dateRespectingFlowSQL.append(" GROUP BY f.FromEntityId, g2.cid ");
+				dateRespectingFlowSQL.append("   AND f." + finFlowFromEntityIdColumn + " IN " + fromClause);
+				dateRespectingFlowSQL.append(" GROUP BY f." + finFlowFromEntityIdColumn + ", g2.cid ");
 				
 				dateRespectingFlowSQL.append(" UNION ALL ");
 				
-				dateRespectingFlowSQL.append("SELECT FromEntityId, ToEntityId, SUM(Amount) as Amount ");
+				dateRespectingFlowSQL.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				dateRespectingFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
-				dateRespectingFlowSQL.append(" WHERE FromEntityId IN " + fromClause);
-				dateRespectingFlowSQL.append("   AND ToEntityId IN " + toClause);
+				dateRespectingFlowSQL.append(" WHERE " + finFlowFromEntityIdColumn + " IN " + fromClause);
+				dateRespectingFlowSQL.append("   AND " + finFlowToEntityIdColumn + " IN " + toClause);
 				dateRespectingFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				dateRespectingFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				dateRespectingFlowSQL.append(" GROUP BY FromEntityId, ToEntityId");
+				dateRespectingFlowSQL.append(" GROUP BY " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn);
 					
 				// retrieve aggregate links irrespective of date range
 				StringBuilder flowSQL = new StringBuilder();
-				flowSQL.append("SELECT g1.cid as FromEntityId, g2.cid as ToEntityId, COUNT(*) as linkcount ");
+				flowSQL.append("SELECT g1.cid as " + finFlowFromEntityIdColumn + ", g2.cid as " + finFlowToEntityIdColumn + ", COUNT(*) as linkcount ");
 				flowSQL.append("  FROM " + finFlowTable + " f ");
 				flowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				flowSQL.append("          FROM " + gClusterTable + " g ");
 				flowSQL.append("          JOIN " + dSrcClusterTable + " c ");
 				flowSQL.append("            ON g.id = c.rowid ");
 				flowSQL.append("         WHERE g.clusterid IN " + fromClause);
-				flowSQL.append("       ) g1 ON f.FromEntityId = g1.eid ");
+				flowSQL.append("       ) g1 ON f." + finFlowFromEntityIdColumn + " = g1.eid ");
 				flowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				flowSQL.append("          FROM " + gClusterTable + " g ");
 				flowSQL.append("          JOIN " + dDstClusterTable + " c ");
 				flowSQL.append("            ON g.id = c.rowid ");
 				flowSQL.append("         WHERE g.clusterid IN " + toClause);
-				flowSQL.append("       ) g2 ON f.ToEntityId = g2.eid ");
+				flowSQL.append("       ) g2 ON f." + finFlowToEntityIdColumn + " = g2.eid ");
 				flowSQL.append(" GROUP BY g1.cid, g2.cid ");
 				
 				flowSQL.append(" UNION ALL ");
 				
-				flowSQL.append("SELECT g1.cid as FromEntityId, f.ToEntityId, COUNT(*) as linkcount ");
+				flowSQL.append("SELECT g1.cid as " + finFlowFromEntityIdColumn + ", f." + finFlowToEntityIdColumn + ", COUNT(*) as linkcount ");
 				flowSQL.append("  FROM " + finFlowTable + " f ");
 				flowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				flowSQL.append("          FROM " + gClusterTable + " g ");
 				flowSQL.append("          JOIN " + dSrcClusterTable + " c ");
 				flowSQL.append("            ON g.id = c.rowid ");
 				flowSQL.append("         WHERE g.clusterid IN " + fromClause);
-				flowSQL.append("       ) g1 ON f.FromEntityId = g1.eid ");
-				flowSQL.append(" WHERE f.ToEntityId IN " + toClause);
-				flowSQL.append(" GROUP BY g1.cid, f.ToEntityId ");
+				flowSQL.append("       ) g1 ON f." + finFlowFromEntityIdColumn + " = g1.eid ");
+				flowSQL.append(" WHERE f." + finFlowToEntityIdColumn + " IN " + toClause);
+				flowSQL.append(" GROUP BY g1.cid, f." + finFlowToEntityIdColumn + " ");
 				
 				flowSQL.append(" UNION ALL ");
 				
-				flowSQL.append("SELECT f.FromEntityId, g2.cid as ToEntityId, COUNT(*) as linkcount ");
+				flowSQL.append("SELECT f." + finFlowFromEntityIdColumn + ", g2.cid as " + finFlowToEntityIdColumn + ", COUNT(*) as linkcount ");
 				flowSQL.append("  FROM " + finFlowTable + " f ");
 				flowSQL.append("  JOIN (SELECT distinct g.entityid as eid, g.clusterid as cid ");
 				flowSQL.append("          FROM " + gClusterTable + " g ");
 				flowSQL.append("          JOIN " + dDstClusterTable + " c ");
 				flowSQL.append("            ON g.id = c.rowid ");
 				flowSQL.append("         WHERE g.clusterid IN " + toClause);
-				flowSQL.append("       ) g2 ON f.ToEntityId = g2.eid ");
-				flowSQL.append(" WHERE f.FromEntityId IN " + fromClause);
-				flowSQL.append(" GROUP BY f.FromEntityId, g2.cid ");
+				flowSQL.append("       ) g2 ON f." + finFlowToEntityIdColumn + " = g2.eid ");
+				flowSQL.append(" WHERE f." + finFlowFromEntityIdColumn + " IN " + fromClause);
+				flowSQL.append(" GROUP BY f." + finFlowFromEntityIdColumn + ", g2.cid ");
 				
 				flowSQL.append(" UNION ALL ");
 				
-				flowSQL.append("SELECT FromEntityId, ToEntityId, COUNT(*) as linkcount ");
+				flowSQL.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", COUNT(*) as linkcount ");
 				flowSQL.append("  FROM " + finFlowTable + " f ");  
-				flowSQL.append(" WHERE FromEntityId IN " + fromClause);
-				flowSQL.append("   AND ToEntityId IN " + toClause);
-				flowSQL.append(" GROUP BY FromEntityId, ToEntityId");
+				flowSQL.append(" WHERE " + finFlowFromEntityIdColumn + " IN " + fromClause);
+				flowSQL.append("   AND " + finFlowToEntityIdColumn + " IN " + toClause);
+				flowSQL.append(" GROUP BY " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn);
 				
 				// create (from, to) = Amount lookup table
 				Map<String, Map<String, Double>> fromToAmountMap = new HashMap<String, Map<String, Double>>();
@@ -898,9 +901,9 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				if (stmt.execute(dateRespectingFlowSQL.toString())) {
 					ResultSet rs = stmt.getResultSet();
 					while (rs.next()) {
-						String from = rs.getString("FromEntityId");
-						String to = rs.getString("ToEntityId");
-						Double amount = rs.getDouble("Amount");
+						String from = rs.getString(finFlowFromEntityIdColumn);
+						String to = rs.getString(finFlowToEntityIdColumn);
+						Double amount = rs.getDouble(finFlowAmountColumn);
 						if (fromToAmountMap.containsKey(from)) {
 							if (fromToAmountMap.get(from).containsKey(to)) {
 								throw new AssertionError("Group by clause in dateRespectingFlowSQL erroneously created duplicates"); 
@@ -919,8 +922,8 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				if (stmt.execute(flowSQL.toString())) {
 					ResultSet rs = stmt.getResultSet();
 					while (rs.next()) {
-						String from = rs.getString("FromEntityId");
-						String to = rs.getString("ToEntityId");
+						String from = rs.getString(finFlowFromEntityIdColumn);
+						String to = rs.getString(finFlowToEntityIdColumn);
 						Integer count = rs.getInt("linkcount");
 
 						String keyId = from;
@@ -1000,11 +1003,21 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 			
 			String finFlowIntervalTable = getNamespaceHandler().tableName(null, DataAccessHelper.standardTableName(
 					DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
+			String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
+			String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
+			String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
+			String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
+			String finFlowDateColNoEscape = unescapeColumnName(finFlowDateColumn);
+
 			String finEntityIntervalTable = getNamespaceHandler().tableName(null, DataAccessHelper.standardTableName(
 					DataAccessHelper.ENTITY_TABLE, date.getDurationPerBin().getInterval()));
-			String finFlowDateColumn = getNamespaceHandler().columnName("PeriodDate");
-			String dateColNoEscape = unescapeColumnName(finFlowDateColumn);
-
+			
+			String finEntityEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
+			String finEntityInboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_INBOUND_AMOUNT);
+			String finEntityOutboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_OUTBOUND_AMOUNT);
+			String finEntityDateColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_PERIOD_DATE);
+			String finEntityDateColNoEscape = unescapeColumnName(finEntityDateColumn);
+			
 			// process src nodes in batches 
 			List<String> idsCopy = new ArrayList<String>(srcNodes); // copy the ids as we will take 1000 at a time to process and the take method is destructive
 			while (idsCopy.size() > 0) {
@@ -1012,22 +1025,22 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 				
-				String fromClause = DataAccessHelper.createInClause(subIds);
-				String toClause = DataAccessHelper.createInClause(focusNodes);
+				String fromClause = DataAccessHelper.createInClause(subIds, getNamespaceHandler(), null);
+				String toClause = DataAccessHelper.createInClause(focusNodes, getNamespaceHandler(), null);
 				
 				//
 				/// flow can be from: 1) cluster -> cluster; 2) cluster -> entity; 3) entity -> cluster; 3) entity -> entity  
 				//
 				
 				StringBuilder focusFlowSQL = new StringBuilder();
-				focusFlowSQL.append("SELECT g1.clusterid as FromEntityId, g2.clusterid as ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT g1.clusterid as " + finFlowFromEntityIdColumn + ", g2.clusterid as " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g1 ");
-				focusFlowSQL.append("    ON f.FromEntityId = g1.entityid ");
+				focusFlowSQL.append("    ON f." + finFlowFromEntityIdColumn + " = g1.entityid ");
 				focusFlowSQL.append("  JOIN " + dSrcClusterTable + " c1 ");
 				focusFlowSQL.append("    ON g1.id = c1.rowid ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g2 ");
-				focusFlowSQL.append("    ON f.ToEntityId = g2.entityid"); 
+				focusFlowSQL.append("    ON f." + finFlowToEntityIdColumn + " = g2.entityid"); 
 				focusFlowSQL.append("  JOIN " + dDstClusterTable + " c2 ");
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + fromClause);
@@ -1038,14 +1051,14 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				
 				focusFlowSQL.append(" UNION ALL ");
 				
-				focusFlowSQL.append("SELECT g1.clusterid as FromEntityId, g2.clusterid as ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT g1.clusterid as " + finFlowFromEntityIdColumn + ", g2.clusterid as " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g1 ");
-				focusFlowSQL.append("    ON f.FromEntityId = g1.entityid "); 
+				focusFlowSQL.append("    ON f." + finFlowFromEntityIdColumn + " = g1.entityid "); 
 				focusFlowSQL.append("  JOIN " + dDstClusterTable + " c1 ");
 				focusFlowSQL.append("    ON g1.id = c1.rowid ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g2 ");
-				focusFlowSQL.append("    ON f.ToEntityId = g2.entityid");
+				focusFlowSQL.append("    ON f." + finFlowToEntityIdColumn + " = g2.entityid");
 				focusFlowSQL.append("  JOIN " + dSrcClusterTable + " c2 ");
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + toClause);
@@ -1056,106 +1069,106 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				
 				focusFlowSQL.append(" UNION ALL ");
 				
-				focusFlowSQL.append("SELECT g1.clusterid as FromEntityId, ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT g1.clusterid as " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g1 ");
-				focusFlowSQL.append("    ON f.FromEntityId = g1.entityid "); 
+				focusFlowSQL.append("    ON f." + finFlowFromEntityIdColumn + " = g1.entityid "); 
 				focusFlowSQL.append("  JOIN " + dSrcClusterTable + " c1 ");
 				focusFlowSQL.append("    ON g1.id = c1.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + fromClause);
-				focusFlowSQL.append("   AND ToEntityId IN " + toClause);
+				focusFlowSQL.append("   AND " + finFlowToEntityIdColumn + " IN " + toClause);
 				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				focusFlowSQL.append(" GROUP BY g1.clusterid, ToEntityId, " + finFlowDateColumn + "");
+				focusFlowSQL.append(" GROUP BY g1.clusterid, " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
 				
-				focusFlowSQL.append("SELECT g1.clusterid as FromEntityId, ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT g1.clusterid as " + finFlowFromEntityIdColumn +", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g1 ");
-				focusFlowSQL.append("    ON f.FromEntityId = g1.entityid "); 
+				focusFlowSQL.append("    ON f." + finFlowFromEntityIdColumn + " = g1.entityid "); 
 				focusFlowSQL.append("  JOIN " + dDstClusterTable + " c1 ");
 				focusFlowSQL.append("    ON g1.id = c1.rowid ");
 				focusFlowSQL.append(" WHERE g1.clusterid IN " + toClause);
-				focusFlowSQL.append("   AND ToEntityId IN " + fromClause);
+				focusFlowSQL.append("   AND " + finFlowToEntityIdColumn + " IN " + fromClause);
 				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				focusFlowSQL.append(" GROUP BY g1.clusterid, ToEntityId, " + finFlowDateColumn + "");
+				focusFlowSQL.append(" GROUP BY g1.clusterid, " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
 				
-				focusFlowSQL.append("SELECT FromEntityId, g2.clusterid as ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT " + finFlowFromEntityIdColumn + ", g2.clusterid as " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g2 ");
-				focusFlowSQL.append("    ON f.ToEntityId = g2.entityid "); 
+				focusFlowSQL.append("    ON f." + finFlowToEntityIdColumn + " = g2.entityid "); 
 				focusFlowSQL.append("  JOIN " + dDstClusterTable + " c2 ");
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
-				focusFlowSQL.append(" WHERE FromEntityId IN " + fromClause);
+				focusFlowSQL.append(" WHERE " + finFlowFromEntityIdColumn + " IN " + fromClause);
 				focusFlowSQL.append("   AND g2.clusterid IN " + toClause);
 				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				focusFlowSQL.append(" GROUP BY FromEntityId, g2.clusterid, " + finFlowDateColumn + "");
+				focusFlowSQL.append(" GROUP BY " + finFlowFromEntityIdColumn + ", g2.clusterid, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
 				
-				focusFlowSQL.append("SELECT FromEntityId, g2.clusterid as ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT " + finFlowFromEntityIdColumn + ", g2.clusterid as " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
 				focusFlowSQL.append("  JOIN " + gClusterTable + " g2 ");
-				focusFlowSQL.append("    ON f.ToEntityId = g2.entityid "); 
+				focusFlowSQL.append("    ON f." + finFlowToEntityIdColumn + " = g2.entityid "); 
 				focusFlowSQL.append("  JOIN " + dSrcClusterTable + " c2 ");
 				focusFlowSQL.append("    ON g2.id = c2.rowid ");
-				focusFlowSQL.append(" WHERE FromEntityId IN " + toClause);
+				focusFlowSQL.append(" WHERE " + finFlowFromEntityIdColumn + " IN " + toClause);
 				focusFlowSQL.append("   AND g2.clusterid IN " + fromClause);
 				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				focusFlowSQL.append(" GROUP BY FromEntityId, g2.clusterid, " + finFlowDateColumn + "");
+				focusFlowSQL.append(" GROUP BY " + finFlowFromEntityIdColumn + ", g2.clusterid, " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
 				
-				focusFlowSQL.append("SELECT FromEntityId, ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
-				focusFlowSQL.append(" WHERE FromEntityId IN " + fromClause);
-				focusFlowSQL.append("   AND ToEntityId IN " + toClause);
+				focusFlowSQL.append(" WHERE " + finFlowFromEntityIdColumn + " IN " + fromClause);
+				focusFlowSQL.append("   AND " + finFlowToEntityIdColumn + " IN " + toClause);
 				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				focusFlowSQL.append(" GROUP BY FromEntityId, ToEntityId, " + finFlowDateColumn + "");
+				focusFlowSQL.append(" GROUP BY " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + "");
 				
 				focusFlowSQL.append(" UNION ALL ");
 				
-				focusFlowSQL.append("SELECT FromEntityId, ToEntityId, " + finFlowDateColumn + ", SUM(Amount) as Amount ");
+				focusFlowSQL.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", SUM(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " ");
 				focusFlowSQL.append("  FROM " + finFlowIntervalTable + " f ");
-				focusFlowSQL.append(" WHERE FromEntityId IN " + toClause);
-				focusFlowSQL.append("   AND ToEntityId IN " + fromClause);
+				focusFlowSQL.append(" WHERE " + finFlowFromEntityIdColumn + " IN " + toClause);
+				focusFlowSQL.append("   AND " + finFlowToEntityIdColumn + " IN " + fromClause);
 				focusFlowSQL.append("   AND " + finFlowDateColumn + " BETWEEN '" + DataAccessHelper.format(startDate) + "'");
 				focusFlowSQL.append("   AND '" + DataAccessHelper.format(endDate) + "'");
-				focusFlowSQL.append(" GROUP BY FromEntityId, ToEntityId, " + finFlowDateColumn + "");
+				focusFlowSQL.append(" GROUP BY " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + "");
 					
 				StringBuilder tsSQL = new StringBuilder();
-				tsSQL.append("SELECT EntityId, " + finFlowDateColumn + ", InboundAmount, OutboundAmount ");
+				tsSQL.append("SELECT " + finEntityEntityIdColumn + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " ");
 				tsSQL.append("  FROM " + finEntityIntervalTable);
-				tsSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '"+DataAccessHelper.format(startDate)+"' AND '"+DataAccessHelper.format(endDate)+"'");
-				tsSQL.append("   AND EntityId IN " + fromClause);
+				tsSQL.append(" WHERE " + finEntityDateColumn + " BETWEEN '"+DataAccessHelper.format(startDate)+"' AND '"+DataAccessHelper.format(endDate)+"'");
+				tsSQL.append("   AND " + finEntityEntityIdColumn + " IN " + fromClause);
 				
 				tsSQL.append(" UNION ALL ");
 				
-				tsSQL.append("SELECT g.clusterid as EntityId, f." + finFlowDateColumn + ", SUM(f.InboundAmount) as InboundAmount, SUM(f.OutboundAmount) as OutboundAmount ");
+				tsSQL.append("SELECT g.clusterid as EntityId, f." + finEntityDateColumn + ", SUM(f." + finEntityInboundAmountColumn + ") as " + finEntityInboundAmountColumn + ", SUM(f." + finEntityOutboundAmountColumn + ") as " + finEntityOutboundAmountColumn + " ");
 				tsSQL.append("  FROM " + finEntityIntervalTable + " f ");
 				tsSQL.append("  JOIN " + gClusterTable + " g ");
-				tsSQL.append("    ON f.EntityId = g.entityid "); 
+				tsSQL.append("    ON f." + finEntityEntityIdColumn + " = g.entityid "); 
 				tsSQL.append("  JOIN " + dSrcClusterTable + " c ");
 				tsSQL.append("    ON g.id = c.rowid ");
-				tsSQL.append(" WHERE " + finFlowDateColumn + " BETWEEN '"+DataAccessHelper.format(startDate)+"' AND '"+DataAccessHelper.format(endDate)+"'");
+				tsSQL.append(" WHERE " + finEntityDateColumn + " BETWEEN '"+DataAccessHelper.format(startDate)+"' AND '"+DataAccessHelper.format(endDate)+"'");
 				tsSQL.append("   AND g.clusterid IN " + fromClause);
-				tsSQL.append(" GROUP BY g.clusterid, f." + finFlowDateColumn + "");
+				tsSQL.append(" GROUP BY g.clusterid, f." + finEntityDateColumn + "");
 					
 				s_logger.trace("execute: " + focusFlowSQL.toString());
 				if (stmt.execute(focusFlowSQL.toString())) {
 					ResultSet rs = stmt.getResultSet();
 					while (rs.next()) {
-						String from = rs.getString("FromEntityId");
-						String to = rs.getString("ToEntityId");
-						Double amount = rs.getDouble("Amount");
-						Date rsDate = rs.getDate(dateColNoEscape);
+						String from = rs.getString(finFlowFromEntityIdColumn);
+						String to = rs.getString(finFlowToEntityIdColumn);
+						Double amount = rs.getDouble(finFlowAmountColumn);
+						Date rsDate = rs.getDate(finFlowDateColNoEscape);
 						
 						String keyId = from;
 						if (entities.contains(to)) {
@@ -1181,10 +1194,10 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 				if (stmt.execute(tsSQL.toString())) {
 					ResultSet rs = stmt.getResultSet();
 					while (rs.next()) {
-						String entity = rs.getString("EntityId");
-						Double inboundAmount = rs.getDouble("InboundAmount");
-						Double outboundAmount = rs.getDouble("OutboundAmount");
-						Date rsDate = rs.getDate(dateColNoEscape);
+						String entity = rs.getString(finEntityEntityIdColumn);
+						Double inboundAmount = rs.getDouble(finEntityInboundAmountColumn);
+						Double outboundAmount = rs.getDouble(finEntityOutboundAmountColumn);
+						Date rsDate = rs.getDate(finEntityDateColNoEscape);
 
 						List<FL_Link> linkList = results.get(entity);
 						if (linkList == null) {
@@ -1305,5 +1318,4 @@ public abstract class ClusteringDataAccess implements FL_ClusteringDataAccess {
 		return columnName;
 
 	}
-	
 }

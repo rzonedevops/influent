@@ -27,14 +27,14 @@ define(
         'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/models/xfColumn', 'lib/models/xfFile',
         'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster', 'lib/models/xfClusterBase',
         'lib/models/xfCard', 'lib/models/xfLink', 'lib/layout/xfLayoutProvider', 'lib/util/xfUtil',
-        'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/extern/ActivityLogger', 'lib/ui/xfLinkType',
+        'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/ui/xfLinkType',
         'modules/xfRenderer', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/extern/cookieUtil'
     ],
     function(
         $, xfUIObject, chan, guid, xfColumn, xfFile,
         xfImmutableCluster, xfMutableCluster, xfSummaryCluster, xfClusterBase,
         xfCard, xfLink, xfLayoutProvider, xfUtil,
-        duration, toolbarOp, activityLogger, xfLinkType,
+        duration, toolbarOp, xfLinkType,
         xfRenderer, xfModalDialog, constants, cookieUtil
     ) {
 
@@ -48,6 +48,7 @@ define(
         var MAX_PATTERN_SEARCH_RESULTS = aperture.config.get()['influent.config']['searchResultsPerPage'];
         var SEARCH_GROUP_BY = aperture.config.get()['influent.config']['searchGroupBy'];
         var USE_PATTERN_SEARCH = aperture.config.get()['influent.config']['usePatternSearch'];
+        var DEFAULT_SORT_FUNCTION = xfUtil.bothDescendingSort;
 
         var _UIObjectState = {
             xfId : '',
@@ -57,7 +58,7 @@ define(
             childModule : undefined,
             focus : undefined,
             showDetails : true,
-            footerDisplay : 'block',
+            footerDisplay : 'none',
             dates : {startDate: '', endDate: '', numBuckets: 0, duration: ''},
             singleton : undefined,
             selectedUIObject : null,                 // this assumes one selected object, could make this an [] if needed
@@ -68,11 +69,26 @@ define(
         
         var _loggerState = {
             logger : null,
-            enableLogging : !!(logging && logging.address && logging.enabled),
+            enableLogging : (logging && logging.address && logging.enabled),
+            address: logging && logging.address,
+            provider: logging && logging.provider,
+            logLevel : logging && logging.logLevel,
             type : {
-                WF_SEARCH : 'search',
-                WF_MARSHAL : 'marshal',
-                WF_EXAMINE : 'examine'
+    			WF_OTHER       : 'WF_OTHER',
+    			WF_DEFINE      : 'WF_DEFINE',
+    			WF_GETDATA     : 'WF_GETDATA',
+    			WF_EXPLORE     : 'WF_EXPLORE',
+    			WF_CREATE      : 'WF_CREATE',
+    			WF_ENRICH      : 'WF_ENRICH',
+    			WF_TRANSFORM   : 'WF_TRANSFORM'	
+            },
+            level : {
+                ALL : 'all',
+                SYSTEM : 'system',
+                USER : 'user',
+                CLICK : 'click',
+                PRIMARY : 'primary',
+                SECONDARY : 'secondary'
             }
         };
 
@@ -88,10 +104,11 @@ define(
             // If the Draper logger is available, return it.
             if (_loggerState.enableLogging) {
             	if (_loggerState.provider == 'draper' && activityLogger) {
-	                var logger = new activityLogger();
+	                var logger = new activityLogger();//.echo(true).testing(true);
 	                if (logger){
-	                    logger.registerActivityLogger(logging.address, 'Initializing Draper instrumentation', '3.04',
-	                    		_UIObjectState.sessionId);
+	                    logger.registerActivityLogger(logging.address, 
+	                    		logging.componentName || 'Influent', 
+	                    		logging.componentVersion || 'unspecified');
 	                    for (var key in _loggerState.type){
 	                        if (_loggerState.type.hasOwnProperty(key)) {
 	                            _loggerState.type[key] = logger[key];
@@ -104,8 +121,7 @@ define(
         		var apertureActivityLogger = {
         			logUserActivity : function(description, eventChannel, type, metadata) {
         				aperture.log.info({
-                            sessionId: _UIObjectState.sessionId,
-        					activityType: 'user',
+        					activityType: _loggerState.level.USER,
         					activity: {
             					description: description,
             					eventChannel: eventChannel,
@@ -117,13 +133,19 @@ define(
         			logSystemActivity : function(description) {
         				aperture.log.info({
                             sessionId: _UIObjectState.sessionId,
-        					activityType: 'system',
+        					activityType: _loggerState.level.SYSTEM,
         					activity: {
             					description: description
         					}
         				});
         			}
         		};
+        		
+                for (var t in _loggerState.type) {
+                    if (_loggerState.type.hasOwnProperty(t)) {
+                    	apertureActivityLogger[t] = _loggerState.type[t];
+                    }
+                }
         		
         		apertureActivityLogger.logSystemActivity('Initializing aperture instrumentation...');
         		
@@ -134,7 +156,7 @@ define(
 
         //--------------------------------------------------------------------------------------------------------------
 
-        var _log = function(activityType, eventChannel, description, type, metadata){
+        var _log = function(activityType, eventChannel, description, type, level, metadata){
             if (!_loggerState.enableLogging){
                 return;
             }
@@ -142,10 +164,21 @@ define(
             if (!_loggerState.logger) {
             	_loggerState.logger = _getLogger();
             }            
-            if (activityType == 'user'){
-                _loggerState.logger.logUserActivity(description, eventChannel, type, metadata);
+            if (activityType == _loggerState.level.USER &&
+                _loggerState.logLevel != _loggerState.level.SYSTEM
+            ) {
+                if (_loggerState.logLevel == _loggerState.level.ALL ||
+                    _loggerState.logLevel == _loggerState.level.USER ||
+                    (_loggerState.logLevel == _loggerState.level.PRIMARY && level != _loggerState.level.SECONDARY) ||
+                    (_loggerState.logLevel == _loggerState.level.SECONDARY && level == _loggerState.level.SECONDARY) ||
+                    (_loggerState.logLevel == _loggerState.level.CLICK && (level == _loggerState.level.CLICK || level ==  _loggerState.level.SECONDARY))
+                ) {
+                    _loggerState.logger.logUserActivity(description, eventChannel, type, metadata);
+                }
             }
-            else if (activityType == 'system'){
+            else if (activityType == _loggerState.level.SYSTEM &&
+                _loggerState.logLevel != _loggerState.level.USER
+            ) {
                 _loggerState.logger.logSystemActivity(description || eventChannel);
             }
         };
@@ -168,11 +201,9 @@ define(
                     _saveState(null, false);
                     
 	                if (cookie) {
-	                	var prompt = 'Influent can remember this session and attempt to resume it when you return. '+
+                        return 'Influent can remember this session and attempt to resume it when you return. '+
 	                    	'However, a previous session was found. If you wish to resume the previous session '+
 	                    	'you must open a new browser tab for it before leaving this one.';
-	                	
-	                	return prompt;
 	                }
                 }
             );
@@ -194,27 +225,9 @@ define(
             _initWorkspaceState(
                 function() {
 
-                    _log('system', 'Workspace modules successfully initialized.');
+                    _log(_loggerState.level.SYSTEM, 'Workspace modules successfully initialized.');
 
                     _pruneColumns();
-
-                    // publish selection event if the footer expands
-                    $('#footer').bind('accordionchangestart',
-                        function( event, ui ) {
-                            var footerContent = $('#footer-content');
-                            _UIObjectState.footerDisplay = (footerContent.css('display') == 'none') ? 'block' : 'none';
-
-                            if(footerContent.css('display') == 'none' && _UIObjectState.selectedUIObject != null) {
-                                aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, {
-                                    xfId: _UIObjectState.selectedUIObject.xfId,
-                                    dataId: _UIObjectState.selectedUIObject.dataId,
-                                    uiType: _UIObjectState.selectedUIObject.uiType,
-                                    uiSubtype: _UIObjectState.selectedUIObject.uiSubtype,
-                                    contextId: _UIObjectState.selectedUIObject.contextId
-                                });
-                            }
-                        }
-                    );
 
                     if (_UIObjectState.focus != null) {
                         aperture.pubsub.publish(
@@ -291,7 +304,7 @@ define(
 
                     if (response.data == null || response.data.length < 1) {
                     	
-                        _log('system', 'New session started.');
+                        _log(_loggerState.level.SYSTEM, 'New session started.');
                         
                         // Set the flag for displaying/hiding charts.
                         var show = aperture.config.get()['influent.config']['defaultShowDetails'];
@@ -331,7 +344,7 @@ define(
                         );
 
                     } else {
-                        _log('system', 'Restoring existing session...');
+                        _log(_loggerState.level.SYSTEM, 'Restoring existing session...');
 
                         var restoreState = JSON.parse(response.data);
 
@@ -378,109 +391,252 @@ define(
                 }
             };
 
+            var activityData = {
+                type: null,
+                description: null,
+                logLevel: null,
+                data: {
+                    sessionId : _UIObjectState.sessionId
+                }
+            };
+
             switch (eventChannel) {
-	            case chan.LOGOUT_REQUEST : 
+	            case chan.LOGOUT_REQUEST :
+                    activityData.type = _loggerState.type.WF_OTHER;
+                    activityData.description = 'Logout user';
+                    activityData.logLevel = _loggerState.level.CLICK;
 	            	_onLogout();
 	            	break;
                 case chan.SEARCH_REQUEST :
+                    activityData.type = _loggerState.type.WF_GETDATA;
+                    activityData.description = 'Request data search operation';
+                    activityData.logLevel = _loggerState.level.CLICK;
                     _onSearchRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.DETAILS_CHANGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Toggle details (e.g. charts) of all visible items';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['showDetails'] = data.showDetails;
                     _onDetailsChangeRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.FILTER_CHANGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_TRANSFORM;
+                    activityData.description = 'Change date filter';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['startDate'] = data.start;
+                    activityData.data['endDate'] = data.end;
+                    activityData.data['numBuckets'] = data.numBuckets;
+                    activityData.data['duration'] = data.duration;
                     _onFilterChangeRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.ADD_TO_FILE_REQUEST :
                 case chan.DROP_EVENT :
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Add UI object to file object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.cardId;
+                    activityData.data['UIContainerId'] = data.containerId;
+                    activityData.data['fromDragDropEvent'] = (eventChannel == chan.DROP_EVENT) ? 'true' : 'false';
                 	_onAddCardToContainer(eventChannel, data, renderCallback);
                     break;
                 case chan.FOCUS_CHANGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Request change of focused UI object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onFocusChangeRequest(eventChannel, data);
                     break;
                 case chan.FOCUS_CHANGE_EVENT :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Change focused UI object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
+                    activityData.data['UIOjectType'] = data.entityType;
+                    activityData.data['entityCount'] = data.entityCount;
+                    activityData.data['contextId'] = data.contextId;
                     _onFocusChangeEvent(eventChannel, data, renderCallback);
                     break;
                 case chan.SELECTION_CHANGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Select UI object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onSelectionChangeRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.HOVER_CHANGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Hover over UI object';
+                    activityData.logLevel = _loggerState.level.PRIMARY;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onHoverChangeRequest(eventChannel, data);
                     break;
                 case chan.CHANGE_FILE_TITLE :
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Change title of file object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['fileId'] = data.xfId;
                     _onChangeFileTitle(eventChannel, data, renderCallback);
                     break;
                 case chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Request change of focus to a new search control object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['searchControlId'] = data.xfId;
                     _setSearchControlFocused(eventChannel, data, renderCallback);
                     break;
                 case chan.SEARCH_BOX_CHANGED :
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Change focus to search control object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['searchControlId'] = data.xfId;
                     _onSearchBoxChanged(eventChannel, data, renderCallback);
                     break;
                 case chan.APPLY_PATTERN_SEARCH_TERM :
+                    activityData.type = _loggerState.type.WF_GETDATA;
+                    activityData.description = 'Apply pattern search term to search control object';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _applyPatternSearchTerm(eventChannel, data, renderCallback);
                     break;
                 case chan.BRANCH_LEFT_EVENT :
+                    activityData.type = _loggerState.type.WF_GETDATA;
+                    activityData.description = 'Branch for related incoming links';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onBranchLeftEvent(eventChannel, data, renderCallback);
                     break;
                 case chan.BRANCH_RIGHT_EVENT :
+                    activityData.type = _loggerState.type.WF_GETDATA;
+                    activityData.description = 'Branch for related outgoing links';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onBranchRightEvent(eventChannel, data, renderCallback);
                     break;
                 case chan.EXPAND_EVENT :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Expand and show cluster membership';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onExpandEvent(eventChannel, data, renderCallback);
                     break;
                 case chan.COLLAPSE_EVENT :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Collapse and hide cluster membership';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onCollapseEvent(eventChannel, data, renderCallback);
                     break;
                 case chan.REMOVE_REQUEST :
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Remove UI object(s) from workspace';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectIds'] = data.xfIds;
                     _onRemoveRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.CREATE_FILE_REQUEST :
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Create new file';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
+                    activityData.data['requestedFromColumn'] = data.isColumn ? data.isColumn : 'false';
                     _onCreateFileRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.SHOW_MATCH_REQUEST :
+                    activityData.type = _loggerState.type.WF_GETDATA;
+                    activityData.description = 'Show search controls for file';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onShowMatchRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.PREV_SEARCH_PAGE_REQUEST :
                 case chan.NEXT_SEARCH_PAGE_REQUEST :
                 case chan.SET_SEARCH_PAGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Navigate search results';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
+                    activityData.data['page'] = data.page;
                     _onPageSearch(eventChannel, data, renderCallback);
                     break;
                 case chan.CLEAN_COLUMN_REQUEST :
+                    activityData.type = _loggerState.type.WF_TRANSFORM;
+                    activityData.description = 'Remove unnecessary UI objects from column';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
                     _onCleanColumnRequest(eventChannel, data, renderCallback);
                     break;
                 case chan.EXPORT_CAPTURED_IMAGE_REQUEST :
+                    activityData.type = _loggerState.type.WF_CREATE;
+                    activityData.description = 'Export image capture of workspace';
+                    activityData.logLevel = _loggerState.level.CLICK;
                     _onExportCapture(eventChannel);
                     break;
                 case chan.EXPORT_GRAPH_REQUEST :
+                    activityData.type = _loggerState.type.WF_CREATE;
+                    activityData.description = 'Export workspace to XML';
+                    activityData.logLevel = _loggerState.level.CLICK;
                     _onExportGraph(eventChannel);
                     break;
                 case chan.NEW_WORKSPACE_REQUEST :
+                    activityData.type = _loggerState.type.WF_CREATE;
+                    activityData.description = 'Create new empty workspace';
+                    activityData.logLevel = _loggerState.level.CLICK;
                 	_onNewWorkspace(eventChannel);
                 	break;
                 case chan.HIGHLIGHT_SEARCH_ARGUMENTS :
-                	_onHighlightSearchArguments(eventChannel, data);
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Highlight search arguments';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                	//_onHighlightSearchArguments(eventChannel, data);
                     break;
                 case chan.REQUEST_CURRENT_STATE :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Provide the current state of the workspace';
+                    activityData.logLevel = _loggerState.level.SECONDARY;
                     _onCurrentStateRequest(eventChannel);
 					break;
                 case chan.REQUEST_OBJECT_BY_XFID :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Get UI object from unique ID';
+                    activityData.logLevel = _loggerState.level.SECONDARY;
+                    activityData.data['UIOjectId'] = data.expanded;
                     _onObjectRequest(eventChannel, data);
                     break;
                 case chan.FOOTER_STATE :
-                    _onFooterChange(eventChannel, data);
+                    activityData.type = _loggerState.type.WF_ENRICH;
+                    activityData.description = 'Show/hide detailed entity information';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['expanded'] = data.expanded;
                     break;
                 case chan.SORT_COLUMN_REQUEST :
+                    activityData.type = _loggerState.type.WF_EXPLORE;
+                    activityData.description = 'Sort UI objects in column';
+                    activityData.logLevel = _loggerState.level.CLICK;
+                    activityData.data['UIOjectId'] = data.xfId;
+                    activityData.data['sortDescription'] = data.sortDescription;
                     _onSortColumnRequest(eventChannel, data, renderCallback);
                     break;
                 default :
                    break;
             }
-        };
 
-        //--------------------------------------------------------------------------------------------------------------
+            if (activityData.type == null ||
+                activityData.description == null ||
+                activityData.logLevel == null
+            ) {
+                aperture.log.error('Event ' + eventChannel + ' failed to issue a user action log message.');
+                return;
+            }
 
-        var _onFooterChange = function(eventChannel, data) {
-            $('#workspace').css('bottom', data.height);
+            _log(
+                _loggerState.level.USER,
+                eventChannel,
+                activityData.description,
+                activityData.type,
+                activityData.logLevel,
+                activityData.data
+            );
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -529,10 +685,11 @@ define(
         var _createColumn = function(columnSpec){
             var columnObj = xfColumn.createInstance(_.isEmpty(columnSpec)?'':columnSpec);
             _log(
-                'user',
-                'create-column-event',
+                _loggerState.level.USER,
+                'add_column',
                 'Create new column',
-                _loggerState.type.WF_SEARCH,
+                _loggerState.type.WF_ENRICH,
+                _loggerState.level.SECONDARY,
                 {
                     sessionId : _UIObjectState.sessionId,
                     xfId : columnObj.getXfId(),
@@ -588,14 +745,14 @@ define(
             var fileObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 
             if(!fileObject) {
-                console.error('Unable to apply pattern search; file with XfId ' + data.xfId + ' does not exist');
+                aperture.log.error('Unable to apply pattern search; file with XfId ' + data.xfId + ' does not exist');
                 return;
             }
 
             var matchObject = fileObject.getMatchUIObject();
 
             if(!matchObject) {
-                console.error('Unable to apply pattern search; match card  from file with XfId ' + data.xfId + ' does not exist');
+                aperture.log.error('Unable to apply pattern search; match card  from file with XfId ' + data.xfId + ' does not exist');
                 return;
             }
 
@@ -613,7 +770,7 @@ define(
             var fileObject = _UIObjectState.singleton.getUIObjectByXfId(fileXfId);
 
             if (!fileObject) {
-                console.error('Unable to apply pattern search; file with XfId ' + fileXfId + ' does not exist');
+                aperture.log.error('Unable to apply pattern search; file with XfId ' + fileXfId + ' does not exist');
                 return '';
             }
 
@@ -706,18 +863,6 @@ define(
 
                 renderCallback();
 
-                // DRAPER Instrumentation for logging an advanced search.
-                // Search terms omitted from log for privacy concerns.
-                _log(
-                    'user',
-                    eventChannel,
-                    'Advanced search',
-                    _loggerState.type.WF_SEARCH,
-                    {
-                        sessionId : _UIObjectState.sessionId
-                    }
-                );
-
                 if(!data.executeSearch) {
                 	return;
             	}
@@ -730,28 +875,40 @@ define(
             var columnExtents = _getMinMaxColumnIndex();
             var columnFiles = '';
             var matchcardObjects = _getAllMatchCards();
-
+            var activeMatchCard = null;
+            
+            for (i = 0; i < matchcardObjects.length; i++) {
+            	if (matchcardObjects[i].getXfId() === data.xfId) {
+            		activeMatchCard = matchcardObjects[i];
+            		break;
+            	}
+            }
+            
+            if (activeMatchCard == null) {
+            	return;
+            }
+            
             // if it's basic, do it, otherwise we do an example search, converting any 'basic' matches to 'example' as needed
             if (!USE_PATTERN_SEARCH ||
-                (matchcardObjects.length == 1 && !_isPartialQBESearch(matchcardObjects[0].getSearchTerm()))
+                (!_isPartialQBESearch(activeMatchCard.getSearchTerm()))
             ) {
                 _basicSearchOnMatchcard(matchUIObject, renderCallback, eventChannel);
             } else {
                 var patternGroups = [];
                 var currentPatternGroup = [];
 
-                for (i = 0; i < matchcardObjects.length; i++) {
-                	matchcardObjects[i].removeAllChildren();
-                	matchcardObjects[i].setSearchState('searching');
-                    aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : matchcardObjects[i]});
-                }
+                activeMatchCard.removeAllChildren();
+                activeMatchCard.setSearchState('searching');
+                aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : activeMatchCard});
                 
                 for (i = columnExtents.min; i <= columnExtents.max; i++) {
                     columnFiles = xfUtil.getChildrenByType(_getColumnByIndex(i), constants.MODULE_NAMES.FILE);
                     var columnMatchcards = [];
                     for(j = 0; j < columnFiles.length; j++ ) {
                         if (columnFiles[j].hasMatchCard()) {
-                            columnMatchcards.push(columnFiles[j].getMatchUIObject());
+                        	if (columnFiles[j].getMatchUIObject().getXfId() === data.xfId) {
+	                            columnMatchcards.push(columnFiles[j].getMatchUIObject());
+                        	}
                         }
                     }
 
@@ -759,7 +916,7 @@ define(
                     for (j = 0; j < columnMatchcards.length; j++) {
                         if(columnMatchcards[j].getSearchTerm().length > 0) {
                             if (!_isPartialQBESearch(columnMatchcards[j].getSearchTerm())) {
-                                _populateEmptyResults(matchcardObjects);
+                                _populateEmptyResults([activeMatchCard]);
                                 return;
                             }
                             columnQBE.push(columnMatchcards[j]);
@@ -794,7 +951,11 @@ define(
             aperture.io.rest(
                 '/search',
                 'POST',
-                function(response){
+                function(response, restInfo){
+                	if (!restInfo.success) {
+                		response = { "data":[], "queryId":"", "scores":{}, "sessionId":"", "totalResults":0 };
+                	}
+                	
                     var newUIObjects = _populateMatchResults(matchUIObject, response, undefined, renderCallback);
                     _updateLinks(true, true, newUIObjects, renderCallback, newUIObjects);
                 },
@@ -811,13 +972,15 @@ define(
                     contentType: 'application/json'
                 }
             );
+            
             // DRAPER Instrumentation for logging a basic search.
             // Search terms omitted from log for privacy concerns.
             _log(
-                'user',
-                eventChannel,
-                'Basic search on match card',
-                _loggerState.type.WF_SEARCH,
+                _loggerState.level.USER,
+                'execute_query',
+                'Execute attribute search',
+                _loggerState.type.WF_GETDATA,
+                _loggerState.level.SECONDARY,
                 {
                     sessionId : _UIObjectState.sessionId
                 }
@@ -859,7 +1022,7 @@ define(
                 if (matchCard.getSearchTerm().indexOf('like:') != -1) {
                     matchCardDataIds = parseDataIds(matchCard.getSearchTerm(), 'like:');
                 } else {
-                    console.error('Unable to determine QuBE search type from search term: ' + matchCard.getSearchTerm());
+                    aperture.log.error('Unable to determine QuBE search type from search term: ' + matchCard.getSearchTerm());
                 }
 
                 psEntity.examplars = {
@@ -907,9 +1070,16 @@ define(
             aperture.io.rest(
                 '/patternsearch',
                 'POST',
-                function(response){
-
+                function(response, restInfo){
                 	var parsedResponse= aperture.util.viewOf(response);
+                	
+                	if (!restInfo.success) {
+                        _populateEmptyResults(_getAllMatchCards());
+                        renderCallback();
+                        
+                        return;
+                	}
+                	
                     var newUIObjects = _populatePatternResults(parsedResponse, renderCallback);
 
                     var counter = 0;
@@ -944,10 +1114,11 @@ define(
             // DRAPER Instrumentation for logging a pattern search.
             // Search terms omitted from log for privacy concerns.
             _log(
-                'user',
-                eventChannel,
-                'Search by example',
-                _loggerState.type.WF_SEARCH,
+                _loggerState.level.USER,
+                'execute_query',
+                'Execute query by example',
+                _loggerState.type.WF_GETDATA,
+                _loggerState.level.SECONDARY,
                 {
                     sessionId : _UIObjectState.sessionId,
                     startDate : _UIObjectState.dates.startDate,
@@ -991,9 +1162,7 @@ define(
             	var fileId = roleResult.uid;
                 
                 for (j = 0; j < workspaceFiles.length; j++) {
-                    // HACK:  remove this or clause when we actually get this working.   This is only
-                    // to allow searching by using examples provided. // commented out latter - suspect. DJ
-                    if (fileId == workspaceFiles[j].getXfId() /*|| fileId == workspaceFiles[j].getLabel()*/) {
+                    if (fileId == workspaceFiles[j].getXfId()) {
                         workspaceFiles[j].showSearchControl(true, workspaceFiles[j].getMatchUIObject().getSearchTerm()); // pull from previous
                         
                         var resultUIObjects = _populateMatchResults(
@@ -1073,23 +1242,25 @@ define(
 
             // if there is no currently focused object, then we set the first search object as the
             // focused object
-            if (_UIObjectState.focus == null && firstSearchObject != null) {
-                var columnObj = xfUtil.getUITypeAncestor(firstSearchObject, constants.MODULE_NAMES.COLUMN);
-
-                // note this will trigger card chart updates as well, which is why we have an else below
-                aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, {
-                    xfId: firstSearchObject.getXfId(),
-                    dataId: firstSearchObject.getDataId(),
-                    entityType: firstSearchObject.getUIType(),
-                    entityLabel: firstSearchObject.getLabel(),
-                    entityLabel: firstSearchObject.getVisualInfo().spec.count,
-                    contextId: columnObj? columnObj.getXfId() : null
-                });
-
-            // else if we are showing card details then we need to populate the card specs with chart data
-            } else if (_UIObjectState.showDetails) {
-                _UIObjectState.childModule.updateCardsWithCharts(specs);
-            }
+            if(firstSearchObject != null) {
+	            if (_UIObjectState.focus == null) {
+	                var columnObj = xfUtil.getUITypeAncestor(firstSearchObject, constants.MODULE_NAMES.COLUMN);
+	
+	                // note this will trigger card chart updates as well, which is why we have an else below
+	                aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, {
+	                    xfId: firstSearchObject.getXfId(),
+	                    dataId: firstSearchObject.getDataId(),
+	                    entityType: firstSearchObject.getUIType(),
+	                    entityLabel: firstSearchObject.getLabel(),
+                        entityCount: firstSearchObject.getVisualInfo().spec.count,
+	                    contextId: columnObj? columnObj.getXfId() : null
+	                });
+	
+	            // else if we are showing card details then we need to populate the card specs with chart data
+	            } else if (_UIObjectState.showDetails) {
+	                _UIObjectState.childModule.updateCardsWithCharts(specs);
+	            }
+        	}
 
             renderCallback(dataIds);
 
@@ -1119,7 +1290,7 @@ define(
                 if (spec.hasOwnProperty('parent')) {
                     spec['parent'] = parent;
                 } else {
-                    console.error('Spec does not contain "parent" element');
+                    aperture.log.error('Spec does not contain "parent" element');
                 }
 
                 specs.push(spec);
@@ -1133,7 +1304,7 @@ define(
         var _flattenCluster = function(cluster, contextid, parentObj, renderCallback){
             var specs = cluster.getSpecs(false);
             if (specs == null || specs.length != 1) {
-                console.error('Failed to get cluster specs.');
+                aperture.log.error('Failed to get cluster specs.');
             }
 
             // we need to create all the children of the cluster from the member specs
@@ -1234,17 +1405,6 @@ define(
             // Now issue a rendering request to update the cards of the workspace to
             // reflect the new "showDetails" state.
             renderCallback();
-
-            _log(
-                'user',
-                eventChannel,
-                'Toggle details (e.g. charts) of all visible items',
-                _loggerState.type.WF_MARSHAL,
-                {
-                    sessionId : _UIObjectState.sessionId,
-                    showDetails : data.showDetails
-                }
-            );
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -1286,7 +1446,7 @@ define(
         var _onAddCardToContainer = function(eventChannel, data, renderCallback) {
 
             if (eventChannel != chan.DROP_EVENT && eventChannel != chan.ADD_TO_FILE_REQUEST) {
-                console.error('Drop event handler does not support this event: ' + eventChannel);
+                aperture.log.error('Drop event handler does not support this event: ' + eventChannel);
                 return;
             }
 
@@ -1295,23 +1455,23 @@ define(
             var cardParent = addCard.getParent();
 
             if(addCard == null) {
-                console.error('DropEvent addCard is null, id : ' + data.cardId); return;
+                aperture.log.error('DropEvent addCard is null, id : ' + data.cardId); return;
             }
             else if(targetContainer == null) {
-                console.error('DropEvent targetContainer is null, id : ' + data.containerId); return;
+                aperture.log.error('DropEvent targetContainer is null, id : ' + data.containerId); return;
             }
             else if(cardParent == null) {
-                console.error('DropEvent addCard parent is null, addCard id : ' + data.cardId); return;
+                aperture.log.error('DropEvent addCard parent is null, addCard id : ' + data.cardId); return;
             }
 
             var cardColumn = _getColumnByUIObject(addCard);
             var containerColumn = _getColumnByUIObject(targetContainer);
 
             if(cardColumn == null) {
-                console.error('DropEvent cardColumn is null, addCard id : ' + data.cardId); return;
+                aperture.log.error('DropEvent cardColumn is null, addCard id : ' + data.cardId); return;
             }
             else if(containerColumn == null) {
-                console.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
+                aperture.log.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
             }
 
             var insertedCard;
@@ -1327,16 +1487,14 @@ define(
                 );
             }
 
+            var spinnerContainer = null;
             if(targetContainer.getUIType() == constants.MODULE_NAMES.FILE && data.showSpinner) {
-
-                var fileCluster = targetContainer.getClusterUIObject();
-                if (fileCluster != null) {
-                    fileCluster.showSpinner(true);
-                    aperture.pubsub.publish(
-                        chan.RENDER_UPDATE_REQUEST,
-                        {UIObject :  fileCluster}
-                    );
-                }
+            	spinnerContainer = (targetContainer.getClusterUIObject() != null) ? targetContainer.getClusterUIObject() : targetContainer;
+            	spinnerContainer.showSpinner(true);
+                aperture.pubsub.publish(
+                    chan.RENDER_UPDATE_REQUEST,
+                    {UIObject :  spinnerContainer}
+                );
             }
             
             // If this is a cluster, flatten out the cluster hierarchy
@@ -1355,11 +1513,18 @@ define(
 
                         if (targetContainer.getUIType() == constants.MODULE_NAMES.FILE){
                         	targetContainer = targetContainer.getClusterUIObject();
-                        	
+
+                            // Copy the owner of the inserted cluster or negate ownership if we detect a modification
+                            if (targetContainer.getOwnerId() == '') {
+                                targetContainer.setOwnerId(insertedCard.getOwnerId());
+                            } else {
+                                targetContainer.setOwnerId('');
+                            }
+
                         	if(targetContainer.getUIType() != constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-                        		console.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
+                        		aperture.log.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
                         	}
-                            _modifyContext(containerColumn.getXfId(), 'insert', targetContainer.getDataId(), dataIds);
+                            _modifyContext(containerColumn.getXfId(), 'insert', targetContainer.getDataId(), targetContainer.getContainedCardDataIds());
 
                             // If the file is expanded and we're adding a cluster, collapse the file.
                             if (targetContainer.isExpanded()) {
@@ -1375,8 +1540,8 @@ define(
                             }
                         }
 
-                        if (fileCluster != null) {
-                            fileCluster.showSpinner(false);
+                        if (spinnerContainer != null) {
+                        	spinnerContainer.showSpinner(false);
                         }
                         renderCallback(dataIds);
                     }
@@ -1390,8 +1555,17 @@ define(
                 if (targetContainer.getUIType() == constants.MODULE_NAMES.FILE){
                     targetContainer = targetContainer.getClusterUIObject();
 
+                    if (targetContainer.getOwnerId() == '' &&
+                        targetContainer.getChildren().length == 1 &&
+                        xfUtil.isClusterTypeFromObject(insertedCard)) {
+
+                        targetContainer.setOwnerId(insertedCard.getOwnerId());
+                    } else {
+                        targetContainer.setOwnerId('');
+                    }
+
                     if(targetContainer.getUIType() != constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-                        console.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
+                        aperture.log.error('DropEvent containerColumn is null, targetContainer id : ' + data.containerId); return;
                     }
                 }
 
@@ -1408,8 +1582,8 @@ define(
                     }
                 }
 
-                if (fileCluster != null) {
-                    fileCluster.showSpinner(false);
+                if (spinnerContainer != null) {
+                	spinnerContainer.showSpinner(false);
                 }
 
                 // Update the server side cache with the new cluster hierarchy.
@@ -1431,19 +1605,6 @@ define(
                     }
                 );
             }
-            
-            //Draper instrumentation
-            _log('user', eventChannel, 'Add to file', _loggerState.type.WF_MARSHAL,
-                {
-                    sessionId : _UIObjectState.sessionId,
-                    fileId : targetContainer.getXfId(),
-                    //fileLabel : targetContainer.getLabel(),
-                    xfId : addCard.getXfId(),
-                    //dataId : addCard.getDataId(),
-                    contextId : containerColumn.getXfId(),
-                    childCount: targetContainer.getChildren().length
-                }
-            );
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -1521,20 +1682,27 @@ define(
                     contextId: xfUtil.getUITypeAncestor(objectToBeSelected, 'xfColumn').getXfId()
                 };
 
-                // Add owner ID for summary clusters
-                if (objectToBeSelected.getUIType() === constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                // Add owner ID for summary clusters and owner clusters
+                if (xfUtil.isClusterTypeFromObject(objectToBeSelected)) {
                     _UIObjectState.selectedUIObject.ownerId = objectToBeSelected.getOwnerId();
                 }
 
                 _UIObjectState.singleton.setSelection(objectToBeSelected.getXfId());
             }
 
-            // only publish change event if we can see the results of said change
-            if($('#footer-content').css('display') != 'none') {
-                aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, _UIObjectState.selectedUIObject);
-            }
+            aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, _UIObjectState.selectedUIObject);
 
             renderCallback();
+            
+            
+            var expand = objectToBeSelected != null;
+
+            // expand footer only if something selected. this will trigger an event when done.
+            // should we just listen to selection here?
+			window.setTimeout(function() {
+				aperture.pubsub.publish(chan.FOOTER_STATE_REQUEST, {expand: expand});
+			}, 100);
+
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -1603,7 +1771,7 @@ define(
         var _branchEventHandler = function(eventChannel, data, renderCallback){
 
             if (eventChannel != chan.BRANCH_RIGHT_EVENT && eventChannel != chan.BRANCH_LEFT_EVENT) {
-                console.error('Branch event handler does not support this event: ' + eventChannel);
+                aperture.log.error('Branch event handler does not support this event: ' + eventChannel);
                 return;
             }
 
@@ -1626,17 +1794,6 @@ define(
                 targetColumn = _createColumn();
             }
 
-            _log(
-                'user',
-                eventChannel,
-                'Branch for related links',
-                _loggerState.type.WF_SEARCH,
-                {
-                    sessionId : _UIObjectState.sessionId,
-                    xfId : data.xfId//,
-                    //dataId : sourceObj.getDataId()
-                }
-            );
             aperture.io.rest(
                 '/relatedlinks',
                 'POST',
@@ -1651,7 +1808,13 @@ define(
                             sourceObj.setLeftOperation(toolbarOp.BRANCH);
                         }
 
-                        _updateLinks(true, true, newUIObjects, renderCallback, newUIObjects);
+                        _updateLinks(true, true, newUIObjects, function() {
+                        	targetColumn.sortChildren(DEFAULT_SORT_FUNCTION);
+                        	
+                        	if(renderCallback != null) {
+                        		renderCallback();
+                        	}
+                        }, newUIObjects);
                     } else {
                         renderCallback();
                     }
@@ -1937,7 +2100,7 @@ define(
             var column = _getColumnByUIObject(uiObj);
 
             if (!xfUtil.isClusterTypeFromObject(uiObj)) {
-                console.error('Expand request for a non cluster object');
+                aperture.log.error('Expand request for a non cluster object');
             }
 
             if (uiObj.isExpanded()) {
@@ -1968,17 +2131,6 @@ define(
                     contentType: 'application/json'
                 }
             );
-
-            //Draper instrumentation
-            _log('user', eventChannel, 'Expand and show cluster membership', _loggerState.type.WF_EXAMINE,
-                {
-                    sessionId : _UIObjectState.sessionId,
-                    clusterId : data.xfId,
-                    //dataId : uiObj.getDataId(),
-                    isExpanded : uiObj.isExpanded(),
-                    contextId : column.getXfId()
-                }
-            );
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -1992,7 +2144,7 @@ define(
                 var childSpec = specs[i];
                 var children = clusterObj.getUIObjectsByDataId(childSpec.dataId);
                 if (_.isEmpty(children)) {
-                    console.error('_populateExpandResults: Unable to find child for spec');
+                    aperture.log.error('_populateExpandResults: Unable to find child for spec');
                 } else {
                     for (var j = 0; j < children.length; j++) {
                         children[j].update(childSpec);
@@ -2012,7 +2164,13 @@ define(
 
             var affectedObjects = clusterObj.getChildren();
             affectedObjects.push(clusterObj);
-            _updateLinks(true, true, clusterObj.getChildren(), renderCallback, affectedObjects);
+            _updateLinks(true, true, clusterObj.getChildren(), function() {
+            	clusterObj.sortChildren(DEFAULT_SORT_FUNCTION);
+        	
+            	if(renderCallback != null) {
+            		renderCallback();
+            	}
+            }, affectedObjects);
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -2022,7 +2180,7 @@ define(
             var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 
             if (uiObj.getUIType() != constants.MODULE_NAMES.FILE && !xfUtil.isClusterTypeFromObject(uiObj)) {
-                console.error('Collapse request for a non cluster or file object');
+                aperture.log.error('Collapse request for a non cluster or file object');
             }
 
             var affectedObjects = uiObj.getChildren();
@@ -2057,17 +2215,6 @@ define(
 
             _updateLinks(true, true, [uiObj], renderCallback, affectedObjects);
 
-            var column = _getColumnByUIObject(uiObj);
-            //Draper instrumentation
-            _log('user', eventChannel, 'Collapse and hide cluster membership', _loggerState.type.WF_MARSHAL,
-                {
-                    sessionId : _UIObjectState.sessionId,
-                    clusterId : data.xfId,
-                    //dataId : uiObj.getDataId(),
-                    isExpanded : uiObj.isExpanded(),
-                    contextId: column.getXfId()
-                }
-            );
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -2087,19 +2234,17 @@ define(
         //--------------------------------------------------------------------------------------------------------------
 
         var _removeObject = function(objToRemove, eventChannel, removeEmptyColumn, dispose) {
+
+            if (objToRemove === null) {
+                // Object no longer exists
+                return;
+            }
+
             var parent = objToRemove.getParent();
             var dataId = objToRemove.getDataId();
 
             // Find the source column.
             var sourceColumn = _getColumnByUIObject(objToRemove);
-
-            _log('user', eventChannel, 'Remove UI Object', _loggerState.type.WF_MARSHAL, {
-                sessionId : _UIObjectState.sessionId,
-                xfId : objToRemove.getXfId(),
-                //dataId : dataId,
-                type : objToRemove.getUIType(),
-                contextId : sourceColumn.getXfId()
-            });
 
             if (objToRemove.getUIType() == constants.MODULE_NAMES.MATCH) {
                 
@@ -2128,6 +2273,9 @@ define(
                 }
             }
             else if (parent.getUIType() === constants.MODULE_NAMES.MUTABLE_CLUSTER){
+                // Removed ownership when modifying a mutable cluster
+                parent.setOwnerId('');
+
                 _modifyContext(sourceColumn.getXfId(), 'remove', parent.getDataId(), [dataId]);
             }
 
@@ -2280,9 +2428,6 @@ define(
         var _onCreateFileRequest = function(eventChannel, data, renderCallback) {
             var sourceObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
             var	columnUIObj;
-            var sourceObjOriginalParent = sourceObj.getParent();
-            var collapseFile = false;
-            var copied = false;
 
             if (!data.isColumn) {
             	columnUIObj = _getColumnByUIObject(sourceObj);
@@ -2308,62 +2453,6 @@ define(
             if(data.showSpinner) {
             	renderCallback();
         	}
-            
-            var linkCallback = function() {
-                if(sourceObjOriginalParent != null && sourceObjOriginalParent.getChildren().length == 0) {
-                    aperture.pubsub.publish(
-                        chan.REMOVE_REQUEST,
-                        {
-                            xfIds : [sourceObjOriginalParent.getXfId()],
-                            removeEmptyColumn : true,
-                            dispose : true
-                        }
-                    );
-                }
-
-                var linkingObjects = [];
-                if (fileUIObj.getClusterUIObject().isExpanded()) {
-                    linkingObjects = fileUIObj.getClusterUIObject().getChildren();
-
-                } else {
-                    linkingObjects.push(fileUIObj.getClusterUIObject());
-                }
-
-                var affectedObjects = fileUIObj.getClusterUIObject().getChildren();
-                affectedObjects.push(fileUIObj.getClusterUIObject());
-                if (copied) {
-                    affectedObjects.push(sourceObj);
-                }
-
-                _updateLinks(true, true, linkingObjects, renderCallback, affectedObjects);
-            };
-
-            var showMatchcardCallback = function() {
-                if(data.showMatchCard) {
-                    _onShowMatchRequest(
-                        chan.SHOW_MATCH_REQUEST,
-                        {
-                            xfId : fileUIObj.getXfId(),
-                            startSearch : true
-                        },
-                        linkCallback
-                    );
-                } else {
-                    linkCallback();
-                }
-            };
-
-            _log(
-                'user',
-                eventChannel,
-                'Create new file',
-                _loggerState.type.WF_SEARCH,
-                {
-                    sessionId : _UIObjectState.sessionId,
-                    xfId : fileUIObj.getXfId(),
-                    contextId : columnUIObj.getXfId()
-                }
-            );
 
             if (!data.isColumn) {
 
@@ -2536,16 +2625,6 @@ define(
                             );
                         }
                     );
-
-                     _log(
-                		'user',
-                		eventChannel,
-                		'Export graph to an image.',
-                		_loggerState.type.WF_MARSHAL,
-                		{
-                    		sessionId : _UIObjectState.sessionId
-                		}
-            		);
                 };
 
                 if (response == 'NONE' || response == 'ERROR') {
@@ -2622,16 +2701,6 @@ define(
                             contentType: 'application/json'
                         }
                     );
-
-                    _log(
-                		'user',
-                		eventChannel,
-                		'Export graph to as XML',
-                		_loggerState.type.WF_MARSHAL,
-                		{
-                    		sessionId : _UIObjectState.sessionId
-                		}
-            		);
                 };
 
                 if (response == 'NONE' || response == 'ERROR') {
@@ -2790,7 +2859,7 @@ define(
         var _getColumnByUIObject = function(uiObject){
             var columnObj = xfUtil.getUITypeAncestor(uiObject, constants.MODULE_NAMES.COLUMN);
             if (columnObj == null){
-                console.error('The UIObjectId: ' + uiObject.getXfId() + ' does not have a valid parent column.');
+                aperture.log.error('The UIObjectId: ' + uiObject.getXfId() + ' does not have a valid parent column.');
             }
             return columnObj;
         };
@@ -2954,7 +3023,7 @@ define(
         var initModule = function(module){
 
             module.clone = function() {
-                console.error('Unable to clone workspace');
+                aperture.log.error('Unable to clone workspace');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -3034,14 +3103,14 @@ define(
             //----------------------------------------------------------------------------------------------------------
 
             module.collapseLinks = function(direction) {
-                console.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             module.remove = function() {
                 // Workspaces cannot be removed, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "remove".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "remove".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -3193,7 +3262,7 @@ define(
 
             module.isSelected = function() {
                 // Workspaces cannot be selected, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -3216,14 +3285,14 @@ define(
 
             module.expand = function() {
                 // Workspace objects cannot be expanded, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "expand".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "expand".');
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             module.collapse = function() {
                 // Workspace objects cannot be collapsed, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "collapse".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapse".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -3332,7 +3401,7 @@ define(
                         columnUIObj.restoreVisualState(state.children[i]);
                         this.insert(columnUIObj, null);
                     } else {
-                        console.error("workspace children should only be of type " + constants.MODULE_NAMES.COLUMN + ".");
+                        aperture.log.error("workspace children should only be of type " + constants.MODULE_NAMES.COLUMN + ".");
                     }
                 }
             };
@@ -3554,7 +3623,6 @@ define(
             subTokens[chan.HIGHLIGHT_SEARCH_ARGUMENTS] = aperture.pubsub.subscribe(chan.HIGHLIGHT_SEARCH_ARGUMENTS, _pubsubHandler);
             subTokens[chan.REQUEST_CURRENT_STATE] = aperture.pubsub.subscribe(chan.REQUEST_CURRENT_STATE, _pubsubHandler);
             subTokens[chan.REQUEST_OBJECT_BY_XFID] = aperture.pubsub.subscribe(chan.REQUEST_OBJECT_BY_XFID, _pubsubHandler);
-            subTokens[chan.FOOTER_STATE] = aperture.pubsub.subscribe(chan.FOOTER_STATE, _pubsubHandler);
             subTokens[chan.SORT_COLUMN_REQUEST] = aperture.pubsub.subscribe(chan.SORT_COLUMN_REQUEST, _pubsubHandler);
 
             _UIObjectState.subscriberTokens = subTokens;

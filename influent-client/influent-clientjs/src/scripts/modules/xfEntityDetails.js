@@ -61,24 +61,28 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
 
                 _UIObjectState.lastRequestedObject = data.xfId;
 
-                if (data.uiType == constants.MODULE_NAMES.ENTITY ||
-                    data.uiSubtype == constants.SUBTYPES.ACCOUNT_OWNER
-                ) {
+                if (!data.hasOwnProperty('imageIdx')) {
+                    data.imageIdx = 0;
+                }
+
+                if (data.uiType == constants.MODULE_NAMES.ENTITY)
+                {
                     // cache icon set
                     var iconList = xfWorkspace.getUIObjectByXfId(data.xfId).getVisualInfo().spec['icons'];
-                    var obj = xfWorkspace.getUIObjectByXfId(data.xfId);
 
                     // get details for entity here
                     aperture.io.rest(
-                        '/entitydetails?queryId='+(new Date()).getTime()+'&entityId='+data.dataId,
+                        '/entitydetails?queryId='+(new Date()).getTime() + '&entityId=' + data.dataId + '&imageIdx=' + data.imageIdx,
                         'GET',
                         function(response){
                             $('#details').html(response.content);
 
-                            // HACK: Ensure clusters are named by their visual info labels in order to pick up count
-                            $('#detailsHeaderInfo')
-                                .find('.textNodeContainer')
-                                .html("<b>" + obj.getVisualInfo().spec.label + "</b>");
+                            // FIXME: Copy the label from the card's visualInfo to ensure any count is correct
+                            var obj = xfWorkspace.getUIObjectByXfId(data.xfId);
+                            $('#detailsHeaderInfo').find('.detailsEntityLabel').html("<b>" + obj.getVisualInfo().spec.label + "</b>");
+
+                            // Add image carousel buttons if necessary
+                            _addImageCarouselButtons(data);
 
                             var parent = $('<div class="detailsIconContainer"></div>').appendTo('#detailsHeaderInfo');
                             var url;
@@ -105,14 +109,22 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
                             }
                         }
                     );
-                } else if (data.uiType == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
-                	var detailsId = (data.ownerId !== null) ? data.ownerId : data.dataId;
+                } else if (data.hasOwnProperty("ownerId") && data.ownerId != '') {
+
                     // get details for entity here
                     aperture.io.rest(
-                        '/entitydetails?queryId='+(new Date()).getTime()+'&entityId=' + detailsId,
+                        '/entitydetails?queryId='+(new Date()).getTime() + '&entityId=' + data.ownerId + '&imageIdx=' + data.imageIdx,
                         'GET',
                         function(response){
                             $('#details').html(response.content);
+
+                            // FIXME: Copy the label from the card's visualInfo to ensure any count is correct
+                            var obj = xfWorkspace.getUIObjectByXfId(data.xfId);
+                            $('#detailsHeaderInfo').find('.detailsEntityLabel').html("<b>" + obj.getVisualInfo().spec.label + "</b>");
+
+                            // Add image carousel buttons if necessary
+                            _addImageCarouselButtons(data);
+
                             _createClusterSummaryDetails(data.xfId);
                         }
                     );
@@ -144,8 +156,8 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
 
             var div = $('#details');
 
-            var detailsHeader = $('<div class="clusterDetailsHeader"></div>').appendTo(div);
-            detailsHeader.append('<span class="clusterDetailsTitle">Cluster Member Summary<span><br>');
+            var detailsHeader = $('<div class="detailsHeader"></div>').appendTo(div);
+            detailsHeader.append('<span class="detailsTitle">Cluster Member Summary<span><br>');
 
             var label = spec.label;
 
@@ -178,6 +190,20 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
         var _createClusterSummaryDetails = function(xfId) {
 
             var obj = xfWorkspace.getUIObjectByXfId(xfId);
+
+            // no longer accessible, disable selection
+            if(obj === null) {
+                aperture.pubsub.publish(
+                    chan.SELECTION_CHANGE_REQUEST,
+                    {
+                        xfId: null,
+                        selected : true,
+                        noRender: true
+                    }
+                );
+                return;
+            }
+
             var iconList = xfWorkspace.getUIObjectByXfId(xfId).getVisualInfo().spec['icons'];
 
             var parent = $('<div class="detailsIconContainer"></div>').appendTo('#detailsHeaderInfo');
@@ -208,8 +234,8 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
 
             var div = $('#details');
 
-            var detailsHeader = $('<div class="clusterDetailsHeader"></div>').appendTo(div);
-            detailsHeader.append('<span class="clusterDetailsTitle">Owner Account Summary<span><br>');
+            var detailsHeader = $('<div class="detailsHeader"></div>').appendTo(div);
+            detailsHeader.append('<span class="detailsTitle">Owner Account Summary<span><br>');
 
             var label = spec.label;
 
@@ -297,6 +323,40 @@ define(['jquery', 'modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/cons
 
             if (row != null) {
             	parent.append(row);
+            }
+        };
+
+        var _addImageCarouselButtons = function(data) {
+
+            var controls = $('#detailsHeaderPhoto').find('.photoCarouselControls');
+            if (controls) {
+
+                var prevButton = $('<button></button>').button({
+                    icons: {
+                        primary: "ui-icon-carat-1-w"
+                    },
+                    text:false
+                }).addClass('prevPhotoButton');
+                prevButton.click(function() {
+                    console.log(data.imageIdx);
+                    data.imageIdx -= 1;
+                    console.log(data.imageIdx);
+                    aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, data);
+                });
+
+                var nextButton = $('<button></button>').button({
+                    icons: {
+                        primary: "ui-icon-carat-1-e"
+                    },
+                    text:false
+                }).addClass('nextPhotoButton');
+                nextButton.click(function() {
+                    data.imageIdx += 1;
+                    aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, data);
+                });
+
+                controls.prepend(prevButton);
+                controls.append(nextButton);
             }
         };
 

@@ -95,9 +95,13 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		try {
 			_cfd.readDescriptorsFromFile(solrDescriptor);
 		} catch (IOException e) {
-			s_logger.warn("Exception reading entity descriptors "+e.getMessage(),e);
+			getLogger().warn("Exception reading entity descriptors "+e.getMessage(),e);
 		}
 		
+	}
+	
+	protected Logger getLogger() {
+		return s_logger;
 	}
 	
 	private FL_PropertyMatchDescriptor filterIds(FL_PropertyMatchDescriptor pst, Map<String, List<String>> brokerIds) {
@@ -122,7 +126,7 @@ public class KivaEntitySearch implements FL_EntitySearch {
 			for (Object obj : values) {
 				final String id = TypedId.fromTypedId(String.valueOf(obj)).getNativeId();
 				
-				if (id.charAt(0) == 'p') {
+				if (id != null && id.charAt(0) == 'p') {
 					final int idash = id.indexOf('-');
 					
 					if (idash != -1) {
@@ -182,13 +186,13 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		final String searchStr = SolrUtils.toSolrQuery(searchTerms, s_basicSearchKeys, filteredTerms);
 	
 		// issue the query.
-		s_logger.info("Issuing Solr Query "+ searchStr);
+		getLogger().info("Issuing Solr Query "+ searchStr);
 		
 		SolrQuery query = new SolrQuery();
 		query.setQuery(searchStr);
 		query.setFields("*", "score");
 		
-		KivaEntitySearchIterator ssr = new KivaEntitySearchIterator(_solr, query, _geocoding);
+		KivaEntitySearchIterator ssr = buildKivaEntitySearchIterator(_solr, query, _geocoding);
 		
 		if (start >= 0) {
 			ssr.setStartIndex((int) start);
@@ -240,19 +244,22 @@ public class KivaEntitySearch implements FL_EntitySearch {
 			
 			// separately grab the FinEntity stats
 			String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
+			String finEntityEntityId = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
+			String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
+			String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
 
-			String sql = "select EntityId, UniqueInboundDegree, UniqueOutboundDegree " +
+			String sql = "select " + finEntityEntityId + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " " +
 							" from " + finEntityTable +
-							" where EntityId in " +  DataAccessHelper.createInClause(rawIds);
+							" where " + finEntityEntityId + " in " +  DataAccessHelper.createInClause(rawIds);
 			
-			s_logger.info(sql);
+			getLogger().info(sql);
 			
 			if (!rawIds.isEmpty() && stmt.execute(sql)) {
 				ResultSet rs = stmt.getResultSet();
 				while (rs.next()) {
-					String entityId = rs.getString("EntityId");
-					int inDegree = rs.getInt("UniqueInboundDegree");
-					int outDegree = rs.getInt("UniqueOutboundDegree");
+					String entityId = rs.getString(finEntityEntityId);
+					int inDegree = rs.getInt(finEntityUniqueInboundDegree);
+					int outDegree = rs.getInt(finEntityUniqueOutboundDegree);
 				
 					entityStats.put(entityId, new int[]{inDegree, outDegree});
 				}
@@ -282,4 +289,7 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		return _cfd.getEntityDescriptors();
 	}
 
+	public KivaEntitySearchIterator buildKivaEntitySearchIterator(SolrServer solr, SolrQuery query, FL_Geocoding geocoding) {
+		return new KivaEntitySearchIterator(solr, query, geocoding);
+	}
 }

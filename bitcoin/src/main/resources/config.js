@@ -29,9 +29,11 @@
 	 */
 	'aperture.log' : {
 		'level' : 'info',
+		'logWindowErrors' : {'log': true, 'preventDefault': true},
 		'appenders' : {
 			// Log to the console (if exists)
-			'consoleAppender' : {'level': 'info'}
+			'consoleAppender' : {'level': 'info'},
+			'notifyAppender' : {'level': 'error'}
 		}
 	},
 

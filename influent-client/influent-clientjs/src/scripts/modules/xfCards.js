@@ -143,7 +143,17 @@ define(
             spec.label = label;
             spec.inDegree = xfWorkspace.getValueByTag(elementData, 'INFLOWING');
             spec.outDegree = xfWorkspace.getValueByTag(elementData, 'OUTFLOWING');
-            spec.ownerId = xfWorkspace.getValueByTag(elementData, 'ACCOUNT_OWNER');
+
+            if (spec.subtype == constants.SUBTYPES.ACCOUNT_OWNER) {
+                spec.ownerId = spec.dataId;
+            } else {
+                spec.ownerId = xfWorkspace.getValueByTag(elementData, 'ACCOUNT_OWNER');
+                
+				// FIXME: Temp fix to protect against incoming null tags
+                if (spec.ownerId === null) {
+                    spec.ownerId = '';
+                }
+            }
         };
 
         //----------------------------------------------------------------------------------------------------------

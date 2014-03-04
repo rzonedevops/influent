@@ -26,6 +26,8 @@ package influent.server.dataaccess;
 
 import java.util.Map;
 
+import oculus.aperture.spi.common.Properties;
+
 import org.json.JSONException;
 
 
@@ -51,8 +53,8 @@ public class MSSQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	 * 
 	 * @throws JSONException 
 	 */
-	public MSSQLDataNamespaceHandler(String tableNamesJson) throws JSONException {
-		super(tableNamesJson);
+	public MSSQLDataNamespaceHandler(Properties config) throws JSONException {
+		super(config);
 	}
 	
 	

@@ -47,9 +47,21 @@ public class GenericEntityPropertiesView implements EntityPropertiesViewService 
 	private final String defaultIconUrl = "rest/icon/aperture-hscb/Person?iconWidth=32&amp;iconHeight=32";
 	private final DateTimeFormatter date_formatter = DateTimeFormat.forPattern("dd MMM yyyy");
 
-	protected String getImageUrl(FL_Entity entity, int width, int height){
+	protected String getImageUrl(FL_Entity entity, int index){
 		// Get the image id.
-		PropertyHelper imagep = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.IMAGE);
+		
+		int count = 0;
+		PropertyHelper imagep = null;
+		
+		for (FL_Property property : entity.getProperties()) {
+			if (property.getTags().contains(FL_PropertyTag.IMAGE)) {
+				if (count == index) {
+					imagep = PropertyHelper.from(property);
+					break;
+				}
+				count++;
+			}
+		}		
 		
 		// If a non-valid, zero id is returned, use the default image.
 		if (imagep == null || imagep.getValue() == null || imagep.getValue().toString().trim().isEmpty()) {
@@ -57,6 +69,18 @@ public class GenericEntityPropertiesView implements EntityPropertiesViewService 
 		}
 		return imagep.getValue().toString();
 	}
+	
+	protected int getImagesCount(FL_Entity entity){
+		// Get the image id.
+		
+		int count = 0;
+		for (FL_Property property : entity.getProperties()) {
+			if (property.getTags().contains(FL_PropertyTag.IMAGE)) {
+				count++;
+			}
+		}		
+		return count;
+	}	
 	
 	protected Dimension getImageBoxSize() {
 		return new Dimension(125, 50);
@@ -76,40 +100,48 @@ public class GenericEntityPropertiesView implements EntityPropertiesViewService 
 	protected void processProperties(List<FL_Property> properties) { }
 	
 	@Override
-	public String getContent(FL_Entity entity) throws DataAccessException {
+	public String getContent(FL_Entity entity, int imageIdx) throws DataAccessException {
 		PropertyHelper labelp = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.NAME);
 		if (labelp == null) {
 			labelp = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.LABEL);
 		}
 		
-		String label = labelp.getValue().toString();
 		
+		String label = labelp.getValue().toString();
+
+		// If we have more than one image, wrap imageCount around in both directions
+		int imageCount = getImagesCount(entity);
+		imageIdx = imageCount == 0 ? 0 : (imageIdx % imageCount + imageCount) % imageCount;
+			
 		//Construct the HTML.
 		StringBuilder html = new StringBuilder();		
-		String imageUrl = getImageUrl(entity, 200, 150);
+		String imageUrl = getImageUrl(entity, imageIdx);
 		Dimension imageDim = getImageBoxSize();
-		PropertyHelper imagep = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.IMAGE);
-		if(imagep.getUncertainty() != null) {
-			imageDim = new Dimension(imagep.getUncertainty().getConfidence().intValue(), imagep.getUncertainty().getCurrency().intValue());
-		}
 		
 		List<FL_Property> properties = entity.getProperties();
 		processProperties(properties);
 
 
-		html.append("<div id='detailsHeader' style='width: 100%; overflow: hidden;'>");
-		html.append("	<div id='detailsHeaderInfo'>");
-		html.append("		<div class='textNodeContainer' style='top: 37px; left: 0px;'>"); 
+		html.append("<div class='detailsHeader'>");
+		html.append("	<div id='detailsHeaderInfo'><span class='detailsTitle'>Account Details</span> ");
+		html.append("		<div class='detailsEntityLabel'>"); 
 		html.append("			<b>"+label+"</b>");
 
 		html.append("		</div>");
 		html.append("	</div>");
-		html.append("	<div id='detailsHeaderPhoto' style='min-width:"+imageDim.width+"px; max-width:"+imageDim.width+"px; min-height:"+imageDim.height+"px; max-height:"+imageDim.height+"px;'>");
+		html.append("	<div id='detailsHeaderPhoto' style='width:"+imageDim.width+"px; height:"+imageDim.height+"px;'>");
 
 		if (imageUrl != null) {
 			html.append(" 		<div style='float: right; clear: left;'>");
-			html.append("			<img src='" + imageUrl + "' style='image-rendering:optimizeQuality;'>");
+			html.append("			<a href='" + imageUrl + "' target='_blank'><img src='" + imageUrl + "' style='image-rendering:optimizeQuality;' border='0'></a>");
 			html.append("		</div>");
+			
+			if (imageCount > 1) {
+					
+				html.append("		<div class='photoCarouselControls'>");
+				html.append("			<div class='photoCarouselLabel'>" + (imageIdx + 1) + " of " + imageCount + "</div>");
+				html.append("		</div>");
+			}
 		}
 		
 		html.append("	</div>");

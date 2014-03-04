@@ -32,7 +32,7 @@ import influent.server.spi.impl.GenericEntityPropertiesView;
 public class BitcoinAccountPropertiesView extends GenericEntityPropertiesView {
 	
 	@Override
-	protected String getImageUrl(FL_Entity entity, int width, int height){
+	protected String getImageUrl(FL_Entity entity, int imageIdx){
 		return "img/bitcoin_default.png";
 	}
 	

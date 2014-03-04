@@ -24,6 +24,12 @@
  */
 package influent.server.clustering;
 
+import influent.idl.FL_Cluster;
+import influent.idl.FL_Entity;
+import influent.idlhelper.PropertyHelper;
+import influent.server.clustering.utils.EntityClusterFactory;
+import influent.server.clustering.utils.ClustererProperties;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -35,18 +41,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.oculusinfo.ml.utils.StringTools;
+import oculus.aperture.spi.common.Properties;
 
-import influent.idl.FL_Cluster;
-import influent.idl.FL_Entity;
-import influent.idlhelper.PropertyHelper;
-import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.clustering.utils.PropertyManager;
+import com.oculusinfo.ml.utils.StringTools;
 
 public class LabelEntityClusterer extends BaseEntityClusterer {
 	private static Set<String> stopwords;
 	
-	private PropertyManager pMgr;
+	private Properties pMgr;
 	private String clusterType;
 	
 	private Set<String> getStopWords() {
@@ -54,7 +56,7 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 		
 		try {
 			// retrieve the stopwords property
-			String stopwordsProp = pMgr.getProperty(PropertyManager.STOP_WORDS);
+			String stopwordsProp = pMgr.getString(ClustererProperties.STOP_WORDS, "");
 			
 			for (String word : stopwordsProp.split(",")) {
 				stopwords.add(word.toLowerCase());
@@ -91,7 +93,7 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 			clusterFactory = (EntityClusterFactory)args[0];
 			clusterField = (String)args[1];
 			clusterType = (String)args[2];
-			pMgr = (PropertyManager)args[3];
+			pMgr = (Properties)args[3];
 			stopwords = getStopWords();
 		 }
 		 catch (Exception e) {
@@ -116,7 +118,7 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 					}
 					else {
 						// first strip out stop words from label
-						if (Boolean.parseBoolean(pMgr.getProperty(PropertyManager.ENABLE_STOPWORDS, "false"))) {
+						if (pMgr.getBoolean(ClustererProperties.ENABLE_STOPWORDS, false)) {
 							List<String> tokens = tokenizeString(value);
 							StringBuilder str = new StringBuilder();
 							for (String token : tokens) {
@@ -153,7 +155,7 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 					}
 					else {
 						// first strip out stop words from label
-						if (Boolean.parseBoolean(pMgr.getProperty(PropertyManager.ENABLE_STOPWORDS, "false"))) {
+						if (pMgr.getBoolean(ClustererProperties.ENABLE_STOPWORDS, false)) {
 							List<String> tokens = tokenizeString(value);
 							StringBuilder str = new StringBuilder();
 							for (String token : tokens) {

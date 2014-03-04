@@ -70,24 +70,24 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 
 	private static Logger s_logger = org.slf4j.LoggerFactory.getLogger(KivaEntitySearchIterator.class);
 	
-	private int REFRESH_SIZE=200;
+	protected int REFRESH_SIZE=200;
 	
 	
-	private SolrServer _server;
-	private SolrQuery _query;
+	protected SolrServer _server;
+	protected SolrQuery _query;
 	
-	private final FL_Geocoding _geocoding;
+	protected final FL_Geocoding _geocoding;
 	
 	//Current query response
-	private QueryResponse _qResp;
-	private int _curIdx=0;
-	private int _nextLocalIdx=0;
+	protected QueryResponse _qResp;
+	protected int _curIdx=0;
+	protected int _nextLocalIdx=0;
 
-	private int _totalResults;
-	private int _maxResults=-1;
-	private int _startIdx = 0;
+	protected int _totalResults;
+	protected int _maxResults=-1;
+	protected int _startIdx = 0;
 	
-	private List<FL_SearchResult> _curResults;
+	protected List<FL_SearchResult> _curResults;
 	
 	//Handle id prefixes for 'federated' management
 	@SuppressWarnings("unused")
@@ -118,6 +118,10 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		if (_maxResults < REFRESH_SIZE) {
 			REFRESH_SIZE = _maxResults+1;
 		}
+	}
+	
+	protected Logger getLogger() {
+		return s_logger;
 	}
 	
 	@Override
@@ -161,7 +165,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 	 * iterated over the current set.
 	 * @return
 	 */
-	private boolean needsRefresh() {
+	protected boolean needsRefresh() {
 		if (_qResp == null) return true;
 		if (_totalResults == -1) return true;
 		
@@ -171,9 +175,9 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		return false;
 	}
 
-	private void doRefresh(int startIdx, int pageSize)  {
+	protected void doRefresh(int startIdx, int pageSize)  {
 		try {
-			s_logger.warn("fetching solr page : (@"+startIdx+" of size "+pageSize+")");
+			getLogger().warn("fetching solr page : (@"+startIdx+" of size "+pageSize+")");
 			_query.setRows(pageSize).setStart(startIdx);
 			_qResp = _server.query(_query);
 			if (_totalResults == -1) {
@@ -194,13 +198,14 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 			
 			_nextLocalIdx = 0;
 		} catch (SolrException e) {
-			s_logger.error("Solr query error: " + e.getMessage());
+			getLogger().error("Solr query error: " + e.getMessage());
+			throw new AvroRuntimeException("Solr query error: "+e.getMessage(),e); 
 		} catch (Exception e) {
 			throw new AvroRuntimeException("Error paging search results "+e.getMessage(),e); 
 		}
 	}
 	
-	private FL_Entity buildEntityFromDocument(SolrDocument sd) {
+	protected FL_Entity buildEntityFromDocument(SolrDocument sd) {
 		
 		FL_Entity.Builder entityBuilder = FL_Entity.newBuilder();
 		List<FL_Property> props = new ArrayList<FL_Property>();
@@ -298,7 +303,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 				KivaPropertyMapping keyMapping = KivaPropertyMaps.INSTANCE.getPropMap().get(key);
 				
 				if (val instanceof Collection) {
-					s_logger.warn("Prop "+key+" has a "+val.getClass()+" value, skipping for now");
+					getLogger().warn("Prop "+key+" has a "+val.getClass()+" value, skipping for now");
 					continue;
 				} else {
 					if (keyMapping != null) {
@@ -388,7 +393,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 			try {
 				_geocoding.geocode(geos);
 			} catch (AvroRemoteException e) {
-				s_logger.info("Failed to geocode entity", e);
+				getLogger().info("Failed to geocode entity", e);
 			}
 			
 			Object geoVal = (geos.size() > 1)? 

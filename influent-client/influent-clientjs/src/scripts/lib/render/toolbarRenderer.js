@@ -24,10 +24,10 @@
  */
 define(
     [
-        'jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/ui/toolbarOperations', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/util/currency'
+        'jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/ui/toolbarOperations', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/util/currency', 'lib/plugins'
     ],
     function(
-        $, chan, xfUtil, toolbarOp, xfModalDialog, constants, currency
+        $, chan, xfUtil, toolbarOp, xfModalDialog, constants, currency, plugins
     ) {
         var _toolbarState = {
             canvas : null,
@@ -42,7 +42,8 @@ define(
         };
 
         var _renderDefaults = {
-          TOOLBAR_BTN_HEIGHT : 20
+          TOOLBAR_BTN_HEIGHT : 20,
+          CARD_BUTTON_HEIGHT : 24
         };
 
         var _isVisualDescendant = function(visualInfo, uiType){
@@ -126,7 +127,8 @@ define(
             		.appendTo(_toolbarState.canvas);
             	
             	if (inDegree != 0) {
-            		leftImg = $('<div class="toolbarOpImg"/>')
+            		leftImg = _makeButton('branch left to inflowing sources','expand')
+            			.addClass('branch-button')
             			.appendTo(leftOp);
             	}
             	
@@ -144,20 +146,20 @@ define(
             
             if (leftImg != null) {	
                 leftImg.unbind('click');
-           		leftImg.removeClass('toolbarOpImgWorking');
+                leftImg.removeClass('button-branching');
             	if (requestedLeftOp == toolbarOp.BRANCH) {
             		leftImg.click(
             				function() {
             					publishBranchRequest(chan.BRANCH_LEFT_EVENT, 'left');
-            					return true;
+            					event.stopPropagation();
             				}
             		);
             	} else if (requestedLeftOp == toolbarOp.WORKING) {
-               		leftImg.addClass('toolbarOpImgWorking');
+                    leftImg.addClass('button-branching');
             	}
             	_toolbarState.leftOpState = requestedLeftOp;
             }
-            leftOp.css('top', (cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/2);
+            leftOp.css('top', (cardHeight - _renderDefaults.CARD_BUTTON_HEIGHT)/2);
             
             _toolbarState.rightOp = _getStateElement('.rightOp');
             var rightImg = null;
@@ -167,7 +169,8 @@ define(
             		.appendTo(_toolbarState.canvas);
             	
             	if (outDegree != 0) {
-            		rightImg = $('<div class="toolbarOpImg"/>')
+            		rightImg = _makeButton('branch right to outflowing destinations','expand')
+            			.addClass('branch-button')
             			.appendTo(rightOp);
             	}
             	
@@ -184,20 +187,20 @@ define(
             
             if (rightImg != null) {
             	rightImg.unbind('click');
-        		rightImg.removeClass('toolbarOpImgWorking');
+                rightImg.removeClass('button-branching');
             	if (requestedRightOp == toolbarOp.BRANCH) {
             		rightImg.click(
             				function() {
             					publishBranchRequest(chan.BRANCH_RIGHT_EVENT, 'right');
-            					return true;
+            					event.stopPropagation();
             				}
             		);
             	} else if (requestedRightOp == toolbarOp.WORKING ) {
-            		rightImg.addClass('toolbarOpImgWorking');
+                    rightImg.addClass('button-branching');
             	}
             	_toolbarState.rightOpState = requestedRightOp;
             }
-            rightOp.css('top', (cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/2);
+            rightOp.css('top', (cardHeight - _renderDefaults.CARD_BUTTON_HEIGHT)/2);
             
             var publishBranchRequest = function(branchEvent, direction) {
                 aperture.pubsub.publish(
@@ -218,13 +221,27 @@ define(
                     containedIds = containedIds.concat(visualInfo.clusterUIObject.getContainedCardDataIds());
                 }
             } else if (visualInfo.UIType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-                for (var i = 0; i < visualInfo.children.length; i++) {
-                    var child = visualInfo.children[i];
-                    if (child.getUIType() == constants.MODULE_NAMES.ENTITY && child.getDataId() != null) {
-                        containedIds.push(child.getDataId());
-                    } else if (child.getUIType() == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-                        containedIds = containedIds.concat(child.getContainedCardDataIds());
+
+                if (visualInfo.spec.hasOwnProperty("ownerId") && visualInfo.spec.ownerId != '') {
+                    containedIds.push(visualInfo.spec.ownerId);
+                } else {
+                    for (var i = 0; i < visualInfo.children.length; i++) {
+                        var child = visualInfo.children[i];
+
+                        if (xfUtil.isClusterTypeFromObject(child) && child.getOwnerId() != '') {
+                            containedIds.push(child.getOwnerId());
+                        } else {
+                            if (child.getUIType() == constants.MODULE_NAMES.ENTITY && child.getDataId() != null) {
+                                containedIds.push(child.getDataId());
+                            } else if (child.getUIType() == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
+                                containedIds = containedIds.concat(child.getContainedCardDataIds());
+                            }
+                        }
                     }
+                }
+            } else if (visualInfo.UIType == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+                if (visualInfo.spec.hasOwnProperty("ownerId") && visualInfo.spec.ownerId != '') {
+                    containedIds.push(visualInfo.spec.ownerId);
                 }
             } else if (visualInfo.UIType == constants.MODULE_NAMES.ENTITY) {
                 containedIds.push(visualInfo.spec.dataId);
@@ -233,141 +250,122 @@ define(
             return containedIds;
         };
 
+        function _makeButton(title, icon) {
+			return $('<button class="card-button"></button>')
+				.text(title)
+				.button({text: false,
+					icons: {primary : icon}
+				});
+        }
+        
         var _createToolbar = function(visualInfo, cardWidth){
             // Create toolbar buttons.
             _toolbarState.toolbarDiv = _getStateElement('.cardToolbar');
             var buttonItemList = [];
 
             if (_toolbarState.toolbarDiv == null){
-                _toolbarState.toolbarDiv = $('<div>');
-                _toolbarState.toolbarDiv.addClass('cardToolbar');
-                _toolbarState.toolbarDiv.css('position','absolute');
+                _toolbarState.toolbarDiv = $('<div class="cardToolbar"></div>');
 
-                // extra padding to ensure toolbar and it's target don't allow mouse over events to fall between them
-                _toolbarState.toolbarDiv.css('padding-bottom', 3);
                 _toolbarState.canvas.append(_toolbarState.toolbarDiv);
 
                 // If this card is a branch result, show
                 // the additional controls like the
                 // new file folder button, etc.
                 if (visualInfo.showToolbar){
-                    var buttonCount = 1;
                     // File button
                     var bFileable = visualInfo.toolbarSpec['allowFile'];
                     if (bFileable === true) {
-                        var fileDiv = $('<div class="new-file-button">');
-                        fileDiv.click(function() {
-                            // Check if this cluster is within the max. cluster count threshold.
-                            // If it isn't, alert the user that this action may take a while.
-                            var clusterCount = visualInfo.spec.count;
-                            var isLargeCluster = clusterCount && clusterCount > _toolbarState.maxClusterCount;
-                            if (isLargeCluster){
-                                xfModalDialog.createInstance({
-                                    title : 'Add Cluster to File?',
-                                    contents : 'Adding large clusters to file may take longer than expected. Do you wish to continue?',
-                                    buttons : {
-                                        "Add File" : function() {
-                                            aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : true});
-                                        },
-                                        "Cancel" : function() {}
-                                    }
-                                });
-                            }
-                            else {
-                                aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : false});
-                            }
-                            return false;
-                        });
+                    	var isCopy = 
+                    		visualInfo.spec.parent.getUIType() == constants.MODULE_NAMES.IMMUTABLE_CLUSTER;
+                    	
+                        var fileButton = _makeButton(isCopy? 'copy to new file':'move to new file', 'new-file').click(
+	                        function() {
+	                            // Check if this cluster is within the max. cluster count threshold.
+	                            // If it isn't, alert the user that this action may take a while.
+	                            var clusterCount = visualInfo.spec.count;
+	                            var isLargeCluster = clusterCount && clusterCount > _toolbarState.maxClusterCount;
+	                            if (isLargeCluster){
+	                                xfModalDialog.createInstance({
+	                                    title : 'Add Cluster to File?',
+	                                    contents : 'Adding large clusters to file may take longer than expected. Do you wish to continue?',
+	                                    buttons : {
+	                                        "Add File" : function() {
+	                                            aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : true});
+	                                        },
+	                                        "Cancel" : function() {}
+	                                    }
+	                                });
+	                            }
+	                            else {
+	                                aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : false});
+	                            }
+	                            return false;
+	                        });
 
-                        var fileImg = $('<img/>');
-                        fileImg.attr('src' , 'img/new_file.png');
-
-                        fileDiv.append(fileImg);
-                        fileDiv.css('float','left');
-                        fileDiv.addClass('cardToolbarItem');
-                        buttonItemList.push({
-                            id : 'new_file',
-                            div : fileDiv
-                        });
-                        buttonCount++;
+                        buttonItemList.push(fileButton);
                     }
 
                     // Search button
                     var bSearchable = visualInfo.toolbarSpec['allowSearch'];
                     if (bSearchable === true) {
-                        var searchDiv = $('<div class="new-search-button">');
-                        searchDiv.click(function() {
-                            var rootFile = _getVisualAncestor(visualInfo, constants.MODULE_NAMES.FILE);
-                            if (visualInfo.UIType == constants.MODULE_NAMES.FILE || rootFile != null) {
-                                var fileVisualInfo = (rootFile == null) ? visualInfo : rootFile.getVisualInfo();
-                                var matchUIObj = fileVisualInfo.matchUIObject;
-                                if(matchUIObj == null) {
-                                    aperture.pubsub.publish(
-                                        chan.SHOW_MATCH_REQUEST,
-                                        {
-                                            xfId : fileVisualInfo.xfId
-                                        }
-                                    );
-                                }
+                    	var searchTip = visualInfo.UIType === constants.MODULE_NAMES.FILE? 
+                    			'search for entities to add' : 'search for similar entities';
+                    	
+                    	var searchButton = _makeButton(searchTip, 'search-small').click(
+	                        function() {
+	                            var rootFile = _getVisualAncestor(visualInfo, constants.MODULE_NAMES.FILE);
+	                            if (visualInfo.UIType == constants.MODULE_NAMES.FILE || rootFile != null) {
+	                                var fileVisualInfo = (rootFile == null) ? visualInfo : rootFile.getVisualInfo();
+	                                var matchUIObj = fileVisualInfo.matchUIObject;
+	                                if(matchUIObj == null) {
+	                                    aperture.pubsub.publish(
+	                                        chan.SHOW_MATCH_REQUEST,
+	                                        {
+	                                            xfId : fileVisualInfo.xfId
+	                                        }
+	                                    );
+	                                }
+	
+	                                // if did not click a file...
+	                                if (fileVisualInfo.xfId != visualInfo.xfId) {
+	
+	                                    aperture.pubsub.publish(
+	                                        chan.ADVANCE_SEARCH_DIALOG_REQUEST,
+	                                        {
+	                                            fileId : fileVisualInfo.xfId,
+	                                            terms : null,
+	                                            dataIds : _getContainedCardDataIds(visualInfo)
+	                                        }
+	                                    );
+	                                }
+	                            } else {
+	                                aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showMatchCard : true});
+	                            }
+	                            return false;
+	                        });
 
-                                if (fileVisualInfo.xfId != visualInfo.xfId) {
-                                    aperture.pubsub.publish(
-                                        chan.ADVANCE_SEARCH_DIALOG_REQUEST,
-                                        {
-                                            fileId : fileVisualInfo.xfId,
-                                            terms : null,
-                                            dataIds : _getContainedCardDataIds(visualInfo)
-                                        }
-                                    );
-                                }
-                            } else {
-                                aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showMatchCard : true});
-                            }
-                            return false;
-                        });
-
-                        var searchImg = $('<img/>');
-                        searchImg.attr('src' , 'img/search-small.png');
-
-                        searchDiv.append(searchImg);
-                        searchDiv.css('float','left');
-                        searchDiv.addClass('cardToolbarItem');
-                        buttonItemList.push({
-                            id : 'search',
-                            div : searchDiv
-                        });
-                        buttonCount++;
+                        buttonItemList.push(searchButton);
                     }
 
                     // Focus button
                     var bFocusable = visualInfo.toolbarSpec['allowFocus'];
                     if ( bFocusable === true) {
-                        var focusBtnDiv = $('<div class="highlight-flow-button">');
-                        focusBtnDiv.click(function() {
-                            aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
-                            return false;
-                        });
+                    	var highlightButton = _makeButton('highlight flow', 'highlight-flow').click(
+	                    	function() {
+	                            aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
+	                            return false;
+	                        });
 
-                        var focusImg = $('<img/>');
-                        focusImg.attr('src', 'img/arrows.png');
-
-                        focusBtnDiv.append(focusImg);
-                        focusBtnDiv.css('float','left');
-                        focusBtnDiv.addClass('cardToolbarItem');
-                        buttonItemList.push({
-                            id : 'focus',
-                            div : focusBtnDiv
-                        });
-                        buttonCount++;
+                        buttonItemList.push(highlightButton);
                     }
 
                     // xfFile objects require different positioning due to the asymmetrical shape of the file tabs.
                     if (visualInfo.UIType == constants.MODULE_NAMES.FILE){
-                        _toolbarState.toolbarDiv.css('top', -0.5*_renderDefaults.TOOLBAR_BTN_HEIGHT - 5);
-                        _toolbarState.toolbarDiv.css('left', cardWidth - buttonCount*_renderDefaults.TOOLBAR_BTN_HEIGHT - 10);
+                        _toolbarState.toolbarDiv.css('top', -0.5*_renderDefaults.CARD_BUTTON_HEIGHT - 7);
+                        _toolbarState.toolbarDiv.css('right', 10);
                     }
                     else {
-                        _toolbarState.toolbarDiv.css('top', -_renderDefaults.TOOLBAR_BTN_HEIGHT - 5);
+                        _toolbarState.toolbarDiv.css('top', -_renderDefaults.CARD_BUTTON_HEIGHT - 6);
                         _toolbarState.toolbarDiv.css('right', 0);
                     }
                 }
@@ -379,8 +377,7 @@ define(
                 // Add default Close button
                 var bCloseable = visualInfo.toolbarSpec.allowClose;
                 if ( bCloseable === true || bCloseable === undefined ) {
-                    var closeDiv = $('<div>');
-                    closeDiv.click(
+                    var closeButton = _makeButton('remove', 'remove').click(
                         function() {
                             if (visualInfo.UIType == constants.MODULE_NAMES.FILE){
                                 xfModalDialog.createInstance({
@@ -415,23 +412,44 @@ define(
                         }
                     );
 
-                    var closeImg = $('<img/>');
-                    closeImg.attr('src', 'img/close_box.png');
-                    closeDiv.addClass('cardToolbarItem');
-                    closeDiv.addClass('remove-button');
-                    closeDiv.append(closeImg);
-                    closeDiv.css('top', 5);
-                    closeDiv.css('float','left');
-                    buttonItemList.push({
-                        id : 'close',
-                        div : closeDiv
-                    });
+                    buttonItemList.push(closeButton);
                 }
             }
-
+            
+            var extensions = plugins.get('cards');
+            aperture.util.forEach(extensions, function(e) {
+            	if (e.toolbar) {
+            		var cardspec = {
+            			dataId : visualInfo.spec.dataId,
+            			type : visualInfo.spec.subtype
+            		};
+            		
+            		var ebuttons = e.toolbar(cardspec);
+            		if (ebuttons) {
+	            		if (!aperture.util.isArray(ebuttons)) {
+	            			ebuttons = [ebuttons];
+	            		}
+	            		
+	            		for (var b= 0; b< ebuttons.length; b++) {
+	            			var ebutton = ebuttons[b];
+	            			
+	                        buttonItemList.splice(0,0,
+	                    		_makeButton(ebutton.title || '', ebutton.icon).click(
+	                    			function() {
+	                    				if (ebutton.click) {
+		                    				return ebutton.click(arguments);
+	                    				}
+	                    			})
+	                        );
+	            		}
+            		}
+            	}
+            });
+            
             for (var i=0; i < buttonItemList.length; i++){
-                _toolbarState.toolbarDiv.append(buttonItemList[i].div);
+                _toolbarState.toolbarDiv.append(buttonItemList[i]);
             }
+            
         };
 
         /**
@@ -442,33 +460,21 @@ define(
          * @private
          */
         var _createMatchControls = function(visualInfo, cardHeight){
-            _toolbarState.matchDiv = _getStateElement('.matchToolbarCtrl');
+            _toolbarState.matchDiv = _getStateElement('.matchToolbar');
             if (_toolbarState.matchDiv == null){
-                _toolbarState.matchDiv = $('<div></div>');
-                _toolbarState.matchDiv.addClass('matchToolbar');
-                _toolbarState.matchDiv.css('top', (cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/2);
+                _toolbarState.matchDiv = $('<div class="matchToolbar"></div>');
                 _toolbarState.canvas.append(_toolbarState.matchDiv);
 
                 // Focus button
                 var bFocusable = visualInfo.toolbarSpec['allowFocus'];
                 if ( bFocusable === true) {
-                    var focusBtnDiv = $('<div class="highlight-flow-button">');
-                    focusBtnDiv.click(function() {
-                        aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
-                        return false;
-                    });
+                    var focusBtn = _makeButton('highlight flow', 'highlight-flow')
+                    	.click(function() {
+	                        aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
+	                        return false;
+	                    });
 
-                    var focusImg = $('<img/>');
-                    focusImg.attr('src', 'img/arrows.png');
-
-                    focusBtnDiv.append(focusImg);
-                    focusBtnDiv.css('position', 'relative');
-                    focusBtnDiv.css('bottom', (cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/2);
-                    focusBtnDiv.css('float','left');
-                    focusBtnDiv.css('right',_renderDefaults.TOOLBAR_BTN_HEIGHT/2);
-                    focusBtnDiv.css('margin-right', 3);
-                    focusBtnDiv.css('margin-top', 3);
-                    _toolbarState.matchDiv.append(focusBtnDiv);
+                    _toolbarState.matchDiv.append(focusBtn);
 
                 }
 
@@ -476,61 +482,36 @@ define(
                 // Find the parent xfFile for this xfMatch.
                 var fileObj = _getVisualAncestor(visualInfo, constants.MODULE_NAMES.FILE);
                 if (fileObj != null){
-                    var fileDiv = $('<div class="new-file-button">');
-                    fileDiv.click(function() {
-                        return !visualInfo.isSelected;
-                    });
-
-                    var fileImg = $('<img/>');
-                    fileImg.attr('src' , 'img/file_add.png');
-
-                    fileDiv.append(fileImg);
-                    fileDiv.addClass('matchToolbarItem');
-                    fileDiv.click(function(){
-                        aperture.pubsub.publish(chan.ADD_TO_FILE_REQUEST, {
-                            containerId : fileObj.getXfId(),
-                            cardId: visualInfo.xfId
-                        });
-                    });
-                    fileDiv.css('position', 'relative');
-                    fileDiv.css('bottom', (cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/4 + 5);
-                    fileDiv.css('float','left');
-                    fileDiv.css('margin-right', 3);
-                    fileDiv.css('margin-top', 3);
-                    _toolbarState.matchDiv.append(fileDiv);
+                    var fileBtn = _makeButton('add to file', 'add-to-file')
+                    	.click(function(){
+	                        aperture.pubsub.publish(chan.ADD_TO_FILE_REQUEST, {
+	                            containerId : fileObj.getXfId(),
+	                            cardId: visualInfo.xfId
+	                        });
+	                    });
+                    _toolbarState.matchDiv.append(fileBtn);
                 }
                 else {
-                    console.error('There is no parent xfFile associated with the xfMatch: ' + visualInfo.xfId);
+                    aperture.log.error('There is no parent xfFile associated with the xfMatch: ' + visualInfo.xfId);
                 }
 
                 // Add close button.
-                var closeDiv = $('<div>');
-                closeDiv.click(
-                    function() {
-                        aperture.pubsub.publish(
-                            chan.REMOVE_REQUEST,
-                            {
-                                xfIds : [visualInfo.xfId],
-                                removeEmptyColumn : true,
-                                dispose : true
-                            }
-                        );
-                        return false;
-                    }
-                );
+                var closeBtn = _makeButton('remove', 'remove')
+                	.click(
+	                    function() {
+	                        aperture.pubsub.publish(
+	                            chan.REMOVE_REQUEST,
+	                            {
+	                                xfIds : [visualInfo.xfId],
+	                                removeEmptyColumn : true,
+	                                dispose : true
+	                            }
+	                        );
+	                        return false;
+	                    }
+	                );
 
-                var closeImg = $('<img/>');
-                closeImg.attr('src', 'img/close_box.png');
-                closeDiv.addClass('matchToolbarItem');
-                closeDiv.addClass('remove-button');
-                closeDiv.append(closeImg);
-                closeDiv.css('position', 'relative');
-                closeDiv.css('bottom', -(cardHeight - _renderDefaults.TOOLBAR_BTN_HEIGHT)/4 + 5);
-                closeDiv.css('float','left');
-                closeDiv.css('right',_renderDefaults.TOOLBAR_BTN_HEIGHT + 5);
-                closeDiv.css('margin-right', 3);
-                closeDiv.css('margin-top', 3);
-                _toolbarState.matchDiv.append(closeDiv);
+                _toolbarState.matchDiv.append(closeBtn);
             }
         };
 

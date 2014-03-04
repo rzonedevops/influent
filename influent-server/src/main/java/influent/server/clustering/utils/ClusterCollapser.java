@@ -74,15 +74,24 @@ public class ClusterCollapser {
 			Collections.sort(clusterList, COLLAPSE_COMPARATOR);
 		
 			for(FL_Cluster cluster : clusterList) {			// first, prune dead branches from the cluster
-				if(cluster.getMembers().size() == 0 && cluster.getSubclusters().size() == 0) {		
-					results.remove(cluster.getUid());
-					FL_Cluster parentCluster = results.get(cluster.getParent());
-					if (parentCluster == null) {
-						s_logger.error("Cannot locate parent " + cluster.getParent() + " for cluster " + cluster.getUid());
-					}
-					else {
-						parentCluster.getSubclusters().remove(cluster.getUid());
-						updateReferenceMap(output_redirect, cluster.getUid(), cluster.getParent());
+				if(cluster.getMembers().size() == 0 && cluster.getSubclusters().size() == 0) {
+				
+					// Is it a root cluster?
+					if (cluster.getParent() == null) {
+						if (!leaveRoots) {
+							// TODO? Not sure if this needs to call updateReferenceMap after. If so, on what?
+							results.remove(cluster.getUid());
+						}
+						
+					} else {					
+						results.remove(cluster.getUid());
+						FL_Cluster parentCluster = results.get(cluster.getParent());
+						if (parentCluster == null) {
+							s_logger.error("Cannot locate parent " + cluster.getParent() + " for cluster " + cluster.getUid());
+						} else {
+							parentCluster.getSubclusters().remove(cluster.getUid());
+							updateReferenceMap(output_redirect, cluster.getUid(), cluster.getParent());
+						}
 					}
 				}
 			}
@@ -105,7 +114,6 @@ public class ClusterCollapser {
 						setNewRoot(cluster.getUid(),newRoot, results.values());
 						updateReferenceMap(output_redirect,cluster.getUid(), cluster.getSubclusters().get(0));
 					}			
-					
 				} else {
 					// remove interior singleton cluster
 					results.remove(cluster.getUid());
@@ -139,11 +147,12 @@ public class ClusterCollapser {
 					FL_Cluster parentCluster = results.get(cluster.getParent());
 					if (parentCluster == null) {
 						s_logger.error("Cannot locate parent " + cluster.getParent() + " for cluster " + cluster.getUid());
+					} else {
+						// remove the cluster id from the parent subcluster list and add the entity id from above
+						parentCluster.getSubclusters().remove(cluster.getUid());
+						parentCluster.getMembers().add(cluster.getMembers().get(0));
+						updateReferenceMap(output_redirect, cluster.getUid(), cluster.getMembers().get(0));
 					}
-					// remove the cluster id from the parent subcluster list and add the entity id from above
-					parentCluster.getSubclusters().remove(cluster.getUid());
-					parentCluster.getMembers().add(cluster.getMembers().get(0));
-					updateReferenceMap(output_redirect, cluster.getUid(), cluster.getMembers().get(0));
 				}
 				
 			} else {

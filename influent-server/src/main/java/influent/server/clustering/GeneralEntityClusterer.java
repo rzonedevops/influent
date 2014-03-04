@@ -24,6 +24,12 @@
  */
 package influent.server.clustering;
 
+import influent.idl.FL_Cluster;
+import influent.idl.FL_Entity;
+import influent.idl.FL_Geocoding;
+import influent.server.clustering.utils.EntityClusterFactory;
+import influent.server.clustering.utils.ClustererProperties;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,16 +39,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import influent.idl.FL_Cluster;
-import influent.idl.FL_Entity;
-import influent.idl.FL_Geocoding;
-import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.clustering.utils.PropertyManager;
+import oculus.aperture.spi.common.Properties;
 
 public class GeneralEntityClusterer extends BaseEntityClusterer {
 	private FL_Geocoding geoCoder;
 	private EntityClusterFactory clusterFactory;
-	private PropertyManager pMgr;
+	private Properties pMgr;
 	private List<EntityClusterer> clusterStages;
 	private int MIN_CLUSTER_SIZE = 10;
 
@@ -51,8 +53,8 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 		try {
 			this.clusterFactory = (EntityClusterFactory)args[0];
 			this.geoCoder = (FL_Geocoding)args[1];
-			this.pMgr = (PropertyManager)args[2];
-			this.MIN_CLUSTER_SIZE = Integer.parseInt(pMgr.getProperty(PropertyManager.MIN_CLUSTER_SIZE, "10"));
+			this.pMgr = (Properties)args[2];
+			this.MIN_CLUSTER_SIZE = pMgr.getInteger(ClustererProperties.MIN_CLUSTER_SIZE, 10);
 			this.clusterStages = createClusterStages(pMgr);
 		}
 		catch (Exception e) {
@@ -60,10 +62,10 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 		}
 	}
 	
-	private List<EntityClusterer> createClusterStages(PropertyManager pMgr){
+	private List<EntityClusterer> createClusterStages(Properties pMgr){
 		List<EntityClusterer> clusterStages = new ArrayList<EntityClusterer>();
 		
-		String[] clusterFields = pMgr.getProperty(PropertyManager.CLUSTER_FIELDS, "GEO:geo,TYPE:categorical,LABEL:label").split(",");
+		String[] clusterFields = pMgr.getString(ClustererProperties.CLUSTER_FIELDS, "GEO:geo,TYPE:categorical,LABEL:label").split(",");
 		
 		for (String field : clusterFields) {
 			String[] tokens = field.split(":");  // TagOrFieldName, Type, Fuzzy (if label feature)

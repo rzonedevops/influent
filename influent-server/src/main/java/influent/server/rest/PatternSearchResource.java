@@ -67,11 +67,8 @@ import org.restlet.resource.ResourceException;
 import com.google.inject.Inject;
 
 
-
 public class PatternSearchResource extends ApertureServerResource{
 
-//	private static final Logger s_logger = LoggerFactory.getLogger(PatternSearchResource.class);
-	
 	private final FL_PatternSearch patternSearcher;
 	private final FL_DataAccess dataAccess;
 //	private final FL_Clustering clusterer;
@@ -150,6 +147,10 @@ public class PatternSearchResource extends ApertureServerResource{
 			String term = jsonObj.getString("term").trim();
 			FL_PatternDescriptor example = (FL_PatternDescriptor)AvroUtils.decodeJSON(FL_PatternDescriptor.getClassSchema(), term);
 			
+			char searchEntityType = TypedId.ACCOUNT_OWNER;
+			String searchEntityNamespace = null;
+			boolean hasExamplars = false;
+			
 			List<FL_EntityMatchDescriptor> exampleEntities = example.getEntities();
 			Map<String, String> hackMap = new HashMap<String, String>(exampleEntities.size());
 			for (int i = 0; i < exampleEntities.size(); i++) {
@@ -161,22 +162,41 @@ public class PatternSearchResource extends ApertureServerResource{
 				// get native entity id refs from globals and substitute
 				for (String uid : emd.getExamplars()) {
 					String nid = TypedId.fromTypedId(uid).getNativeId();
-					if (nid != null) {
-						ids.add(nid);
+					
+					if (nid == null) {
+						continue;
 					}
+					
+					ids.add(nid);
+
+					// Assume that we're looking for entities of a similar type 
+					// in same namespace as the first entity in the list
+					if (searchEntityNamespace == null) {
+						searchEntityType = TypedId.fromTypedId(uid).getType();
+						searchEntityNamespace = TypedId.fromTypedId(uid).getNamespace();
+					}
+					
+					hasExamplars = true;
 				}
 				
 				emd.setExamplars(ids);
 			}
 
-			getLogger().info("Executing pattern search: "+ SerializationHelper.toJson(example));
-			
 			Object response = null;
 			
-			try {
-				response = patternSearcher.searchByExample(example, "QuBE", (long)startIndex, (long)resultLimit, dateRange, useAptima);
-			} catch (AvroRemoteException are) {
-				getLogger().severe(are.getMessage());
+			if (!hasExamplars) {
+				// If we failed to pick up any exemplars, it probably means that the search 
+				// terms are malformed. don't do the query, just return empty results
+				getLogger().warning("Invalid search terms. Not executing pattern search.");
+			} else {
+				
+				getLogger().info("Executing pattern search: "+ SerializationHelper.toJson(example));
+				
+				try {
+					response = patternSearcher.searchByExample(example, "QuBE", (long)startIndex, (long)resultLimit, dateRange, useAptima);
+				} catch (AvroRemoteException are) {
+					throw new RuntimeException("Error reported by Query by Example. ", are);
+				}
 			}
 			
 			
@@ -206,6 +226,7 @@ public class PatternSearchResource extends ApertureServerResource{
 			
 			
 			final Map<String, List<FL_EntityMatchResult>> entityInstances= new HashMap<String, List<FL_EntityMatchResult>>();
+			
 			final StringBuilder trace = new StringBuilder("----Results----\n      ");
 			
 			// Create the tailored client results, which is a merge of all graph results
@@ -213,12 +234,12 @@ public class PatternSearchResource extends ApertureServerResource{
 
 				// gather a set of all entity ids to lookup
 				for (FL_EntityMatchResult entityResult : searchResult.getEntities()) {
-					String entityId = entityResult.getEntity().getUid().toString();
+					String nId = entityResult.getEntity().getUid().toString();
 
 					trace.append(" ");
-					trace.append(entityId);
+					trace.append(nId);
 					
-					entityId = TypedId.fromNativeId(TypedId.ACCOUNT, entityId).getTypedId();
+					String entityId = TypedId.fromNativeId(searchEntityType, searchEntityNamespace, nId).getTypedId();
 					
 					String resultUid = entityResult.getUid();
 					if (hackMap.containsKey(resultUid)) {
@@ -247,7 +268,8 @@ public class PatternSearchResource extends ApertureServerResource{
 							List<FL_EntityMatchResult> eis = entityInstances.get(entityId);
 							
 							if (eis == null) {
-								entityInstances.put(entityId, eis = new ArrayList<FL_EntityMatchResult>());
+								eis = new ArrayList<FL_EntityMatchResult>();
+								entityInstances.put(entityId, eis);
 							}
 							
 							eis.add(entityResult);
@@ -260,18 +282,9 @@ public class PatternSearchResource extends ApertureServerResource{
 			
 			getLogger().info(trace.toString());
 			
-
 			// look up entity details
 			final List<FL_Entity> entities = dataAccess.getEntities(new ArrayList<String>(entityInstances.keySet()), FL_LevelOfDetail.SUMMARY);
-			
-			// and slot them into our enrichment set
-			for (FL_Entity entity : entities) {
-				List<FL_EntityMatchResult> instances= entityInstances.get(entity.getUid());
-				for (FL_EntityMatchResult emr : instances) {
-					emr.setEntity(entity);
-				}
-			}
-			
+
 			JSONObject result = new JSONObject();
 			JSONArray jsonRoleResults = new JSONArray();
 			
@@ -279,8 +292,17 @@ public class PatternSearchResource extends ApertureServerResource{
 				JSONArray jsonRoleResultSet = new JSONArray();
 				
 				for (FL_EntityMatchResult emr : entry.getValue()) {
-					JSONObject jo = UISerializationHelper.toUIJson(emr.getEntity()); 
-					jsonRoleResultSet.put(jo);
+					String Uid = emr.getEntity().getUid();
+
+					// Only return results that match entity details 
+					for (FL_Entity entity : entities) {
+						String nId = TypedId.fromTypedId(entity.getUid()).getNativeId();
+						if (nId.equals(Uid)) {
+							JSONObject jo = UISerializationHelper.toUIJson(entity); 
+							jsonRoleResultSet.put(jo);
+							break;
+						}
+					}
 				}
 				
 				JSONObject jsonRoleResult = new JSONObject();

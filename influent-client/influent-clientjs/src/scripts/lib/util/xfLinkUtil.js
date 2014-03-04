@@ -120,12 +120,12 @@ define(
                                             xfLink.createInstance(sourceObj, targetObj, amount, linkCount);
                                         }
                                         else {
-                                            console.error('Unable to find target UIObject for dataId: ' + targetDataId);
+                                            aperture.log.error('Unable to find target UIObject for dataId: ' + targetDataId);
                                         }
                                     }
                                 }
                                 else {
-                                    console.error('Unable to find source UIObject for dataId: ' + targetDataId);
+                                    aperture.log.error('Unable to find source UIObject for dataId: ' + targetDataId);
                                 }
                             }
                         }
@@ -241,12 +241,12 @@ define(
                                             xfLink.createInstance(sourceObj, targetObj, amount, linkCount);
                                         }
                                         else {
-                                            console.error('Unable to find target UIObject for dataId: ' + targetDataId);
+                                            aperture.log.error('Unable to find target UIObject for dataId: ' + targetDataId);
                                         }
                                     }
                                 }
                                 else {
-                                    console.error('Unable to find source UIObject for dataId: ' + sourceDataId);
+                                    aperture.log.error('Unable to find source UIObject for dataId: ' + sourceDataId);
                                 }
                             }
                         }

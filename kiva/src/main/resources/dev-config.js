@@ -29,9 +29,11 @@
 	 */
 	'aperture.log' : {
 		'level' : 'info',
+		'logWindowErrors' : {'log': true, 'preventDefault': true},
 		'appenders' : {
 			// Log to the console (if exists)
-			'consoleAppender' : {'level': 'info'}
+			'consoleAppender' : {'level': 'info'},
+			'notifyAppender' : {'level': 'info'}
 		}
 	},
 
@@ -127,6 +129,7 @@
 		    P16Y : '16 years'
 		},
         'startingDateRange' : 'P16M',
+        'defaultEndDate': new Date(2013, 4, 1),
         'defaultShowDetails' : true,
         'doubleEncodeSourceUncertainty' : true,
         'maxSearchResults' : 50,
@@ -141,12 +144,19 @@
         	+ 'To supply more than one account as a model use commas. '
         	+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
         	+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
-        
+
+        // log levels can be one of:
+        // 'all': will log all system and user events
+        // 'system': will only log system events
+        // 'user': will only log user events
+        // 'click': will log system and mouse click events
+        // 'primary': will log system and user interaction events
+        // 'secondary': will log system events and secondary events that occur after a user interaction
         activityLogging : {
-        	enabled: false,
-        	address: 'rest/activity'
-        	//address: 'http://172.16.98.9:1337'
-        	//provider: 'draper',
+        	enabled : false,
+        	address: 'rest/activity',
+        	provider : 'aperture',
+            logLevel : 'click'
         },
         
         iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],

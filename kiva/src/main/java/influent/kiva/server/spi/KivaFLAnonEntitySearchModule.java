@@ -27,7 +27,6 @@ package influent.kiva.server.spi;
 import influent.idl.FL_EntitySearch;
 import influent.idl.FL_Geocoding;
 import influent.kiva.server.search.KivaAnonEntitySearch;
-import influent.kiva.server.search.KivaEntitySearch;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.utilities.SQLConnectionPool;
 

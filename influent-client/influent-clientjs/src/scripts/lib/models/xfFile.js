@@ -279,7 +279,7 @@ define(
                         _UIObjectState.clusterUIObject.addLink(link);
                     }
                     else {
-                        console.error('No cluster found. Unable to add link.');
+                        aperture.log.error('No cluster found. Unable to add link.');
                     }
                 }
             };
@@ -383,7 +383,7 @@ define(
             //----------------------------------------------------------------------------------------------------------
 
             xfFileInstance.collapseLinks = function(direction) {
-                console.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -408,7 +408,7 @@ define(
                     );
                 }
                 else {
-                    console.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
+                    aperture.log.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
                 }
             };
 
@@ -960,7 +960,11 @@ define(
 
             xfFileInstance.showSearchControl = function(isVisible, searchTerm){
                 if (isVisible){
-                    _UIObjectState.matchUIObject = _createMatchcard(this, searchTerm);
+                    if(!_hasMatchcard(_UIObjectState)) {
+                        _UIObjectState.matchUIObject = _createMatchcard(this, searchTerm);
+                    } else {
+                        _UIObjectState.matchUIObject.setSearchTerm(searchTerm);
+                    }
                 }
                 else if (_hasMatchcard(_UIObjectState)){
                     aperture.pubsub.publish(

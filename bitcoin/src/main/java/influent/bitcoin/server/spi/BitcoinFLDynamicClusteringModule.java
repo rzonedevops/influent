@@ -32,15 +32,15 @@ import influent.server.clustering.EntityClusterer;
 import influent.server.clustering.GeneralEntityClusterer;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.clustering.utils.PropertyManager;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.DynamicClustering;
 import influent.server.utilities.IdGenerator;
 import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.TypedId;
 
-import java.io.InputStream;
 import java.util.UUID;
+
+import oculus.aperture.spi.common.Properties;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -64,20 +64,6 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 	
 	
 	@Provides @Singleton
-	public PropertyManager clusterPropertiesManager(@Named("influent.midtier.clusterer.properties") String clustererProperties) {
-		try {
-			InputStream configStream = BitcoinFLDynamicClusteringModule.class.getResourceAsStream(clustererProperties);
-			return new PropertyManager(configStream);
-		} catch (Exception e) {
-			addError("Failed to load Clustering Properties", e);
-			return null;
-		}
-	}
-	
-	
-	
-	
-	@Provides @Singleton
 	public IdGenerator clusterIdGenerator() {
 		return new IdGenerator() {
 			@Override
@@ -93,11 +79,11 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 	@Provides @Singleton
 	public EntityClusterFactory clusterFactory(
 			IdGenerator idGen,
-			PropertyManager pMgr,
+			@Named("aperture.server.config") Properties config,
 			FL_Geocoding geocoding
 	) {
 		try {	
-			return new EntityClusterFactory(idGen, geocoding, pMgr);
+			return new EntityClusterFactory(idGen, geocoding, config);
 		} catch (Exception e) {
 			addError("Failed to load Clustering Properties", e);
 			return null;
@@ -118,7 +104,7 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 			FL_Geocoding geocoding,
 			EntityClusterer clusterer,
 			EntityClusterFactory clusterFactory,
-			PropertyManager pMgr,
+			@Named("aperture.server.config") Properties config,
 			ClusterContextCache cache
 	) {
 
@@ -130,7 +116,7 @@ public class BitcoinFLDynamicClusteringModule extends AbstractModule {
 				geocoding, 
 				clusterer, 
 				clusterFactory,
-				pMgr,
+				config,
 				cache
 			);
 		} catch (Exception e) {

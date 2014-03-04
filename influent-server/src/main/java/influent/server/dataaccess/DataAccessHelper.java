@@ -80,15 +80,50 @@ public class DataAccessHelper {
         }
     }
     
-    
-    
-    
-	public static final String ENTITY_TABLE = "FinEntity";
-	public static final String FLOW_TABLE = "FinFlow";
-	public static final String CLUSTER_SUMMARY_TABLE = "ClusterSummary";
-	public static final String GLOBAL_CLUSTER_TABLE = "global_cluster_dataview";
-	public static final String DYNAMIC_CLUSTER_TABLE = "dynamic_cluster_dataview";
+    // --- Flow ---
+	public static final String FLOW_TABLE 									= "FinFlow";
 	
+	public static final String FLOW_COLUMN_FROM_ENTITY_ID 					= "FinFlow_FromEntityId";
+	public static final String FLOW_COLUMN_FROM_ENTITY_TYPE 				= "FinFlow_FromEntityType";
+	public static final String FLOW_COLUMN_TO_ENTITY_ID 					= "FinFlow_ToEntityId";
+	public static final String FLOW_COLUMN_TO_ENTITY_TYPE 					= "FinFlow_ToEntityType";
+	public static final String FLOW_COLUMN_AMOUNT 							= "FinFlow_Amount";
+	public static final String FLOW_COLUMN_PERIOD_DATE						= "FinFlow_PeriodDate";
+
+    // --- Entity ---
+	public static final String ENTITY_TABLE									= "FinEntity";
+	
+	public static final String ENTITY_COLUMN_ENTITY_ID 						= "FinEntity_EntityId";
+	public static final String ENTITY_COLUMN_INBOUND_AMOUNT 				= "FinEntity_InboundAmount";
+	public static final String ENTITY_COLUMN_INBOUND_DEGREE					= "FinEntity_InboundDegree";
+	public static final String ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE 			= "FinEntity_UniqueInboundDegree";
+	public static final String ENTITY_COLUMN_OUTBOUND_AMOUNT 				= "FinEntity_OutboundAmount";
+	public static final String ENTITY_COLUMN_OUTBOUND_DEGREE 				= "FinEntity_OutboundDegree";
+	public static final String ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE 		= "FinEntity_UniqueOutboundDegree";
+	public static final String ENTITY_COLUMN_BALANCE 						= "FinEntity_Balance";
+	public static final String ENTITY_COLUMN_PERIOD_DATE					= "FinEntity_PeriodDate";
+	
+    // --- Cluster Summary ---
+	public static final String CLUSTER_SUMMARY_TABLE 						= "ClusterSummary";
+
+	public static final String CLUSTER_SUMMARY_COLUMN_ENTITY_ID 			= "ClusterSummary_EntityId";
+	public static final String CLUSTER_SUMMARY_COLUMN_SUMMARY_ID 			= "ClusterSummary_SummaryId";
+	public static final String CLUSTER_SUMMARY_COLUMN_PROPERTY 				= "ClusterSummary_Property";
+	public static final String CLUSTER_SUMMARY_COLUMN_TAG					= "ClusterSummary_Tag";
+	public static final String CLUSTER_SUMMARY_COLUMN_TYPE 					= "ClusterSummary_Type";
+	public static final String CLUSTER_SUMMARY_COLUMN_VALUE 				= "ClusterSummary_Value";
+	public static final String CLUSTER_SUMMARY_COLUMN_STAT 					= "ClusterSummary_Stat";
+
+    // --- Cluster Summary Members ---
+	public static final String CLUSTER_SUMMARY_MEMBERS_TABLE 				= "ClusterSummaryMembers";
+	public static final String CLUSTER_SUMMARY_MEMBERS_COLUMN_ENTITY_ID 	= "ClusterSummaryMembers_EntityId";
+	
+	// --- Deprecated ---
+	public static final String GLOBAL_CLUSTER_TABLE 						= "global_cluster_dataview";
+	public static final String DYNAMIC_CLUSTER_TABLE						= "dynamic_cluster_dataview";
+	
+	public static final String CLIENT_STATE_TABLE 							= "clientState";
+	// ------------------
 	
 	/**
 	 * Formats a date, exclusive of time, as a UTC date string.
@@ -269,14 +304,23 @@ public class DataAccessHelper {
 	}
 	
 	
-	
-	
+
+
 	public static String createNodeIdListFromCollection(List<String> nodeIDs, boolean usePrefix, boolean trimDash) {
+		return createNodeIdListFromCollection(nodeIDs, usePrefix, trimDash, null, "");
+	}	
+	
+	public static String createNodeIdListFromCollection(List<String> nodeIDs, boolean usePrefix, boolean trimDash,
+			DataNamespaceHandler nameSpaceHandler, String namespace) {
 		if (nodeIDs == null || nodeIDs.isEmpty()) return null;
 	
 		StringBuilder resultString = new StringBuilder();
 		for (String id : nodeIDs) {
-			resultString.append("'" + id + "', ");
+			if(nameSpaceHandler == null) {
+				resultString.append("'" + id + "', ");
+			} else {
+				resultString.append(nameSpaceHandler.toSQLId(id, namespace) + ", ");
+			}
 		}
 		resultString.replace(
 			resultString.lastIndexOf(","),
@@ -290,13 +334,22 @@ public class DataAccessHelper {
 	
 	
 	public static String createInClause(Collection<String> inItems) {
+		return createInClause(inItems, null, null);
+	}
+	
+	public static String createInClause(Collection<String> inItemIds, DataNamespaceHandler nameSpaceHandler,
+			String namespace) {
 		StringBuilder resultString = new StringBuilder();
 		resultString.append("(");
 		
-		for (String item : inItems) {
-			resultString.append("'" + item + "',");
+		for (String item : inItemIds) {
+			if(nameSpaceHandler == null) {
+				resultString.append("'" + item + "',");
+			} else {
+				resultString.append(nameSpaceHandler.toSQLId(item, namespace) + ",");
+			}
 		}
-		if (!inItems.isEmpty()) {
+		if (!inItemIds.isEmpty()) {
 			resultString.replace(
 				resultString.lastIndexOf(","),
 				resultString.length(),

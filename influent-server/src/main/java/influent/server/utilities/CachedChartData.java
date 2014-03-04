@@ -36,6 +36,7 @@ public class CachedChartData implements Serializable {
 	List<Double> focusCredits;
 	List<Double> focusDebits;
 	Double startingBalance;
+	String hash;
 
 	public CachedChartData() {}
 
@@ -45,10 +46,13 @@ public class CachedChartData implements Serializable {
 	public void setFocusCredits(List<Double> credits) { this.focusCredits = credits; }
 	public void setFocusDebits(List<Double> debits) { this.focusDebits = debits; }
 	public void setStartingBalance(Double startingBalance) { this.startingBalance = startingBalance; }
+	public void setHash(String hash) { this.hash = hash; }
 	public String getUnits() { return this.units; }
 	public List<Double> getCredits() { return this.credits; }
 	public List<Double> getDebits() { return this.debits; }
 	public List<Double> getFocusCredits() { return this.focusCredits; }
 	public List<Double> getFocusDebits() { return this.focusDebits; }
 	public Double getStartingBalance() { return this.startingBalance; }
+	public String getHash() { return this.hash; }
+
 }

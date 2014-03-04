@@ -49,9 +49,12 @@ define({
     // broadcast a logout request
     LOGOUT_REQUEST : 'logout',
 
+    // Channel used to publish a footer state change request.
+    FOOTER_STATE_REQUEST : "footer-state-request",
+
     // Channel used to publish a footer state change.
     FOOTER_STATE : "footer-state",
-
+    
     /* Channel used by xfHeader to request a view change
      *
      * data {

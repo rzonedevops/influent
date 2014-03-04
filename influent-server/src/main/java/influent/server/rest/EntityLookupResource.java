@@ -129,6 +129,15 @@ public class EntityLookupResource extends ApertureServerResource{
 			List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
 			List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
 			
+			// If there are any owners, look those up as accounts:
+			List<String> ownerIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT_OWNER);
+			accountIds.addAll(ownerIds);
+			
+			// FIXME: Also add Cluster Summaries. Not sure if this is appropriate, 
+			// but is necessary for #7205 to work with Cluster Summaries
+			List<String> clusterSummaryIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER_SUMMARY);
+			accountIds.addAll(clusterSummaryIds);
+			
 			PermitSet permits = new PermitSet();
 			List<FL_Cluster> clusterResults = new ArrayList<FL_Cluster>();
 			

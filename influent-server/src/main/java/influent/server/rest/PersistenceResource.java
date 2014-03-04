@@ -32,19 +32,18 @@ import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
 import influent.idlhelper.FileHelper;
 import influent.server.clustering.utils.ClusterContextCache;
-import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
+import influent.server.clustering.utils.ContextReadWrite;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.mortbay.util.ajax.JSON;
 import org.restlet.data.CacheDirective;
 import org.restlet.data.Form;
 import org.restlet.data.MediaType;
@@ -162,54 +161,59 @@ public class PersistenceResource extends ApertureServerResource{
 			
 		} catch (JSONException e) {
 			throw new ResourceException(
-				Status.CLIENT_ERROR_BAD_REQUEST,
+				Status.SERVER_ERROR_INTERNAL,
 				"Unable to create JSON object from persistence data",
 				e
 			);
 		} catch (AvroRemoteException e) {
 			throw new ResourceException(
-				Status.CLIENT_ERROR_BAD_REQUEST,
-				"Exception during AVRO processing",
+				Status.SERVER_ERROR_INTERNAL,
+				"Exception during AVRO persistence state deserialization",
 				e
 			);
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
-	private void initializeClusterContextCache(String sessionId, String data) {
-		HashMap<Object, Object> initState = (HashMap<Object, Object>) JSON.parse(data);
+	private void initializeClusterContextCache(String sessionId, String data) throws JSONException, AvroRemoteException {
+		final JSONObject initState = new JSONObject(data);
+		
 		ArrayList<FL_Cluster> files = new ArrayList<FL_Cluster>();
 		ArrayList<String> clusterIds = new ArrayList<String>();
 		ArrayList<String> entityIds = new ArrayList<String>();
-		HashMap<Object, Object> objectSpec;
-		String contextId, objectType;
-		FL_Cluster fileCluster;
 		
-		for(Object columnSpec : (Object[]) initState.get("children")) {
+		final JSONArray columns = initState.getJSONArray("children");
+		
+		for(int c=0; c< columns.length(); c++) {
+			final JSONObject columnSpec = columns.getJSONObject(c);
 			files.clear();
 			clusterIds.clear();
 			entityIds.clear();
-			Object columnChildren = ((HashMap<Object, Object>) columnSpec).get("children");
-			contextId = (String) ((HashMap<Object, Object>) columnSpec).get("xfId");
+			final JSONArray columnChildren = columnSpec.getJSONArray("children");
+			final String contextId = columnSpec.getString("xfId");
 			
-			for(Object columnChild : (Object[]) columnChildren) {
-				objectSpec = (HashMap<Object, Object>) columnChild;
-				objectType = (String) objectSpec.get("UIType");
+			for (int k=0; k < columnChildren.length(); k++) {
+				final JSONObject objectSpec = columnChildren.getJSONObject(k);
+				final String objectType = objectSpec.getString("UIType");
 				
 				if(objectType.equals("xfFile")) {
-					
 					ArrayList<String> clusterChildren = new ArrayList<String>();
+
+					JSONObject clusterUIObject = null;
 					
-					HashMap<Object, Object> clusterUIObject = (HashMap<Object, Object>)objectSpec.get("clusterUIObject");
+					try {
+						clusterUIObject = objectSpec.getJSONObject("clusterUIObject");
+					} catch (Exception e) {
+					}
+					
 					if (clusterUIObject != null) {
-						Object clusterObjectChildren = ((HashMap<Object, Object>) clusterUIObject).get("children");
-						for(Object clusterObjectChild : (Object[]) clusterObjectChildren) {
-							clusterChildren.add((String) ((HashMap<Object, Object>) clusterObjectChild).get("xfId"));
+						final JSONArray clusterObjectChildren = clusterUIObject.getJSONArray("children");
+						
+						for (int ck=0; ck < clusterObjectChildren.length(); ck++) {
+							clusterChildren.add(clusterObjectChildren.getJSONObject(ck).getString("xfId"));
 						}
 					}
 					
-					fileCluster = new FileHelper((String) objectSpec.get("xfId"), clusterChildren);
-					
+					final FL_Cluster fileCluster = new FileHelper(objectSpec.getString("xfId"), clusterChildren);
 					files.add(fileCluster);
 				}
 				else if(
@@ -217,10 +221,10 @@ public class PersistenceResource extends ApertureServerResource{
 				    objectType.equals("xfMutableCluster") ||
 				    objectType.equals("xfSummaryCluster")
 				) {
-					clusterIds.add((String) ((HashMap<Object, Object>) objectSpec.get("spec")).get("dataId"));
+					clusterIds.add(objectSpec.getJSONObject("spec").getString("dataId"));
 				}
 				else if(objectType.equals("xfCard")) {
-					entityIds.add((String) ((HashMap<Object, Object>) objectSpec.get("spec")).get("dataId"));
+					entityIds.add(objectSpec.getJSONObject("spec").getString("dataId"));
 					
 				}
 			}
@@ -232,15 +236,10 @@ public class PersistenceResource extends ApertureServerResource{
 					final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
 					
 					contextRW.merge(files, 
-							clusterAccess.getClusters(clusterIds, contextId, sessionId), 
-							entityAccess.getEntities(entityIds, FL_LevelOfDetail.SUMMARY), 
-							false, true);
-				} catch (AvroRemoteException e) {
-					throw new ResourceException(
-							Status.CLIENT_ERROR_BAD_REQUEST,
-							"Exception during AVRO processing",
-							e
-						);
+						clusterAccess.getClusters(clusterIds, contextId, sessionId), 
+						entityAccess.getEntities(entityIds, FL_LevelOfDetail.SUMMARY), 
+						false, true);
+					
 				} finally {
 					permits.revoke();
 				}

@@ -38,12 +38,11 @@ import influent.idl.FL_SortBy;
 import influent.server.clustering.ClusterContext;
 import influent.server.clustering.EntityClusterer;
 import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextRead;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityAggregatedLinks;
 import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.clustering.utils.PropertyManager;
-import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.TypedId;
 
@@ -56,6 +55,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import oculus.aperture.spi.common.Properties;
 
 import org.apache.avro.AvroRemoteException;
 
@@ -78,7 +79,7 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		FL_Geocoding geocoding, 
 		EntityClusterer clusterer, 
 		EntityClusterFactory clusterFactory,
-		PropertyManager config,
+		Properties config,
 		ClusterContextCache cache
 	) throws ClassNotFoundException, SQLException {
 	

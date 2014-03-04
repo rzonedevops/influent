@@ -154,4 +154,28 @@ public interface DataNamespaceHandler {
 	 * 		a full row limited statement, including the select keyword.
 	 */
 	public String rowLimit(String selectBody, long limit);
+
+	/**
+	 * Converts an influent string id to a SQL id. SQL type is specified
+	 * in app.properties.
+	 * 
+	 * @param id 
+	 * 		the id to be converted
+	 * @param namespace
+	 * 		the optional namespace to use for conversion
+	 * @return
+	 * 		the converted id
+	 */
+	public String toSQLId(String id, String namespace);
+
+	/**
+	 * Converts a SQL id to an influent id. SQL typed id is specified in
+	 * app.properties.
+	 * 
+	 * @param id
+	 * 		the id to be converted
+	 * @return
+	 * 		the converted id
+	 */
+	public String fromSQLId(String id);
 }

@@ -1,21 +1,5 @@
 package influent.server.dataaccess;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.avro.AvroRemoteException;
-import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
@@ -32,9 +16,26 @@ import influent.idlhelper.ClusterHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.clustering.EntityClusterer;
 import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.clustering.utils.PropertyManager;
 import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.TypedId;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import oculus.aperture.spi.common.Properties;
+
+import org.apache.avro.AvroRemoteException;
+import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataAccess {
 	protected static Logger s_logger = LoggerFactory.getLogger(ClusteringDataAccess.class);
@@ -52,7 +53,7 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 										FL_Geocoding geocoding, 
 										EntityClusterer clusterer, 
 										EntityClusterFactory clusterFactory,
-										PropertyManager config) throws ClassNotFoundException, SQLException {
+										Properties config) throws ClassNotFoundException, SQLException {
 		_connectionPool = connectionPool;
 		_namespaceHandler = namespaceHandler;
 		_entityAccess = entityAccess;
@@ -81,6 +82,11 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 			Statement stmt = connection.createStatement();
 		
 			String summaryTable = getNamespaceHandler().tableName(null, DataAccessHelper.CLUSTER_SUMMARY_TABLE);
+			String summaryPropertyColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_PROPERTY);
+			String summaryTagColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_TAG);
+			String summaryTypeColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_TYPE);
+			String summaryValueColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_VALUE);
+			String summaryStatColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_STAT);
 		
 			// process src nodes in batches 
 			List<String> idsCopy = new ArrayList<String>(ns_entities); // copy the ids as we will take 1000 at a time to process and the take method is destructive
@@ -90,22 +96,26 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 			
 				String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
-				String inClause = DataAccessHelper.createInClause(subIds);
+				String finEntityEntityIdColumn = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
+				String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
+				String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
+				
+				String inClause = DataAccessHelper.createInClause(subIds, getNamespaceHandler(), null);
 				
 				Map<String, int[]> entityStats = new HashMap<String, int[]>();
 			
 				StringBuilder sql = new StringBuilder();
 				
-				sql.append(" select EntityId, UniqueInboundDegree, UniqueOutboundDegree ");
+				sql.append(" select " + finEntityEntityIdColumn + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " ");
 				sql.append("   from " + finEntityTable);
-				sql.append("  where EntityId in " +  inClause);
+				sql.append("  where " + finEntityEntityIdColumn + " in " +  inClause);
 				
 				if (stmt.execute(sql.toString())) {
 					ResultSet rs = stmt.getResultSet();
 					while (rs.next()) {
-						String entityId = rs.getString("EntityId");
-						int inDegree = rs.getInt("UniqueInboundDegree");
-						int outDegree = rs.getInt("UniqueOutboundDegree");
+						String entityId = rs.getString(finEntityEntityIdColumn);
+						int inDegree = rs.getInt(finEntityUniqueInboundDegree);
+						int outDegree = rs.getInt(finEntityUniqueOutboundDegree);
 					
 						entityStats.put(entityId, new int[]{inDegree, outDegree});
 					}
@@ -113,21 +123,21 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 				}
 				
 				sql = new StringBuilder();
-				sql.append(" SELECT EntityId, Property, Tag, Type, Value, Stat ");
+				sql.append(" SELECT " + finEntityEntityIdColumn + ", " + summaryPropertyColumn + ", " + summaryTagColumn + ", " + summaryTypeColumn + ", " + summaryValueColumn + ", " + summaryStatColumn + " ");
 				sql.append("   FROM " + summaryTable);
-				sql.append("  WHERE EntityId IN " + inClause);
-				sql.append("  ORDER BY EntityId");
+				sql.append("  WHERE " + finEntityEntityIdColumn + " IN " + inClause);
+				sql.append("  ORDER BY " + finEntityEntityIdColumn + ", " + summaryPropertyColumn + ", "+ summaryStatColumn + " DESC");
 			
 				if (stmt.execute(sql.toString())) {				
 					ResultSet rs = stmt.getResultSet();
 			
 					while (rs.next()) {
-						String id = rs.getString("EntityId");
-						String property = rs.getString("Property");
-						String tag = rs.getString("Tag");
-						String type = rs.getString("Type");
-						String value = rs.getString("Value");
-						float stat = rs.getFloat("Stat");
+						String id = rs.getString(finEntityEntityIdColumn);
+						String property = rs.getString(summaryPropertyColumn);
+						String tag = rs.getString(summaryTagColumn);
+						String type = rs.getString(summaryTypeColumn);
+						String value = rs.getString(summaryValueColumn);
+						float stat = rs.getFloat(summaryStatColumn);
 						
 						Map<String, PropertyHelper> propMap = entityPropMap.get(id);
 						if (propMap == null) {
@@ -138,10 +148,12 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 						PropertyHelper prop = propMap.get(property);
 						if (prop == null) {
 							prop = createProperty(property, tag, type, value, stat);
-							propMap.put(property, prop);
+							if (prop != null) {
+								propMap.put(property, prop);
+							}
 						}
 						else {
-							updateProperty(prop, type, value, stat);
+							updateProperty(prop, tag, type, value, stat);
 						}
 					}
 					
@@ -192,10 +204,15 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 	}
 	
 	private PropertyHelper createProperty(String property, String tag, String type, String value, float stat) {
+		boolean isDist = (stat > 0);
+		
+		if (isDist && (value == null || value.isEmpty())) {
+			return null;
+		}
+		
+		
 		FL_PropertyTag propTag = FL_PropertyTag.valueOf(tag);
 		FL_PropertyType propType = FL_PropertyType.valueOf(type);
-		
-		boolean isDist = (stat > 0);
 		
 		PropertyHelper prop = null;
 		Object propValue = null;
@@ -234,11 +251,27 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void updateProperty(PropertyHelper property, String type, String value, float stat) {
+	private void updateProperty(PropertyHelper property, String tag, String type, String value, float stat) {
+		if (value == null || value.isEmpty()) {
+			return;
+		}
+		
+		FL_PropertyTag propTag = FL_PropertyTag.valueOf(tag);
 		FL_PropertyType propType = FL_PropertyType.valueOf(type);
 		
-		Object propValue = getPropertyValue(propType, value);
-				
+		Object propValue = null;
+		
+		if (propTag == FL_PropertyTag.COUNTRY_CODE) {
+			FL_GeoData geo = new FL_GeoData(null, null, null, value);
+			try {
+				_geoCoder.geocode(Collections.singletonList(geo));
+			} catch (AvroRemoteException e) { /* ignore - we do our best to geo code */ }
+			
+			propValue = geo;
+		} else {
+			propValue = getPropertyValue(propType, value);
+		}
+		
 		// update distribution range - assumes updateProperty is only applied to distribution properties - which should be the case
 		List<FL_Frequency> freqs = (List<FL_Frequency>)property.getValue();
 		

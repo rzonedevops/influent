@@ -41,6 +41,7 @@ define(
             offsetX : 40, // Extra padding when scrolling left to ensure our buttons don't get clipped.
             subscriberTokens : null,
             isRenderingSuspended : false,
+            renderSuspendedSemaphore : 0,
             deferredRenderRequestData : []
         };
 
@@ -162,19 +163,24 @@ define(
         //--------------------------------------------------------------------------------------------------------------
 
         var _onSuspendRendering = function(eventChannel, data) {
-            _renderState.deferredRenderRequestData = [];
             _renderState.isRenderingSuspended = true;
+            _renderState.renderSuspendedSemaphore++;
         };
 
         //--------------------------------------------------------------------------------------------------------------
 
         var _onResumeRendering = function(eventChannel, data) {
-            setTimeout(function() {
+            _renderState.renderSuspendedSemaphore--;
+
+            if (_renderState.renderSuspendedSemaphore <= 0) {
+                _renderState.renderSuspendedSemaphore = 0;
                 _renderState.isRenderingSuspended = false;
+
                 for (var i = 0; i < _renderState.deferredRenderRequestData.length; i++) {
                     aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, _renderState.deferredRenderRequestData[i]);
                 }
-            }, 100);
+                _renderState.deferredRenderRequestData = [];
+            }
         };
 
         //--------------------------------------------------------------------------------------------------------------
@@ -188,13 +194,14 @@ define(
             }
 
             var uiObject = data.UIObject;
-            var objectType = uiObject.getUIType();
             var visualInfo = uiObject.getVisualInfo();
-            var element = undefined;
 
             if (visualInfo == null || visualInfo.xfId == null) {
                 return;
             }
+
+            var objectType = uiObject.getUIType();
+            var element = undefined;
 
             var isFirst = $(
                 '#' +
@@ -236,15 +243,15 @@ define(
                     aperture.log.error('Attempted to render an unsupported UIObject type: ' + objectType);
                 }
             }
+            // DJ: ???
             if (isFirst){
                 if (objectType == 'xfWorkspace') {
                     var cardsDiv = $('#cards');
                     cardsDiv.empty();
                     cardsDiv.append(element);
                     
-                    if(visualInfo.footerDisplay == 'none') {
-                        var footerDiv = $('#footer');
-                        footerDiv.accordion('activate', false );
+                    if(visualInfo.footerDisplay === 'none') {
+                    	aperture.pubsub.publish(chan.FOOTER_STATE_REQUEST, {expand: false});
                     }
                 }
                 else {

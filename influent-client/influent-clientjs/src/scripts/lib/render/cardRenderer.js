@@ -528,7 +528,7 @@ define(
             else {
 
                 // Remove any existing listeners.
-                xfUtil.clearMouseListeners(canvas, ['click', 'mouseenter']);
+                xfUtil.clearMouseListeners(canvas, ['click', 'mouseover']);
                 outerContainer = $(canvas).find('#' + 'outerContainer_'+visualInfo.xfId);
                 spinnerContainer = $(canvas).find('#' + 'spinnerContainer_'+visualInfo.xfId);
             }
@@ -574,7 +574,7 @@ define(
                 return selectionState;
             });
 
-            canvas.mouseenter(function() {
+            canvas.mouseover(function() {
                 if(!visualInfo.isHovered) {         // Notify the UIObject that it's being hovered over.
                     aperture.pubsub.publish(chan.HOVER_CHANGE_REQUEST, {
                         xfId : visualInfo.xfId

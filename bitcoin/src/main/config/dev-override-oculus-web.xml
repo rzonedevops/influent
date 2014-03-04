@@ -5,7 +5,7 @@
 	<!-- Config File Location -->
 	<!-- Turns off client-side caching -->
 	<context-param>
-		<param-name>apertureConfig</param-name>
+		<param-name>apertureConfigOverrides</param-name>
 		<param-value>res:///app-dev-oculus.properties</param-value>
 	</context-param>
 

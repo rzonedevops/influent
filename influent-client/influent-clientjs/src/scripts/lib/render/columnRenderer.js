@@ -59,7 +59,7 @@ define(
                         break;
                     }
                     default : {
-                        console.error('Attempted to add an unsupported UIObject type to column: ' + childObjects[i].getUIType());
+                        aperture.log.error('Attempted to add an unsupported UIObject type to column: ' + childObjects[i].getUIType());
                     }
                 }
                 if (element){
@@ -68,6 +68,14 @@ define(
             }
         };
 
+        function _makeButton(title, icon) {
+			return $('<button class="column-button"></button>')
+				.text(title)
+				.button({text: false,
+					icons: {primary : icon}
+				});
+        }
+        
         columnRenderer.createElement = function(visualInfo){
             var canvas = $('#' + visualInfo.xfId),
                 container;
@@ -89,21 +97,14 @@ define(
                 // create the content container
                 container = $('<div class="columnContainer"></div>').appendTo(canvas);
 
-                var fileDiv = $('<div class="new-file-button">').appendTo(header);
-                fileDiv.click(function() {
+                var fileBtn = _makeButton('add new file to top of column', 'new-file').appendTo(header);
+                fileBtn.click(function() {
                     aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, isColumn: true});
                     return false;
                 });
 
-                var fileImg = $('<img/>');
-                fileImg.attr('src' , 'img/new_file.png');
-
-                fileDiv.append(fileImg);
-                fileDiv.css('float', 'right');
-                fileDiv.addClass('cardToolbarItem');
-
-                var cleanColumnDiv = $('<div class="clean-column-button">').appendTo(header);
-                cleanColumnDiv.click(function() {
+                var cleanColumnBtn = _makeButton('clear column of unfiled content', 'column-clear').appendTo(header);
+                cleanColumnBtn.click(function() {
                     xfModalDialog.createInstance({
                         title: "Clear Column?",
                         contents: "Clear all unfiled cards? Everything but file folders and match results will be removed.",
@@ -123,17 +124,7 @@ define(
                     return false;
                 });
 
-                var cleanColumnImg = $('<img/>');
-
-                // icon courtesy of http://p.yusukekamiyamane.com
-                cleanColumnImg.attr('src' , 'img/clean_column.png');
-
-                cleanColumnDiv.append(cleanColumnImg);
-                cleanColumnDiv.css('float', 'right');
-                cleanColumnDiv.addClass('cardToolbarItem');
-
-                var sortColumnDiv = $('<div class="sort-column-button">');
-                header.append(sortColumnDiv);
+                var sortColumnBtn = _makeButton('sort column by visible flow', 'column-sort').appendTo(header);
 
                 var sortOptions = $('<ul></ul>');
                 sortOptions.attr('id', 'sort-options');
@@ -165,7 +156,7 @@ define(
                 bothSortOption.append(bothSort);
                 sortOptions.append(bothSortOption);
 
-                sortColumnDiv.click(
+                sortColumnBtn.click(
                     function() {
 
                         sortOptions.hide();
@@ -232,14 +223,6 @@ define(
                         );
                     }
                 );
-
-                var sortColumnImg = $('<img/>');
-
-                sortColumnImg.attr('src' , 'img/sort.png');
-
-                sortColumnDiv.append(sortColumnImg);
-                sortColumnDiv.css('float', 'right');
-                sortColumnDiv.addClass('cardToolbarItem');
 
                 function showHeader() {
                     if ($('.columnHeader', canvas).css('display') === 'none') {

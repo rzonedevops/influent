@@ -207,7 +207,7 @@ define(
             //----------------------------------------------------------------------------------------------------------
 
             xfColumnInstance.collapseLinks = function(direction) {
-                console.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapseLinks".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -223,7 +223,7 @@ define(
                     );
                 }
                 else {
-                	console.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
+                	aperture.log.error('Invalid or missing publish event. Unable to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
                 }                
             };
 
@@ -346,7 +346,7 @@ define(
 
             xfColumnInstance.isSelected = function() {
                 // Columns cannot be selected, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -361,7 +361,7 @@ define(
             
             xfColumnInstance.isHovering = function() {
                 // Columns cannot be selected, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "isSelected".');
             };
 
 			//----------------------------------------------------------------------------------------------------------
@@ -386,14 +386,14 @@ define(
 
             xfColumnInstance.expand = function() {
                 // Column objects cannot be expanded, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "expand".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "expand".');
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfColumnInstance.collapse = function() {
                 // Column objects cannot be collapsed, so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "collapse".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapse".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -559,7 +559,7 @@ define(
                         fileUIObj.restoreVisualState(state.children[i]);
                         this.insert(fileUIObj, null);
                     } else {
-                        console.error("cluster children should only be of type " +
+                        aperture.log.error("cluster children should only be of type " +
                             constants.MODULE_NAMES.ENTITY + ", " +
                             constants.MODULE_NAMES.IMMUTABLE_CLUSTER + ", " +
                             constants.MODULE_NAMES.SUMMARY_CLUSTER + ", " +

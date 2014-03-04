@@ -40,16 +40,15 @@ import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.clustering.utils.ClusterCollapser;
 import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.data.EntitySearchTerms;
 import influent.server.utilities.Pair;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -192,26 +191,6 @@ public class EntitySearchResource extends ApertureServerResource{
 			
 			// fetch all cluster summaries
 			summaries.addAll( clusterAccess.getClusterSummary(new ArrayList<String>(clusterSummaries.values())) );
-			
-			// add an account owner property to the cluster summaries
-			// TODO: this should really be part of getClusterSummary
-			for (String aId : clusterSummaries.keySet()) {
-				String cId = clusterSummaries.get(aId); // get the cluster summary for this account owner
-				
-				for (FL_Cluster c : summaries) {
-					if (c.getUid().equals(cId)) {
-						c.getProperties().add(
-							new PropertyHelper(
-								"ownerId", 
-								"Account Owner", 
-								aId, 
-								Arrays.asList(FL_PropertyTag.ACCOUNT_OWNER)
-							)
-						);
-						break;
-					}
-				}
-			}
 			
 			PermitSet permits = new PermitSet();
 			

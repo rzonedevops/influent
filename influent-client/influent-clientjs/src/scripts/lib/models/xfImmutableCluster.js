@@ -150,19 +150,19 @@ define(
             //----------------------------------------------------------------------------------------------------------
 
             xfClusterInstance.removeChild = function(xfId, disposeObject, preserveLinks) {
-                console.error('Unable to remove child from ' + MODULE_NAME);
+                aperture.log.error('Unable to remove child from ' + MODULE_NAME);
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfClusterInstance.removeAllChildren = function() {
-                console.error('Unable to remove children from ' + MODULE_NAME);
+                aperture.log.error('Unable to remove children from ' + MODULE_NAME);
             };
 
             //----------------------------------------------------------------------------------------------------------
 
             xfClusterInstance.insert = function(xfUIObj, beforeXfUIObj00) {
-                console.error('Unable to insert children into ' + MODULE_NAME);
+                aperture.log.error('Unable to insert children into ' + MODULE_NAME);
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -226,7 +226,7 @@ define(
                         clusterUIObj.restoreVisualState(state.children[i]);
                         this._restoreObjectToCluster(clusterUIObj);
                     } else {
-                        console.error("cluster children should only be of type " + constants.MODULE_NAMES.ENTITY + " or " + constants.MODULE_NAMES.IMMUTABLE_CLUSTER + ".");
+                        aperture.log.error("cluster children should only be of type " + constants.MODULE_NAMES.ENTITY + " or " + constants.MODULE_NAMES.IMMUTABLE_CLUSTER + ".");
                     }
                 }
             };

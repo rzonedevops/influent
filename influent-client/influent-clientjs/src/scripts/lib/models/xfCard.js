@@ -354,7 +354,7 @@ define(
                     );
                 }
                 else {
-                	console.error('Invalid or missing publish event. Unabled to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
+                	aperture.log.error('Invalid or missing publish event. Unabled to remove ' + MODULE_NAME + ': ' + _UIObjectState.xfId);
                 }
             };
 
@@ -363,7 +363,7 @@ define(
             xfCardInstance.removeChild = function(xfId, disposeObject, preserveLinks) {
                 // Cards have no children and therefore can not implement the 'removeChild' method,
                 // so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "removeChild".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "removeChild".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -378,7 +378,7 @@ define(
             xfCardInstance.insert = function(xfUIObj, beforeXfUIObj00) {
                 // Cards have no children and therefore can not implement the 'insert' method,
                 // so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "insert".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "insert".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -538,7 +538,7 @@ define(
             xfCardInstance.expand = function() {
                 // Cards have no children and therefore can not implement the 'expand' method,
                 // so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "expand".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "expand".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -546,7 +546,7 @@ define(
             xfCardInstance.collapse = function() {
                 // Cards have no children and therefore can not implement the 'collapse' method,
                 // so we throw an error to indicate this.
-                console.error(MODULE_NAME + ': call to unimplemented method "collapse".');
+                aperture.log.error(MODULE_NAME + ': call to unimplemented method "collapse".');
             };
 
             //----------------------------------------------------------------------------------------------------------
@@ -558,7 +558,6 @@ define(
                 }
 
                 _UIObjectState.spec.duplicateCount = count;
-                aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfCardInstance});
             };
 
             //----------------------------------------------------------------------------------------------------------

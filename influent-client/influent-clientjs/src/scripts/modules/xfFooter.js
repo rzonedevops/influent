@@ -82,29 +82,54 @@ define(
             };
 
             //----------------------------------------------------------------------------------------------------------
-
-            var onFooterExpand = function(expand, height) {
-                aperture.pubsub.publish(chan.FOOTER_STATE, {
-                    expanded : expand,
-                    height : height
-                });
-            };
-
+            var FOOTER_HEIGHT = 251;
+            var ANIM_DURATION = 200;
+            //----------------------------------------------------------------------------------------------------------
+            var isExpanded = false;
+            //----------------------------------------------------------------------------------------------------------
+            
+            function _onStateRequest(channel, data) {
+                
+                // EXPAND
+    			if (isExpanded !== data.expand) {
+    				isExpanded = data.expand;
+    				
+	    			if (isExpanded) {
+		    			$('#footer-content').css({
+		    				overflow: 'hidden'
+		    				
+	    				}).animate({
+		    				height: FOOTER_HEIGHT
+		    				
+		    			}, ANIM_DURATION, function() {
+		    				$('#footer-content').css({
+		    					overflow: ''
+		    				});
+		    			});
+		    			
+	                    $('#workspace').animate({'bottom': FOOTER_HEIGHT}, ANIM_DURATION);
+		    			
+	    			// COLLAPSE
+	    			} else {
+		    			$('#footer-content').css('height', 0);
+	                    $('#workspace').css('bottom', 0);
+	    			}
+	    			
+					aperture.pubsub.publish(chan.FOOTER_STATE, {expanded: isExpanded});
+    			}
+            }
+            
             //----------------------------------------------------------------------------------------------------------
 
             var initialize = function() {
-
+                
                 var footer = $('#footer');
 
 
 
-                var footerTitle = $('<h3></h3>');
-                footerTitle.addClass('footer-title');
-                footerTitle.html('Details');
-                footer.append(footerTitle);
-
                 var footerContentDiv = $('<div></div>');
                 footerContentDiv.attr('id', 'footer-content');
+                footerContentDiv.css('height', 0);
                 footer.append(footerContentDiv);
 
                 var detailsDiv = $('<div></div>');
@@ -125,14 +150,14 @@ define(
                 var tableTab = $('<li></li>');
                 var tableHref = $('<a></a>');
                 tableHref.attr('href', '#tableTab');
-                tableHref.html('Table');
+                tableHref.html('Transaction Table');
                 tableTab.append(tableHref);
                 tabs.append(tableTab);
 
                 var chartTab = $('<li></li>');
                 var chartHref = $('<a></a>');
                 chartHref.attr('href', '#chartTab');
-                chartHref.html('Chart');
+                chartHref.html('Transaction Chart');
                 chartTab.append(chartHref);
                 tabs.append(chartTab);
 
@@ -179,19 +204,6 @@ define(
                 transactionsDiv.append(chartTabDiv);
 
                 $(function() {
-                    $('#footer').accordion({
-                        collapsible: true,
-                        heightStyle: 'auto',
-                        change: function (event, ui) {
-                            onFooterExpand(
-                                (ui.newContent ? true : false),
-                                footer.height()
-                            );
-                        }
-                    });
-                });
-
-                $(function() {
                     $('#transactions').tabs(
                         {
                             select: function(event, ui) {
@@ -210,10 +222,6 @@ define(
                             }
                         }
                     );
-                });
-
-                $(function() {
-                    onFooterExpand(true, footer.height());
                 });
             };
 
@@ -236,7 +244,8 @@ define(
 
                 subTokens[chan.SELECTION_CHANGE_EVENT] = aperture.pubsub.subscribe(chan.SELECTION_CHANGE_EVENT, _onUpdate);
                 subTokens[chan.ALL_MODULES_STARTED] = aperture.pubsub.subscribe(chan.ALL_MODULES_STARTED, _initializeModule);
-
+                subTokens[chan.FOOTER_STATE_REQUEST] = aperture.pubsub.subscribe(chan.FOOTER_STATE_REQUEST, _onStateRequest);
+                
                 _transactionsState.subscriberTokens = subTokens;
             };
 

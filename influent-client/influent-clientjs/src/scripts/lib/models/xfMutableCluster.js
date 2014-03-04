@@ -318,7 +318,7 @@ define(
                         clusterUIObj.restoreVisualState(state.children[i]);
                         this.insert(clusterUIObj, null);
                     } else {
-                        console.error("cluster children should only be of type " + constants.MODULE_NAMES.ENTITY + ", " + constants.MODULE_NAMES.SUMMARY_CLUSTER + " or " + constants.MODULE_NAMES.MUTABLE_CLUSTER + ".");
+                        aperture.log.error("cluster children should only be of type " + constants.MODULE_NAMES.ENTITY + ", " + constants.MODULE_NAMES.SUMMARY_CLUSTER + " or " + constants.MODULE_NAMES.MUTABLE_CLUSTER + ".");
                     }
                 }
             };
