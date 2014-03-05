@@ -92,7 +92,7 @@ define(
                 case xfLinkType.FLOW:
                 default:
                     style['sankey-style'] = 'solid';
-                    style['sankey-color'] = '#C4BDAD';
+                    style['sankey-color'] = '#B4AD9D';
                 break;
             }
             return style;
