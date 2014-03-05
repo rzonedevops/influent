@@ -250,12 +250,55 @@ define(
             return containedIds;
         };
 
+        /**
+         * Standard button maker
+         */
         function _makeButton(title, icon) {
 			return $('<button class="card-button"></button>')
 				.text(title)
 				.button({text: false,
 					icons: {primary : icon}
 				});
+        }
+        
+        /**
+         * Get any button extensions
+         */
+        function getCardToolbarExtensions(visualInfo, isSearchResult) {
+            var extensions = plugins.get('cards');
+            var buttonItemList = [];
+            
+            aperture.util.forEach(extensions, function(e) {
+            	if (e.toolbar) {
+            		var cardspec = {
+            			dataId : visualInfo.spec.dataId,
+            			type : visualInfo.spec.subtype || visualInfo.UIType,
+            			isSearchResult : isSearchResult
+            		};
+            		
+            		var ebuttons = e.toolbar(cardspec);
+            		if (ebuttons) {
+	            		if (!aperture.util.isArray(ebuttons)) {
+	            			ebuttons = [ebuttons];
+	            		}
+	            		
+	            		for (var b= 0; b< ebuttons.length; b++) {
+	            			var ebutton = ebuttons[b];
+	            			
+	                        buttonItemList.splice(0,0,
+	                    		_makeButton(ebutton.title || '', ebutton.icon).click(
+	                    			function() {
+	                    				if (ebutton.click) {
+		                    				return ebutton.click(arguments);
+	                    				}
+	                    			})
+	                        );
+	            		}
+            		}
+            	}
+            });
+
+            return buttonItemList;
         }
         
         var _createToolbar = function(visualInfo, cardWidth){
@@ -416,36 +459,8 @@ define(
                 }
             }
             
-            var extensions = plugins.get('cards');
-            aperture.util.forEach(extensions, function(e) {
-            	if (e.toolbar) {
-            		var cardspec = {
-            			dataId : visualInfo.spec.dataId,
-            			type : visualInfo.spec.subtype
-            		};
-            		
-            		var ebuttons = e.toolbar(cardspec);
-            		if (ebuttons) {
-	            		if (!aperture.util.isArray(ebuttons)) {
-	            			ebuttons = [ebuttons];
-	            		}
-	            		
-	            		for (var b= 0; b< ebuttons.length; b++) {
-	            			var ebutton = ebuttons[b];
-	            			
-	                        buttonItemList.splice(0,0,
-	                    		_makeButton(ebutton.title || '', ebutton.icon).click(
-	                    			function() {
-	                    				if (ebutton.click) {
-		                    				return ebutton.click(arguments);
-	                    				}
-	                    			})
-	                        );
-	            		}
-            		}
-            	}
-            });
-            
+            buttonItemList = getCardToolbarExtensions(visualInfo, false).concat(buttonItemList);
+            	
             for (var i=0; i < buttonItemList.length; i++){
                 _toolbarState.toolbarDiv.append(buttonItemList[i]);
             }
@@ -465,6 +480,12 @@ define(
                 _toolbarState.matchDiv = $('<div class="matchToolbar"></div>');
                 _toolbarState.canvas.append(_toolbarState.matchDiv);
 
+                // Custom buttons.
+                var buttonItemList = getCardToolbarExtensions(visualInfo, true);
+                aperture.util.forEach(buttonItemList, function(button) {
+                    _toolbarState.matchDiv.append(button);
+                });
+                
                 // Focus button
                 var bFocusable = visualInfo.toolbarSpec['allowFocus'];
                 if ( bFocusable === true) {
