@@ -48,10 +48,9 @@ define([], function() {
 	// some useful constants
 	secondInMillis = 1000,
 	minuteInMillis = secondInMillis * 60,
-	hourInMillis   = minuteInMillis * 60,
-	dayInMillis    = hourInMillis * 24;
+	hourInMillis   = minuteInMillis * 60;
 
-    //------------------------------------------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Private implementation : add (or subtract) duration to date and return new date
@@ -126,23 +125,7 @@ define([], function() {
 
 				case 'M':
 					if (!timePart) { // months
-						// month is the only trick bit because the duration of a month varies
-						var m = date.getMonth()/*0-11*/ + sign * part.number;
-
-						// handle rollover
-						if (m > 11) {
-							date.setFullYear(date.getFullYear() + Math.floor(m/12));
-							m = m % 12;
-						}
-						else if (m < 0) {
-							date.setFullYear(date.getFullYear() - Math.ceil(-m/12));
-							m = 12 - ((-m) % 12);
-							if (m === 12) {
-								m = 0;
-							}
-						}
-
-						date.setMonth(m);
+						date.setMonth(date.getMonth() + sign * part.number);
 					}
 					else { // minutes
 						date.setTime(date.getTime() + minuteInMillis * sign * part.number);
@@ -150,7 +133,7 @@ define([], function() {
 					break;
 
 				case 'D': // days
-					date.setTime(date.getTime() + dayInMillis * sign * part.number);
+					date.setDate(date.getDate() + sign * part.number);
 					break;
 
 				case 'H': // hours
@@ -167,7 +150,7 @@ define([], function() {
 		return date;
 	};
 
-    //------------------------------------------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Add duration to date and return new date
@@ -176,7 +159,7 @@ define([], function() {
 		return toDate(duration, date, 1);
 	};
 
-    //------------------------------------------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Subtract duration from date and return new date
@@ -185,140 +168,140 @@ define([], function() {
 		return toDate(duration, date, -1);
 	};
 
-    //------------------------------------------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------------------------------------------
 
-    var roundDateByDuration = function() {
-        function iterByDay(date, direction) {
-            date.setTime( date.getTime() + ((direction > 0) ? 86400000 : -86400000) );
-        }
-        function iterByMonth(date, direction) {
-            if(direction > 0) {
-                if(date.getMonth() == 11) {
-                    date.setYear(date.getFullYear() + 1);
-                }
+	var roundDateByDuration = (function() {
+		function iterByDay(date, direction) {
+			date.setTime( date.getTime() + ((direction > 0) ? 86400000 : -86400000) );
+		}
+		function iterByMonth(date, direction) {
+			if(direction > 0) {
+				if(date.getMonth() == 11) {
+					date.setYear(date.getFullYear() + 1);
+				}
 
-                date.setMonth((date.getMonth() + 1)%12);
-            }
-            else {
-                if(date.getMonth() == 0) {
-                    date.setYear(date.getFullYear() - 1);
-                }
+				date.setMonth((date.getMonth() + 1)%12);
+			}
+			else {
+				if(date.getMonth() === 0) {
+					date.setYear(date.getFullYear() - 1);
+				}
 
-                date.setMonth((date.getMonth() - 1)%12);
-            }
-        }
+				date.setMonth((date.getMonth() - 1)%12);
+			}
+		}
 
-        function roundByIteration(date, duration, iterator) {
-            if(isDateValidForDuration(date, duration)) {
-                return date;
-            }
+		function roundByIteration(date, duration, iterator) {
+			if(isDateValidForDuration(date, duration)) {
+				return date;
+			}
 
-            //var dateIterator = iterators[duration];
-            var pastDate = new Date(date.getTime());
-            var futureDate = new Date(date.getTime());
+			//var dateIterator = iterators[duration];
+			var pastDate = new Date(date.getTime());
+			var futureDate = new Date(date.getTime());
 
-            while(!isDateValidForDuration(pastDate, duration) && !isDateValidForDuration(futureDate, duration)) {
-                iterator(pastDate,  -1);
-                iterator(futureDate, 1);
-            }
+			while(!isDateValidForDuration(pastDate, duration) && !isDateValidForDuration(futureDate, duration)) {
+				iterator(pastDate,  -1);
+				iterator(futureDate, 1);
+			}
 
-            if(isDateValidForDuration(pastDate, duration) && isDateValidForDuration(futureDate, duration)) {
-                if(date.getTime() - pastDate.getTime() < futureDate.getTime() - date.getTime()) {
-                    return pastDate;
-                }
-                else {
-                    return futureDate;
-                }
-            }
-            else if(isDateValidForDuration(pastDate, duration)) {
-                return pastDate;
-            }
-            else {
-                return futureDate;
-            }
-        }
+			if(isDateValidForDuration(pastDate, duration) && isDateValidForDuration(futureDate, duration)) {
+				if(date.getTime() - pastDate.getTime() < futureDate.getTime() - date.getTime()) {
+					return pastDate;
+				}
+				else {
+					return futureDate;
+				}
+			}
+			else if(isDateValidForDuration(pastDate, duration)) {
+				return pastDate;
+			}
+			else {
+				return futureDate;
+			}
+		}
 
-        var iterators = {
-            'P14D': iterByDay,
-            'P30D': iterByDay,
-            'P60D': iterByDay,
-            'P112D': iterByDay,
-            'P224D': iterByDay,
-            'P1Y': iterByMonth,
-            'P16M': iterByMonth,
-            'P2Y': iterByMonth,
-            'P32M': iterByMonth,
-            'P4Y': iterByMonth,
-            'P8Y': iterByMonth,
-            'P16Y': iterByMonth
-        };
+		var iterators = {
+			'P14D': iterByDay,
+			'P30D': iterByDay,
+			'P60D': iterByDay,
+			'P112D': iterByDay,
+			'P224D': iterByDay,
+			'P1Y': iterByMonth,
+			'P16M': iterByMonth,
+			'P2Y': iterByMonth,
+			'P32M': iterByMonth,
+			'P4Y': iterByMonth,
+			'P8Y': iterByMonth,
+			'P16Y': iterByMonth
+		};
 
-        return function(date, duration) {
-        	
-        	// start by stripping time.
-        	date = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        	
-            if(isDateValidForDuration(date, duration)) {
-                return date;
-            }
+		return function(date, duration) {
 
-            // need to 'clean' the input date before rounding by iteration will work
-            // basically, this involves rounding at a finer resolution.
-            switch(duration) {
-                case 'P1Y':
-                case 'P16M':
-                case 'P2Y':
-                case 'P32M':
-                case 'P4Y':
-                case 'P8Y':
-                case 'P16Y':
-                    date = roundByIteration(date, 'P1Y', iterByDay);  // iterByMonth requires dates centered by forMonth
-                    break;
-            }
+			// start by stripping time.
+			date = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-            return roundByIteration(date, duration, iterators[duration]);
-        };
-    }();
+			if(isDateValidForDuration(date, duration)) {
+				return date;
+			}
 
-    //------------------------------------------------------------------------------------------------------------------
+			// need to 'clean' the input date before rounding by iteration will work
+			// basically, this involves rounding at a finer resolution.
+			switch(duration) {
+				case 'P1Y':
+				case 'P16M':
+				case 'P2Y':
+				case 'P32M':
+				case 'P4Y':
+				case 'P8Y':
+				case 'P16Y':
+					date = roundByIteration(date, 'P1Y', iterByDay);  // iterByMonth requires dates centered by forMonth
+					break;
+			}
 
-    var isDateValidForDuration = function() {
-        function forDay(date) {
-            return date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0;
-        }
-        function forWeek(date) {
-            return forDay(date) && date.getDay() === 0;
-        }
-        function forMonth(date) {
-            return forDay(date) && date.getDate() === 1;
-        }
-        function forQuarter(date) {
-            return forDay(date) && date.getDate() === 1 && date.getMonth() %3 === 0;
-        }
-        function forYear(date) {
-            return forDay(date) && date.getMonth() === 0 && date.getDate() === 1;
-        }
-        var validators = {
-            'P14D': forDay,
-            'P30D': forDay,
-            'P60D': forDay,
-            'P112D': forWeek,
-            'P224D': forWeek,
-            'P1Y': forMonth,
-            'P16M': forMonth,
-            'P2Y': forMonth,
-            'P32M': forQuarter,
-            'P4Y': forQuarter,
-            'P8Y': forQuarter,
-            'P16Y': forYear
-        };
+			return roundByIteration(date, duration, iterators[duration]);
+		};
+	}());
 
-        return function(date, duration) {
-            return validators[duration](date);
-        };
-    }();
+	//------------------------------------------------------------------------------------------------------------------
 
-    //------------------------------------------------------------------------------------------------------------------
+	var isDateValidForDuration = (function() {
+		function forDay(date) {
+			return date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0;
+		}
+		function forWeek(date) {
+			return forDay(date) && date.getDay() === 0;
+		}
+		function forMonth(date) {
+			return forDay(date) && date.getDate() === 1;
+		}
+		function forQuarter(date) {
+			return forDay(date) && date.getDate() === 1 && date.getMonth() %3 === 0;
+		}
+		function forYear(date) {
+			return forDay(date) && date.getMonth() === 0 && date.getDate() === 1;
+		}
+		var validators = {
+			'P14D': forDay,
+			'P30D': forDay,
+			'P60D': forDay,
+			'P112D': forWeek,
+			'P224D': forWeek,
+			'P1Y': forMonth,
+			'P16M': forMonth,
+			'P2Y': forMonth,
+			'P32M': forQuarter,
+			'P4Y': forQuarter,
+			'P8Y': forQuarter,
+			'P16Y': forYear
+		};
+
+		return function(date, duration) {
+			return validators[duration](date);
+		};
+	}());
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Private fn that expands a part and returns the result
@@ -341,7 +324,7 @@ define([], function() {
 		return part;
 	};
 
-    //------------------------------------------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Formats a coded duration string for user consumption, according to
@@ -403,13 +386,13 @@ define([], function() {
 		return longForm? '0 Day' : '0D';
 	};
 
-    //------------------------------------------------------------------------------------------------------------------
+	//------------------------------------------------------------------------------------------------------------------
 
 	that.format = format;
 	that.addToDate = addToDate;
 	that.subtractFromDate = subtractFromDate;
-    that.roundDateByDuration = roundDateByDuration;
-    that.isDateValidForDuration = isDateValidForDuration;
+	that.roundDateByDuration = roundDateByDuration;
+	that.isDateValidForDuration = isDateValidForDuration;
 
 	return that;
 });

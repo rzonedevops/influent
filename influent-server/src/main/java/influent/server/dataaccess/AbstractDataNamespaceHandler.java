@@ -38,15 +38,20 @@ import oculus.aperture.spi.common.Properties;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author djonker
  *
  */
 public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandler {
-
+	private static Logger s_logger = LoggerFactory.getLogger(AbstractDataNamespaceHandler.class);
+	private static final String TABLE_NAME_CONFIG = "influent.data.view.tables";
+	private static final String ID_TYPE_CONFIG = "influent.data.view.idType";
+	
 	public enum ID_TYPE {
-		NUMERIC, STRING
+		NUMERIC, STRING, HEX // binary/raw referred to locally in hex without the 0x prefix, like '7D'
 	}
 
 	private final Map<String, String> _tableNames;
@@ -75,12 +80,20 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	@SuppressWarnings("unchecked")
 	public AbstractDataNamespaceHandler(Properties config) throws JSONException {
 
-		String tableNamesJson = config.getString("influent.data.view.tables", "");
-		String idType = config.getString("influent.data.view.idType", "STRING");
+		String tableNamesJson = config.getString(TABLE_NAME_CONFIG, "");
+		String idType = config.getString(ID_TYPE_CONFIG, "STRING");
 
 		_tableNames = new HashMap<String, String>();
-		_idType = Enum.valueOf(ID_TYPE.class, idType.toUpperCase());
 		_config = config;
+
+		// entity id type (default)
+		ID_TYPE eIdType = ID_TYPE.STRING;
+		try {
+			eIdType = Enum.valueOf(ID_TYPE.class, idType.toUpperCase());
+		} catch (Exception e) {
+			s_logger.warn("Unrecognized " +ID_TYPE_CONFIG+ ": " +idType);
+		}
+		_idType = eIdType;
 		
 		// parse table names
 		JSONObject map = new JSONObject(tableNamesJson);
@@ -207,28 +220,41 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 */
 	@Override
 	public String toSQLId(String id, String namespace) {
-		ID_TYPE type;
-		if(namespace == null) {
-			type = _idType;
-		} else {
-			String idStr = _config.getString("influent.data.view." + namespace + ".idType", null);
-			if(idStr == null) {
-				type = _idType;
-			} else {
-				type = Enum.valueOf(ID_TYPE.class, idStr.toUpperCase());;
+		ID_TYPE type = _idType;
+		if(namespace != null) {
+			String idConfig = "influent.data.view." + namespace + ".idType";
+			String idStr = _config.getString(idConfig, null);
+			if(idStr != null) {
+				try {
+					type = Enum.valueOf(ID_TYPE.class, idStr.toUpperCase());;
+				} catch (Exception e) {
+					s_logger.debug("Unrecognized id type for " + idConfig + ": " + idStr);
+				}
 			}
 		}
 
-		if(type == ID_TYPE.NUMERIC) {
-			return id;
+		if (type == ID_TYPE.HEX) {
+			return toBinaryFromHex(id);
 		} else {
-			return "'" + id + "'";
+			return id;
 		}
 	}
-
-
-
-
+	
+	
+	
+	
+	/**
+	 * Returns binary id sql from a hexadecimal string id. Called by toSQLId.
+	 * 
+	 * @param id
+	 * @return
+	 */
+	protected abstract String toBinaryFromHex(String id);
+	
+	
+	
+	
+	
 	/* (non-Javadoc)
 	 * @see influent.server.dataaccess.DataNamespaceHandler#fromSQLId(java.lang.String)
 	 */

@@ -24,7 +24,6 @@
  */
 package influent.server.utilities;
 
-import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_Link;
@@ -32,16 +31,12 @@ import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
 import influent.idl.FL_PropertyTag;
 import influent.idlhelper.PropertyHelper;
-import influent.server.clustering.utils.ClusterContextCache;
-import influent.server.clustering.utils.ClusterContextCache.PermitSet;
-import influent.server.clustering.utils.ContextRead;
 import influent.server.data.ChartData;
 import influent.server.dataaccess.DataAccessHelper;
 import influent.server.rest.ChartHash;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 
 import net.sf.ehcache.Cache;
@@ -60,9 +55,7 @@ public class ChartBuilder {
 	private final Cache chartDataCache;
 	private boolean bDebugChartData = false;
 	
-	private ClusterContextCache contextCache;
-	
-	public ChartBuilder(FL_ClusteringDataAccess da,  String ehCacheConfig, ClusterContextCache contextCache) {
+	public ChartBuilder(FL_ClusteringDataAccess da,  String ehCacheConfig) {
 		this.da = da;
 		
 		CacheManager cacheManager = null;
@@ -74,7 +67,6 @@ public class ChartBuilder {
 			return;
 		}
 		chartDataCache = cacheManager.getCache("ChartDataCache");
-		this.contextCache = contextCache;
 	}
 	
 	public ChartData computeChart(
@@ -104,13 +96,8 @@ public class ChartBuilder {
 		
 		boolean foundInCache = false;
 		
-		final PermitSet permits = new PermitSet();
-		// Make copies of the entity lists so that we can unroll file clusters if necessary
-		entities = unrollClusterMembership(contextId, entities, permits);
-		focusEntities = unrollClusterMembership(focusContextId, focusEntities, permits);
-		
 		if (chartDataCache != null) {
-			Element element = chartDataCache.get(hash.getLongHash());
+			Element element = chartDataCache.get(hash.getHash());
 			if (element == null) {
 				foundInCache = false;
 			} else {
@@ -120,7 +107,6 @@ public class ChartBuilder {
 				debits = data.debits;
 				focusCredits = data.focusCredits;
 				focusDebits = data.focusDebits;
-				hash.setHash(data.hash);	 			// Restore the cached short hash
 				foundInCache = true;
 			}
 		}
@@ -131,7 +117,7 @@ public class ChartBuilder {
 		Double minBalance = startingBalance;
 
 		if (!foundInCache) {
-			Map<String, List<FL_Link>> links = da.getTimeSeriesAggregation(entities, focusEntities, FL_LinkTag.FINANCIAL, dateRange, contextId, focusContextId, sessionId);
+			Map<String, List<FL_Link>> links = da.getTimeSeriesAggregation(entities, focusEntities, FL_LinkTag.FINANCIAL, dateRange, contextId, focusContextId);
 			if (links != null && links.size() > 0) {
 				
 				for (String entity : links.keySet()) {
@@ -212,7 +198,7 @@ public class ChartBuilder {
 
 		Double maxCredit = 0.0;
 		Double maxDebit = 0.0;
-		for (int i=1; i<bucketNo; i++) {
+		for (int i=0; i<bucketNo; i++) {
 			maxCredit = (credits.get(i) > maxCredit) ? credits.get(i) : maxCredit;
 			maxDebit = (debits.get(i) > maxDebit) ? debits.get(i) : maxDebit;
 		}
@@ -229,7 +215,7 @@ public class ChartBuilder {
 			 System.out.println("\n##############################################");
 		}
 		
-		if (!foundInCache) {
+		if (!foundInCache && chartDataCache != null) {
 			CachedChartData data = new CachedChartData();
 			data.setUnits(units);
 			data.setCredits(credits);
@@ -237,48 +223,11 @@ public class ChartBuilder {
 			data.setFocusCredits(focusCredits);
 			data.setFocusDebits(focusDebits);
 			data.setStartingBalance(0.0);
-			data.setHash(hash.getHash());
-			Element element = new Element(hash.getLongHash(), data);
+			Element element = new Element(hash.getHash(), data);
 			chartDataCache.put(element);
 		}
 		
 		return new ChartData(startingBalance, endBalance, units, credits, debits, maxCredit, maxDebit, maxBalance, minBalance, focusCredits, focusDebits, DataAccessHelper.getDateIntervals(dateRange), hash.getHash());
-	}
-
-	private List<String> unrollClusterMembership(String contextId, List<String> clusters, PermitSet permits) {
-		List<String> toReturn = new ArrayList<String>(clusters);		// TODO remove list cloning if it turns out to be unneeded
-		
-		ListIterator<String> returnIterator = toReturn.listIterator();
-		while(returnIterator.hasNext())
-		{
-			String entity = returnIterator.next();
-			TypedId id = TypedId.fromTypedId(entity);
-
-			// Check to see if this entityId belongs to a mutable cluster.
-			if (id.getType() == TypedId.FILE) {
-				try {
-					final ContextRead entityContext = contextCache.getReadOnly(contextId, permits);
-
-					if (entityContext != null) {
-						FL_Cluster cluster = entityContext.getFile(entity);
-						
-						if (cluster != null) {
-							returnIterator.remove();
-							
-							for (String subcluster : cluster.getSubclusters())
-								returnIterator.add(subcluster);
-							
-							for (String member : cluster.getMembers())
-								returnIterator.add(member);
-						}
-					}
-				} finally {
-					permits.revoke();
-				}
-			}
-		}
-		
-		return toReturn;
 	}
 	
 	private Double calcStartingBalance(DateTime minDate, List<String> memberIds) {

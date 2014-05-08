@@ -27,7 +27,7 @@
  * Defines the names of pub/sub channels used throughout the app
  */
 define({
-    FLOW : 'flow',
-    FILE : 'file',
-    TPS : 'tps'
+	FLOW : 'flow',
+	FILE : 'file',
+	TPS : 'tps'
 });

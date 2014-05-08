@@ -27,9 +27,9 @@
  * Main module that defines the application
  *
  */
-define(['jquery', 'view', 'lib/util/params', 'lib/channels', 'lib/ui/status'],
+define(['view', 'lib/util/params', 'lib/channels', 'lib/ui/status'],
 
-function($, View, params, chan, statusDialog) {
+function(View, params, chan, statusDialog) {
 
 	/**
 	 * Main application controller object that manages app state, history, etc.  It
@@ -37,20 +37,20 @@ function($, View, params, chan, statusDialog) {
 	 * etc.
 	 */
 	var App = function() {
-		var currentHash = undefined,
+		var currentHash = null,
 			useRootHash = false,
 
 			/**
 			 * View manager
 			 */
 			view = new View(),
-			
+
 			// Set up validation callback.
 			// (don't do anything until all requested have been validated).
 			// Note that validation can be asynchronous if we need to hit the
 			// server to fill stuff in, thus the callback.
 			onStateChange = function( state, changes ) {
-				
+
 				// Cancel obsolete status dialog if necessary.
 				statusDialog.close(true);
 
@@ -79,7 +79,7 @@ function($, View, params, chan, statusDialog) {
 			 * (possibly even ourselves).  Update the state, if changed update the hash
 			 */
 			onStateChangeRequest = function( channel, stateChangeData ) {
-	
+
 				// sets the state
 				view.update( stateChangeData, onStateChange );
 			},
@@ -89,16 +89,16 @@ function($, View, params, chan, statusDialog) {
 			 */
 			onHashChange = function (hashChange) {
 				hashChange = hashChange.value;
-				
+
 				// Retrieve the current hash, decode it, and remove any leading /s.
 				currentHash = hashChange? decodeURIComponent(hashChange) : undefined;
-				
+
 				// treat the root url as a special - means use defaults, even if changed.
 				useRootHash = !currentHash;
-					
+
 				// picked up by subscriber below, which chains eventually to onStateChange if there are changes
 				aperture.pubsub.publish( chan.STATE_REQUEST, params.parse(currentHash) );
-				
+
 				// reset
 				useRootHash = false;
 			};
@@ -129,8 +129,8 @@ function($, View, params, chan, statusDialog) {
 			onHashChange( {value: hash} );
 
 			// Set the hash change listener.
-			$.address.change(onHashChange);
-			
+			$.address.internalChange(onHashChange);
+
 			// initialize title
 			document.title = view.title();
 		};

@@ -85,17 +85,16 @@ public class UISerializationHelper {
 			if (count > 1) {
 				String labelStr = PropertyHelper.from(labelProp).getValue().toString();
 
-				// For summary clusters, show number of accounts, otherwise show cluster count
-				if (cluster.getTags().contains(FL_EntityTag.CLUSTER_SUMMARY))
-				{
-					labelStr += " (" + (count - 1) + " accounts)";
-					labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
-				}
-				else
-				{
-					labelStr += " (+" + (count - 1) + ")";
-					labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
-				}
+                if (!(labelStr.indexOf("(+") != -1 && labelStr.charAt(labelStr.length() - 1) == ')')) {
+					// For summary clusters, show number of accounts, otherwise show cluster count
+					if (cluster.getTags().contains(FL_EntityTag.CLUSTER_SUMMARY)) {
+						labelStr += " (" + (count - 1) + " accounts)";
+						labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
+					} else {
+						labelStr += " (+" + (count - 1) + ")";
+						labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
+					}
+                }	
 			}
 		}
 		
@@ -162,7 +161,7 @@ public class UISerializationHelper {
 		oj.put("key", flpd.getKey());
 		oj.put("friendlyText", flpd.getFriendlyText());
 		oj.put("type",flpd.getType());
-		oj.put("suggestedTerms", "");
+		oj.put("constraint",  flpd.getConstraint());
 		oj.put("range", flpd.getRange());
 		
 		return oj;

@@ -12,6 +12,9 @@
 		<fileSet>
 			<outputDirectory/>
 			<directory>${project.build.directory}/${tempWebappDir}/webapp</directory>
+			<excludes>
+				<exclude>theme/app.css</exclude>
+			</excludes>
 		</fileSet>
 	</fileSets>
 	<dependencySets>

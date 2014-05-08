@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 
-define(['jquery', 'lib/channels'], function($, chan) {
+define(['lib/channels'], function(chan) {
 
 	/*
 	 * TODO Make hard-coded stuff configurable
@@ -61,13 +61,13 @@ define(['jquery', 'lib/channels'], function($, chan) {
 			/**
 			 * Subscribes the state change messages.
 			 * @param callback the function that will be called on state change.  Should be
-			 * 			a function that expects two arguments in the form:
-			 * 			<code>function(changeObject, newState)</code>
+			 *		a function that expects two arguments in the form:
+			 *		<code>function(changeObject, newState)</code>
 			 * @param variables (optional) an array of strings containing the names
-			 * 			of the state variables that the subscriber wishes to be notified
-			 * 			about.  If not provided, notifies on all changes.
+			 *		of the state variables that the subscriber wishes to be notified
+			 *		about.  If not provided, notifies on all changes.
 			 * @param context (optional) if provided, the callback will be called in the
-			 * 			scope of this object.
+			 *		scope of this object.
 			 */
 			subscribe = function( callback, variables, context ) {
 				var listener = {

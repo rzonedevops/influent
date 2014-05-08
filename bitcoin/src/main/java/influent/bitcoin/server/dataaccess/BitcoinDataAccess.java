@@ -42,18 +42,15 @@ import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.TypedId;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 import org.apache.avro.AvroRemoteException;
-import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Hopefully a better implementation of the Data Access
@@ -63,26 +60,29 @@ import org.slf4j.LoggerFactory;
 
 public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAccess {
 	
-	private static Logger s_logger = LoggerFactory.getLogger(BitcoinDataAccess.class);
-
+	
+	
 	public BitcoinDataAccess(
-			SQLConnectionPool connectionPool,
-			FL_EntitySearch search,
-			DataNamespaceHandler namespaceHandler)
-			throws ClassNotFoundException, SQLException {
+		SQLConnectionPool connectionPool,
+		FL_EntitySearch search,
+		DataNamespaceHandler namespaceHandler
+	) throws ClassNotFoundException, SQLException {
 		
 		super(connectionPool, search, namespaceHandler);
 	}
 	
-
+	
+	
+	
 	public FL_TransactionResults getAllTransactions(
-			List<String> entities,
-			FL_LinkTag tag,
-			FL_DateRange date,
-			FL_SortBy sort,
-			List<String> linkFilter,
-			long start,
-			long max) throws AvroRemoteException {
+		List<String> entities,
+		FL_LinkTag tag,
+		FL_DateRange date,
+		FL_SortBy sort,
+		List<String> linkFilter,
+		long start,
+		long max
+	) throws AvroRemoteException {
 		
 		if (entities.size() == 1) {
 			return getAllTransactionsForEntity(entities.get(0), tag, date, sort, max, linkFilter);
@@ -101,10 +101,17 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 		return FL_TransactionResults.newBuilder().setTotal(count).setResults(links).build();
 	}
 	
+	
+	
+	
 	private FL_TransactionResults getAllTransactionsForEntity(
-			String id, FL_LinkTag tag,
-			FL_DateRange date, FL_SortBy sort, long max,
-			List<String> linkFilter) throws AvroRemoteException {
+		String id, 
+		FL_LinkTag tag,
+		FL_DateRange date, 
+		FL_SortBy sort, 
+		long max,
+		List<String> linkFilter
+	) throws AvroRemoteException {
 		
 		if (id == null || id.isEmpty()) {
 			return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
@@ -116,55 +123,44 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 		
 		try {
 			Connection connection = _connectionPool.getConnection();
-			Statement statement = connection.createStatement();
 			
 			String top = max > 0 ? ("top " + max) : "";
-			String focusIds = "";
 			if (linkFilter != null) {
 				// we will never find links across schemas, so filter it down again.
 				linkFilter = getNamespaceHandler().entitiesByNamespace(linkFilter).get(schema);
 				
-				if (linkFilter != null) {
-					focusIds = DataAccessHelper.createNodeIdListFromCollection(linkFilter, true, false, getNamespaceHandler(), schema);
-				} else {
+				if (linkFilter == null) {
 					return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
 				}
 			}
 			
-			String sql = "SELECT " + top + " id,source_id,dest_id,dt,amount,usd " +
-					" FROM Bitcoin.dbo.[bitcoin-20130410] ";
+			String preparedStatementString = buildPreparedStatement(
+				(linkFilter == null) ? 0 : linkFilter.size(),
+				top,
+				(date != null && date.getStartDate() != null),
+				sort
+			);
+			PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
 			
-			if (linkFilter == null) {
-				sql += "WHERE (source_id = '" + id + "' OR dest_id = '" + id + "') ";
-			} else {
-				sql += "WHERE ((source_id = '" + id + "' AND dest_id in ("+focusIds+")) OR (dest_id = '" + id + "' AND source_id in ("+focusIds+"))) ";				
+			int index = 1;
+			
+			stmt.setString(index++, id);
+			if (linkFilter != null) {
+				for (int i = 0; i < linkFilter.size(); i++) {
+					stmt.setString(index++, getNamespaceHandler().toSQLId(linkFilter.get(i), schema));
+				}
 			}
-			
-			if (date != null && date.getStartDate() != null) {
-				DateTime start = DataAccessHelper.getStartDate(date);
-				DateTime end = DataAccessHelper.getEndDate(date);
-				
-//				SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd");
-//						
-//				sql += " AND dt BETWEEN CONVERT (datetime, '" + format.format(start).trim() + "', 102) ";
-//				sql += "              AND CONVERT (datetime, '" + format.format(end).trim() + "', 102) ";
-				
-				sql += " AND dt BETWEEN '" + DataAccessHelper.format(start) + "' ";
-				sql += "              AND '" + DataAccessHelper.format(end) + "' ";
+			stmt.setString(index++, id);
+			if (linkFilter != null) {
+				for (int i = 0; i < linkFilter.size(); i++) {
+					stmt.setString(index++, getNamespaceHandler().toSQLId(linkFilter.get(i), schema));
+				}
 			}
-			
-			if (sort != null) {
-				sql += "ORDER BY " + (sort == FL_SortBy.DATE ? "dt ASC" : "amount DESC");
-			}
-			
-			long start = System.currentTimeMillis();
-			s_logger.trace("execute: " + sql);
-			
-			ResultSet resultSet = statement.executeQuery(sql);
-	
-			s_logger.trace("complete in " + (System.currentTimeMillis() - start)/1000.0);
+			stmt.setString(index++, DataAccessHelper.format(DataAccessHelper.getStartDate(date)));
+			stmt.setString(index++, DataAccessHelper.format(DataAccessHelper.getEndDate(date)));
 			
 			List<FL_Link> records = new ArrayList<FL_Link>();
+			ResultSet resultSet = stmt.executeQuery();
 			
 			while (resultSet.next()) {
 				String trans_id = resultSet.getString(1);
@@ -190,7 +186,7 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 			}
 			
 			resultSet.close();
-			statement.close();
+			stmt.close();
 			connection.close();
 			
 			return new FL_TransactionResults((long)records.size(), records);
@@ -202,4 +198,47 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 		}
 	}
 	
+	
+	
+	private String buildPreparedStatement(
+		int numFocusIds,
+		String top,
+		boolean hasDate,
+		FL_SortBy sort
+	) {
+		
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("SELECT " + top + " id, source_id, dest_id, dt, amount, usd ");
+		sb.append("FROM Bitcoin.dbo.[bitcoin-20130410] ");
+		sb.append("WHERE ((source_id = ?");
+		if (numFocusIds > 0) {
+			sb.append(" AND dest_id IN (");
+			for (int i = 1; i < numFocusIds; i++) {
+				sb.append("?, ");
+			}
+			sb.append("?)");
+		}
+		sb.append(") ");
+		sb.append("OR (dest_id = ?");
+		if (numFocusIds > 0) {
+			sb.append(" AND source_id IN (");
+			for (int i = 1; i < numFocusIds; i++) {
+				sb.append("?, ");
+			}
+			sb.append("?)");
+		}
+		sb.append(")) ");
+		
+		if (hasDate) {
+			sb.append("AND dt BETWEEN ? AND ? ");
+		}
+		
+		if (sort != null) {
+			sb.append("ORDER BY ");
+			sb.append((sort == FL_SortBy.DATE ? "dt ASC" : "amount DESC"));
+		}
+		
+		return sb.toString();
+	}
 }

@@ -171,6 +171,14 @@ public final class TypedId {
 	
 	
 	
+	/**
+	 * Return whether the typed id has the specified type
+	 */
+	public static boolean hasType(String typedId, char type) {
+		return (fromTypedId(typedId).getType() == type);
+	}
+	
+	
 	
 	/**
 	 * @return the type of id

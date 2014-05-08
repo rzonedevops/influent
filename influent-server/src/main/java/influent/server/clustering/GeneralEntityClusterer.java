@@ -29,6 +29,7 @@ import influent.idl.FL_Entity;
 import influent.idl.FL_Geocoding;
 import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.clustering.utils.ClustererProperties;
+import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,7 +47,7 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 	private EntityClusterFactory clusterFactory;
 	private Properties pMgr;
 	private List<EntityClusterer> clusterStages;
-	private int MIN_CLUSTER_SIZE = 10;
+	private int MAX_CLUSTER_SIZE = 10;
 
 	@Override
 	public void init(Object[] args) {
@@ -54,7 +55,7 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 			this.clusterFactory = (EntityClusterFactory)args[0];
 			this.geoCoder = (FL_Geocoding)args[1];
 			this.pMgr = (Properties)args[2];
-			this.MIN_CLUSTER_SIZE = pMgr.getInteger(ClustererProperties.MIN_CLUSTER_SIZE, 10);
+			this.MAX_CLUSTER_SIZE = pMgr.getInteger(ClustererProperties.MAX_CLUSTER_SIZE, 10);
 			this.clusterStages = createClusterStages(pMgr);
 		}
 		catch (Exception e) {
@@ -88,7 +89,7 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 					clusterer.init(params);
 					clusterStages.add(clusterer);
 					
-					// next fuzzy or finger print cluster
+					// next edit distance or finger print cluster
 					clusterer = new LabelEntityClusterer();
 					Object[] params2 = {clusterFactory, tagOrFieldName, clusterType, pMgr}; 
 					clusterer.init(params2);
@@ -116,9 +117,9 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 					clusterStages.add(clusterer);
 				}
 				else if (type.equalsIgnoreCase("numeric")) {
-					Integer numBins = tokens.length == 3 ? Integer.parseInt(tokens[2]) : 5;  // default to 5 bins
+					Double k = tokens.length == 3 ? Double.parseDouble(tokens[2]) : 100;  
 					NumericEntityClusterer clusterer = new NumericEntityClusterer();
-					Object[] params = {clusterFactory, tagOrFieldName, numBins}; 
+					Object[] params = {clusterFactory, tagOrFieldName, k}; 
 					clusterer.init(params);
 					clusterStages.add(clusterer);
 				}
@@ -131,16 +132,13 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 			}
 		}
 		
-		return clusterStages;
-	}
-	
-	private List<FL_Entity> getClusterMembers(FL_Cluster cluster, ClusterContext context) {
-		List<FL_Entity> members = new LinkedList<FL_Entity>();
+		// last stage ensures no leaf cluster contains more than max cluster size
+		MaxSizeEntityClusterer clusterer = new MaxSizeEntityClusterer();
+		Object[] params = {clusterFactory, MAX_CLUSTER_SIZE};
+		clusterer.init(params);
+		clusterStages.add(clusterer);
 		
-		for (String id : cluster.getMembers()) {
-			members.add(context.entities.get(id));
-		}
-		return members;
+		return clusterStages;
 	}
 	
 	private List<FL_Cluster> getSubClusters(FL_Cluster cluster, ClusterContext context) {
@@ -151,31 +149,30 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 		}
 		return subClusters;
 	}
-
-	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities) {
-		return this.clusterEntities(entities, new ClusterContext());
-	}
 	
 	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities, Collection<FL_Cluster> clusters, ClusterContext context) {
+	public ClusterContext clusterEntities(Collection<FL_Entity> entities, 
+										  Collection<FL_Cluster> immutableClusters, 
+										  Collection<FL_Cluster> clusters, 
+										  ClusterContext context) {
 		throw new UnsupportedOperationException();
 	}
 	
 	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities, ClusterContext context) {
-		if (clusterStages == null || clusterStages.isEmpty()) return null;
-	
-		// create a default context if the passed in one is empty
-		if (context == null) {
-			context = new ClusterContext();
-		}
+	public ClusterContext clusterEntities(Collection<FL_Entity> entities, 
+										  Collection<FL_Cluster> immutableClusters, 
+										  ClusterContext context) {
 		
-		// add the entities to the context
-		context.addEntities(entities);
+		// sanity check that the clusterer has been configured and invoked with valid input
+		if (clusterStages == null || clusterStages.isEmpty() || context == null) return null;
+		
+		// filter out immutable root clusters and re-cluster them to avoid being modified
+		Collection<FL_Cluster> allRoots = context.roots.values();
+		immutableClusters.addAll( filterImmutableClusters(allRoots) );
+		List<FL_Cluster> mutableRoots = filterMutableClusters(allRoots); 
 		
 		// first stage generates root objects in entity cluster hierarchy
-		ClusterContext results = clusterStages.get(0).clusterEntities(entities, context.roots.values(), context);
+		ClusterContext results = clusterStages.get(0).clusterEntities(entities, immutableClusters, mutableRoots, context);
 		
 		// add the new/modified roots to the context roots
 		context.roots.putAll(results.roots);
@@ -193,14 +190,15 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 		//
 		// Top down Divisive hierarchical clustering using binning and k-means clustering - each stage clusters by a distinct feature
 		//
-		for (int i=1; i < clusterStages.size(); i++) {
-			EntityClusterer clusterer = clusterStages.get(i); 
+		int currentStage = 1;
+		while (!clustersToSplit.isEmpty()) {
+			EntityClusterer clusterer = clusterStages.get(currentStage); 
 					
 			Map<String, FL_Cluster> stageResults = new HashMap<String, FL_Cluster>();
 			
 			for (FL_Cluster cluster : clustersToSplit) {
 				// sub-cluster the entity cluster
-				results = clusterer.clusterEntities( getClusterMembers(cluster, context), getSubClusters(cluster, context), context );
+				results = clusterer.clusterEntities( getChildEntities(cluster, context, false), getSubClusters(cluster, context), context );
 				
 				// update the cluster children to be the sub-clustering results
 				// and update the root and parent of the children
@@ -215,19 +213,30 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 			// update the clusters to split for next stage
 			clustersToSplit.clear();
 			findClustersToSplit(stageResults, clustersToSplit);
+			currentStage = Math.min(clusterStages.size()-1, ++currentStage); // iterate through stages and stay on last stage until done
 		}
 		
 		// lastly update the modified clusters summaries
-		clusterFactory.updateClusterProperties(modifiedRoots, context);
+		clusterFactory.updateClusterProperties(modifiedRoots, context, true);
 		
 		// return back the modified context
 		return context;
 	}
 	
+	private boolean isCandidate(FL_Cluster cluster) {
+		int numEntityMembers = cluster.getMembers().size();
+		int numMutables = TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.CLUSTER).size();
+		int numImmutables = numEntityMembers + cluster.getSubclusters().size() - numMutables;
+		boolean tooLarge = numImmutables > MAX_CLUSTER_SIZE;
+		boolean nonLeaf = (numImmutables > 0 && numMutables > 0);
+		boolean immutable = isImmutableCluster(cluster);
+		return ( !immutable && (tooLarge || nonLeaf) );
+	}
+	
 	private void findClustersToSplit(Map<String, FL_Cluster> candidates, Collection<FL_Cluster> splitQueue) {
 		for (String id : candidates.keySet()) {
 			FL_Cluster c = candidates.get(id);
-			if (c.getMembers().size() > MIN_CLUSTER_SIZE || (c.getMembers().size() > 0 && c.getSubclusters().size() > 0))  {
+			if (isCandidate(c))  {
 				splitQueue.add(c);
 			}
 		}
@@ -246,7 +255,8 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 			childClusterIds.add(c.getUid());
 		}
 		cluster.getMembers().clear();
-		Set<String> uniqueIds = new HashSet<String>(cluster.getSubclusters());
+		List<String> mutableSubClusters = TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.CLUSTER);
+		Set<String> uniqueIds = new HashSet<String>(mutableSubClusters);
 		uniqueIds.addAll(childClusterIds);
 		cluster.setSubclusters(new LinkedList<String>(uniqueIds));
 	}

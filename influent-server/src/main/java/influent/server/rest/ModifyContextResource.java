@@ -25,27 +25,28 @@
 package influent.server.rest;
 
 import influent.idl.FL_Cluster;
+import influent.idl.FL_Clustering;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
 import influent.idl.FL_LevelOfDetail;
-import influent.idlhelper.FileHelper;
+import influent.server.clustering.utils.ContextCollapser;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityClusterFactory;
+import influent.server.utilities.Pair;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.restlet.data.MediaType;
@@ -58,25 +59,60 @@ import com.google.inject.Inject;
 
 public class ModifyContextResource extends ApertureServerResource{
 	
-	private final EntityClusterFactory clusterFactory;
+	private final FL_Clustering clusterer;
 	private final FL_ClusteringDataAccess clusterAccess;
+	private final EntityClusterFactory clusterFactory;
 	private final FL_DataAccess entityAccess;
 	private final ClusterContextCache contextCache;
 
 	private static final String OK_RESPONSE = "{\"response\":\"ok\"}";
 
+	
+	
 	@Inject
 	public ModifyContextResource(
-		FL_ClusteringDataAccess clusterAccess, 
+		FL_ClusteringDataAccess clusterAccess,
+		FL_Clustering clusterer, 
 		FL_DataAccess entityAccess,
 		EntityClusterFactory clusterFactory,
 		ClusterContextCache contextCache
 	) {
+		this.clusterer = clusterer;
 		this.clusterAccess = clusterAccess;
 		this.entityAccess = entityAccess;
 		this.clusterFactory = clusterFactory;
 		this.contextCache = contextCache;
 	}
+	
+	
+	
+	
+	private StringRepresentation createReponse(List<Object> modifiedRootObjects, String targetContextId, String sessionId) throws JSONException {
+		JSONObject result = new JSONObject();
+		
+		// return back context id modified (or created) and list of root level entity objects		
+		if (modifiedRootObjects != null) {
+			//This will be a mix of EntityClusters and FL_Entities
+			JSONArray ja = new JSONArray();
+			for (Object o : modifiedRootObjects) {
+				if (o instanceof FL_Entity) {
+					ja.put(UISerializationHelper.toUIJson((FL_Entity)o));
+				} else if (o instanceof FL_Cluster) {
+					ja.put(UISerializationHelper.toUIJson((FL_Cluster)o));
+				}
+			}
+			
+			result.put("targets", ja);
+		}
+		
+//		result.put("queryId", queryId);
+		result.put("contextId", targetContextId);
+		result.put("sessionId", sessionId);
+
+		return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);
+	}
+	
+	
 	
 	@Post 
 	public StringRepresentation modifyContext (String jsonData) throws ResourceException {
@@ -86,19 +122,24 @@ public class ModifyContextResource extends ApertureServerResource{
 
 			String erroneousArgument = null;
 			String sessionId = jsonObj.getString("sessionId");
-			String contextId = jsonObj.getString("contextId");
+			String srcContextId = jsonObj.getString("sourceContextId").trim(); // source context to insert entities from
+			String targetContextId = jsonObj.getString("targetContextId").trim();  // the context to modify
 			String edit = jsonObj.getString("edit"); //Allowed values, 'insert', 'remove', 'create'
-			String fileId = jsonObj.getString("fileId"); //Must be non-null
-			List<String> childIds = UISerializationHelper.buildListFromJson(jsonObj, "childIds"); //Must be non-null for insert and remove
+			// The "entities" to operate on
+			
+			List<String> entityIds = null;
+			if (jsonObj.has("entityIds")) {
+				entityIds = UISerializationHelper.buildListFromJson(jsonObj, "entityIds"); //Must be non-null for insert and remove
+			}
 			
 			if (sessionId == null) {
 				erroneousArgument = "'sessionId'";
 			}
-			else if (contextId == null) {
-				erroneousArgument = "'contextId'";
+			else if (srcContextId == null) {
+				erroneousArgument = "'srcContextId'";
 			}
-			else if (fileId == null) {
-				erroneousArgument = "'mainParentId'";
+			else if (targetContextId == null) {
+				erroneousArgument = "'targetContextId'";
 			}
 			else {
 				PermitSet permits = new PermitSet();
@@ -106,26 +147,40 @@ public class ModifyContextResource extends ApertureServerResource{
 				try {
 					// there are non-trivial ops like calls out to the db here while we have a lock on the context,
 					// but the changes can be extensive. Safer for now to lock it for the complete op.
-					final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
-					
-					if ("insert".equals(edit)) {
-						if (childIds == null || childIds.size() == 0) {
-							erroneousArgument = "'childIds'";
+					final ContextReadWrite targetContextRW = contextCache.getReadWrite(targetContextId, permits);
+			
+					// INSERT OP
+					if (edit.equalsIgnoreCase("insert")) {
+						if (entityIds == null || entityIds.size() == 0) {
+							erroneousArgument = "'entityIds'";
 						} else {
-							insert(fileId, childIds, contextRW, sessionId);
-							return new StringRepresentation(OK_RESPONSE, MediaType.APPLICATION_JSON);
+							return createReponse( insert(entityIds, srcContextId, targetContextRW, sessionId), targetContextId, sessionId);
 						}
-					} else if ("remove".equals(edit)) {
-						if (childIds == null || childIds.size() == 0) {
-							erroneousArgument = "'childIds'";
+						
+					// REMOVE OP
+					} else if (edit.equalsIgnoreCase("remove")) {
+						if (entityIds == null || entityIds.size() == 0) {
+							erroneousArgument = "'entityIds'";
 						} else {
-							remove(fileId, childIds, contextId, contextRW, sessionId);
-							return new StringRepresentation(OK_RESPONSE, MediaType.APPLICATION_JSON);
+							return createReponse( remove(entityIds, targetContextRW, sessionId), targetContextId, sessionId );
 						}
-					} else if ("create".equals(edit)) {
-						create(fileId, contextRW, sessionId);
+						
+					// CREATE OP
+					} else if (edit.equalsIgnoreCase("create")) {
+						create(targetContextRW, srcContextId, sessionId);
 						return new StringRepresentation(OK_RESPONSE, MediaType.APPLICATION_JSON);
+						
+					// DELETE OP
+					} else if (edit.equalsIgnoreCase("delete")) {
+						if (entityIds == null || entityIds.size() != 1) {
+							erroneousArgument = "'entityIds'";
+						} else {
+							delete(targetContextRW, entityIds.get(0), sessionId);
+							return new StringRepresentation(OK_RESPONSE, MediaType.APPLICATION_JSON);
+						}
 					}
+					
+					// INVALID OP
 					else {
 						erroneousArgument = "edit";
 					}
@@ -144,127 +199,210 @@ public class ModifyContextResource extends ApertureServerResource{
 		}
 	}
 	
-	private FL_Cluster updateFileCluster(FL_Cluster file, List<FL_Entity> entities, List<FL_Cluster> clusters) throws AvroRemoteException {			
-		Map<String, FL_Entity> relatedEntities = new HashMap<String, FL_Entity>();
-		for (FL_Entity entity : entities) {
-			relatedEntities.put(entity.getUid(), entity);
-		}
-		
-		Map<String, FL_Cluster> relatedClusters = new HashMap<String, FL_Cluster>();
-		for (FL_Cluster cluster : clusters) {
-			relatedClusters.put(cluster.getUid(), cluster);
-		}
-
-		clusterFactory.updateClusterProperties(file, relatedEntities, relatedClusters);
-		
-		return file;
-	}
+	
+	
 	
 	private void create(
-		String fileId, 
-		ContextReadWrite context,
+		ContextReadWrite parentContext,
+		String contextId,
 		String sessionId
-	) {
-		FL_Cluster newFile = new FileHelper(fileId);
-		
-		context.merge(
-			Collections.<FL_Cluster>singletonList(newFile), 
-			Collections.<FL_Cluster>emptyList(), 
-			Collections.<FL_Entity>emptyList(), 
-			false, 
-			true
-		);
+	) throws AvroRemoteException {
+		if (contextId != null && !contextId.isEmpty()) {
+			// associate context with parent
+			parentContext.addChildContext(contextId);
+		}
 	}
 	
-	private void insert(
-		String fileId, 
+	
+	
+	
+	private void delete(
+		ContextReadWrite parentContext,
+		String contextId,
+		String sessionId
+	) throws AvroRemoteException {
+				
+		// delete the context
+		contextCache.remove(contextId);
+			
+		// un-associate context with parent
+		parentContext.removeChildContext(contextId);
+	}
+	
+	
+	
+	
+	private List<Object> insert(
 		List<String> childIds, 
-		ContextReadWrite context,
+		String sourceContextId,
+		ContextReadWrite targetContext,
 		String sessionId
 	) throws JSONException, AvroRemoteException {
 		
-		FL_Cluster file = context.getFile(fileId);
-		
-		if (file == null) {
-			file = new FileHelper(fileId);
-		}
-		
+		String targetContextId = targetContext.getUid();
+			
 		List<String> eIds = TypedId.filterTypedIds(childIds, TypedId.ACCOUNT);
+		List<String> cIds = TypedId.filterTypedIds(childIds, TypedId.CLUSTER);
+		List<String> oIds = TypedId.filterTypedIds(childIds, TypedId.ACCOUNT_OWNER); 
 		List<String> sIds = TypedId.filterTypedIds(childIds, TypedId.CLUSTER_SUMMARY);
 		
-		// Currently we don't support clusters but in the future we might
-		// List<String> cIds = TypedId.filterTypedIds(childIds, TypedId.CLUSTER);
+		// lookup the accounts 
+		List<FL_Entity> accounts = entityAccess.getEntities(eIds, FL_LevelOfDetail.SUMMARY);
 		
-		// Only add entity ids that haven't already been added.
-		for (String id : eIds){
-			if (!file.getMembers().contains(id)){
-				file.getMembers().add(id);
+		// lookup clusters
+		List<FL_Cluster> clusters = clusterAccess.getClusters(cIds, sourceContextId);
+		
+		// lookup owners
+		clusters.addAll( clusterAccess.getAccountOwners(oIds) );
+		
+		// lookup cluster summaries
+		clusters.addAll( clusterAccess.getClusterSummary(sIds) );
+		
+		// cluster the new entities
+		clusterer.clusterEntities(accounts, clusters, sourceContextId, targetContext.getUid());
+		
+		// collapse context entity cluster hierarchy by simplifying the tree for usability
+		// returns root level entities that have no containing cluster and all the simplified clusters in the context
+		Pair<Collection<FL_Entity>, Collection<FL_Cluster>> simpleContext = ContextCollapser.collapse(targetContext, false, null);
+		
+		// construct list of clusters that need to be added to context
+		clusters = new ArrayList<FL_Cluster>(simpleContext.second);
+		
+		// construct list of root entities to be added to context
+		List<FL_Entity> entities = new ArrayList<FL_Entity>(simpleContext.first);
+		
+		List<Object> rootObjects = new ArrayList<Object>();
+		
+		// files want a single root cluster so we create one and give it an id same as the target context
+		if (targetContextId.startsWith("file")) {
+			// we set the the root id to be the same id as the file context id
+			String rootId = TypedId.fromNativeId(TypedId.CLUSTER, targetContextId).getTypedId();
+			int version = 1;
+			
+			// grab the previous version number if the file cluster exists and increment
+			FL_Cluster prevFile = targetContext.getCluster(rootId);
+			if (prevFile != null) {
+				version = prevFile.getVersion() + 1;
 			}
-		}
-		
-		// Only add cluster ids that haven't already been added.
-		for (String id : sIds){
-			if (!file.getSubclusters().contains(id)){
-				file.getSubclusters().add(id);
+			
+			// find the old roots as these will be the subclusters of the root cluster
+			List<FL_Cluster> oldRoots = new LinkedList<FL_Cluster>();
+			for (FL_Cluster cluster : clusters) {
+				if (cluster.getParent() == null || cluster.getParent().equalsIgnoreCase(rootId)) {
+					cluster.setParent(rootId);
+					oldRoots.add(cluster);
+				}
 			}
+			
+			// update the root cluster by rebuilding it
+			FL_Cluster rootCluster = clusterFactory.toCluster(rootId, entities, oldRoots);
+			rootCluster.setVersion(version);
+			
+			// add the root cluster to the list of clusters that have been updated
+			clusters.add(rootCluster);
+			
+			// add the root cluster to the root objects returned
+			rootObjects.add(rootCluster);
+		}
+		else {
+			rootObjects.addAll(clusters);
+			rootObjects.addAll(entities);
 		}
 		
-		List<FL_Entity> entities = new ArrayList<FL_Entity>(context.getEntities(eIds));
-		List<String> newEntities = new ArrayList<String>(eIds);
-
-		for (FL_Entity entity : entities) {
-			newEntities.remove(entity.getUid());
-		}
-		if (newEntities.size() > 0) {
-			entities.addAll(entityAccess.getEntities(newEntities, FL_LevelOfDetail.SUMMARY));
-		}
+		// revise the file context stored in the cache to use the new simplified context
+		targetContext.setSimplifiedContext(clusters, entities);
 		
-		List<FL_Cluster> clusters = new ArrayList<FL_Cluster>(context.getClusters(sIds));
-		List<String> newClusters = new ArrayList<String>(sIds);
-		for (FL_Cluster cluster : clusters) {
-			newClusters.remove(cluster.getUid());
-		}
-		if (newClusters.size() > 0) {
-			clusters.addAll(clusterAccess.getClusterSummary(newClusters));
-		}
-		
-		file = updateFileCluster(file, entities, clusters);
-		
-		context.merge(Collections.<FL_Cluster>singletonList(file), clusters, entities, false, true);
+		return rootObjects;
 	}
 	
-	private void remove(
-		String fileId, 
-		List<String> childIds, 
-		String contextId,
-		ContextReadWrite context,
-		String sessionId
-	) throws JSONException, AvroRemoteException {
-
-		if (fileId.equals(contextId)) {
-			clusterAccess.removeMembers(childIds, contextId, sessionId);
-			context.remove(childIds);
-		} else {
+	private boolean isFile(String id) {
+		return TypedId.hasType(id, TypedId.CLUSTER) && id.contains("file");
+	}
+	
+	private List<String> childIdsToRemove(List<String> childIds, ContextReadWrite targetContext) {
+		List<String> ids = new LinkedList<String>();
 		
-			FL_Cluster file;
-			
-			List<FL_Cluster> files = context.getFiles(Collections.<String>singletonList(fileId));
-			
-			if (files != null) {
-				if (files.size() > 1) {
-					throw new AvroRemoteException("cluster context cache contained more than one file with the same id");
-				}
-				
-				if (files.size() > 0) {
-					
-					file = files.get(0);
-					file.getMembers().removeAll(childIds);
-					file.getSubclusters().removeAll(childIds);
-					file = updateFileCluster(file, context.getEntities(file.getMembers()), context.getClusters(file.getSubclusters()));
-				
-					context.merge(Collections.<FL_Cluster>singletonList(file), Collections.<FL_Cluster>emptyList(), Collections.<FL_Entity>emptyList(), false, true);
+		for (String childId : childIds) {
+			if ( isFile(childId) ) {
+				FL_Cluster file = targetContext.getCluster(childId);
+				if (file != null) {
+					ids.addAll(file.getMembers());
+					ids.addAll(file.getSubclusters());
 				}
 			}
+			else {
+				ids.add(childId);
+			}
 		}
+		return ids;
+	}
+	
+	private List<Object> remove(
+		List<String> childIds, 
+		ContextReadWrite targetContext,
+		String sessionId
+	) throws JSONException, AvroRemoteException {
+		
+		String targetContextId = targetContext.getUid();
+		
+		List<String> removalIds = childIdsToRemove(childIds, targetContext);
+
+		// find the ancestors of the childIds to be removed - we return revised versions of ancestors to UI to update display
+		Collection<String> ancestorIds = EntityClusterFactory.findAncestorIds(removalIds, targetContext);
+				
+		// remove the children from the cluster context
+		clusterAccess.removeMembers(removalIds, targetContextId);
+		
+		// collapse context entity cluster hierarchy by simplifying the tree for usability
+		// returns root level entities that have no containing cluster and all the simplified clusters in the context
+		Pair<Collection<FL_Entity>, Collection<FL_Cluster>> simpleContext = ContextCollapser.collapse(targetContext, false, null);
+
+		// fetch the root entities
+		List<FL_Entity> entities = new ArrayList<FL_Entity>(simpleContext.first);	
+		List<FL_Cluster> clusters = new ArrayList<FL_Cluster>(simpleContext.second);
+		
+		List<Object> modifiedAncestors = new ArrayList<Object>();
+		
+		// files want a single root cluster so we create one and give it an id same as the target context
+		if (targetContextId.startsWith("file")) {
+			// we set the the root id to be the same id as the file context id
+			String rootId = TypedId.fromNativeId(TypedId.CLUSTER, targetContextId).getTypedId();
+			int version = 1;
+			
+			// grab the previous version number if the file cluster exists and increment
+			FL_Cluster prevFile = targetContext.getCluster(rootId);
+			if (prevFile != null) {
+				version = prevFile.getVersion() + 1;
+			}
+			
+			// find the old roots as these will be the subclusters of the root cluster
+			List<FL_Cluster> oldRoots = new LinkedList<FL_Cluster>();
+			for (FL_Cluster cluster : clusters) {
+				if (cluster.getParent() == null) {
+					oldRoots.add(cluster);
+				}
+			}
+						
+			// only create a file cluster if it isn't empty
+			if (!entities.isEmpty() || !oldRoots.isEmpty()) {
+				// update the root cluster by rebuilding it
+				FL_Cluster rootCluster = clusterFactory.toCluster(rootId, entities, oldRoots);
+				rootCluster.setVersion(version);
+				
+				// add the root cluster to the list of clusters that have been updated
+				clusters.add(rootCluster);
+				
+				// add the file to the ancestor list
+				ancestorIds.add(rootId);
+			}
+		}
+		
+		// revise the context stored in the cache to use the new simplified context
+		targetContext.setSimplifiedContext(clusters, entities);
+		
+		// fetch the modified ancestors
+		modifiedAncestors.addAll( targetContext.getClusters(ancestorIds) );
+		
+		return modifiedAncestors;
 	}
 }

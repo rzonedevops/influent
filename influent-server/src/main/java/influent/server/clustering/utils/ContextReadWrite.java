@@ -12,23 +12,24 @@ public interface ContextReadWrite extends ContextRead {
 	 * Raw unsimplified content
 	 */
 	public void setContext(ClusterContext context);
+	
+	/**
+	 * Add child context
+	 */
+	public void addChildContext(String contextId);
+	
+	/**
+	 * Remove child context
+	 */
+	public void removeChildContext(String contextId);
 
 	/**
-	 * Merges changes into this context.
+	 * Cache the simplified cluster context
 	 */
-	public void merge(Collection<FL_Cluster> clusters,
-			boolean summariesComputed, boolean updateMembers);
+	public void setSimplifiedContext(Collection<FL_Cluster> clusters);
 
 	/**
-	 * Merges changes into this context.
+	 * Cache the simplified cluster context
 	 */
-	public void merge(Collection<FL_Cluster> files,
-			Collection<FL_Cluster> clusters, Collection<FL_Entity> entities,
-			boolean summariesComputed, boolean updateMembers);
-
-	/**
-	 * Remove members
-	 */
-	public void remove(Collection<String> ids);
-
+	public void setSimplifiedContext(Collection<FL_Cluster> clusters, Collection<FL_Entity> rootEntities);
 }

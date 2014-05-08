@@ -26,11 +26,11 @@ package influent.server.clustering;
 
 import influent.idl.FL_Cluster;
 import influent.idl.FL_Entity;
+import influent.idlhelper.ClusterHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.clustering.utils.ClustererProperties;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,11 +43,19 @@ import java.util.regex.Pattern;
 
 import oculus.aperture.spi.common.Properties;
 
+import com.oculusinfo.ml.DataSet;
+import com.oculusinfo.ml.Instance;
+import com.oculusinfo.ml.feature.string.StringFeature;
+import com.oculusinfo.ml.feature.string.centroid.StringMedianCentroid;
+import com.oculusinfo.ml.feature.string.distance.EditDistance;
+import com.oculusinfo.ml.unsupervised.cluster.BaseClusterer;
+import com.oculusinfo.ml.unsupervised.cluster.Cluster;
+import com.oculusinfo.ml.unsupervised.cluster.ClusterResult;
+import com.oculusinfo.ml.unsupervised.cluster.dpmeans.DPMeans;
 import com.oculusinfo.ml.utils.StringTools;
 
 public class LabelEntityClusterer extends BaseEntityClusterer {
 	private static Set<String> stopwords;
-	
 	private Properties pMgr;
 	private String clusterType;
 	
@@ -101,109 +109,211 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 		 }
 	}
 	
-	private Map<String, FL_Cluster> retrieveClusterBuckets(Collection<FL_Cluster> clusters, ClusterContext context) {
-		Map<String, FL_Cluster> buckets = new HashMap<String, FL_Cluster>();
+	private String cleanString(String label) {
+		String cleanStr = label.trim();
 		
-		for (FL_Cluster cluster : clusters) {
-			String value = "Unknown";
-			
-			FL_Entity firstChild = this.getFirstChildEntity(cluster, context);
-			PropertyHelper prop = getFirstProperty(firstChild, clusterField);
-			if (prop != null) {
-				try {
-					value = ((String)prop.getValue()).trim();
-					
-					if (clusterType.equalsIgnoreCase("alpha")) {
-						value = value.substring(0, 1).toLowerCase();  // grab the first character - we are bucketing by alpha
-					}
-					else {
-						// first strip out stop words from label
-						if (pMgr.getBoolean(ClustererProperties.ENABLE_STOPWORDS, false)) {
-							List<String> tokens = tokenizeString(value);
-							StringBuilder str = new StringBuilder();
-							for (String token : tokens) {
-								str.append(token);
-							}
-							value = str.toString();
-						}
-						// compute a hash fingerprint for string to use for label clustering
-						value = StringTools.fingerPrint(value);
-					} 
-				}
-				catch (Exception e) {
-					log.error("Label field is not a string! Ignoring.");
-				}
-				
-				buckets.put(value, cluster);
+		// first strip out stop words from label
+		if (pMgr.getBoolean(ClustererProperties.ENABLE_STOPWORDS, false)) {
+			List<String> tokens = tokenizeString(cleanStr);
+			StringBuilder str = new StringBuilder();
+			for (String token : tokens) {
+				str.append(token);
 			}
+			cleanStr = str.toString();
 		}
-		return buckets;
+		return cleanStr;
 	}
 	
-	private Map<String, List<FL_Entity>> bucketByLabel(Collection<FL_Entity> entities) {
-		Map<String, List<FL_Entity>> buckets = new HashMap<String, List<FL_Entity>>();
-		
-		for (FL_Entity entity : entities) {
-			String value = "UNKNOWN";
-			PropertyHelper prop = getFirstProperty(entity, clusterField);
-			if (prop != null && prop.getValue() != null && !((String)prop.getValue()).isEmpty()) {
-				try {
-					value = (String)prop.getValue();
-					
-					if (clusterType.equalsIgnoreCase("alpha")) {
-						value = value.substring(0, 1).toLowerCase();  // grab the first character - we are bucketing by alpha
-					}
-					else {
-						// first strip out stop words from label
-						if (pMgr.getBoolean(ClustererProperties.ENABLE_STOPWORDS, false)) {
-							List<String> tokens = tokenizeString(value);
-							StringBuilder str = new StringBuilder();
-							for (String token : tokens) {
-								str.append(token);
-							}
-							value = str.toString();
-						}
-					
-						// compute a hash fingerprint for string to use for label clustering
-						value = StringTools.fingerPrint(value);
-					}
-				}
-				catch (Exception e) {
-					log.error("Label field is not a string! Ignoring.");
-				}
-			}
-			if (!buckets.containsKey(value)) {
-				buckets.put(value, new LinkedList<FL_Entity>());
-			}
-			buckets.get(value).add(entity);
+	private String toLabelKey(String key) {
+		if (clusterType.equalsIgnoreCase("alpha")) {
+			key = key.isEmpty() ? "_" : key.substring(0, 1).toLowerCase();  // grab the first character - we are bucketing by alpha
 		}
-		
-		return buckets;
+		else {  // use fingerprint
+			// first clean the string
+			key = cleanString(key);
+			// compute a hash fingerprint for string to use for label clustering
+			key = StringTools.fingerPrint(key);
+		} 
+		return key;
 	}
 	
 	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities) {
-		return this.clusterEntities(entities, new ArrayList<FL_Cluster>(0), new ClusterContext());
-	}
-	
-	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities, ClusterContext context) {	
-		throw new UnsupportedOperationException();
+	protected String getBucketKey(FL_Cluster cluster, ClusterContext context) {
+		return toLabelKey( super.getBucketKey(cluster, context) );
 	}
 
 	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities, Collection<FL_Cluster> clusters, ClusterContext context) {
-		Map<String, FL_Cluster> prevBuckets = retrieveClusterBuckets(clusters, context);
+	protected String getBucketKey(FL_Entity entity) {
+		return toLabelKey( super.getBucketKey(entity) );
+	}
+	
+	private String getStringValue(PropertyHelper property) {
+		String val = null;
 		
-		Map<String, List<FL_Entity>> buckets = bucketByLabel(entities);
-		
-		// merge the buckets with the previous Buckets
-		Map<String, FL_Cluster> modifiedClusters = mergeBuckets(buckets, prevBuckets);
+		// try to read the double value of the entity
+		if (property != null && property.getRange() != null) {
+			Object v = property.getValue();
+			if (v instanceof String) {
+				val = (String)v;
+			}
+		}
+		return val;
+	}
+	
+	private Instance createInstance(String id, String label) {
+		Instance inst = new Instance(id);
 				
+		StringFeature feature = new StringFeature("label");
+		feature.setValue( cleanString(label) );
+		inst.addFeature( feature );
+		
+		return inst;
+	}
+	
+	private DataSet createDataSet(Collection<FL_Entity> entities, Collection<FL_Cluster> immutableClusters, ClusterContext context) {
+		DataSet ds = new DataSet();
+		
+		for (FL_Entity entity : entities) {			
+			PropertyHelper prop = getFirstProperty(entity, clusterField);
+			if (prop != null) {
+				String val = getStringValue(prop);
+				
+				if (val != null) {
+					Instance inst = createInstance(entity.getUid(), val);
+					ds.add(inst);
+				}
+			}
+			else {
+				// TODO what to do with entities that can't be clustered?
+			}
+		}
+		for (FL_Cluster immutableCluster : immutableClusters) {
+			PropertyHelper prop = getFirstProperty(immutableCluster, clusterField);
+			if (prop == null) {
+				FL_Entity firstChild = getFirstChildEntity(immutableCluster, context);
+				if (firstChild != null) {
+					prop = getFirstProperty(firstChild, clusterField);
+				}
+			}
+			if (prop != null) {
+				String val = getStringValue(prop);
+				
+				if (val != null) {
+					Instance inst = createInstance(immutableCluster.getUid(), val);
+					ds.add(inst);
+				}
+			}
+			else {
+				// TODO what to do with entities that can't be clustered?
+			}
+		}
+		return ds;
+	}
+	
+	private BaseClusterer createEditDistanceClusterer() {
+		DPMeans clusterer = new DPMeans(3, true);
+		clusterer.setThreshold(0.6);
+		clusterer.registerFeatureType("label", StringMedianCentroid.class, new EditDistance(1.0));
+		return clusterer;
+	}
+	
+	private ClusterContext clusterByEditDistance(Collection<FL_Entity> entities,
+												 Collection<FL_Cluster> immutableClusters,
+												 Collection<FL_Cluster> clusters, 
+												 ClusterContext context) {
+		
+		Map<String, FL_Entity> entityIndex = createEntityIndex(entities);
+		Map<String, FL_Cluster> immutableClusterIndex = createClusterIndex(immutableClusters);
+		Map<String, FL_Cluster> clusterIndex = createClusterIndex(clusters);
+		
+		DataSet ds = createDataSet(entities, immutableClusters, context);
+		
+		BaseClusterer clusterer = createEditDistanceClusterer();
+		
+		List<Cluster> existingClusters = new LinkedList<Cluster>();
+		
+		for (FL_Cluster cluster : clusters) {			
+			String val = "Unknown";
+			PropertyHelper prop = getFirstProperty(cluster, toClusterPropertyName(clusterField));
+			if (prop != null) {
+				val = getStringValue(prop);
+			}
+			Cluster c = clusterer.createCluster();
+			c.setId(cluster.getUid());
+			StringFeature feature = new StringFeature("label");
+			feature.setValue(val);
+			c.addFeature(feature);
+			existingClusters.add(c);
+		}
+		
+		ClusterResult rs = null; 
+		if (existingClusters.isEmpty()) {
+			rs = clusterer.doCluster(ds);
+		}
+		else {
+			rs = clusterer.doIncrementalCluster(ds, existingClusters);
+		}
+		// clean up
+		clusterer.terminate();
+		
+		Map<String, FL_Cluster> modifiedClusters = new HashMap<String, FL_Cluster>();
+		
+		for (Cluster c : rs) {
+			List<FL_Cluster> subClusters = new LinkedList<FL_Cluster>();
+			List<FL_Entity> members = new LinkedList<FL_Entity>();
+			
+			for (Instance inst : c.getMembers()) {
+				String id = inst.getId();
+				if ( entityIndex.containsKey(id) ) {
+					members.add( entityIndex.get(id) );
+				}
+				else if ( immutableClusterIndex.containsKey(id) ){
+					subClusters.add( immutableClusterIndex.get(id) );
+				}
+			}
+			
+			FL_Cluster cluster = clusterIndex.get(c.getId());
+			if (cluster == null) {
+				cluster = clusterFactory.toCluster(members, subClusters);
+				// cache the cluster property
+				StringFeature feature = (StringFeature)c.getFeature("label");
+				String value = feature.getValue();
+				addClusterProperty(cluster, clusterField, value);
+			}
+			else {
+				ClusterHelper.addMembers(cluster, members);
+				EntityClusterFactory.setEntityCluster(members, cluster);
+				
+				for (FL_Cluster subCluster : subClusters) {
+					ClusterHelper.addSubCluster(cluster, subCluster);
+					subCluster.setParent(cluster.getUid());
+				}	
+				
+				// cache the cluster property
+				StringFeature feature = (StringFeature)c.getFeature("label");
+				String value = feature.getValue();
+				addClusterProperty(cluster, clusterField, value);
+			}
+			modifiedClusters.put(cluster.getUid(), cluster);
+		}
+		
 		ClusterContext result = new ClusterContext();
 		result.roots.putAll(modifiedClusters);
 		result.clusters.putAll(modifiedClusters);
+	
 		return result;
 	}
 
+	@Override
+	public ClusterContext clusterEntities(Collection<FL_Entity> entities,
+										  Collection<FL_Cluster> immutableClusters,
+										  Collection<FL_Cluster> clusters, 
+										  ClusterContext context) {
+		
+		if (clusterType.equalsIgnoreCase("edit")) {
+			return clusterByEditDistance(entities, immutableClusters, clusters, context);
+		}
+		
+		return super.clusterEntities(entities, immutableClusters, clusters, context);
+	}
 }

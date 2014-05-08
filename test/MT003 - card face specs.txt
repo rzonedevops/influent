@@ -20,24 +20,21 @@
 # Kiva card face specs
 #---------------------
 1.  open test/images/MT003 image 1.png
-2.  Search for daniel
-3.  drag "Daniel. Ghana, Kade" plus two other cards into the file
-    (the top 3 cards)
-4.  inspect the "Daniel. Ghana, Kade" card
+2.  Search for "cat"
+3.  drag the returned card "Cat. Viet Nam, Ho Chi Minh City" into the file
+4.  inspect the "Cat. Viet Nam, Ho Chi Minh City" card
 [ ] The card contents look the same as (a) in test/images/MT003 image 1.png
 
-5.  branch right off "Daniel. Ghana, Kade"
-6.  expand the resulting cluster (to show "Sinapi Aba Trust (SAT)")
-7.  inspect the "Sinapi Aba Trust (SAT)" card
-[ ] The card contents look the same as (c) in test/images/MT003 image 1.png
-
-8.  branch right off "Sinapi Aba Trust (SAT)"
-9.  expand the "Daniel" cluster
-10. inspect the "Daniel. Ghana, Kade" card
+5.  branch right off "Cat. Viet Nam, Ho Chi Minh City"
+6.  inspect the "Capital Aid Fund for Employment of the Poor (CEP)" card
 [ ] The card contents look the same as (b) in test/images/MT003 image 1.png
 
-11. expand the "David (+8)" cluster
-12. inspect the "Evi" card
+7.  branch right off "Capital Aid Fund for Employment of the Poor (CEP)"
+8. inspect the "Cat. Viet Nam, Ho Chi Minh City" card
+[ ] The card contents look the same as (c) in test/images/MT003 image 1.png
+
+9. expand the "Dylan Lind (+15)" cluster
+10. inspect the Dylan Lind" card
 [ ] The card contents look the same as (d) in test/images/MT003 image 1.png
 
 
@@ -45,7 +42,7 @@
 # Kiva file cluster face specs
 #-----------------------------
 1.  open test/images/MT003 image 2.png
-2.  collapse all 3 open clusters
+2.  collapse the filed card "Cat. Viet Nam, Ho Chi Minh City"
 3.  inspect the file cluster
 [ ] The card contents look the same as (a) in test/images/MT003 image 2.png
 
@@ -53,56 +50,44 @@
 #-------------------------------
 # Kiva column cluster face specs
 #-------------------------------
-1.  inspect the "Sinapi Aba Trust (SAT)" cluster
+1.  inspect the "April Jack (+8)" cluster
 [ ] The card contents look the same as (b) in test/images/MT003 image 2.png
 
-2. inspect the "Daniel" cluster
-[ ] The card contents look the same as (e) in test/images/MT003 image 2.png
-
-3. inspect the "David (+8)" cluster
+2. Branch right from "Dylan Lind".
+3. inspect the "KREDIT Ltd. (+16)" cluster
 [ ] The card contents look the same as (c) in test/images/MT003 image 2.png
 
-4. branch left from "Andrew (+2)" cluster
-5. branch right from "Andrew (+2)" cluster
-6. inspect the "South Pacific Business..." cluster
+4. Branch right from "KREDIT Ltd. (+16)"
+5. inspect the "María Mercedes. Nicaragua, Leon (+16)" cluster
 [ ] The card contents look the same as (d) in test/images/MT003 image 2.png
 
 #-----------
-# Setup kiva
+# Setup bitcoin
 #-----------
 1. run the bitcoin application
 2. clear the workspace
 
 #------------------------
-# Bitcoin card face specs
+# Bitcoin face specs
 #------------------------
 1.  open test/images/MT003 image 3.png
-2.  Search for wikileaks
-3.  drag "WikiLeaks" into the file
-2.  Search for 12
-3.  drag "12" into the file
-2.  Search for 123
-3.  drag "123" into the file
-2.  Search for 1234
-3.  drag "1234" into the file
-4.  inspect the "WikiLeaks" card
+2.  Search for "wikileaks"
+3.  drag the returned card "wikileaks" into the file
+4.  inspect the "wikileaks" card
 [ ] The card contents look the same as (a) in test/images/MT003 image 3.png
 
-5.  branch right off "WikiLeaks"
-7.  inspect the "WikiLeaks" card
+
+5.  Search for 12
+6.  drag "12" into the file
+7.  Search for 123
+8.  drag "123" into the file
+9.  Search for 1234
+10.  drag "1234" into the file
+11.  Collapse the file and inspect it.
 [ ] The card contents look the same as (b) in test/images/MT003 image 3.png
 
-
-#--------------------------------
-# Bitcoin file cluster face specs
-#--------------------------------
-2.  collapse the file cluster
-3.  inspect the file cluster
-[ ] The card contents look the same as (c) in test/images/MT003 image 3.png
-
-
-#----------------------------------
-# Bitcoin column cluster face specs
-#----------------------------------
-3.  inspect the "758460 (+8743)" cluster
-[ ] The card contents look the same as (d) in test/images/MT003 image 3.png
+12.  branch right from the filed "wikileaks"
+[ ] Verify individual card contents look the same as (c) in 
+	test/images/MT003 image 3.png
+[ ] Verify cluster card contents look the same as (d) in 
+	test/images/MT003 image 3.png

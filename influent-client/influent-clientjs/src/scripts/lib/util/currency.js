@@ -29,7 +29,7 @@ define([], function() {
 			var suffix = '';
 
 			number = Math.abs(number);
-			
+
 			if (number >= 1000000000) {
 				suffix = 'B';
 				number *= 0.000000001;
@@ -40,28 +40,28 @@ define([], function() {
 				suffix = 'K';
 				number *= 0.001;
 			}
-			
+
 			number = Math.round(number);
-			
+
 			var i,
 				s = number.toString();
-			
+
 			for (i= s.length-3; i>0; i-= 3) {
 				s = s.substring(0, i).concat(',').concat(s.substring(i));
 			}
-			
+
 			return s + suffix;
 		},
-	
-	
-	
-	
+
+
+
+
 		formatBalance: function(number, prefix) {
 			var suffix = '';
 			var sign = (number < 0) ? '-' : '';
-			
+
 			number = Math.abs(number);
-			
+
 			if (number >= 1000000000) {
 				suffix = 'B';
 				number *= 0.000000001;
@@ -72,19 +72,19 @@ define([], function() {
 				suffix = 'K';
 				number *= 0.001;
 			}
-			
+
 			number = Math.round(number);
 			if (number === 0) {
 				sign = '';
 			}
-			
+
 			var i,
 				s = number.toString();
-			
+
 			for (i= s.length-3; i>0; i-= 3) {
 				s = s.substring(0, i).concat(',').concat(s.substring(i));
 			}
-			
+
 			return sign + prefix+ s + suffix;
 		}
 	};

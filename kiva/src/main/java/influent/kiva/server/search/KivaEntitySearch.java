@@ -47,8 +47,8 @@ import influent.server.utilities.TypedId;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -57,6 +57,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import oculus.aperture.spi.common.Properties;
 import org.apache.avro.AvroRemoteException;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
@@ -71,12 +72,14 @@ public class KivaEntitySearch implements FL_EntitySearch {
 	private final FL_Geocoding _geocoding;
 	private String _solrURL;
 	private SolrServer _solr;
+	private Properties _config;
 	private final SQLConnectionPool _connectionPool;
 	private final DataNamespaceHandler _namespaceHandler;
 	
 	private final ConfigFileDescriptors _cfd = new ConfigFileDescriptors();
 	
 	private static final Map<String, Double> s_basicSearchKeys;
+	
 	static {
 		s_basicSearchKeys = new HashMap<String, Double>();
 		s_basicSearchKeys.put("lenders_name", 1.0);
@@ -85,9 +88,18 @@ public class KivaEntitySearch implements FL_EntitySearch {
 	}
 	
 	
-	public KivaEntitySearch(String solrURL, String solrDescriptor, FL_Geocoding geocoding, SQLConnectionPool connectionPool, DataNamespaceHandler namespaceHandler) {
+	
+	public KivaEntitySearch(
+		String solrURL, 
+		String solrDescriptor, 
+		Properties config,
+		FL_Geocoding geocoding, 
+		SQLConnectionPool connectionPool, 
+		DataNamespaceHandler namespaceHandler
+	) {
 		_solrURL = solrURL;
 		_solr = new HttpSolrServer(_solrURL);
+		_config = config;
 		_geocoding = geocoding;
 		_connectionPool = connectionPool;
 		_namespaceHandler = namespaceHandler;
@@ -100,14 +112,33 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		
 	}
 	
+	
+	
+	
 	protected Logger getLogger() {
 		return s_logger;
 	}
 	
-	private FL_PropertyMatchDescriptor filterIds(FL_PropertyMatchDescriptor pst, Map<String, List<String>> brokerIds) {
+	
+	
+	
+	protected DataNamespaceHandler getNamespaceHandler() {
+		return _namespaceHandler;
+	}
+	
+	
+	
+	
+	private FL_PropertyMatchDescriptor filterIds(
+		FL_PropertyMatchDescriptor pst, 
+		Map<String, List<String>> brokerIds
+	) {
+		
 		final String k = pst.getKey();
 		
-		if (k.equals("uid")) {
+		// we use 'uid' for influent unique ids and the data native 'id' on the client. Accept both for broker filtering.
+		if (k.equals("uid") || k.equals("id")) {
+			
 			Collection<Object> values;
 
 			final Object r = pst.getRange();
@@ -124,7 +155,8 @@ public class KivaEntitySearch implements FL_EntitySearch {
 			List<Object> filtered = new ArrayList<Object>(values.size());
 			
 			for (Object obj : values) {
-				final String id = TypedId.fromTypedId(String.valueOf(obj)).getNativeId();
+				final String id = k.equals("id")? String.valueOf(obj) :
+					TypedId.fromTypedId(String.valueOf(obj)).getNativeId();
 				
 				if (id != null && id.charAt(0) == 'p') {
 					final int idash = id.indexOf('-');
@@ -166,8 +198,17 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		return pst;
 	}
 	
+	
+	
+	
 	@Override
-	public FL_SearchResults search(String searchTerms, List<FL_PropertyMatchDescriptor> terms, long start, long max, String type) throws AvroRemoteException {
+	public FL_SearchResults search(
+		String searchTerms, 
+		List<FL_PropertyMatchDescriptor> terms, 
+		long start, 
+		long max, 
+		String type
+	) throws AvroRemoteException {
 
 		final List<FL_PropertyMatchDescriptor> filteredTerms = new ArrayList<FL_PropertyMatchDescriptor>(terms.size());
 		
@@ -192,7 +233,7 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		query.setQuery(searchStr);
 		query.setFields("*", "score");
 		
-		KivaEntitySearchIterator ssr = buildKivaEntitySearchIterator(_solr, query, _geocoding);
+		KivaEntitySearchIterator ssr = buildKivaEntitySearchIterator(_solr, query, _config, _geocoding);
 		
 		if (start >= 0) {
 			ssr.setStartIndex((int) start);
@@ -240,7 +281,6 @@ public class KivaEntitySearch implements FL_EntitySearch {
 			Map<String, int[]> entityStats = new HashMap<String, int[]>();
 			
 			Connection connection = _connectionPool.getConnection();
-			Statement stmt = connection.createStatement();
 			
 			// separately grab the FinEntity stats
 			String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
@@ -248,14 +288,23 @@ public class KivaEntitySearch implements FL_EntitySearch {
 			String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
 			String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
 
-			String sql = "select " + finEntityEntityId + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " " +
-							" from " + finEntityTable +
-							" where " + finEntityEntityId + " in " +  DataAccessHelper.createInClause(rawIds);
+			// Create prepared statement
+			String preparedStatementString = buildPreparedStatementForSearch(
+				rawIds.size(),
+				finEntityEntityId,
+				finEntityUniqueInboundDegree,
+				finEntityUniqueOutboundDegree,
+				finEntityTable
+			);
+			PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
 			
-			getLogger().info(sql);
+			int index = 1;
+			for (int i = 0; i < rawIds.size(); i++) {
+				stmt.setString(index++, getNamespaceHandler().toSQLId(rawIds.get(i), null));
+			}
 			
-			if (!rawIds.isEmpty() && stmt.execute(sql)) {
-				ResultSet rs = stmt.getResultSet();
+			if (!rawIds.isEmpty()) {
+				ResultSet rs = stmt.executeQuery();
 				while (rs.next()) {
 					String entityId = rs.getString(finEntityEntityId);
 					int inDegree = rs.getInt(finEntityUniqueInboundDegree);
@@ -265,6 +314,8 @@ public class KivaEntitySearch implements FL_EntitySearch {
 				}
 				rs.close();
 			}
+			
+			stmt.close();
 			
 			for (FL_SearchResult result : results) {
 				FL_Entity fle = (FL_Entity)result.getResult();
@@ -276,7 +327,7 @@ public class KivaEntitySearch implements FL_EntitySearch {
 					fle.getProperties().add( new PropertyHelper("outboundDegree", stats[1], FL_PropertyTag.OUTFLOWING) );
 				}
 			}
-			stmt.close();
+
 			connection.close();
 		} catch (Exception e) {
 			throw new AvroRemoteException(e);
@@ -284,12 +335,51 @@ public class KivaEntitySearch implements FL_EntitySearch {
 		return new FL_SearchResults((long)ssr.getTotalResults(), results);
 	}
 
+
+
+
 	@Override
 	public Map<String, List<FL_PropertyDescriptor>> getDescriptors() throws AvroRemoteException {
 		return _cfd.getEntityDescriptors();
 	}
-
-	public KivaEntitySearchIterator buildKivaEntitySearchIterator(SolrServer solr, SolrQuery query, FL_Geocoding geocoding) {
-		return new KivaEntitySearchIterator(solr, query, geocoding);
+	
+	
+	
+	
+	public KivaEntitySearchIterator buildKivaEntitySearchIterator(SolrServer solr, SolrQuery query, Properties config, FL_Geocoding geocoding) {
+		return new KivaEntitySearchIterator(solr, query, config, geocoding);
+	}
+	
+	
+	
+	
+	private String buildPreparedStatementForSearch(
+		int numIds,
+		String finEntityEntityId, 
+		String finEntityUniqueInboundDegree,
+		String finEntityUniqueOutboundDegree, 
+		String finEntityTable
+	) {
+		if (finEntityEntityId == null ||
+			finEntityUniqueInboundDegree == null ||
+			finEntityUniqueOutboundDegree == null ||
+			finEntityTable == null
+		) {
+			s_logger.error("buildPreparedStatementFoSearch: Invalid parameter");
+			return null;
+		}
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("SELECT " + finEntityEntityId + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " ");
+		sb.append("FROM " + finEntityTable + " ");
+		if (numIds > 0) {
+			sb.append("WHERE " + finEntityEntityId + " IN (");
+			for (int i = 1; i < numIds; i++) {
+				sb.append("?, ");
+			}
+			sb.append("?) ");
+		}
+		
+		return sb.toString();
 	}
 }

@@ -25,6 +25,7 @@
 package influent.bitcoin.server.spi;
 
 import influent.idl.FL_Persistence;
+import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.DatabasePersistenceAccess;
 import influent.server.utilities.SQLConnectionPool;
 
@@ -55,8 +56,9 @@ public class BitcoinDatabasePersistenceModule extends AbstractModule {
 	@Provides @Singleton
 	public DatabasePersistenceAccess connectToDatabasePersistenceAccess(
 		SQLConnectionPool connectionPool, 
-		@Named("influent.data.view.tables") String dataTableNames
+		@Named("influent.data.view.tables") String dataTableNames,
+		DataNamespaceHandler namespaceHandler
 	) {
-		return new DatabasePersistenceAccess(connectionPool, dataTableNames);
+		return new DatabasePersistenceAccess(connectionPool, dataTableNames, namespaceHandler);
 	}
 }

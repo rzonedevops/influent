@@ -78,6 +78,9 @@ public class SimpleShiroAuthModule extends ShiroWebModule {
         bind(CredentialsMatcher.class).to(HashedCredentialsMatcher.class);
         bind(HashedCredentialsMatcher.class);
 
+        addFilterChain("/**/requestTask.html", ANON); 
+        addFilterChain("/**/taskmanager", ANON); 
+
         addFilterChain("/", Key.get(NoCacheFilter.class), AUTHC); 
         addFilterChain("/index.html", Key.get(NoCacheFilter.class), AUTHC); 
 

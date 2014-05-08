@@ -44,43 +44,7 @@ import org.joda.time.DateTimeZone;
 
 public class DataAccessHelper {
 
-	// Serves no purpose other than for us to identify popup requests down the line when we are looking up entities.
-	public interface DetailsSubject {}
-	
-	
-	
-	
-	public static List<String> detailsSubject(String id) {
-		return new DetailsSubjectList(id);
-	}
-	
-	
-	
-	
-    private static class DetailsSubjectList extends AbstractList<String> implements DetailsSubject, RandomAccess, Serializable {
-        static final long serialVersionUID = 3093736618740652951L;
-        private final String _id;
-
-        DetailsSubjectList(String id) {
-        	_id = id;
-        }
-
-        public int size() {
-        	return 1;
-        }
-
-        public boolean contains(Object obj) {
-        	return _id.equals(obj);
-        }
-
-        public String get(int index) {
-            if (index != 0) throw new IndexOutOfBoundsException("Index: "+index+", Size: 1");
-            
-            return _id;
-        }
-    }
-    
-    // --- Flow ---
+	// --- Flow ---
 	public static final String FLOW_TABLE 									= "FinFlow";
 	
 	public static final String FLOW_COLUMN_FROM_ENTITY_ID 					= "FinFlow_FromEntityId";
@@ -123,8 +87,48 @@ public class DataAccessHelper {
 	public static final String DYNAMIC_CLUSTER_TABLE						= "dynamic_cluster_dataview";
 	
 	public static final String CLIENT_STATE_TABLE 							= "clientState";
-	// ------------------
 	
+	
+	
+	// Serves no purpose other than for us to identify popup requests down the line when we are looking up entities.
+	public interface DetailsSubject {}
+	
+	
+	
+	
+	public static List<String> detailsSubject(String id) {
+		return new DetailsSubjectList(id);
+	}
+	
+	
+	
+	
+    private static class DetailsSubjectList extends AbstractList<String> implements DetailsSubject, RandomAccess, Serializable {
+        static final long serialVersionUID = 3093736618740652951L;
+        private final String _id;
+
+        DetailsSubjectList(String id) {
+        	_id = id;
+        }
+
+        public int size() {
+        	return 1;
+        }
+
+        public boolean contains(Object obj) {
+        	return _id.equals(obj);
+        }
+
+        public String get(int index) {
+            if (index != 0) throw new IndexOutOfBoundsException("Index: "+index+", Size: 1");
+            
+            return _id;
+        }
+    }
+    
+    
+    
+    
 	/**
 	 * Formats a date, exclusive of time, as a UTC date string.
 	 */
@@ -136,14 +140,25 @@ public class DataAccessHelper {
 		return format(new DateTime((long)date, DateTimeZone.UTC));
 	}
 	
-	private static void pad00(int n, StringBuilder s) {
+	
+	
+	
+	private static void pad00(
+		int n, 
+		StringBuilder s
+	) {
+		
 		if (n < 10) {
 			s.append('0');
 		}
 		s.append(n);
 	}
 	
+	
+	
+	
 	public static String format(DateTime dateTime) {
+		
 		if (dateTime == null) {
 			return null;
 		}
@@ -178,7 +193,11 @@ public class DataAccessHelper {
 		return s.toString();
 	}
 	
+	
+	
+	
 	public static DateTime getStartDate(FL_DateRange date) {
+		
 		if (date == null || date.getStartDate() == null) {
 			return null;
 		}
@@ -186,7 +205,11 @@ public class DataAccessHelper {
 		return new DateTime((long)date.getStartDate(), DateTimeZone.UTC);
 	}
 	
+	
+	
+	
 	public static DateTime getExclusiveEndDate(FL_DateRange date) {
+		
 		if (date == null) {
 			return null;
 		}
@@ -213,10 +236,14 @@ public class DataAccessHelper {
 		return d;
 	}
 	
+	
+	
+	
 	/**
 	 * Gets the inclusive end date for SQL between. 
 	 */
 	public static DateTime getEndDate(FL_DateRange date) {
+		
 		if (date == null) {
 			return null;
 		}
@@ -227,7 +254,9 @@ public class DataAccessHelper {
 	
 	
 	
+	
 	public static List<Date> getDateIntervals(FL_DateRange date) {
+		
 		Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 		c.setTimeInMillis(date.getStartDate());
 		
@@ -306,12 +335,38 @@ public class DataAccessHelper {
 	
 
 
-	public static String createNodeIdListFromCollection(List<String> nodeIDs, boolean usePrefix, boolean trimDash) {
-		return createNodeIdListFromCollection(nodeIDs, usePrefix, trimDash, null, "");
-	}	
+	public static String createNodeIdListFromCollection(List<String> nodeIDs) {
+		return createNodeIdListFromCollection(
+			nodeIDs, 
+			null, 
+			""
+		);
+	}
 	
-	public static String createNodeIdListFromCollection(List<String> nodeIDs, boolean usePrefix, boolean trimDash,
-			DataNamespaceHandler nameSpaceHandler, String namespace) {
+	public static String createNodeIdListFromCollection(
+			List<String> nodeIDs,
+			boolean quoted,
+			DataNamespaceHandler nameSpaceHandler, 
+			String namespace
+		) {
+		if (nodeIDs == null || nodeIDs.size() == 0) {
+			return null;
+		}
+		
+		List<String> quotedIds = new ArrayList<String>();
+		for (String id : nodeIDs) {
+			quotedIds.add("'" + id + "'");
+		}
+		return createNodeIdListFromCollection(quotedIds, nameSpaceHandler, namespace);
+	}
+	
+	
+	public static String createNodeIdListFromCollection(
+		List<String> nodeIDs,
+		DataNamespaceHandler nameSpaceHandler, 
+		String namespace
+	) {
+		
 		if (nodeIDs == null || nodeIDs.isEmpty()) return null;
 	
 		StringBuilder resultString = new StringBuilder();
@@ -337,8 +392,15 @@ public class DataAccessHelper {
 		return createInClause(inItems, null, null);
 	}
 	
-	public static String createInClause(Collection<String> inItemIds, DataNamespaceHandler nameSpaceHandler,
-			String namespace) {
+	
+	
+	
+	public static String createInClause(
+		Collection<String> inItemIds, 
+		DataNamespaceHandler nameSpaceHandler,
+		String namespace
+	) {
+		
 		StringBuilder resultString = new StringBuilder();
 		resultString.append("(");
 		
@@ -362,7 +424,14 @@ public class DataAccessHelper {
 		return resultString.toString();
 	}
 	
-	public static String linkEntityTypeClause(FL_DirectionFilter direction, FL_LinkEntityTypeFilter entityType) {
+	
+	
+	
+	public static String linkEntityTypeClause(
+		FL_DirectionFilter direction, 
+		FL_LinkEntityTypeFilter entityType
+	) {
+		
 		if (entityType == FL_LinkEntityTypeFilter.ANY) return " 1=1 ";
 		
 		StringBuilder clause = new StringBuilder();

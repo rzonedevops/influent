@@ -27,7 +27,7 @@
  * Defines the names of pub/sub channels used throughout the app
  */
 define({
-    BRANCH : 'branch',
-    PRUNE  : 'prune',
-    WORKING: 'working'
+	BRANCH : 'branch',
+	PRUNE  : 'prune',
+	WORKING: 'working'
 });

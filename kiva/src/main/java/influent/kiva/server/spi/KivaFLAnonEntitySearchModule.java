@@ -24,6 +24,7 @@
  */
 package influent.kiva.server.spi;
 
+import oculus.aperture.spi.common.Properties;
 import influent.idl.FL_EntitySearch;
 import influent.idl.FL_Geocoding;
 import influent.kiva.server.search.KivaAnonEntitySearch;
@@ -55,13 +56,14 @@ public class KivaFLAnonEntitySearchModule extends AbstractModule {
 	public KivaAnonEntitySearch connect (
 		@Named("influent.midtier.solr.url") String solrUrl,
 		@Named("influent.midtier.solr.descriptor") String solrDescriptor,
+		@Named("aperture.server.config") Properties config,
 		FL_Geocoding geocoding,
 		SQLConnectionPool connectionPool,
 		DataNamespaceHandler namespaceHandler
 	) {
 
 		try {
-			return new KivaAnonEntitySearch(solrUrl, solrDescriptor, geocoding, connectionPool, namespaceHandler);
+			return new KivaAnonEntitySearch(solrUrl, solrDescriptor, config, geocoding, connectionPool, namespaceHandler);
 		} catch (Exception e) {
 			addError("Failed to EntitySearch", e);
 			return null;

@@ -25,11 +25,11 @@
 define(function() {
 	var registry = {};
 	var u = aperture.util;
-	
+
 	// registers a plugin on load
 	function add(name, plugin) {
 		var a = registry[name];
-		
+
 		if (a == null) {
 			a = registry[name] = [];
 		}
@@ -39,22 +39,22 @@ define(function() {
 		// clear this in case there is a problem loading it
 		var m = plugin.module;
 		plugin.module = null;
-		
+
 		// register the plugin.
 		a.push(plugin);
-		
+
 		// load required modules
 		if (u.isString(m)) {
 			require([m], function(module) {
 				plugin.module = module;
 			});
-		};
+		}
 	}
-	
+
 	// get plugin registrations.
 	aperture.config.register('influent.plugins', function(cfg) {
 		cfg = cfg['influent.plugins'];
-		
+
 		u.forEach(cfg, function(list, name) {
 			if (u.isString(name)) {
 				if (list && !u.isArray(list)) {
@@ -63,13 +63,13 @@ define(function() {
 				u.forEach(list, function(plugin) {
 					add(name, plugin);
 				});
-				
+
 			} else {
 				aperture.log.error("influent.plugins config does not consist of named properties.");
 			}
 		});
 	});
-	
+
 	// return registered plugins under name.
 	return {
 		get : function(name) {

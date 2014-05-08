@@ -13,52 +13,62 @@
 #----------------
 # Section heading
 #----------------
-1.	Perform a search for "daniel" to populate the match card.
-2.  Drag a the top result from the match card (i.e. "Daniel, Ghana, Kade") to
-    the left or right of the match card and drop it on an empty portion of the
-    screen. We'll call this CardA
-[ ] The CardA should animate back to its pre-drag position.
-3.  Drag CardA from the match card and drop it into the file.
-[ ] CardA should remove itself from the match card and re-parent with the
+1.  clear the workspace
+1.	Perform a search to populate the match card.
+2.  Drag a card from the match card to the left or right of the match card 
+	and drop it on an empty portion of the screen
+[ ] The card should animate back to its pre-drag position.
+3.  Without selecting it first, drag a card from the match card and drop it 
+	into the file.
+[ ] the card should remove itself from the match card and re-parent with the
     file.
 [ ] Since this is the first item to be dropped, it should also create an
     expanded cluster object in the file and a paperclip should appear in the
     left margin of the file.
-[ ] CardA should appear as a child of this newly created file cluster.
+[ ] The card should appear as a child of this newly created file cluster.
 [ ] The title of the file should change to reflect its contents.
-4.  Drag CardA to the left or right of the file and drop it on an empty portion
-    of the screen.
+[ ] The card should not become selected in the process.
+4.  Click to select a card from the match card, then drag and drop it into 
+	the file.
+[ ] The card should remain selected after the operation.
+5.  Drag a file card to the left or right of the file and drop it on an 
+	empty portion of the screen.
 [ ] CardA should animate back to its pre-drag position within the parent
     cluster.
-4.  Collapse the cluster inside the file.
-5.  Drag the collapsed cluster to the left or right of the file and drop it
+6.  Collapse the cluster inside the file.
+7.  Drag the collapsed cluster to the left or right of the file and drop it
     on an empty portion of the screen.
 [ ] The cluster should animate back to its pre-drag position within the parent
     file.
-6.  Look at the match card and drag and drop the top 2 results into the collapsed
+8.  Look at the match card and drag and drop the top 2 results into the collapsed
     file cluster.
-[ ] Expand the file cluster. There should be a total of 3 items in the file cluster.
-7.  Look at the match card and drag and drop the top 2 results into the expanded
+[ ] Expand the file cluster. There should be a total of 4 items in the file cluster.
+9.  Look at the match card and drag and drop the top 2 results into the expanded
     file cluster.
-[ ] There should be a total of 5 items in the file cluster.
-7.  Collapse the file cluster.
-8.  Hover over the collapsed file cluster to bring up the branch controls.
+[ ] There should be a total of 6 items in the file cluster.
+10.  Collapse the file cluster.
+11.  Hover over the collapsed file cluster to bring up the branch controls.
     Branch right.
-9.  The branch operation will create a new xfColumn (ColumnB) and add the results
+12.  The branch operation will create a new Column and add the results
     to the column.
-10. Look for a cluster titled "Sinapi Aba Trust" (SAT). Drag it to the left or
-    right of ColumnB and drop it on an empty portion of the screen.
-[ ] SAT should animate back to its pre-drag position within the parent ColumnB.
-11. Expand SAT until you find a leaf card. Drag it to the left or right of ColumnB
-    and drop it on an empty portion of the screen.
-[ ] The card should animate back to its pre-drag position within its parent.
-12. Branch right on SAT. Amongst the new results should be a large cluster with 20+
-    items.
-13. Expand the file cluster and drag and drop this large cluster into the file cluster.
-[ ] A dialog box should pop up stating "Adding large clusters to file may take longer
-    than expected. Do you wish to continue?".
-14. Click the "Cancel" button.
-[ ] The large cluster should return to its original position.
-15. Drag and drop this large cluster into the file cluster. The dialog should appear
-    again. This time click "Add File".
-[ ] The contents of the large cluster should be flattened and added to the file cluster.
+13. Drag the column cluster to the left or right and drop it on an empty 
+	portion of the screen.
+[ ] the cluster should animate back to its pre-drag position.
+14. Expand the cluster until you find a leaf card. Drag it to the left 
+	or right and drop it on an empty portion of the screen.
+[ ] The card should animate back to its pre-drag position.
+15. Drag and drop a large cluster into the file.
+[ ] The large cluster should snap to its original position.
+[ ] A dialog box should pop up stating "Adding large clusters to file may 
+	take longer than expected. Do you wish to continue?".
+16. Click the "Cancel" button.
+[ ] The large cluster remains in its original position.
+17. Drag and drop this large cluster into the file cluster. The dialog should 
+	appear again. This time click "Add File".
+[ ] The contents of the large cluster are added to the file cluster.
+
+18. Start a new workspace.
+19. Create two new files on the left and right of the starting file.
+20. Do a search to populate the match card.
+21. Drag a result card over the file in each column.
+[ ] Verify that the dragged card does not pass behind any files.

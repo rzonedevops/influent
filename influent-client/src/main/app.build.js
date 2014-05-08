@@ -31,5 +31,6 @@
 	baseUrl: "scripts",
 	dir: "../../target/webapp-build",
 	optimize: "closure",
+	removeCombined: true,
 	modules: [{name: "main"}]
 })

@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
@@ -70,24 +71,21 @@ public class ChartResource extends ApertureServerResource {
 	final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private final int maxCacheAge;
-	private final ClusterContextCache contextCache;
 	private final ChartBuilder chartBuilder;
+	private final ClusterContextCache contextCache;
 
 	@Inject
 	public ChartResource(
 		@Named("influent.charts.maxage") Integer maxCacheAge,
 		FL_DataAccess entityAccess,
 		FL_ClusteringDataAccess clusterAccess,
-		@Named("influent.midtier.ehcache.config") String ehCacheConfig, 
+		@Named("influent.midtier.ehcache.config") String ehCacheConfig,
 		ClusterContextCache contextCache
 	) {
 		this.maxCacheAge = maxCacheAge;
 		this.contextCache = contextCache;
-		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig, contextCache);
+		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
 	}
-	
-	
-	
 	
 	@Get
 	public Representation getChartImage() {
@@ -95,25 +93,25 @@ public class ChartResource extends ApertureServerResource {
 			Form form = getRequest().getResourceRef().getQueryAsForm();
 
 			String hash = form.getFirstValue("hash").trim();
-			ChartHash hashed = new ChartHash(hash, contextCache);
+			ChartHash hashed = new ChartHash(hash);
 
-			String sessionId = hashed.sessionId;
+			String sessionId = hashed.getSessionId();
 			
-			String entityContextId = hashed.contextId;
-			String focusContextId = hashed.focusContextId;
+			String entityContextId = hashed.getContextId();
+			String focusContextId = hashed.getFocusContextId();
 			
-			FL_DateRange dateRange = DateRangeBuilder.getDateRange(hashed.startDate, hashed.endDate);
+			FL_DateRange dateRange = DateRangeBuilder.getDateRange(hashed.getStartDate(), hashed.getEndDate());
 			ChartData data = chartBuilder.computeChart(
 				dateRange, 
-				hashed.ids, 
-				hashed.focusIds,
+				hashed.getIds(), 
+				hashed.getFocusIds(),
 				entityContextId, 
 				focusContextId, 
 				sessionId, 
-				hashed.numBuckets,
+				hashed.getNumBuckets(),
 				hashed
 			);
-			ChartImage image = new ChartImage(hashed.width, hashed.height, hashed.focusMaxDebitCredit, data);
+			ChartImage image = new ChartImage(hashed.getWidth(), hashed.getHeight(), hashed.getFocusMaxDebitCredit(), data);
 			image.draw();
 					
 			getResponse().setCacheDirectives(
@@ -130,16 +128,6 @@ public class ChartResource extends ApertureServerResource {
 			);
 		}
 	}
-	
-	
-	
-	
-	public static String hashString(String str) {
-		return Integer.toString(str.hashCode());
-	}
-	
-	
-	
 	
 	@Post("json")
 	public Map<String, ChartData> getChartData(String jsonData) {
@@ -163,17 +151,20 @@ public class ChartResource extends ApertureServerResource {
 				
 				TypedId id = TypedId.fromTypedId(entityId);
 				
+				// Point account owners and summaries to their owner account
 				if (id.getType() == TypedId.ACCOUNT_OWNER || 
 					id.getType() == TypedId.CLUSTER_SUMMARY) {
 					
-					entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNativeId()).toString());
+					entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString());
 					
 				} else if (id.getType() == TypedId.CLUSTER) {
 					
 					String nId = id.getNativeId();  
 					if (nId.startsWith("|")) {  // group cluster
 						for (String sId : nId.split("\\|")) {
-							entities.add(sId);
+							if (!sId.isEmpty()) {
+								entities.add(sId);
+							}
 						}
 					} else {
 						entities.add(entityId);
@@ -230,7 +221,7 @@ public class ChartResource extends ApertureServerResource {
 				final String entityId = entityRequest.getString("dataId");
 				final String entityContextId = entityRequest.getString("contextId");
 				
-				List<String> entities = new ArrayList<String>();
+				List<String> entityIds = new ArrayList<String>();
 				
 				TypedId id = TypedId.fromTypedId(entityId);
 
@@ -238,16 +229,17 @@ public class ChartResource extends ApertureServerResource {
 					String nId = id.getNativeId();  
 					if (nId.startsWith("|")) {
 						for (String sId : nId.split("\\|")) {
-							entities.add(sId);
+							if (!sId.isEmpty()) {
+								entityIds.add(sId);
+							}
 						}
 					} else {
-						entities.add(entityId);
+						entityIds.add(entityId);
 					}
 				} else {
-					entities.add(entityId);
+					entityIds.add(entityId);
 				}
-				ChartHash hash = new ChartHash(entityId, 
-											   entities, 
+				ChartHash hash = new ChartHash(entityIds, 
 											   startDate, 
 											   endDate, 
 											   focusIds, 
@@ -257,11 +249,11 @@ public class ChartResource extends ApertureServerResource {
 											   height, 
 											   entityContextId, 
 											   focusContextId, 
-											   sessionId, 
+											   sessionId,
 											   contextCache);
 				
 				ChartData chartData = chartBuilder.computeChart(dateRange, 
-																entities, 
+																entityIds, 
 																focusIds, 
 																entityContextId,
 																focusContextId, 

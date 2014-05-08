@@ -30,7 +30,9 @@ import influent.idl.FL_PropertyType;
 import influent.idlhelper.SingletonRangeHelper;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,12 +41,60 @@ public class EntitySearchTerms {
 	private String extraTerms = "";
 	private List<FL_PropertyMatchDescriptor> terms = new ArrayList<FL_PropertyMatchDescriptor>();
 	private Boolean doCluster = null;
+	private String matchType = null;
 	
 	private String dataType = null;
+	
+	private Set<String> parseSpecialTags(Pattern regex, String term) {
+		Matcher specialTagsMatcher = regex.matcher(term.trim());
+		Set<String> specialTags = new HashSet<String>();
+		while (specialTagsMatcher.find()) {
+			
+			String tagName = specialTagsMatcher.group(1).toString().trim();
+			
+			if (tagName.equalsIgnoreCase("cluster")) {
+				String clusterBoolString = specialTagsMatcher.group(2).toString().trim();
+				if (clusterBoolString != null) {
+					doCluster = (clusterBoolString.equalsIgnoreCase("true") || clusterBoolString.equalsIgnoreCase("yes"));
+				}
+				specialTags.add("cluster");
+				continue;
+			}
+			
+			if (tagName.equalsIgnoreCase("datatype")) {
+				dataType = specialTagsMatcher.group(2).toString().trim();
+				if (dataType.indexOf('"') == 0) {
+					dataType = dataType.substring(1);
+				}
+				if (dataType.lastIndexOf('"') == dataType.length()-1) {
+					dataType = dataType.substring(0, dataType.length()-1);
+				}
+				specialTags.add("datatype");
+				continue;
+			}
+			
+			if (tagName.equalsIgnoreCase("matchtype")) {
+				String matchTypeString = specialTagsMatcher.group(2).toString().trim();
+				if (matchTypeString != null) {
+					matchType = matchTypeString;
+				}
+				if (matchType.indexOf('"') == 0) {
+					matchType = matchType.substring(1);
+				}
+				if (matchType.lastIndexOf('"') == matchType.length()-1) {
+					matchType = matchType.substring(0, matchType.length()-1);
+				}
+				specialTags.add("matchtype");
+				continue;
+			}
+		}
+		return specialTags;
+	}
 	
 	public EntitySearchTerms(String term) {
 		Pattern extraTermRegEx = Pattern.compile("\\A([^:]*)(\\s*$| [^:\\s]+:.*)");
 		Pattern tagsRegEx = Pattern.compile("([^:\\s]+):(\"([^\"]*)\"|[^:]*)( |$)");
+		Pattern boostPattern = Pattern.compile("\\^([\\.0-9]+)$");
 		
 		Matcher extraTermMatcher = extraTermRegEx.matcher(term);
 		StringBuilder extraTermsBuilder = new StringBuilder();
@@ -52,30 +102,15 @@ public class EntitySearchTerms {
 			extraTermsBuilder.append(extraTermMatcher.group(1).toString().trim());
 		}
 		
+		Set<String> specialTagSet = parseSpecialTags(tagsRegEx, term.trim());
+		
 		extraTerms = extraTermsBuilder.toString().trim();
 		
 		Matcher tagsMatcher = tagsRegEx.matcher(term.trim());
 		while (tagsMatcher.find()) {
 			
 			String tagName = tagsMatcher.group(1).toString().trim();
-			
-			if (tagName.equalsIgnoreCase("cluster")) {
-				String clusterBoolString = tagsMatcher.group(2).toString().trim();
-				if (clusterBoolString != null) {
-					doCluster = (clusterBoolString.equalsIgnoreCase("true") || clusterBoolString.equalsIgnoreCase("yes"));
-				}
-				
-				continue;
-			}
-			
-			if (tagName.equalsIgnoreCase("datatype")) {
-				dataType = tagsMatcher.group(2).toString().trim();
-				if (dataType.indexOf('"') == 0) {
-					dataType = dataType.substring(1);
-				}
-				if (dataType.lastIndexOf('"') == dataType.length()-1) {
-					dataType = dataType.substring(0, dataType.length()-1);
-				}
+			if (specialTagSet.contains(tagName)) {
 				continue;
 			}
 			
@@ -87,6 +122,20 @@ public class EntitySearchTerms {
 
 				boolean quoted = false;
 				
+				Matcher boostMatch = boostPattern.matcher(val);
+				if (boostMatch.find()) {
+					String weightStr = boostMatch.group(1);
+
+					try {
+						Float weight= Float.valueOf(weightStr);
+						val = val.substring(0, val.length()-weightStr.length()-1);
+						
+						termBuilder.setWeight(weight);
+						
+					} catch (Exception e) {
+					}
+					
+				}
 				if (val.startsWith("\"") && val.endsWith("\"")) {
 					val = val.substring(1, val.length() - 1);
 					quoted = true;
@@ -97,9 +146,17 @@ public class EntitySearchTerms {
 					termBuilder.setInclude(false);
 				} 
 				if (quoted) {
-					termBuilder.setConstraint(FL_Constraint.REQUIRED_EQUALS);
+					if (matchType == null || matchType.equalsIgnoreCase("all")) {
+						termBuilder.setConstraint(FL_Constraint.REQUIRED_EQUALS);
+					} else {
+						termBuilder.setConstraint(FL_Constraint.OPTIONAL_EQUALS);
+					}
 				} else {
-					termBuilder.setConstraint(FL_Constraint.FUZZY_PARTIAL_OPTIONAL);
+					if (matchType == null || matchType.equalsIgnoreCase("any")) {
+						termBuilder.setConstraint(FL_Constraint.FUZZY_PARTIAL_OPTIONAL);
+					} else {
+						termBuilder.setConstraint(FL_Constraint.FUZZY_REQUIRED);
+					}
 				}
 				
 				termBuilder.setKey(tagName);
@@ -108,17 +165,12 @@ public class EntitySearchTerms {
 				terms.add(termBuilder.build());	
 			}
 		}
-	}
-	
-	
-	
+
+	}	
 	
 	public String getExtraTerms() {
 		return extraTerms;
 	}
-	
-	
-	
 	
 	public List<FL_PropertyMatchDescriptor> getTerms() {
 		return terms;
@@ -131,5 +183,9 @@ public class EntitySearchTerms {
 	
 	public Boolean doCluster() {
 		return doCluster;
+	}
+	
+	public String getBooleanOperator() { 
+		return matchType;
 	}
 }

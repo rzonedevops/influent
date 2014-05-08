@@ -27,26 +27,32 @@
  * Defines the names of pub/sub channels used throughout the app
  */
 define(
-    {
-        MODULE_NAMES : {
-            WORKSPACE : 'xfWorkspace',
-            COLUMN : 'xfColumn',
-            FILE : 'xfFile',
-            ENTITY : 'xfEntity',
-            CLUSTER_BASE : 'xfClusterBase',
-            IMMUTABLE_CLUSTER : 'xfImmutableCluster',
-            MUTABLE_CLUSTER : 'xfMutableCluster',
-            SUMMARY_CLUSTER : 'xfSummaryCluster',
-            MATCH : 'xfMatch',
-            LINK : 'xfLink'
-        },
-        SUBTYPES : {
-            ENTITY_CLUSTER : 'entity_cluster',
-            CLUSTER_SUMMARY : 'cluster_summary',
-            ACCOUNT_OWNER : 'account_owner',
-            ENTITY : 'entity'
-        },
-        AJAX_SPINNER_FILE : 'img/ajax-loader.gif',
-        AJAX_SPINNER_BG	: 'url("img/ajax-loader.gif") no-repeat center center' 
-    }
+	{
+		MODULE_NAMES : {
+			WORKSPACE : 'xfWorkspace',
+			COLUMN : 'xfColumn',
+			FILE : 'xfFile',
+			ENTITY : 'xfEntity',
+			CLUSTER_BASE : 'xfClusterBase',
+			IMMUTABLE_CLUSTER : 'xfImmutableCluster',
+			MUTABLE_CLUSTER : 'xfMutableCluster',
+			SUMMARY_CLUSTER : 'xfSummaryCluster',
+			MATCH : 'xfMatch',
+			LINK : 'xfLink'
+		},
+		ACCOUNT_TYPES : {
+			CLUSTER : 'cluster',
+			CLUSTER_SUMMARY : 'cluster_summary',
+			ACCOUNT_OWNER : 'account_owner',
+			ENTITY : 'entity',
+			FILE : 'file'
+		},
+		AJAX_SPINNER_FILE : 'img/ajax-loader.gif',
+		AJAX_SPINNER_BG	: 'url("img/ajax-loader.gif") no-repeat center center',
+		SORT_FUNCTION : {
+			INCOMING : 'incoming',
+			OUTGOING : 'outgoing',
+			BOTH : 'both'
+		}
+	}
 );

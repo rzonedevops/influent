@@ -29,6 +29,7 @@ import java.util.Map;
 
 import oculus.aperture.spi.common.Properties;
 
+import org.joda.time.DateTime;
 import org.json.JSONException;
 
 
@@ -116,4 +117,27 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	public String tempTableName(String tableName) {
 		return tableName;
 	}
+
+
+
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.DataViewNamespaceHandler#formatDate(org.joda.time.DateTime)
+	 */
+	@Override
+	public String formatDate(DateTime date) {
+		return "to_date('" + DataAccessHelper.format(date) + "', 'YYYY-MM-DD HH24:MI:SS.FF3')";
+	}
+
+
+
+
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.AbstractDataNamespaceHandler#toBinaryId(java.lang.String)
+	 */
+	@Override
+	protected String toBinaryFromHex(String id) {
+		return "HEXTORAW('" +id+ "')";
+	}
+	
+	
 }

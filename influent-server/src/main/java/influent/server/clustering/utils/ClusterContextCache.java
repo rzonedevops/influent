@@ -29,6 +29,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Ehcache;
@@ -110,22 +114,43 @@ public class ClusterContextCache {
 		 */
 		public void revoke();
 	}
+
 	
-	
-	private class WriteLockedColumn {
-		ColumnContext context;
+	/**
+	 * Lock management for a single context.
+	 * @author djonker
+	 */
+	private static class LockableContext {
+		private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+		private final Lock read = lock.readLock();
+		private final Lock write = lock.writeLock();
+		private final ConcurrentLinkedQueue<ReadPermit> reads = 
+				new ConcurrentLinkedQueue<ClusterContextCache.ReadPermit>();
 		
-		int lockCount = 1;
+		ColumnContext writableContext;
 		
-		public WriteLockedColumn(ColumnContext c) {
-			context = c;
+		private void unlockRead(int readCount) {
+			while (readCount-- > 0) {
+				read.unlock();
+			}
 		}
+		
+		private void lockRead(int readCount, String contextId) {
+			while (readCount-- > 0) {
+				try {
+					read.lock();
+					
+				} catch (Exception e) {
+					s_logger.warn("Problem reinstating read lock in write " + contextId);
+				}
+			}
+		}
+		
 	}
 	
 	private final Ehcache cache;
 
-	// context edits in progress.
-	private final Map<String, WriteLockedColumn> contextEdits;
+	private Map<String, LockableContext> lockables;
 	
 	
 	private static int LOCK_TIMEOUT = /*30*/60*1000;
@@ -138,7 +163,7 @@ public class ClusterContextCache {
 	private class ReadPermit implements Permit {
 		final String contextId;
 		ColumnContext context;
-		boolean locked;
+		LockableContext lockable;
 		
 		/**
 		 * Retrieve the associated context
@@ -146,15 +171,19 @@ public class ClusterContextCache {
 		public ColumnContext context() {
 			return context;
 		}
-		
+
 		/**
 		 * Release all permits
 		 */
 		public void revoke() {
-			if (locked) {
-				locked = false;
+			if (lockable != null) {
+				lockable.reads.remove(this);
 				
-				cache.releaseReadLockOnKey(contextId);
+				final LockableContext lc = lockable;
+				lockable = null;
+				
+				// unlock
+				lc.read.unlock();
 			}
 		}
 		
@@ -162,32 +191,47 @@ public class ClusterContextCache {
 		private ReadPermit(String contextId) {
 			this.contextId = contextId;
 			
+			lockable = lockables.get(contextId);
+			
 			try {
-				if (cache.tryReadLockOnKey(contextId, LOCK_TIMEOUT)) {
-					locked = true;
+				if (lockable != null) {
 					
-					// look first for a write copy in progress.
-					WriteLockedColumn wlc = contextEdits.get(contextId);
+					if (lockable.read.tryLock(LOCK_TIMEOUT, TimeUnit.MILLISECONDS)) {
+						lockable.reads.add(this);
+						
+						// look first for a write copy in progress.
+						context = lockable.writableContext;
 					
-					if (wlc != null) {
-						context = wlc.context;
-						
-					} else {
-						Element element = cache.get(contextId);
-						
-						if (element != null) {
-							context = (ColumnContext)element.getObjectValue();
+						// otherwise grab from the cache.
+						if (context == null) {
+							Element element = cache.get(contextId);
+							
+							if (element != null) {
+								context = (ColumnContext)element.getObjectValue();
+							}
 						}
+					} else {
+						lockable = null;
+						s_logger.error("Timed out waiting for context read lock " + contextId);
 					}
 					
 				} else {
-					s_logger.warn("Timed out waiting for context read lock " + contextId);
+					s_logger.warn("Asked for non-existent context " + contextId);
+					// else don't lock anything. it doesn't exist so can't read it.
 				}
 				
 			} catch (InterruptedException e) {
-				s_logger.warn("Interrupted waiting for context read lock " + contextId);
+				s_logger.error("Interrupted waiting for context read lock " + contextId);
 			}
 		}
+
+		/**
+		 * Get the context again.
+		 */
+		private void refresh(ColumnContext c) {
+			context = c;
+		}
+		
 
 		/* (non-Javadoc)
 		 * @see java.lang.Object#finalize()
@@ -196,8 +240,8 @@ public class ClusterContextCache {
 		protected void finalize() throws Throwable {
 			
 			// can't release from finalizer thread to resolve, so just log the issue.
-			if (locked) {
-				s_logger.warn("Read permit was not released and has gone out of scope!!! "+ contextId);
+			if (lockable != null) {
+				s_logger.error("Read permit was not released and has gone out of scope!!! "+ contextId);
 			}
 			
 			super.finalize();
@@ -218,7 +262,7 @@ public class ClusterContextCache {
 	private class WritePermit implements Permit {
 		String contextId;
 		ColumnContext context;
-		boolean locked;
+		LockableContext lockable;
 		
 		/**
 		 * Retrieve the associated context
@@ -231,20 +275,26 @@ public class ClusterContextCache {
 		 * Release all permits
 		 */
 		public void revoke() {
-			if (locked) {
-				locked = false;
+			if (lockable != null) {
+				final LockableContext lc = lockable;
+				lockable = null;
 
-				WriteLockedColumn wlc = contextEdits.get(contextId);
+				try {
+					// last reentrant write lock?
+					if (lc.lock.getWriteHoldCount() == 1) {
+						// clear this local reference
+						lc.writableContext = null;
 
-				if (--wlc.lockCount == 0) {
-					// update the cache
-					try {
-						contextEdits.remove(contextId);
+						// make sure the read permits have the latest now.
+						for (ReadPermit permit : lc.reads) {
+							permit.refresh(context);
+						}
 						
+						// and return the context to the cache.
 						cache.put(new Element(contextId, context));
-					} finally {
-						cache.releaseWriteLockOnKey(contextId);
 					}
+				} finally {
+					lc.write.unlock();
 				}
 			}
 		}
@@ -253,42 +303,79 @@ public class ClusterContextCache {
 		private WritePermit(String contextId) {
 			this.contextId = contextId;
 			
+			lockable = lockables.get(contextId);
+			
+			
 			try {
-				if (!cache.isWriteLockedByCurrentThread(contextId)) {
-					if (cache.tryWriteLockOnKey(contextId, LOCK_TIMEOUT)) {
-						locked = true;
+				if (lockable != null) {
+					
+					// how many read locks we have.
+					int readCount = lockable.lock.getReadHoldCount();
+					
+					try {
+						// we have to release all read locks from this thread and reinstate them later
+						lockable.unlockRead(readCount);
 						
-						//System.err.println(contextId);
-	
-						// take the element for editing out of the cache and temporarily replace with a token.
-						Element element = cache.get(contextId);
-						
-						if (element != null) {
-							context = (ColumnContext)element.getObjectValue();
-							cache.remove(contextId);
-						}
-						
-						if (context == null) {
-							context = new ColumnContext();
-						}
-	
-						// put in local edit map
-						contextEdits.put(contextId, new WriteLockedColumn(context));
+					} catch (Exception e) {
+						lockable = null;
+						s_logger.warn("Problem giving up read lock for write " + contextId);
+						return;
+					}
+
+					if (lockable.write.tryLock(LOCK_TIMEOUT, TimeUnit.MILLISECONDS)) {
+						context = lockable.writableContext;
+
+						lockable.lockRead(readCount, contextId);
 						
 					} else {
-						s_logger.warn("Timed out waiting for context write lock " + contextId);
+						lockable.lockRead(readCount, contextId);
+						lockable = null;
+						
+						s_logger.error("Timed out waiting for context write lock " + contextId);
+						return;
 					}
 				} else {
-					WriteLockedColumn wlc = contextEdits.get(contextId);
-					wlc.lockCount++;
+					lockable = new LockableContext();
+					try {
+						lockables.put(contextId, lockable);
+						lockable.write.lock();
+					} catch (Exception e) {
+						lockable = null;
+						s_logger.error("Unexpected exception creating new context write lock " + contextId);
+						
+						return;
+					}
+				}
+
+				// reentrant write doesn't already exist?
+				if (context == null) {
 					
-					context = wlc.context;
+					// take the element for editing out of the cache.
+					Element element = cache.get(contextId);
 					
-					locked = true;
+					if (element != null) {
+						context = (ColumnContext)element.getObjectValue();
+						cache.remove(contextId);
+					}
 				}
 				
+				if (context == null) {
+					try {
+						context = new ColumnContext(contextId);
+						
+					} catch (Exception e) {
+						lockable = null;
+						s_logger.error("Unexpected exception creating new context " + contextId);
+						
+						return;
+					}
+				}
+				
+				// store the reference to the edit-in-progress element here.
+				lockable.writableContext = context;
+				
 			} catch (InterruptedException e) {
-				s_logger.warn("Interrupted waiting for context write lock " + contextId);
+				s_logger.error("Interrupted waiting for context write lock " + contextId);
 			}
 		}
 
@@ -299,8 +386,8 @@ public class ClusterContextCache {
 		protected void finalize() throws Throwable {
 			
 			// can't release from finalizer thread to resolve, so just log the issue.
-			if (locked) {
-				s_logger.warn("Write permit was not released and has gone out of scope!!! "+ contextId);
+			if (lockable != null) {
+				s_logger.error("Write permit was not released and has gone out of scope!!! "+ contextId);
 			}
 			
 			super.finalize();
@@ -325,7 +412,7 @@ public class ClusterContextCache {
 		}
 		
 		cache = cacheManager.getEhcache(cacheName);
-		contextEdits = new ConcurrentHashMap<String, WriteLockedColumn>();
+		lockables = new ConcurrentHashMap<String, LockableContext>();
 	}
 
 	/**
@@ -349,20 +436,29 @@ public class ClusterContextCache {
 		boolean success = false;
 		
 		try {
-			if (cache.tryWriteLockOnKey(contextId, LOCK_TIMEOUT)) {
+			final LockableContext lockable = lockables.get(contextId);
+			
+			if (lockable != null) {
 				try {
-					success = cache.remove(contextId);
+					if (lockable.write.tryLock(LOCK_TIMEOUT, TimeUnit.MILLISECONDS)) {
+						success = cache.remove(contextId);
+						
+						lockable.write.unlock();
+						
+					} else {
+						s_logger.error("Timed out waiting for context write lock to remove. " + contextId);
+					}
 					
 				} finally {
-					cache.releaseWriteLockOnKey(contextId);
+					lockables.remove(contextId);
 				}
 				
 			} else {
-				s_logger.warn("Timed out waiting for context write lock to remove. " + contextId);
+				s_logger.warn("Tried to remove a context which doesn't exist. " + contextId);
 			}
 			
 		} catch (InterruptedException e) {
-			s_logger.warn("Timed out waiting for context write lock to remove. "+ contextId);
+			s_logger.error("Timed out waiting for context write lock to remove. "+ contextId);
 		}
 		
 		return success;

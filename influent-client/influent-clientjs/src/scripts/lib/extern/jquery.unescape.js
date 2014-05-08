@@ -10,7 +10,7 @@
 (function($) {
     $.fn.unescape = function() {
        return $(this).html($.unescape($(this).html()));
-    }
+    };
 
     /**
      * @param string html - HTML string to unescape.
@@ -23,5 +23,5 @@
             return htmlNode.innerText; // IE
         }
         return htmlNode.textContent; // FF
-    }
+    };
 })(jQuery);

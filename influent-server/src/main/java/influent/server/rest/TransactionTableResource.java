@@ -152,7 +152,7 @@ public class TransactionTableResource extends ApertureServerResource {
 						List<Object> response = new ArrayList<Object>();
 						
 						// transaction filtering does not yet work on clusters - see #6090
-						if (TypedId.fromTypedId(id).getType() == TypedId.ACCOUNT) {
+						if (TypedId.hasType(id, TypedId.ACCOUNT)) {
 							response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
 							focusIdList.addAll(ChartResource.getLeafNodes(response));
 						}

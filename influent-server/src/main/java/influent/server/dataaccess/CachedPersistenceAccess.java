@@ -26,14 +26,6 @@ package influent.server.dataaccess;
 
 import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
-
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
@@ -50,7 +42,6 @@ public class CachedPersistenceAccess implements FL_Persistence {
 	private static Logger s_logger = LoggerFactory.getLogger(CachedPersistenceAccess.class);
 	
 	private final Ehcache persistenceCache;
-	private final Ehcache clusteringCache;
 	
 	
 	public CachedPersistenceAccess(
@@ -64,7 +55,6 @@ public class CachedPersistenceAccess implements FL_Persistence {
 		}
 		
 		this.persistenceCache = cacheManager.getEhcache(persistenceCacheName);
-		this.clusteringCache = cacheManager.getEhcache(dynamicClusteringCacheName);
 	}
 	
 	
@@ -100,42 +90,10 @@ public class CachedPersistenceAccess implements FL_Persistence {
 		Element element = persistenceCache.get(sessionId);
 		if (element != null) {
 			data = element.getObjectValue().toString();
-			Collection<String> contextIds = getContextIdsFromData(data);
-			
-			if (contextIds.size() > 3) {
-			
-				Map<Object, Element> contexts = clusteringCache.getAll(contextIds);
-				
-				boolean containsContext = false;
-				for (Element e : contexts.values()) {
-					if (e != null) {
-						containsContext = true;
-						break;
-					}
-				}
-				
-				if (!containsContext) {
-					data = null;
-				}
-			}
 		}
 		
 		return data;
 	}
 
 
-
-
-	private Collection<String> getContextIdsFromData(String data) {
-		
-		Set<String> ids = new HashSet<String>();
-		
-		String regex = "column_[^\"]*";
-		Matcher m = Pattern.compile(regex).matcher(data);
-		while (m.find()) {
-			ids.add(m.group());
-		}
-		
-		return ids;
-	}
 }

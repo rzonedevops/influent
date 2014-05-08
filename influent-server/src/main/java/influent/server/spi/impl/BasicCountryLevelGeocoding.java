@@ -72,6 +72,7 @@ public class BasicCountryLevelGeocoding implements FL_Geocoding {
 	/**
 	 * Constructs a new geocoder and initialises it by loading local country data.
 	 */
+	@SuppressWarnings("deprecation")
 	public BasicCountryLevelGeocoding() {
 		nameList = new ArrayList<FL_Country>();
 		countryMap = new HashMap<String, FL_Country>();

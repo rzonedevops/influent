@@ -28,12 +28,13 @@
 	 * A default log configuration, which simply appends to the console.
 	 */
 	'aperture.log' : {
-		'level' : 'info',
+		'level' : 'log',
 		'logWindowErrors' : {'log': true, 'preventDefault': true},
 		'appenders' : {
 			// Log to the console (if exists)
-			'consoleAppender' : {'level': 'info'},
-			'notifyAppender' : {'level': 'error'}
+			'consoleAppender' : {'level' : 'info'},
+			'notifyAppender' : {'level' : 'error'}//,
+			//'draperAppender' : {'address' : 'http://xd-draper.xdata.data-tactics-corp.com:1337'}
 		}
 	},
 
@@ -135,6 +136,7 @@
         'maxSearchResults' : 50,
         'searchResultsPerPage' : 12,
         'sessionTimeoutInMinutes' : 24*60,
+        'sessionRestorationEnabled' : false,
         'usePatternSearch' : true,
         'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
         	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
@@ -144,20 +146,10 @@
         	+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
         	+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
 
-        // log levels can be one of:
-        // 'all': will log all system and user events
-        // 'system': will only log system events
-        // 'user': will only log user events
-        // 'click': will log system and mouse click events
-        // 'primary': will log system and user interaction events
-        // 'secondary': will log system events and secondary events that occur after a user interaction
-        activityLogging : {
-        	enabled : false,
-        	address: 'rest/activity',
-        	provider : 'aperture',
-            logLevel : 'click'
-        },
-        
+        enableAdvancedSearchMatchType : true, 
+		objectDegreeWarningCount : 1000,
+		objectDegreeLimitCount: 10000,
+
         iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],
         
         // maps property tags to icons.

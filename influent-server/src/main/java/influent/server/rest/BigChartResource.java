@@ -24,11 +24,9 @@
  */
 package influent.server.rest;
 
-import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_DateRange;
-import influent.idl.FL_Entity;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.data.ChartData;
 import influent.server.utilities.ChartBuilder;
@@ -65,27 +63,17 @@ public class BigChartResource extends ApertureServerResource {
 
 	private final ChartBuilder chartBuilder;
 	private final ClusterContextCache contextCache;
-
+	
 	@Inject
 	public BigChartResource(
 		FL_DataAccess entityAccess,
 		FL_ClusteringDataAccess clusterAccess,
-		@Named("influent.midtier.ehcache.config") String ehCacheConfig, 
+		@Named("influent.midtier.ehcache.config") String ehCacheConfig,
 		ClusterContextCache contextCache
 	) {
 		this.contextCache = contextCache;
-		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig, contextCache);
+		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
 	}
-	
-	
-	
-	
-	public static String hashString(String str) {
-		return Integer.toString(str.hashCode());
-	}
-	
-	
-	
 	
 	@Post("json")
 	public Map<String, ChartData> getBigChartData(String jsonData) {
@@ -102,25 +90,27 @@ public class BigChartResource extends ApertureServerResource {
 			
 			List<String> focusIds = new LinkedList<String>();
 			JSONArray focusObj = jsonObj.getJSONArray("focusId");
-
-
+			
 			for (int i=0; i < focusObj.length(); i++) {
 				String entityId = focusObj.getString(i);
 				List<String> entities = new ArrayList<String>();
 
 				TypedId id = TypedId.fromTypedId(entityId);
 				
+				// Point account owners and summaries to their owner account
 				if (id.getType() == TypedId.ACCOUNT_OWNER || 
 					id.getType() == TypedId.CLUSTER_SUMMARY) {
 						
-					entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNativeId()).toString());
+					entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString());
 						
 				} else if (id.getType() == TypedId.CLUSTER) {
 					
 					String nId = id.getNativeId();  
 					if (nId.startsWith("|")) { // group cluster
 						for (String sId : nId.split("\\|")) {
-							entities.add(sId);
+							if (!sId.isEmpty()) {
+								entities.add(sId);
+							}
 						}
 					} else {
 						entities.add(entityId);
@@ -135,7 +125,6 @@ public class BigChartResource extends ApertureServerResource {
 					}
 				}
 			}
-				
 			
 			String tempFocusMaxDebitCredit = jsonObj.getString("focusMaxDebitCredit");
 			Double focusMaxDebitCredit = null;
@@ -171,40 +160,41 @@ public class BigChartResource extends ApertureServerResource {
 				final String entityId = entityRequest.getString("dataId");
 				final String entityContextId = entityRequest.getString("contextId");
 				
-				List<String> entities = new ArrayList<String>();
+				List<String> entityIds = new ArrayList<String>();
 
 				// Check to see if this entityId belongs to a group cluster.
 				TypedId id = TypedId.fromTypedId(entityId);
-				
+					
 				if (id.getType() == TypedId.CLUSTER) {
 					String nId = id.getNativeId();  
 					if (nId.startsWith("|")) {  // group cluster
 						for (String sId : nId.split("\\|")) {
-							entities.add(sId);
+							if (!sId.isEmpty()) {
+								entityIds.add(sId);
+							}
 						}
 					} else {
-						entities.add(entityId);
+						entityIds.add(entityId);
 					}
 				} else {
-					entities.add(entityId);
+					entityIds.add(entityId);
 				}
 					
-				ChartHash hash = new ChartHash(entityId, 
-									   entities, 
-									   startDate, 
-									   endDate, 
-									   focusIds, 
-									   focusMaxDebitCredit, 
-									   dateRange.getNumBins().intValue(), 
-									   width, 
-									   height, 
-									   entityContextId, 
-									   focusContextId, 
-									   sessionId,
-									   contextCache);
+				ChartHash hash = new ChartHash(entityIds, 
+											   startDate, 
+											   endDate, 
+											   focusIds, 
+											   focusMaxDebitCredit, 
+											   dateRange.getNumBins().intValue(), 
+											   width, 
+											   height, 
+											   entityContextId, 
+											   focusContextId, 
+											   sessionId,
+											   contextCache);
 				
 				ChartData chartData = chartBuilder.computeChart(dateRange, 
-																entities, 
+																entityIds, 
 																focusIds, 
 																entityContextId, 
 																focusContextId, 
@@ -233,30 +223,5 @@ public class BigChartResource extends ApertureServerResource {
 				je
 			);
 		}
-	}
-	
-	//TODO : de-hack this once the new clustering is in place.
-	public static List<String> getLeafNodes (List<? extends Object> entities) {
-		List<String> IDs = new ArrayList<String> ();
-		for (Object i : entities) {
-			if (i instanceof FL_Entity) {
-				IDs.add(((FL_Entity)i).getUid());
-			} else if (i instanceof FL_Cluster) {
-				FL_Cluster ec = (FL_Cluster)i;
-				
-				//Get the stored clusters.
-				List<Object> recurseList = new ArrayList<Object>();
-				for (String id : ec.getMembers()) {
-					/*EntityCluster subcluster = MemoryTransientClusterStore.getInstance().getMap().get(id);
-					if (subcluster != null) {
-						recurseList.add(subcluster);
-					} else*/ {
-						IDs.add(id);		//Not a cluster, assume a raw entity
-					}
-				}
-				IDs.addAll(getLeafNodes(recurseList));
-			}				
-		}
-		return IDs;
 	}
 }

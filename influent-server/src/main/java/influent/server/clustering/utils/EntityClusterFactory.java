@@ -40,12 +40,14 @@ import influent.idlhelper.ClusterHelper;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
+import influent.server.clustering.BaseEntityClusterer;
 import influent.server.clustering.ClusterContext;
 import influent.server.clustering.ClusterDistributionProperty;
 import influent.server.utilities.IdGenerator;
 import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -110,7 +112,7 @@ public class EntityClusterFactory {
 	
 	protected String getRepresentativeLabel(List<FL_Entity> entities, List<FL_Cluster> clusters) {
 		// if we have entities pick the first label we find
-		if (entities != null) {
+		if (entities != null && !entities.isEmpty()) {
 			for (FL_Entity entity : entities) {
 				PropertyHelper labelProp = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.LABEL);
 				if (labelProp != null) {
@@ -118,7 +120,7 @@ public class EntityClusterFactory {
 				}
 			}
 		}
-		else if (clusters != null) { // otherwise, if we have clusters then pick the first label we find
+		else if (clusters != null && !clusters.isEmpty()) { // otherwise, if we have clusters then pick the first label we find
 			for (FL_Cluster cluster : clusters) {
 				PropertyHelper labelProp = ClusterHelper.getFirstPropertyByTag(cluster, FL_PropertyTag.LABEL);
 				if (labelProp != null) {
@@ -224,18 +226,28 @@ public class EntityClusterFactory {
 		return properties;
 	}
 	
-	public void updateClusterProperties(Map<String, FL_Cluster> clusters, ClusterContext context) {
-		updateClusterProperties(clusters, context.entities, context.clusters);
+	public void updateClusterProperties(FL_Cluster cluster, ClusterContext context, boolean updateChildren) {
+		updateClusterProperties(cluster, context.entities, context.clusters, updateChildren);
 	}
 	
-	public void updateClusterProperties(Map<String, FL_Cluster> clusters, Map<String, FL_Entity> relatedEntities, Map<String, FL_Cluster> relatedClusters) {
+	public void updateClusterProperties(Map<String, FL_Cluster> clusters, ClusterContext context, boolean updateChildren) {
+		updateClusterProperties(clusters, context.entities, context.clusters, updateChildren);
+	}
+	
+	public void updateClusterProperties(Map<String, FL_Cluster> clusters, 
+										Map<String, FL_Entity> relatedEntities, 
+										Map<String, FL_Cluster> relatedClusters,
+										boolean updateChildren) {
 		for (String id : clusters.keySet()) {
 			FL_Cluster cluster = clusters.get(id);
-			updateClusterProperties(cluster, relatedEntities, relatedClusters);
+			updateClusterProperties(cluster, relatedEntities, relatedClusters, updateChildren);
 		}
 	}
 	
-	public void updateClusterProperties(FL_Cluster cluster, Map<String, FL_Entity> relatedEntities, Map<String, FL_Cluster> relatedClusters) {
+	public void updateClusterProperties(FL_Cluster cluster, 
+										Map<String, FL_Entity> relatedEntities, 
+										Map<String, FL_Cluster> relatedClusters, 
+										boolean updateChildren) {
 		List<FL_Entity> members = new ArrayList<FL_Entity>(cluster.getMembers().size());
 		List<FL_Cluster> subClusters = new ArrayList<FL_Cluster>(cluster.getSubclusters().size());
 		
@@ -243,16 +255,33 @@ public class EntityClusterFactory {
 		for (String memberId : cluster.getMembers()) {
 			FL_Entity member = relatedEntities.get(memberId);
 
-			if(member == null) continue;
+			if (member == null) continue;  // member is not present - consider it removed
 			members.add(member);
+		}
+		// update members
+		List<String> memberIds = cluster.getMembers();
+		memberIds.clear();
+		for (FL_Entity member : members) {
+			memberIds.add(member.getUid());
 		}
 		
 		// Find all the sub clusters for this cluster
-		// depth first search update sub clusters properties
+		// depth first search update sub clusters properties if updateChildren is requested
 		for (String subClusterId : cluster.getSubclusters()) {
 			FL_Cluster subCluster = relatedClusters.get(subClusterId);
+			
+			if (subCluster == null) continue;  // sub cluster is not present - consider it removed
 			subClusters.add(subCluster);
-			updateClusterProperties(subCluster, relatedEntities, relatedClusters);
+			// only update sub cluster if update children is true and not an immutable cluster
+			if (updateChildren && !BaseEntityClusterer.isImmutableCluster(subCluster)) { 
+				updateClusterProperties(subCluster, relatedEntities, relatedClusters, true);
+			}
+		}
+		// update subclusters
+		List<String> subClusterIds = cluster.getSubclusters();
+		subClusterIds.clear();
+		for (FL_Cluster subCluster : subClusters) {
+			subClusterIds.add(subCluster.getUid());
 		}
 		
 		// compute the new cluster properties
@@ -260,14 +289,22 @@ public class EntityClusterFactory {
 		
 		// update the cluster properties - only replace the updated properties
 		for (FL_Property updatedProp : updatedProps) {
-			FL_Property oldProp = ClusterHelper.getFirstProperty(cluster, updatedProp.getKey());
+			PropertyHelper oldProp = ClusterHelper.getFirstProperty(cluster, updatedProp.getKey());
 			
 			if (oldProp == null) {
 				// property doesn't exist yet - add it to cluster
 				cluster.getProperties().add(updatedProp);
 			} else {
 				// otherwise update the range
-				oldProp.setRange(updatedProp.getRange());
+				Object oldRange = oldProp.getRange();
+				if (oldRange instanceof FL_DistributionRange) {
+					FL_DistributionRange oldDistRange = (FL_DistributionRange)oldRange;
+					FL_DistributionRange newDistRange = (FL_DistributionRange)updatedProp.getRange();
+					oldDistRange.setDistribution(newDistRange.getDistribution());
+				}
+				else {
+					oldProp.setRange(updatedProp.getRange());
+				}
 			}
 		}
 	}
@@ -329,9 +366,9 @@ public class EntityClusterFactory {
 			}
 		}
 		
-		if (decendentCount < 1) decendentCount = 1;
-		
-		avgConfidence /= decendentCount;
+		if (decendentCount > 0) {
+			avgConfidence /= decendentCount;
+		}
 		
 		// Create mandatory cluster properites
 		FL_Property p = new PropertyHelper(
@@ -387,8 +424,17 @@ public class EntityClusterFactory {
 		return properties;
 	}
 
+	public FL_Cluster toCluster(List<FL_Entity> entities) {
+		return toCluster(entities, new ArrayList<FL_Cluster>(0));
+	}
+	
 	public FL_Cluster toCluster(List<FL_Entity> entities, List<FL_Cluster> subClusters) {
 		String clusterId = idGenerator.nextId();
+		return toCluster(clusterId, entities, subClusters);
+	}
+	
+	public FL_Cluster toCluster(String clusterId, List<FL_Entity> entities, List<FL_Cluster> subClusters) {
+		
 		
 		List<String> childEntityIds = new LinkedList<String>();
 		List<String> childClusterIds = new LinkedList<String>();
@@ -406,7 +452,7 @@ public class EntityClusterFactory {
 		// add sub clusters if there are any
 		if (subClusters != null) {
 			for (FL_Cluster cluster : subClusters) {
-//				cluster.setParent(clusterId);  // sub cluster is now a child of new cluster
+				cluster.setParent(clusterId);  // sub cluster is now a child of new cluster
 				childClusterIds.add(cluster.getUid());
 			}
 		}
@@ -423,7 +469,7 @@ public class EntityClusterFactory {
 		}
 
 		// create the entity cluster and return
-		ClusterHelper ch = new ClusterHelper(clusterId, 
+		ClusterHelper cluster = new ClusterHelper(clusterId, 
 											 label,
 											 FL_EntityTag.CLUSTER,
 											 properties,
@@ -432,9 +478,14 @@ public class EntityClusterFactory {
 											 null,
 											 null,
 											 -1);
-		ch.setUncertainty(FL_Uncertainty.newBuilder().setConfidence(avgConfidence).build());
+		cluster.setUncertainty(FL_Uncertainty.newBuilder().setConfidence(avgConfidence).build());
 		
-		return ch;
+		// lastly associate cluster with each entity
+		if (entities != null) {
+			setEntityCluster(entities, cluster);
+		}
+		
+		return cluster;
 	}
 	
 	public FL_Cluster toAccountOwnerSummary(FL_Entity owner, List<FL_Entity> accounts, List<FL_Cluster> accountClusters) {
@@ -455,5 +506,64 @@ public class EntityClusterFactory {
 		}
 		
 		return ownerCluster;
+	}
+	
+	public static void setEntityCluster(List<FL_Entity> entities, FL_Cluster cluster) {
+		for (FL_Entity entity : entities) {
+			setEntityCluster(entity, cluster);
+		}
+	}
+	
+	public static void setEntityCluster(FL_Entity entity, FL_Cluster cluster) {		
+		PropertyHelper p = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.CLUSTER);
+		if (p != null) {
+			p.setRange( new SingletonRangeHelper(cluster.getUid()) );
+		}
+		else {
+			p = new PropertyHelper(
+					"cluster",
+					cluster.getUid(),
+					FL_PropertyTag.CLUSTER);
+			List<FL_Property> properties = new ArrayList<FL_Property>(entity.getProperties());
+			properties.add(p);
+			entity.setProperties(properties);
+		}
+	}
+	
+	public static Collection<String> findAncestorIds(Collection<String> objectIds, ContextRead targetContext) {
+		Collection<String> ancestors = new HashSet<String>();
+		
+		for (String objectId : objectIds) {
+			ancestors.addAll( findAncestorIds(objectId, targetContext) );
+		}
+		return ancestors;
+	}
+	
+	public static Collection<String> findAncestorIds(String objectId, ContextRead targetContext) {
+		Collection<String> ancestors = new HashSet<String>();
+		
+		FL_Cluster parent = null;
+		
+		// find parent
+		if (TypedId.hasType(objectId, TypedId.ACCOUNT)) {
+			FL_Entity entity = targetContext.getEntity(objectId);
+			if (entity != null) {
+				String parentId = (String)EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.CLUSTER).getValue();
+				parent = targetContext.getContext().clusters.get(parentId);
+			}
+		}
+		else {  // cluster object
+			FL_Cluster targetCluster = targetContext.getContext().clusters.get(objectId);
+			if (targetCluster != null) {
+				parent = targetContext.getContext().clusters.get(targetCluster.getParent());
+			}
+		}
+		
+		// find all ancestors
+		while (parent != null) {
+			ancestors.add(parent.getUid());
+			parent = targetContext.getContext().clusters.get(parent.getParent());
+		}
+		return ancestors;
 	}
 }

@@ -103,10 +103,11 @@ public class QuBEClient extends RestClient implements FL_PatternSearch {
 			
 			// TODO at present, 'resultLimit', 'startIndex' and 'dateRange' are ignored by the GraphQuBE server;
 
+			// FIXME: HMM is currently completely disabled as it causes null pointer exceptions even with > 1 role.
 			// if HMM is specified with only one role QuBE blow up.
-			if (example.getEntities().size() > 1) {
-				form.add("hmm", "true");
-			}
+			//if (example.getEntities().size() > 1) {
+			//	form.add("hmm", "true");
+			//}
 			
 			// args
 			// this is the equivalent of resultLimit and can be removed once the latter works

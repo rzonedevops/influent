@@ -28,6 +28,7 @@ import java.util.Map;
 
 import oculus.aperture.spi.common.Properties;
 
+import org.joda.time.DateTime;
 import org.json.JSONException;
 
 
@@ -115,4 +116,27 @@ public class MySQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 		
 		return "select " + selectBody;
 	}
+
+
+
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.DataViewNamespaceHandler#formatDate(org.joda.time.DateTime)
+	 */
+	@Override
+	public String formatDate(DateTime date) {
+		return DataAccessHelper.format(date);
+	}
+
+
+
+
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.AbstractDataNamespaceHandler#toBinaryId(java.lang.String)
+	 */
+	@Override
+	protected String toBinaryFromHex(String id) {
+		return "UNHEX('" +id+ "')";
+	}
+	
+	
 }

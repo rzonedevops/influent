@@ -23,228 +23,212 @@
  * SOFTWARE.
  */
 define(
-    [
-        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
-        'lib/ui/xfLinkType', 'lib/util/xfUtil', 'lib/constants'
-    ],
-    function(
-        $, xfUIObject, chan, guid,
-        xfLinkType, xfUtil, constants
-    ) {
+	[
+		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
+		'lib/ui/xfLinkType', 'lib/util/xfUtil', 'lib/constants'
+	],
+	function(
+		xfUIObject, chan, guid,
+		xfLinkType, xfUtil, constants
+	) {
 
-        var MODULE_NAME = constants.MODULE_NAMES.LINK;
+		var MODULE_NAME = constants.MODULE_NAMES.LINK;
 
-        var xfLinkModule = {};
+		var xfLinkModule = {};
 
-        //--------------------------------------------------------------------------------------------------------------
-        // Merges the links of a file cluster.
-        var _mergeFileLinks = function(linkObject){
-            var linkSrc = linkObject.getSource();
-            var linkDst = linkObject.getDestination();
+		//--------------------------------------------------------------------------------------------------------------
+		// Merges the links of a file cluster.
+		var _mergeFileLinks = function(linkObject){
+			var linkSrc = linkObject.getSource();
+			var linkDst = linkObject.getDestination();
 
-            // Check if the destination already exists in the target.
-            var linkMap = linkSrc.getLinks();
-            var matchFound = false;
-            for (var linkId in linkMap){
-                if (linkMap.hasOwnProperty(linkId)){
-                    if (linkMap[linkId].getDestination().getXfId() == linkDst.getXfId() &&
-                        linkMap[linkId].getType() == linkObject.getType() &&
-                        linkMap[linkId].getAmount() == linkObject.getAmount()
-                    ){
-                        matchFound = true;
-                        break;
-                    }
-                }
-            }
-            if (!matchFound){
-                // Add the new link to the endpoints.
-                linkSrc.addLink(linkObject);
-                linkDst.addLink(linkObject);
-            }
-        };
+			// Check if the destination already exists in the target.
+			var linkMap = linkSrc.getLinks();
+			var matchFound = false;
+			for (var linkId in linkMap){
+				if (linkMap.hasOwnProperty(linkId)){
+					if (linkMap[linkId].getDestination().getXfId() === linkDst.getXfId() &&
+						linkMap[linkId].getType() === linkObject.getType() &&
+						linkMap[linkId].getAmount() === linkObject.getAmount()
+					){
+						matchFound = true;
+						break;
+					}
+				}
+			}
+			if (!matchFound){
+				// Add the new link to the endpoints.
+				linkSrc.addLink(linkObject);
+				linkDst.addLink(linkObject);
+			}
+		};
 
-        //--------------------------------------------------------------------------------------------------------------
+		//--------------------------------------------------------------------------------------------------------------
 
-        xfLinkModule.createInstance = function(source, destination, amount, linkCount, type){
+		xfLinkModule.createInstance = function(source, destination, amount, linkCount, type){
 
-            var xfLinkInstance = {};
+			var xfLinkInstance = {};
 
-            var _UIObjectState = {
-                xfId        : '',
-                UIType      : MODULE_NAME,
-                source      : {},
-                destination : {},
-                amount      : 0,
-                linkCount	: 1,
-                type       : type ? type : xfLinkType.FLOW,
-                isSelected : false
-            };
+			var _UIObjectState = {
+				xfId        : '',
+				UIType      : MODULE_NAME,
+				source      : {},
+				destination : {},
+				amount      : 0,
+				linkCount	: 1,
+				type       : type ? type : xfLinkType.FLOW,
+				isSelected : false
+			};
 
-            _UIObjectState.source = source;
-            _UIObjectState.destination = destination;
-            _UIObjectState.amount = amount;
-            _UIObjectState.linkCount = linkCount;
+			_UIObjectState.source = source;
+			_UIObjectState.destination = destination;
+			_UIObjectState.amount = amount;
+			_UIObjectState.linkCount = linkCount;
 
-            // set the xfId
-            _UIObjectState.xfId = 'link_'+guid.generateGuid();
+			// set the xfId
+			_UIObjectState.xfId = 'link_'+guid.generateGuid();
 
-            //---------------
-            // Public methods
-            //---------------
+			//---------------
+			// Public methods
+			//---------------
 
-            xfLinkInstance.getXfId = function() {
-                return _UIObjectState.xfId;
-            };
+			xfLinkInstance.getXfId = function() {
+				return _UIObjectState.xfId;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.setXfId = function(xfId) {
-                _UIObjectState.xfId = xfId;
-            };
+			xfLinkInstance.setXfId = function(xfId) {
+				_UIObjectState.xfId = xfId;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.getUIType = function() {
-                return _UIObjectState.UIType;
-            };
+			xfLinkInstance.getUIType = function() {
+				return _UIObjectState.UIType;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.getSource = function() {
-                return _UIObjectState.source;
-            };
+			xfLinkInstance.getSource = function() {
+				return _UIObjectState.source;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.setSource = function(source) {
-                _UIObjectState.source = source;
-            };
+			xfLinkInstance.setSource = function(source) {
+				_UIObjectState.source = source;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.getDestination = function() {
-                return _UIObjectState.destination;
-            };
+			xfLinkInstance.getDestination = function() {
+				return _UIObjectState.destination;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.setDestination = function(destination) {
-                _UIObjectState.destination = destination;
-            };
+			xfLinkInstance.setDestination = function(destination) {
+				_UIObjectState.destination = destination;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.getAmount = function() {
-                return _UIObjectState.amount;
-            };
+			xfLinkInstance.getAmount = function() {
+				return _UIObjectState.amount;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.setAmount = function(amount) {
-                _UIObjectState.amount = amount;
-            };
-            
-            //----------------------------------------------------------------------------------------------------------
+			xfLinkInstance.setAmount = function(amount) {
+				_UIObjectState.amount = amount;
+			};
 
-            xfLinkInstance.getLinkCount = function() {
-                return _UIObjectState.linkCount;
-            };
+			//----------------------------------------------------------------------------------------------------------
 
-            //----------------------------------------------------------------------------------------------------------
+			xfLinkInstance.getLinkCount = function() {
+				return _UIObjectState.linkCount;
+			};
 
-            xfLinkInstance.setLinkCount = function(linkCount) {
-                _UIObjectState.linkCount = linkCount;
-            };
+			//----------------------------------------------------------------------------------------------------------
 
-            //----------------------------------------------------------------------------------------------------------
-            
-            xfLinkInstance.isSelected = function() {
-                return _UIObjectState.isSelected;
-            };
+			xfLinkInstance.setLinkCount = function(linkCount) {
+				_UIObjectState.linkCount = linkCount;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.setSelected = function(isSelected) {
-                _UIObjectState.isSelected = isSelected;
-            };
-            
-            //----------------------------------------------------------------------------------------------------------
-            
-            xfLinkInstance.getType = function() {
-                return _UIObjectState.type;
-            };
+			xfLinkInstance.isSelected = function() {
+				return _UIObjectState.isSelected;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.setType = function(type) {
-                _UIObjectState.type = type;
-            };
+			xfLinkInstance.setSelected = function(isSelected) {
+				_UIObjectState.isSelected = isSelected;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.remove = function() {
-                _UIObjectState.source.removeLink(_UIObjectState.xfId);
-                _UIObjectState.source = null;
-                _UIObjectState.destination.removeLink(_UIObjectState.xfId);
-                _UIObjectState.destination = null;
-            };
+			xfLinkInstance.getType = function() {
+				return _UIObjectState.type;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.getLabel = function() {
-                return _UIObjectState.source.getLabel() + ' --> ' + _UIObjectState.destination.getLabel();
-            };
+			xfLinkInstance.setType = function(type) {
+				_UIObjectState.type = type;
+			};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.exportState = function() {
+			xfLinkInstance.remove = function() {
+				_UIObjectState.source.removeLink(_UIObjectState.xfId);
+				_UIObjectState.source = null;
+				_UIObjectState.destination.removeLink(_UIObjectState.xfId);
+				_UIObjectState.destination = null;
+			};
 
-                var destinationFile = xfUtil.getUITypeAncestor(_UIObjectState.destination, constants.MODULE_NAMES.FILE);
+			//----------------------------------------------------------------------------------------------------------
 
-                var state = {};
+			xfLinkInstance.getLabel = function() {
+				return _UIObjectState.source.getLabel() + ' --> ' + _UIObjectState.destination.getLabel();
+			};
 
-                state['destination'] = (destinationFile) ? destinationFile.getXfId() : null;
-                state['amount'] = _UIObjectState.amount;
-                state['type'] = _UIObjectState.type;
-                state['linkCount'] = _UIObjectState.linkCount;
+			//----------------------------------------------------------------------------------------------------------
 
-                return state;
-            };
+			xfLinkInstance.saveState = function() {
 
-            //----------------------------------------------------------------------------------------------------------
+				var state = {};
 
-            xfLinkInstance.saveState = function() {
+				state['xfId'] = _UIObjectState.xfId;
+				state['UIType'] = _UIObjectState.UIType;
+				state['source'] = _UIObjectState.source.getXfId();
+				state['destination'] = _UIObjectState.destination.getXfId();
+				state['amount'] = _UIObjectState.amount;
+				state['type'] = _UIObjectState.type;
+				state['linkCount'] = _UIObjectState.linkCount;
 
-                var state = {};
+				return state;
+			};
 
-                state['xfId'] = _UIObjectState.xfId;
-                state['UIType'] = _UIObjectState.UIType;
-                state['source'] = _UIObjectState.source.getXfId();
-                state['destination'] = _UIObjectState.destination.getXfId();
-                state['amount'] = _UIObjectState.amount;
-                state['type'] = _UIObjectState.type;
-                state['linkCount'] = _UIObjectState.linkCount;
+			//----------------------------------------------------------------------------------------------------------
 
-                return state;
-            };
+			xfLinkInstance.dispose = function() {};
 
-            //----------------------------------------------------------------------------------------------------------
+			//----------------------------------------------------------------------------------------------------------
 
-            xfLinkInstance.dispose = function() {};
+			_mergeFileLinks(xfLinkInstance);
 
-            //----------------------------------------------------------------------------------------------------------
+			return xfLinkInstance;
+		};
 
-            _mergeFileLinks(xfLinkInstance);
+		//--------------------------------------------------------------------------------------------------------------
 
-            return xfLinkInstance;
-        };
+		xfLinkModule.getModuleName = function() {
+			return MODULE_NAME;
+		};
 
-        //--------------------------------------------------------------------------------------------------------------
-
-        xfLinkModule.getModuleName = function() {
-            return MODULE_NAME;
-        };
-
-        return xfLinkModule;
-    }
+		return xfLinkModule;
+	}
 );

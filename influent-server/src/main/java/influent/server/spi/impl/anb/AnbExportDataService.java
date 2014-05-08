@@ -25,8 +25,10 @@
 package influent.server.spi.impl.anb;
 
 import influent.server.spi.ExportDataService;
+import influent.server.spi.impl.graphml.GraphMLUtil;
 
 import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 
 import javax.xml.bind.JAXBContext;
@@ -41,6 +43,8 @@ import oculus.aperture.spi.store.ContentService.DocumentDescriptor;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.restlet.data.Status;
+import org.restlet.resource.ResourceException;
 
 import com.google.inject.Inject;
 
@@ -60,11 +64,33 @@ public class AnbExportDataService implements ExportDataService {
 	
 	
 	
+	/* (non-Javadoc)
+	 * @see influent.server.spi.ExportDataService#toXMLDoc(org.json.JSONObject)
+	 */
+	@Override
+	public String exportToXML(JSONObject jsonData) throws JSONException {
+		try {
+	        final ByteArrayOutputStream baoStream =  convertJSONToGraphML(jsonData);
+			return baoStream.toString("UTF-8");
+					
+		} catch (JAXBException e) {
+			throw new ResourceException(Status.SERVER_ERROR_INTERNAL, "Failure serializing graph data with JAXB", e);
+		} catch (UnsupportedEncodingException e) {
+			throw new ResourceException(Status.SERVER_ERROR_INTERNAL, "Failure converting graph data to UTF-8", e);
+		}
+	}
+	
 	
 	@Override
-	public DocumentDescriptor exportToAnb(JSONObject JSONData) throws ConflictException, JSONException, JAXBException {
+	public DocumentDescriptor exportToXMLDoc(JSONObject JSONData, String version) throws ConflictException, JSONException {
 		
-		byte[] XMLdata = convertJSONToXML(JSONData);
+		byte[] XMLdata;
+		try {
+			ByteArrayOutputStream baoStream = convertJSONToGraphML(JSONData);
+			XMLdata = baoStream.toByteArray();
+		} catch (JAXBException e) {
+			throw new ResourceException(Status.SERVER_ERROR_INTERNAL, "Failure serializing graph data with JAXB", e);
+		}
 		final String xmlType = "application/xml";
 		
 		// Store to the content service, return a URL to the image
@@ -85,13 +111,13 @@ public class AnbExportDataService implements ExportDataService {
 	
 	
 	
-	private byte[] convertJSONToXML(JSONObject JSONData) throws JSONException, JAXBException {
+	private ByteArrayOutputStream convertJSONToGraphML(JSONObject jsonData) throws JSONException, JAXBException {
 
 		Chart chart = new Chart();
         chart.setChartItemCollection(new ChartItemCollection());
         chart.getChartItemCollection().setChartItems(new ArrayList<ChartItem>());
         
-    	JSONArray columns = JSONData.getJSONArray("columns");
+    	JSONArray columns = jsonData.getJSONArray("columns");
     	for (int i = 0; i < columns.length(); i++) {
             JSONArray files = columns.getJSONObject(i).getJSONArray("files");
         	for (int j = 0; j < files.length(); j++) {
@@ -137,13 +163,14 @@ public class AnbExportDataService implements ExportDataService {
         	}
     	}
         
-    	JAXBContext jc = JAXBContext.newInstance(Chart.class);
+    	JAXBContext jc = JAXBContext.newInstance(GraphMLUtil.GRAPHML_CLASSES);
         Marshaller marshaller = jc.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, GraphMLUtil.SCHEMA_LOCATION);
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
         
         ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
         marshaller.marshal(chart, baoStream);
         
-        return baoStream.toByteArray();
+    	return baoStream;
 	}
 }

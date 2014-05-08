@@ -29,21 +29,21 @@
  */
 define([], function() {
 	return {
-		
+
 		/**
 		 * Parses a string hash value and returns a set of parameters.
-		 * 
+		 *
 		 * @params {String} hash
-		 * 	The hash value to parse.
-		 * 
+		 *		The hash value to parse.
+		 *
 		 * @returns {Object}
-		 * 	A set of parameters.
+		 *		A set of parameters.
 		 */
 		parse : function (hash) {
 			if (hash == null) {
 				return null;
 			}
-			
+
 			var params = hash.split(")!");
 			var p={}, param, bs, be, name, value;
 
@@ -60,33 +60,33 @@ define([], function() {
 				}
 			}
 			return p;
-			
+
 		},
-		
-		
+
+
 		/**
 		 * Updates the specified set of parameters with any number of potential changes,
 		 * returning only those parameters which have changed.
-		 * 
+		 *
 		 * @param {Object} params
-		 * 	the set of parameters to be updated
-		 * 
+		 *		the set of parameters to be updated
+		 *
 		 * @param {Object} updates
-		 * 	the parameter updates to apply
-		 * 
+		 *		the parameter updates to apply
+		 *
 		 * @returns {Object}
-		 * 	any changed parameters, or null if unchanged
+		 *		any changed parameters, or null if unchanged
 		 */
 		update : function (params, updates) {
 
 			var changes = {};
 			var changed = false;
-	
-			// 
+
+			//
 			if (aperture.util.isString(updates)) {
-				updates = parse(updates);
+				updates = this.parse(updates);
 			}
-			
+
 			// Check each of the newly set properties, have any changed?
 			// NOTE THAT this should deep copy any object values, which
 			// we currently take care of after this loop.
@@ -96,7 +96,7 @@ define([], function() {
 				if (updates.hasOwnProperty(prop) && _.isFunction(updates[prop]) === false ) {
 					var myprop = params[prop];
 					var nwprop = updates[prop];
-	
+
 					// cannot compare dates using equals operator
 					if (myprop && nwprop && myprop.getTime && nwprop.getTime) {
 						if (myprop.getTime() === nwprop.getTime())
@@ -105,42 +105,42 @@ define([], function() {
 					else if (myprop === nwprop) {
 						continue;
 					}
-	
+
 					// A new value for this property
 					params[prop] = nwprop;
-	
+
 					// Store it in the set of changes.
 					changes[prop] = nwprop;
 					changed = true;
 				}
 			}
-	
+
 			return changed? changes : null;
 		},
-		
-		
+
+
 		/**
 		 * Constructs and returns a hash value from the specified parameters
-		 * 
+		 *
 		 * @param {Object} params
-		 * 	The parameters to hash
-		 * 
+		 *		The parameters to hash
+		 *
 		 * @returns {String}
-		 * 	A hash value.
+		 *		A hash value.
 		 */
 		hash: function (params) {
 			var hash = '';
-	
+
 			for (var prop in params) {
 				if (params.hasOwnProperty(prop) && _.isFunction(params[prop]) === false ) {
 					var value = params[prop];
-	
+
 					if (value) {
 						hash+= prop + '('+ value + ')!';
 					}
 				}
 			}
-	
+
 			return hash;
 		}
 	};

@@ -30,7 +30,7 @@ define(['lib/module', 'lib/sandbox', 'lib/ajax', 'lib/util/params'], function(mo
 
 	return aperture.Class.extend( 'BasicView', {
 		init : function() {
-			
+
 			/**
 			 * Request broker, handles efficient requests and caching
 			 */
@@ -41,9 +41,9 @@ define(['lib/module', 'lib/sandbox', 'lib/ajax', 'lib/util/params'], function(mo
 			 */
 			this.state = _.clone(this.defaults);
 
-			
+
 			var that = this;
-			
+
 			/**
 			 * Module manager
 			 */
@@ -53,48 +53,48 @@ define(['lib/module', 'lib/sandbox', 'lib/ajax', 'lib/util/params'], function(mo
 				return new Sandbox( spec );
 			});
 		},
-		
+
 		/**
 		 * Updates the view state, validating it in the process.
-		 * 
+		 *
 		 * @params {Object} changes
-		 * 	The changes to apply.
-		 * 
+		 *	The changes to apply.
+		 *
 		 * @param {Function} callback
-		 * 	The callback to invoke if any changes occur
+		 *	The callback to invoke if any changes occur
 		 */
 		update : function (changes, callback) {
 
 			var trialState;
-			
+
 			if (changes) {
 				// don't touch real state until post validation.
 				trialState = _.clone(this.state);
-					
+
 				// and first apply the changes to that, in prep for validation.
 				params.update(trialState, changes);
-				
+
 			} else {
-				
+
 				// don't touch real state until post validation.
 				trialState = _.clone(this.defaults);
 			}
-			
+
 			// validate
 			this.view(trialState, callback);
 		},
-		
+
 		/**
 		 * Sets the view state
-		 * 
+		 *
 		 * @param {Object} validState
-		 * 	The validated new state
-		 * 
+		 *	The validated new state
+		 *
 		 * @param {Function} callback
-		 * 	The callback to invoke if any changes occur
+		 *	The callback to invoke if any changes occur
 		 */
 		doView : function (validState, callback) {
-			
+
 			// validated. now apply.
 			var changes = params.update(this.state, validState);
 
@@ -103,7 +103,7 @@ define(['lib/module', 'lib/sandbox', 'lib/ajax', 'lib/util/params'], function(mo
 				callback( this.state, changes );
 			}
 		}
-		
+
 	});
 });
 

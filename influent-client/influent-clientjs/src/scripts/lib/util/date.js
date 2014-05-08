@@ -25,8 +25,8 @@
 define(['lib/util/duration'], function(mDuration) {
 
 	var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-	              'August', 'September', 'October', 'November', 'December'
-    ],
+				  'August', 'September', 'October', 'November', 'December'
+	],
 
 	// some useful constants
 	secondInMillis = 1000,
@@ -48,7 +48,7 @@ define(['lib/util/duration'], function(mDuration) {
 				return null;
 			}
 		}
-		
+
 		// clone the parameter
 		date = new Date(date.getTime());
 
@@ -110,59 +110,59 @@ define(['lib/util/duration'], function(mDuration) {
 
 		return date;
 	};
-	
+
 	return {
 
 		/**
 		 * ISO date comparisons (yyyy-mm-dd)
 		 *  1: d1 > d2
 		 *  0: d1 = d2
-		 * -1: d1 < d2 
+		 * -1: d1 < d2
 		 */
 		compare : function (d1, d2) {
 			d1 = $.trim(d1).split('-');
 			d2 = $.trim(d2).split('-');
-			
+
 			if (d1[0] == d2[0]){
 				if (d1[1] == d2[1])
 					return d1[2] == d2[2] ? 0 : ((d1[2] > d2[2]) ? 1 : -1);
-				else 
+				else
 					return (d1[1] > d2[1]) ? 1 : -1;
 			}
-			else 
+			else
 				return (d1[0] > d2[0]) ? 1 : -1;
 		},
-		
+
 		toUTC : function (d) {
 			var da = d.split('-');
 			return Date.UTC(parseInt(da[0]), parseInt(da[1])-1, parseInt(da[2])+1, 0, 0, 0);
 		},
-		
+
 		/**
 		 * Formats in displayable form
 		 */
 		format : function( date, shortForm ) {
-			
+
 			if (shortForm) {
-				var month = new String((date.getMonth())+1);
-	
+				var month = String((date.getMonth())+1);
+
 				// Pad the month if it's only a single digit.
 				if (month.length === 1){
 					month = '0' + month;
 				}
-				var day = new String(date.getDate());
-				
+				var day = String(date.getDate());
+
 				if (day.length === 1){
 					day = '0' + day;
 				}
 				return date.getFullYear() + "-" + month + "-" + day;
 			}
-	
+
 			return months[date.getMonth()] + ' ' +
 				date.getDate() + ', ' +
 				date.getFullYear();
 		},
-		
+
 		/**
 		 * Add duration to date and return new date
 		 */
@@ -177,5 +177,5 @@ define(['lib/util/duration'], function(mDuration) {
 			return add(date, duration, -1);
 		}
 
-    };
+	};
 });

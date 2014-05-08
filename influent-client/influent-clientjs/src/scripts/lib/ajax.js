@@ -97,7 +97,7 @@ define(["lib/channels", "lib/ui/status", "lib/extern/underscore"], function(chan
 		 * Show loading status
 		 */
 		var loading = function() {
-			if (errorResponses.length == 0 && !statusDialog.isOpen()){
+			if (errorResponses.length === 0 && !statusDialog.isOpen()){
 				statusDialog.loading("Loading...");
 			}
 		},
@@ -111,7 +111,7 @@ define(["lib/channels", "lib/ui/status", "lib/extern/underscore"], function(chan
 			pendingResponseCount--;
 
 			// Hide status dialog.
-			if (pendingResponseCount == 0) {
+			if (pendingResponseCount === 0) {
 				statusDialog.close();
 			}
 

@@ -23,36 +23,36 @@
  * SOFTWARE.
  */
 (function ($) {
-    /**
-     * Transparent extension of jQuery-ui draggable that automatically suspends and resumes render requests for influent
-     * rendering system
-     *
-     * @params {Object} spec
-     * 	jQuery-ui draggable specification
-     *
-     * @returns {Object}
-     * 	jQuery draggable object.
-     */
-    $.fn.influentDraggable = function (spec) {
+	/**
+	 * Transparent extension of jQuery-ui draggable that automatically suspends and resumes render requests for influent
+	 * rendering system
+	 *
+	 * @params {Object} spec
+	 * jQuery-ui draggable specification
+	 *
+	 * @returns {Object}
+	 * jQuery draggable object.
+	 */
+	$.fn.influentDraggable = function (spec) {
 
-        var influentSpec = $.extend(true, {}, spec);
+		var influentSpec = $.extend(true, {}, spec);
 
-        influentSpec.start = function(event,ui) {
-            aperture.pubsub.publish('suspend-rendering');
-            if (spec.hasOwnProperty('start')) {
-                spec.start(event,ui);
-            }
-        };
+		influentSpec.start = function(event,ui) {
+			aperture.pubsub.publish('suspend-rendering');
+			if (spec.hasOwnProperty('start')) {
+				spec.start(event,ui);
+			}
+		};
 
-        influentSpec.stop = function(event,ui) {
-            aperture.pubsub.publish('resume-rendering');
-            if (spec.hasOwnProperty('stop')) {
-                spec.stop(event,ui);
-            }
-        };
+		influentSpec.stop = function(event,ui) {
+			aperture.pubsub.publish('resume-rendering');
+			if (spec.hasOwnProperty('stop')) {
+				spec.stop(event,ui);
+			}
+		};
 
-        $(this).draggable(influentSpec);
+		$(this).draggable(influentSpec);
 
-        return this;
-    };
+		return this;
+	};
 }(jQuery));

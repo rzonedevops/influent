@@ -74,22 +74,6 @@ public class SolrUtils {
 	 * @return
 	 */
 	public static String toSolrClause(FL_PropertyMatchDescriptor descriptor) {
-		return toSolrClause(descriptor, null);
-	}
-
-	/**
-	 * Returns a Solr query clause to represent the descriptor supply. Since descriptors do not
-	 * yet include weights the weight is supplied here as a separate parameter.
-	 * 
-	 * @param descriptor
-	 * 		The match specification
-	 * 
-	 * @param weight
-	 * 		The weight to give the parameter, where 1.0 is the default if unspecified
-	 * 
-	 * @return
-	 */
-	public static String toSolrClause(FL_PropertyMatchDescriptor descriptor, Double weight) {
 		
 		String k = (String) descriptor.getKey();
 		
@@ -117,7 +101,7 @@ public class SolrUtils {
 		
 		s.append(k);
 		
-		if (FL_Constraint.FUZZY_PARTIAL_OPTIONAL.equals(descriptor.getConstraint())) {
+		if (FL_Constraint.FUZZY_PARTIAL_OPTIONAL.equals(descriptor.getConstraint()) || FL_Constraint.FUZZY_REQUIRED.equals(descriptor.getConstraint())) {
 			s.append(":(");
 			
 			for (Object v : values) {
@@ -156,9 +140,9 @@ public class SolrUtils {
 		}
 			
 	
-		if (weight != null && weight != 1.0) {
+		if (descriptor.getWeight() != null && descriptor.getWeight() != 1.0) {
 			s.append("^");
-			s.append(weight);
+			s.append(descriptor.getWeight());
 		}
 		
 		return s.toString();
@@ -182,7 +166,7 @@ public class SolrUtils {
 	public static String toSolrQuery(String basicQuery, Map<String, Double> basicQueryFieldWeights, List<FL_PropertyMatchDescriptor> advancedTerms) {
 		
 		// copy terms to merge basic with advanced.
-		final List<FL_PropertyMatchDescriptor> ors = 
+		final List<FL_PropertyMatchDescriptor> orsAnds = 
 				new ArrayList<FL_PropertyMatchDescriptor>(advancedTerms.size());
 			final List<FL_PropertyMatchDescriptor> nots = 
 				new ArrayList<FL_PropertyMatchDescriptor>(advancedTerms.size());
@@ -193,9 +177,9 @@ public class SolrUtils {
 			
 			if (values != null) {
 				for (String key : basicQueryFieldWeights.keySet()) {
-					ors.add(
+					orsAnds.add(
 						FL_PropertyMatchDescriptor.newBuilder()
-							.setConstraint(FL_Constraint.REQUIRED_EQUALS)
+							.setConstraint(FL_Constraint.OPTIONAL_EQUALS)
 							.setKey(key)
 							.setRange(values)
 							.build()
@@ -210,18 +194,23 @@ public class SolrUtils {
 		
 		// separate ors from nots
 		for (FL_PropertyMatchDescriptor term : advancedTerms) {
-			(PropertyMatchDescriptorHelper.isExclusion(term)? nots: ors).add(term);
+			(PropertyMatchDescriptorHelper.isExclusion(term)? nots: orsAnds).add(term);
 		}
 	
 		// not valid
-		if (ors.isEmpty()) {
+		if (orsAnds.isEmpty()) {
 			return null;
 		}
 	
-		// ors
-		for (FL_PropertyMatchDescriptor term : ors) {
+		// orsAnds
+		for (FL_PropertyMatchDescriptor term : orsAnds) {
 			query.append(toSolrClause(term));
-			query.append(" OR ");
+			if (term.getConstraint().equals(FL_Constraint.OPTIONAL_EQUALS) || term.getConstraint().equals(FL_Constraint.FUZZY_PARTIAL_OPTIONAL)) {
+				query.append(" OR ");	
+			} else {
+				query.append(" AND ");
+			}
+			
 		}
 		
 		// trim last OR

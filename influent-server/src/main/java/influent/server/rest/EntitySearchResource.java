@@ -38,7 +38,7 @@ import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
-import influent.server.clustering.utils.ClusterCollapser;
+import influent.server.clustering.utils.ContextCollapser;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextReadWrite;
@@ -120,7 +120,7 @@ public class EntitySearchResource extends ApertureServerResource{
 			if (jsonObj.has("cluster")) {
 				doCluster = jsonObj.getBoolean("cluster");
 			}
-			
+						
 			String groupByTagOrFieldName = null;
 			
 			if (jsonObj.has("groupby")) {
@@ -128,8 +128,8 @@ public class EntitySearchResource extends ApertureServerResource{
 			}
 			
 			String contextId = "UNKNOWN-CONTEXT";
-			if (jsonObj.has("contextid")) {
-				contextId = jsonObj.getString("contextid").trim();
+			if (jsonObj.has("contextId")) {
+				contextId = jsonObj.getString("contextId").trim();
 			}
 			
 			// Get the query id. This is used by the client to ensure
@@ -160,9 +160,9 @@ public class EntitySearchResource extends ApertureServerResource{
 				doCluster = terms.doCluster();
 			}
 			
-			long zms = System.currentTimeMillis();
-			
 			FL_SearchResults sResponse = entitySearcher.search(terms.getExtraTerms(), terms.getTerms(), (long)startIndex, (long)resultLimit, type);
+			
+			// TODO modify below code to use Cluster data access getAccountOwners() API method 
 			
 			Map<String, String> clusterSummaries = new HashMap<String, String>();
 			List<String> accountOwners = new ArrayList<String>();
@@ -194,9 +194,7 @@ public class EntitySearchResource extends ApertureServerResource{
 			
 			PermitSet permits = new PermitSet();
 			
-			try {				
-//				final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
-				
+			try {
 				// Ok, now process the entities.  If the entity key is in the accounts map, construct account owner, otherwise use the entity
 				for (FL_SearchResult sResult : sResponse.getResults()) {
 					FL_Entity entity = (FL_Entity)sResult.getResult();
@@ -205,8 +203,6 @@ public class EntitySearchResource extends ApertureServerResource{
 					if (accountsForAccountOwners.containsKey(entity.getUid())) {
 						List<FL_Entity> accounts = accountsForAccountOwners.get(entity.getUid());
 						if (accounts != null) {
-//							List<String> accountClusterIds = clusterer.clusterEntities(accounts, contextId, sessionId);
-//							List<FL_Cluster> accountClusters = clusterAccess.getClusters(accountClusterIds, contextId, sessionId);
 							FL_Cluster owner = clusterFactory.toAccountOwnerSummary(entity, accounts, new ArrayList<FL_Cluster>(0));
 							owners.add(owner);
 						}
@@ -214,14 +210,6 @@ public class EntitySearchResource extends ApertureServerResource{
 						entities.add(entity);
 					}
 				}
-				
-//				if (!owners.isEmpty()) {
-//					List<FL_Cluster> clusterContext = clusterAccess.getContext(contextId, sessionId, false);
-//					clusterContext.addAll(owners);
-//					Pair<Collection<String>,Collection<FL_Cluster>> simpleContext = ClusterCollapser.collapse(clusterContext,true,false,null);
-//					
-//					contextRW.merge(simpleContext.second, false, true);
-//				}
 				
 				// group entities if a grouping field was provided
 				if (groupByTagOrFieldName != null) {
@@ -248,58 +236,33 @@ public class EntitySearchResource extends ApertureServerResource{
 					}
 				}
 	
-	
-				long yms = System.currentTimeMillis();
-				
-	
 				normalizeScores(scores);
 				
 				// Perform clustering is required - only support grouping XOR clustering
 				if (groupByTagOrFieldName == null && doCluster && entities.size()>4){
-					
-					//Clear the cached context - refs#6300
-					
+				
 					final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
 					
-					long ams = System.currentTimeMillis();
+					clusterAccess.clearContext(contextId);
 					
-					//ClusterContextCache.instance.clearContext(contextId);
+					/*List<String> clusterIds =*/ clusterer.clusterEntities(entities, null, null, contextId);
 					
-					clusterAccess.clearContext(contextId, sessionId);
-					
-					long bms = System.currentTimeMillis();
-					
-					/*List<String> clusterIds =*/ clusterer.clusterEntities(entities, contextId, sessionId);
-					
-					long cms = System.currentTimeMillis();
-					
-					//Get the context
-					List<FL_Cluster> context = clusterAccess.getContext(contextId, sessionId, false);
-					
-					long dms = System.currentTimeMillis();
-					
-					Pair<Collection<String>,Collection<FL_Cluster>> simpleContext = ClusterCollapser.collapse(context,false,false,null);
-					
-					long ems = System.currentTimeMillis();
-					long fms = ems;
+					Pair<Collection<FL_Entity>,Collection<FL_Cluster>> simpleContext = ContextCollapser.collapse(contextRW,false,null);
 	
 					JSONObject result = new JSONObject();
 					JSONArray rArr = new JSONArray();
 					List<String> fetchFullClusters = new ArrayList<String>();
 	
-					contextRW.merge(simpleContext.second, false, true);
-					
-					fms = System.currentTimeMillis();
+					contextRW.setSimplifiedContext(simpleContext.second);
 					
 					for (FL_Cluster cluster : simpleContext.second) {
 						if (cluster.getParent() == null) {
 							fetchFullClusters.add(cluster.getUid());
-							//rArr.put(UISerializationHelper.toUIJson(cluster));		//Used if getContext computes summaries
 						}
 					}
 					if (!fetchFullClusters.isEmpty()) {
-						List<FL_Cluster> topClusters = clusterAccess.getClusters(fetchFullClusters, contextId, sessionId);
-						contextRW.merge(topClusters, true, false);
+						List<FL_Cluster> topClusters = clusterAccess.getClusters(fetchFullClusters, contextId);
+						contextRW.setSimplifiedContext(topClusters);
 	
 						//Re-insert the clusters with the computed summaries
 						for (String cid : fetchFullClusters) {
@@ -319,20 +282,6 @@ public class EntitySearchResource extends ApertureServerResource{
 					result.put("sessionId", sessionId);
 					
 					StringRepresentation responseSR = new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
-					
-					long xms = System.currentTimeMillis();
-					
-					if ((xms-zms)/1000 > 10) {
-						s_logger.error("Slow search, ("+((xms-zms)/1000)+" seconds) logging breakdown");
-						s_logger.error("Search and getAccounts "+((yms-zms))+" ms");
-						s_logger.error("clear context " + ((bms-ams)) + " ms" );
-						s_logger.error("cluster entities " + ((cms-bms)) + " ms" );
-						s_logger.error("get context " + ((dms-cms)) + " ms" );
-						s_logger.error("collapse context " + ((ems-dms)) + " ms" );
-						s_logger.error("merge collapsed context " + ((fms-ems)) + " ms" );
-					} else {
-						s_logger.info("totals "+((xms-zms)/1000)+" seconds");
-					}
 					
 					return responseSR;
 				}

@@ -22,51 +22,46 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['jquery'],
-    function($) {
-        return {
-            createInstance : function(spec) {
-                // Dialog will close when any button is pressed so developer doesn't have to remember to call
-                // $(this).dialog("close") for each0 button they write
-                var autoCloseButtons = {};
-                for (var key in spec.buttons) {
-                    if (spec.buttons.hasOwnProperty(key)) {
-                        (function(key) {
-                            if (spec.buttons.hasOwnProperty(key)) {
-                                autoCloseButtons[key] = function() {
-                                    spec.buttons[key]();
-                                    $(this).dialog("close");
-                                };
-                            }
-                        })(key);
-                    }
-                }
+define([],
+	function() {
+		return {
+			createInstance : function(spec) {
+				// Dialog will close when any button is pressed so developer doesn't have to remember to call
+				// $(this).dialog("close") for each0 button they write
+				var autoCloseButtons = {};
+				
+				aperture.util.forEach(spec.buttons, function(callback, key) {
+					autoCloseButtons[key] = function() {
+						callback();
+						$(this).dialog("close");
+					};
+				});
+						
+				var dialogContents =  '<div id="dialog-confirm">'
+					+   '<p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>' + spec.contents + '</p>'
+					+ '</div>';
+				var dialogDiv = $('<div></div>');
 
-                var dialogContents =  '<div id="dialog-confirm">'
-                    +   '<p><span class="ui-icon ui-icon-alert" style="float: left; margin: 0 7px 20px 0;"></span>' + spec.contents + '</p>'
-                    + '</div>';
-                var dialogDiv = $('<div></div>');
-
-                dialogDiv.html(dialogContents);
-                $('body').append(dialogDiv);
-                dialogDiv.dialog({
-                    zIndex:30000000,
-                    minHeight:'auto',
-                    resizable:false,
-                    modal:true,
-                    title:spec.title,
-                    // These two lines prevent the "x" from appearing in the corner of dialogs.   It's annoying to handle closing the dialog
-                    // this way so this is how we can prevent the user from doing this
-                    closeOnEscape: false,
-                    open: function(event, ui) { $(this).parent().children().children('.ui-dialog-titlebar-close').hide(); },
-                    buttons: autoCloseButtons,
-                    resizeStop: function(event, ui) {
-                    },
-                    close: function(event, ui) {
-                        $(this).dialog("destroy");
-                    }
-                });
-            }
-        };
-    }
+				dialogDiv.html(dialogContents);
+				$('body').append(dialogDiv);
+				dialogDiv.dialog({
+					zIndex:30000000,
+					minHeight:'auto',
+					resizable:false,
+					modal:true,
+					title:spec.title,
+					// These two lines prevent the "x" from appearing in the corner of dialogs.   It's annoying to handle closing the dialog
+					// this way so this is how we can prevent the user from doing this
+					closeOnEscape: false,
+					open: function(event, ui) { $(this).parent().children().children('.ui-dialog-titlebar-close').hide(); },
+					buttons: autoCloseButtons,
+					resizeStop: function(event, ui) {
+					},
+					close: function(event, ui) {
+						$(this).dialog("destroy");
+					}
+				});
+			}
+		};
+	}
 );

@@ -24,7 +24,7 @@
  */
 define([], function() {
 
-    return {
+	return {
 
 		/**
 		 * Calculates and returns a percent change from two values
@@ -51,7 +51,7 @@ define([], function() {
 		 * Formats a percent change with consistent treatment
 		 */
 		format : function (pctChange) {
-			if (isNominal(pctChange)) {
+			if (this.isNominal(pctChange)) {
 				return "~UNCH";
 			}
 			if (!pctChange) {

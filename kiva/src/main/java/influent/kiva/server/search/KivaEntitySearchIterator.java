@@ -49,9 +49,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import oculus.aperture.spi.common.Properties;
 import org.apache.avro.AvroRemoteException;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest.METHOD;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
@@ -76,6 +78,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 	protected SolrServer _server;
 	protected SolrQuery _query;
 	
+	protected Properties _config;
 	protected final FL_Geocoding _geocoding;
 	
 	//Current query response
@@ -93,9 +96,10 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 	@SuppressWarnings("unused")
 	private String _idPrefix="";
 	
-	public KivaEntitySearchIterator(SolrServer server, SolrQuery q, FL_Geocoding geocoding) {
+	public KivaEntitySearchIterator(SolrServer server, SolrQuery q, Properties config, FL_Geocoding geocoding) {
 		_server = server;
 		_query = q;
+		_config = config;
 		_geocoding = geocoding;
 		_totalResults = -1;
 		_curResults = new ArrayList<FL_SearchResult>(REFRESH_SIZE);
@@ -177,9 +181,9 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 
 	protected void doRefresh(int startIdx, int pageSize)  {
 		try {
-			getLogger().warn("fetching solr page : (@"+startIdx+" of size "+pageSize+")");
+			getLogger().info("fetching solr page : (@"+startIdx+" of size "+pageSize+")");
 			_query.setRows(pageSize).setStart(startIdx);
-			_qResp = _server.query(_query);
+			_qResp = _server.query(_query, METHOD.POST);
 			if (_totalResults == -1) {
 				_totalResults = (int)_qResp.getResults().getNumFound();
 			}
@@ -337,9 +341,9 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 				
 				//Special case value handling - jodatime
 				if (val instanceof Date) {
-					propBuilder.setRange(new SingletonRangeHelper(((Date)val).getTime(), FL_PropertyType.OTHER));
+					propBuilder.setRange(new SingletonRangeHelper(((Date)val).getTime(), FL_PropertyType.DATE));
 				} else if (val instanceof DateTime) {
-					propBuilder.setRange(new SingletonRangeHelper(((DateTime)val).getMillis(), FL_PropertyType.OTHER));
+					propBuilder.setRange(new SingletonRangeHelper(((DateTime)val).getMillis(), FL_PropertyType.DATE));
 				} else {
 					propBuilder.setRange(new SingletonRangeHelper(val, FL_PropertyType.OTHER));
 				}

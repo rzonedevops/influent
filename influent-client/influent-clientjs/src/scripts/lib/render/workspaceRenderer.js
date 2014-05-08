@@ -23,91 +23,231 @@
  * SOFTWARE.
  */
 define(
-    [
-        'jquery', 'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnRenderer', 'lib/util/xfUtil'
-    ],
-    function(
-        $, chan, cardRenderer, columnRenderer, xfUtil
-    ) {
+	[
+		'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnRenderer', 'lib/util/xfUtil'
+	],
+	function(
+		chan, cardRenderer, columnRenderer, xfUtil
+	) {
 
-        var workspaceRenderer = {};
+		/**
+		 * the workspace renderer is the top level renderer, managing the dom element for the workspace model.
+		 */
+		var workspaceRenderer = {};
 
-        //------------------------------------------------------------------------------------------------------------------
+		//------------------------------------------------------------------------------------------------------------------
+		var _renderDefaults = {
+			WORKSPACE_MARGIN : 10,
+			getStartingColumnPosX : function(numColumns){
+				var centerBase =  $('#workspace').width()/2-cardRenderer.getRenderDefaults().CARD_WIDTH/2;      // Subtract half of card size,
 
-        var _renderDefaults = {
-            getWindowCenterX : function(childObjects){
-                var centerBase =  $('#cards').width()/2-cardRenderer.getRenderDefaults().CARD_WIDTH/2;      // Subtract half of card size,
+				if(numColumns > 1) {
+					centerBase = Math.max(this.WORKSPACE_MARGIN, centerBase - (numColumns - 1)*_columnDefaults.COLUMN_DISTANCE/2);
+				}
 
-                if(childObjects.length > 1) {
-                    centerBase = Math.max(0, centerBase - (childObjects.length - 1)*_columnDefaults.COLUMN_DISTANCE/2);
-                }
+				return centerBase;
+			}
+		};
 
-                return centerBase;
-            }
-        };
+		//------------------------------------------------------------------------------------------------------------------
 
-        //------------------------------------------------------------------------------------------------------------------
+		var _columnDefaults = columnRenderer.getRenderDefaults();
 
-        var _columnDefaults = columnRenderer.getRenderDefaults();
+		//------------------------------------------------------------------------------------------------------------------
+		
+		function left(element) {
+			if (element != null) {
+				var l = element.css('left');
+				return l? Number(l.replace('px','')) : 0;
+			}
+		}
+		
+		//------------------------------------------------------------------------------------------------------------------
 
-        //------------------------------------------------------------------------------------------------------------------
+		function positionColumns(columns, parentCanvas) {
+			
+			var x = 0;
+			var maxHeight = 0;
+			var parentId = '#'+ parentCanvas.attr('id');
+			
+			var colsn = $();
+			var shift = null;
+			
+			aperture.util.forEach(columns, function(column) {
+				var visualInfo = column.getVisualInfo();
+				
+				// create the dom element
+				var element = columnRenderer.createElement(visualInfo);
 
-        var processColumns = function(childObjects, parentCanvas){
-            for (var i=0; i < childObjects.length; i++){
-                var visualInfo = childObjects[i].getVisualInfo();
-                var element = columnRenderer.createElement(visualInfo);
-                element.css('left', _renderDefaults.getWindowCenterX(childObjects) + _columnDefaults.COLUMN_DISTANCE*i);
-                parentCanvas.append(element);
-            }
-        };
+				// keep track of these for return
+				colsn = colsn.add(element);
 
-        //------------------------------------------------------------------------------------------------------------------
+				// need one reference point in old and new space if we can find one.
+				if (shift == null && !column.isEmpty() && element.parent(parentId).length !== 0) {
+					shift = x - left(element);
+				}
+				
+				// append/re-append (keeps columns in the right order).
+				parentCanvas.append(element);
 
-        $('#workspace').click(function(event) {
-        	// deselect?
-        	if (xfUtil.isWorkspaceWhitespace(event.target)) {
-                aperture.pubsub.publish(
-                    chan.SELECTION_CHANGE_REQUEST,
-                    {
-                        xfId: null,
-                        selected : true,
-                        noRender: false
-                    }
-                );
-        	}
-        });
-        
-        workspaceRenderer.createElement = function(visualInfo){
+				
+				// track the maximum column height
+				maxHeight = Math.max(maxHeight, columnRenderer.getHeight(element));
 
-            // Remember the workspace scrollPos
-            var workspace = $('#workspace');
-            var scrollPosX =  workspace.scrollLeft();
-            var scrollPosY =  workspace.scrollTop();
+				// position the column.
+				element.css('left', x);
+				
+				
+				x+= _columnDefaults.COLUMN_DISTANCE;
+			});
+			
+			// return data for the result
+			return {
+				width: x,
+				height: maxHeight,
+				shift:  shift,
+				columns: colsn
+			};
+		}
+		
+		//------------------------------------------------------------------------------------------------------------------
+		var processColumns = function(columns, parentCanvas) {
 
-            var canvas = $('#' + visualInfo.xfId);
-            if (canvas.length > 0){
-                canvas.empty();
-            }
-            else {
-                canvas = $('<div></div>');
-                canvas.attr('id', visualInfo.xfId);
-            }
+			// PROCESS COLUMNS
+			// cache list of old children
+			var colso = parentCanvas.children();
 
-            processColumns(visualInfo.children, canvas);
+			// position the active children.
+			var cdata = positionColumns(columns, parentCanvas);
+			
+			// remove any removed children.
+			var removed = colso.not(cdata.columns).remove();
 
-            // Restore the previous workspace scrollpos
-            workspace.scrollLeft(scrollPosX);
-            workspace.scrollTop(scrollPosY);
 
-            return canvas;
-        };
+			// SIZE CONTAINER
+			// resize the container
+			var container = $('#workspace-content');
+			
+			container.css({
+				'height': cdata.height + _renderDefaults.WORKSPACE_MARGIN,
+				'width': cdata.width
+			});
+			
+			// POSITION CONTAINER: NOTHING TO DO?
+			// look for something added
+			var firstAdd = cdata.columns.not(colso).first();
+			
+			// if nothing changed, done.
+			if (firstAdd.length === 0 && removed.length === 0) {
+				return;
+			}
 
-        //------------------------------------------------------------------------------------------------------------------
+			
+			// POSITION CONTAINER: JUST SET IT?
+			// old and new insets
+			var inset = {
+				xo: left(container), 
+				xn: _renderDefaults.getStartingColumnPosX(columns.length)
+			};
+			
+			// if nothing old just set it, without animated transition, and we're done.
+			if (colso.length === 0) {
+				container.css('left', inset.xn);
+				return;
+			}
+			
+			// POSITION CONTAINER: ANIMATE IT
+			var scrolled = $('#workspace');
+			var scroll = {
+				xo: scrolled.scrollLeft(), 
+				xn: 0
+			};
 
-        workspaceRenderer.getRenderDefaults = function(){
-            return _.clone(_renderDefaults);
-        };
+			// manipulating scroll?
+			if (inset.xn === _renderDefaults.WORKSPACE_MARGIN && firstAdd.length !== 0) {
+				var seex= left(firstAdd) + _renderDefaults.WORKSPACE_MARGIN;
+				
+				if (seex < scroll.xo) {
+					scroll.xn = seex;
+				} else {
+					seex += _columnDefaults.COLUMN_DISTANCE;
+					
+					// if already scrolled enough, don't scroll
+					scroll.xn = Math.max(scroll.xo, Math.max(0,seex - scrolled.width()));
+				}
+				
+				scrolled.animate({scrollLeft: scroll.xn});
+			}
+			
+			// anything but a wholesale change, try to transition from the same point
+			if (cdata.shift != null) {
+				
+				// shift the old reference point into new space to start the anim
+				container.css({left: inset.xo-cdata.shift});
+			}
 
-        return workspaceRenderer;
-    }
+			// animate
+			container.animate({left: inset.xn});
+		};
+
+		//------------------------------------------------------------------------------------------------------------------
+
+		$('#workspace').click(function(event) {
+			// deselect?
+			if (xfUtil.isWorkspaceWhitespace(event.target)) {
+				aperture.pubsub.publish(
+					chan.SELECTION_CHANGE_REQUEST,
+					{
+						xfId: null,
+						selected : true,
+						noRender: false
+					}
+				);
+			}
+		});
+
+		workspaceRenderer.createElement = function(visualInfo, capturing) {
+
+			// the column container.
+			var canvas = $('#' + visualInfo.xfId);
+			if (canvas.length === 0){
+				canvas = $('<div></div>');
+				canvas.attr('id', visualInfo.xfId);
+				
+				var cardsDiv = $('#cards');
+				cardsDiv.empty();
+				cardsDiv.append(canvas);
+
+				if (capturing) {
+					var workspaceDiv = $('#workspace');
+					workspaceDiv.css('overflow', 'visible');
+				}
+			}
+
+			processColumns(visualInfo.children, canvas);
+
+			return canvas;
+		};
+
+		//------------------------------------------------------------------------------------------------------------------
+		
+		workspaceRenderer.getSize = function() {
+			var workspaceDiv = $('#workspace');
+			var width = workspaceDiv[0].scrollWidth;
+			var height = workspaceDiv[0].scrollHeight;
+
+			return {
+				width : width,
+				height : height
+			};
+		};
+		
+		//------------------------------------------------------------------------------------------------------------------
+
+		workspaceRenderer.getRenderDefaults = function(){
+			return _.clone(_renderDefaults);
+		};
+
+		return workspaceRenderer;
+	}
 );

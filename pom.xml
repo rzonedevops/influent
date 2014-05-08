@@ -5,7 +5,7 @@
 	<groupId>oculus.influent</groupId>
 	<artifactId>influent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.3.0</version>
+	<version>1.3.2</version>
 
 	<name>Influent Project Modules</name>
 	<description>Parent module for building Influent projects</description>
@@ -30,9 +30,17 @@
 	</developers>
 
 	<properties>
-		<aperture.version>1.0.4</aperture.version>
+		<aperture.version>1.0.5</aperture.version>
 		<influent.dev.client.src>../influent-client/influent-clientjs/src</influent.dev.client.src>
 	</properties>
+
+	<repositories>
+		<repository>
+			<id>maven-restlet</id>
+			<name>Public online Restlet repository</name>
+			<url>http://maven.restlet.org</url>
+		</repository>
+	</repositories>
 
 	<!-- For development convenience these properties may be used to copy out 
 		the appropriate phantom capture executable based on the OS. In a production 

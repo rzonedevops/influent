@@ -55,6 +55,11 @@ public class ClusterContext implements Serializable {
 	public Map<String, FL_Entity> entities = new HashMap<String, FL_Entity>();
 	
 	
+	public void addClusters(Collection<FL_Cluster> clusters) {
+		for (FL_Cluster cluster : clusters) {
+			this.clusters.put(cluster.getUid(), cluster);
+		}
+	}
 	
 	public void addEntities(Collection<FL_Entity> entities) {
 		for (FL_Entity entity : entities) {
@@ -62,6 +67,14 @@ public class ClusterContext implements Serializable {
 		}
 	}
 	
+	/**
+	 * Remove all contents of cluster context
+	 */
+	public void clear() {
+		roots.clear();
+		clusters.clear();
+		entities.clear();
+	}
 	
 	/**
 	 * Override Java serialization methods

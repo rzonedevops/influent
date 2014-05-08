@@ -29,10 +29,11 @@ entity.clusterer.stopwords = a,able,about,above,across,after,again,against,all,a
 # Field types supported are:
 #  geo 			- bins entities first by continent, region, country and clusters by lat/lon if present 
 #  categorical 	- bins entities by categorical value (must be a string value for this field)
-#  label 		- clusters entities first by alpha then using fingerprint string clustering or edit 
-#                 distance if fuzzy is specified (append :fuzzy)
-#  numeric		- bins entities by numeric value into X bins.  Specify the number of bins by appending ":X" 
-#                 where X is an integer (default is 5) 
+#  label 		- clusters entities first by alpha then using fingerprint string clustering (append :fingerprint) 
+# 				  or edit distance clustering (append :edit) (default is fingerprint)
+#  numeric		- bins entities by numeric value into X bins.  Specify the tolerance for binning by appending ":K" 
+#                 where K is a decimal [0, infinity) indicating roughly the radius of each bin (default is 100) 
+#				  This parameter should be tuned to the data for best results. 
 #
 # For reference the valid FL_PROPERTYTAGS are: 
 #   ID, TYPE, NAME, LABEL, STAT, TEXT, STATUS, GEO, DATE, AMOUNT, COUNT, USD, DURATION
@@ -44,7 +45,7 @@ entity.clusterer.clusterfields = TYPE:categorical,GEO:geo,LABEL:label
 
 #
 # Define distribution properties of clusters.  Each property is a distribution of the corresponding 
-# entity properites in the cluster.
+# entity properties in the cluster.
 #  * fields either specify an influent FL_PROPERTYTAG name or a field name
 #    fields will be matched in that order and first matched is used
 #  * multiple fields are delimited by commas
@@ -58,9 +59,10 @@ entity.clusterer.clusterfields = TYPE:categorical,GEO:geo,LABEL:label
 entity.clusterer.clusterproperties = TYPE:Kiva Account Type,GEO:Location,STATUS:Status,WARNING:Warnings
 
 #
-# determines the stopping criterion for further splitting a cluster
+# specify the maximum number of members each leaf clusters can contain
+# clusters will be split into sub-clusters until no leaf cluster contains more than max number of members
 #
-# Default is 5
+# Default is 10
 #
-entity.clusterer.minclustersize = 5
+entity.clusterer.maxclustersize = 10
 ```

@@ -30,7 +30,7 @@ import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
 import influent.idl.FL_LevelOfDetail;
 import influent.server.clustering.utils.ClusterContextCache;
-import influent.server.clustering.utils.ContextReadWrite;
+import influent.server.clustering.utils.ContextRead;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
@@ -56,44 +56,11 @@ import com.google.inject.Inject;
 public class EntityLookupResource extends ApertureServerResource{
 	
 	private final FL_DataAccess service;
-	private final FL_ClusteringDataAccess clusterAccess;
 	private final ClusterContextCache contextCache;
-
-	private List<String> flattenEntityCluster(List<String> entityIds, String contextId, ContextReadWrite context, String sessionId, boolean isFlattened) throws AvroRemoteException{
-		List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
-		List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
-		
-		List<String> flatIdList = new ArrayList<String>();
-		//First, check to see how many of the ids are clusters without summaries
-		List<String> nosumClusters = context.getClusterIdsWithoutSummaries(clusterIds);
-		
-		if (!nosumClusters.isEmpty()) {
-			List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(clusterIds, contextId, sessionId);
-			
-			context.merge(computeClusterSums, true, false);
-		}
-		
-		List<FL_Cluster> clusterResults = context.getClusters(clusterIds);
-		// DJ: why is this here?
-		List<FL_Entity> entityResults = service.getEntities(accountIds, FL_LevelOfDetail.SUMMARY);
-		if (isFlattened){
-			for (FL_Cluster cluster : clusterResults){
-				List<String> childIds = cluster.getMembers();
-				childIds.addAll(cluster.getSubclusters());
-				flatIdList.addAll(flattenEntityCluster(childIds, contextId, context, sessionId, isFlattened));
-			}
-			for (FL_Entity entity : entityResults){
-				flatIdList.add(entity.getUid());
-			}			
-		}
-
-		return flatIdList;
-	}
 	
 	@Inject
 	public EntityLookupResource(FL_DataAccess service, FL_ClusteringDataAccess clusterDataAccess, ClusterContextCache contextCache) {
 		this.service = service;
-		clusterAccess = clusterDataAccess;
 		this.contextCache = contextCache;
 	}
 	
@@ -112,61 +79,39 @@ public class EntityLookupResource extends ApertureServerResource{
 
 			String contextid = jsonObj.getString("contextid").trim();
 			
-			Boolean isFlattened = jsonObj.has("isFlattened")?jsonObj.getBoolean("isFlattened"):false;
 			Boolean details = jsonObj.has("details")? jsonObj.getBoolean("details"):false;
 			
 			// get the root node ID from the form
 			JSONArray entityNodes = jsonObj.getJSONArray("entities");
 			List<String> entityIds = new ArrayList<String>(entityNodes.length());
-			
-			//Tmp : old-esque clustering lookup
-			
+		
 			for (int i=0; i < entityNodes.length(); i++){
 				String id = entityNodes.getString(i).trim();
 				entityIds.add(id);
 			}
 
 			List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
+			
+			List<String> clusterSummaryIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER_SUMMARY);
+			clusterIds.addAll(clusterSummaryIds);
+			
 			List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
 			
 			// If there are any owners, look those up as accounts:
 			List<String> ownerIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT_OWNER);
-			accountIds.addAll(ownerIds);
-			
-			// FIXME: Also add Cluster Summaries. Not sure if this is appropriate, 
-			// but is necessary for #7205 to work with Cluster Summaries
-			List<String> clusterSummaryIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER_SUMMARY);
-			accountIds.addAll(clusterSummaryIds);
+			clusterIds.addAll(ownerIds);	
 			
 			PermitSet permits = new PermitSet();
 			List<FL_Cluster> clusterResults = new ArrayList<FL_Cluster>();
 			
-			try {
-				// technically there is only one write op, which is the merge calls, and don't like holding
-				// this lock while calling getClusters but there are recursive merge calls in flatten cluster
-				ContextReadWrite contextRW = contextCache.getReadWrite(contextid, permits);
-				
-				//First, check to see how many of the ids are clusters without summaries
-				List<String> nosumClusters = contextRW.getClusterIdsWithoutSummaries(clusterIds);
-				
-				if (!nosumClusters.isEmpty()) {
-					List<FL_Cluster> computeClusterSums = clusterAccess.getClusters(clusterIds, contextid, sessionId);
-
-					contextRW.merge(computeClusterSums, true, false);
+			if (!clusterIds.isEmpty()) {
+				try {
+					ContextRead contextRO = contextCache.getReadOnly(contextid, permits);
+					clusterResults.addAll(contextRO.getClusters(clusterIds));									
+				} finally {
+					permits.revoke();
 				}
-			
-				if (isFlattened){
-					accountIds.addAll(flattenEntityCluster(clusterIds, contextid, contextRW, sessionId, isFlattened));
-				}
-				else {
-					clusterResults.addAll(contextRW.getClusters(clusterIds));
-				}
-									
-			} finally {
-				permits.revoke();
 			}
-			
-			//List<FL_Cluster> clusterResults = clusterAccess.getEntities(entityIds, contextid);
 		
 			List<FL_Entity> entityResults = service.getEntities(accountIds, 
 					details? FL_LevelOfDetail.FULL: FL_LevelOfDetail.SUMMARY);
@@ -179,7 +124,6 @@ public class EntityLookupResource extends ApertureServerResource{
 			for (FL_Cluster ec : clusterResults) {
 				ja.put(UISerializationHelper.toUIJson(ec));
 			}
-			
 			
 			result.put("data", ja);
 			result.put("queryId", queryId);

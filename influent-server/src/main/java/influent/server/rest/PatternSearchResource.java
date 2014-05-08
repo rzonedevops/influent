@@ -25,20 +25,28 @@
 package influent.server.rest;
 
 import influent.idl.FL_BoundedRange;
-import influent.idl.FL_Clustering;
+import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
 import influent.idl.FL_EntityMatchDescriptor;
 import influent.idl.FL_EntityMatchResult;
+import influent.idl.FL_EntityTag;
 import influent.idl.FL_Future;
 import influent.idl.FL_LevelOfDetail;
+import influent.idl.FL_LinkMatchResult;
 import influent.idl.FL_PatternDescriptor;
 import influent.idl.FL_PatternSearch;
 import influent.idl.FL_PatternSearchResult;
 import influent.idl.FL_PatternSearchResults;
+import influent.idl.FL_Property;
+import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
+import influent.idlhelper.ClusterHelper;
+import influent.idlhelper.EntityHelper;
+import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SerializationHelper;
+import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.utilities.AvroUtils;
 import influent.server.utilities.DateTimeParser;
 import influent.server.utilities.TypedId;
@@ -63,6 +71,8 @@ import org.restlet.data.Status;
 import org.restlet.representation.StringRepresentation;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 
@@ -71,21 +81,23 @@ public class PatternSearchResource extends ApertureServerResource{
 
 	private final FL_PatternSearch patternSearcher;
 	private final FL_DataAccess dataAccess;
-//	private final FL_Clustering clusterer;
-//	private final FL_ClusteringDataAccess clusterAccess;
+	private final FL_ClusteringDataAccess clusterAccess;
+	private final EntityClusterFactory clusterFactory;
 	
 	protected final static int DEFAULT_MAX_LIMIT = 50;
+	
+	private static final Logger s_logger = LoggerFactory.getLogger(EntitySearchResource.class);
 	
 	@Inject
 	public PatternSearchResource(
 		FL_PatternSearch patternSearcher, 
-		FL_Clustering cluster, 
 		FL_ClusteringDataAccess clusterAccess,
+		EntityClusterFactory clusterFactory,
 		FL_DataAccess dataAccess
 	) {
 		this.patternSearcher = patternSearcher;
-//		this.clusterer = cluster;
-//		this.clusterAccess = clusterAccess;
+		this.clusterAccess = clusterAccess;
+		this.clusterFactory = clusterFactory;
 		this.dataAccess = dataAccess;
 	}
 	
@@ -147,9 +159,9 @@ public class PatternSearchResource extends ApertureServerResource{
 			String term = jsonObj.getString("term").trim();
 			FL_PatternDescriptor example = (FL_PatternDescriptor)AvroUtils.decodeJSON(FL_PatternDescriptor.getClassSchema(), term);
 			
-			char searchEntityType = TypedId.ACCOUNT_OWNER;
-			String searchEntityNamespace = null;
-			boolean hasExamplars = false;
+			Map<String, Character> searchEntityTypeMap = new HashMap<String, Character>();
+			Map<String, String> searchEntityNamespaceMap = new HashMap<String, String>();
+			boolean hasExamplars = true;
 			
 			List<FL_EntityMatchDescriptor> exampleEntities = example.getEntities();
 			Map<String, String> hackMap = new HashMap<String, String>(exampleEntities.size());
@@ -171,13 +183,14 @@ public class PatternSearchResource extends ApertureServerResource{
 
 					// Assume that we're looking for entities of a similar type 
 					// in same namespace as the first entity in the list
-					if (searchEntityNamespace == null) {
-						searchEntityType = TypedId.fromTypedId(uid).getType();
-						searchEntityNamespace = TypedId.fromTypedId(uid).getNamespace();
+					if (searchEntityTypeMap.get(emd.getUid()) == null) {
+						searchEntityTypeMap.put(emd.getUid(), TypedId.fromTypedId(uid).getType());
+						searchEntityNamespaceMap.put(emd.getUid(), TypedId.fromTypedId(uid).getNamespace());
 					}
-					
-					hasExamplars = true;
 				}
+				
+				if (ids.size() == 0)
+					hasExamplars = false;
 				
 				emd.setExamplars(ids);
 			}
@@ -187,10 +200,9 @@ public class PatternSearchResource extends ApertureServerResource{
 			if (!hasExamplars) {
 				// If we failed to pick up any exemplars, it probably means that the search 
 				// terms are malformed. don't do the query, just return empty results
-				getLogger().warning("Invalid search terms. Not executing pattern search.");
+				s_logger.warn("Invalid search terms. Not executing pattern search.");
 			} else {
-				
-				getLogger().info("Executing pattern search: "+ SerializationHelper.toJson(example));
+				s_logger.info("Executing pattern search: "+ SerializationHelper.toJson(example));
 				
 				try {
 					response = patternSearcher.searchByExample(example, "QuBE", (long)startIndex, (long)resultLimit, dateRange, useAptima);
@@ -235,11 +247,27 @@ public class PatternSearchResource extends ApertureServerResource{
 				// gather a set of all entity ids to lookup
 				for (FL_EntityMatchResult entityResult : searchResult.getEntities()) {
 					String nId = entityResult.getEntity().getUid().toString();
-
 					trace.append(" ");
 					trace.append(nId);
 					
-					String entityId = TypedId.fromNativeId(searchEntityType, searchEntityNamespace, nId).getTypedId();
+					// Calculate the actual entity id by assuming it matches the searched-for type/namespace
+					char entityType = searchEntityTypeMap.get(entityResult.getUid());
+					String entityNamespace = searchEntityNamespaceMap.get(entityResult.getUid());
+					String entityId = TypedId.fromNativeId(entityType, entityNamespace, nId).getTypedId();
+					
+					// Put our new entityId back into the results set
+					entityResult.getEntity().setUid(entityId);
+	
+					// Fix any links to this entity
+					for (FL_LinkMatchResult link : searchResult.getLinks()) {
+						if (link.getLink().getSource().equals(nId)) {
+							link.getLink().setSource(entityId);
+						}
+							
+						if (link.getLink().getTarget().equals(nId)) {
+							link.getLink().setTarget(entityId);
+						}
+					}
 					
 					String resultUid = entityResult.getUid();
 					if (hackMap.containsKey(resultUid)) {
@@ -280,29 +308,116 @@ public class PatternSearchResource extends ApertureServerResource{
 				trace.append("\n      ----\n      ");
 			}
 			
-			getLogger().info(trace.toString());
+			s_logger.info(trace.toString());
+
 			
 			// look up entity details
-			final List<FL_Entity> entities = dataAccess.getEntities(new ArrayList<String>(entityInstances.keySet()), FL_LevelOfDetail.SUMMARY);
-
-			JSONObject result = new JSONObject();
-			JSONArray jsonRoleResults = new JSONArray();
+			final List<FL_Entity> searchedEntities = dataAccess.getEntities(new ArrayList<String>(entityInstances.keySet()), FL_LevelOfDetail.SUMMARY);
 			
+			Map<String, String> clusterSummaries = new HashMap<String, String>();
+			List<String> accountOwners = new ArrayList<String>();
+			
+			for (FL_Entity entity : searchedEntities) {
+				
+				// Plug the searched entities back into the enrichment set
+				for (Map.Entry<String,List<FL_EntityMatchResult>> entry : roleResults.entrySet()) {
+					
+					for (FL_EntityMatchResult emr : entry.getValue()) {
+						String tempNId = TypedId.fromTypedId(emr.getEntity().getUid()).getNativeId();
+						String searchedNId = TypedId.fromTypedId(entity.getUid()).getNativeId();
+						
+						if (tempNId.equals(searchedNId)) {
+							emr.setEntity(entity);
+						}
+					}
+				}
+				
+				// If this is an account owner either we retrieve a cluster summary or all accounts
+				if (entity.getTags().contains(FL_EntityTag.ACCOUNT_OWNER)) {
+					FL_Property summary = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.CLUSTER_SUMMARY);
+					
+					if (summary != null) {
+						// retrieve the cluster summary for this account owner
+						clusterSummaries.put(entity.getUid(), (String)PropertyHelper.from(summary).getValue());
+					} else {
+						// retrieve the accounts for account owner
+						accountOwners.add(entity.getUid());
+					}
+				}
+			}			
+			
+			Map<String, FL_Cluster> summaries = new HashMap<String, FL_Cluster>();
+			Map<String, FL_Cluster> owners = new HashMap<String, FL_Cluster>();
+			Map<String, FL_Entity> entities = new HashMap<String, FL_Entity>();
+
+			// fetch all accounts for account owners
+			Map<String, List<FL_Entity>> accountsForAccountOwners = dataAccess.getAccounts(accountOwners);
+			
+			// fetch all cluster summaries, indexed by owner
+			for (FL_Cluster clusterSummary : clusterAccess.getClusterSummary(new ArrayList<String>(clusterSummaries.values()))) {
+				String ownerId = (String)ClusterHelper.getFirstPropertyByTag(clusterSummary, FL_PropertyTag.ACCOUNT_OWNER).getValue();
+
+				summaries.put(ownerId, clusterSummary);
+			}
+			
+			// Ok, now process the entities.  If the entity key is in the accounts map, construct account owner, otherwise use the entity
+			for (FL_Entity entity : searchedEntities) {
+
+				// If this is an account owner then construct an account owner cluster
+				if (accountsForAccountOwners.containsKey(entity.getUid())) {
+					List<FL_Entity> accounts = accountsForAccountOwners.get(entity.getUid());
+					if (accounts != null) {
+						FL_Cluster owner = clusterFactory.toAccountOwnerSummary(entity, accounts, new ArrayList<FL_Cluster>(0));
+						owners.put(owner.getUid(), owner);
+					}
+				} else if (!clusterSummaries.containsKey(entity.getUid())) {  // if not a cluster summary then add entity
+					entities.put(entity.getUid(), entity);
+				}
+					
+			}
+			
+			JSONArray jsonRoleResults = new JSONArray();
+			JSONObject jo;
+
+			// Build the JSON results by Role and entity
 			for (Map.Entry<String,List<FL_EntityMatchResult>> entry : roleResults.entrySet()) {
 				JSONArray jsonRoleResultSet = new JSONArray();
 				
 				for (FL_EntityMatchResult emr : entry.getValue()) {
 					String Uid = emr.getEntity().getUid();
 
-					// Only return results that match entity details 
-					for (FL_Entity entity : entities) {
-						String nId = TypedId.fromTypedId(entity.getUid()).getNativeId();
-						if (nId.equals(Uid)) {
-							JSONObject jo = UISerializationHelper.toUIJson(entity); 
+					try {
+						if (entities.containsKey(Uid)) {
+							Object obj = entities.get(Uid); 
+							
+							if (obj instanceof FL_Cluster) {
+								FL_Cluster cluster = (FL_Cluster)obj;
+								jo = UISerializationHelper.toUIJson(cluster);
+								jsonRoleResultSet.put(jo);
+							} else {
+								FL_Entity entity = (FL_Entity)obj;
+								jo = UISerializationHelper.toUIJson(entity);
+							}
+							
 							jsonRoleResultSet.put(jo);
-							break;
 						}
-					}
+	
+						if (owners.containsKey(Uid)) {
+							FL_Cluster owner = owners.get(Uid); 
+							jo = UISerializationHelper.toUIJson(owner);
+							jsonRoleResultSet.put(jo);
+						}
+						
+						if (summaries.containsKey(Uid)) {
+							FL_Cluster owner = summaries.get(Uid); 
+							jo = UISerializationHelper.toUIJson(owner);
+							jsonRoleResultSet.put(jo);
+						}	
+						
+					} catch (NullPointerException npe) {
+						s_logger.error("Error serializing entity with uid: " + Uid + ".   Omitting from results.");
+						continue;
+					} 
 				}
 				
 				JSONObject jsonRoleResult = new JSONObject();
@@ -310,7 +425,8 @@ public class PatternSearchResource extends ApertureServerResource{
 				jsonRoleResult.put("results", jsonRoleResultSet);
 				jsonRoleResults.put(jsonRoleResult);
 			}
-			
+				
+			JSONObject result = new JSONObject();
 			result.put("roleResults", jsonRoleResults);
 			result.put("graphResults", AvroUtils.encodeJSON(searchResults));
 			result.put("totalResults", searchResults.getTotal());

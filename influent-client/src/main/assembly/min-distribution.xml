@@ -12,6 +12,15 @@
 		<fileSet>
 			<outputDirectory/>
 			<directory>${project.build.directory}/webapp-build</directory>
+			<excludes>
+				<exclude>index.html</exclude>
+				<exclude>theme/app.less</exclude>
+			</excludes>
+		</fileSet>
+		<fileSet>
+			<outputDirectory/>
+			<directory>${baseProjectFiltered}</directory>
+			<filtered>true</filtered>
 		</fileSet>
 	</fileSets>
 	<dependencySets>

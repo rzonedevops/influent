@@ -29,7 +29,7 @@ public class ClustererProperties {
 	public static final String ENABLE_STOPWORDS = "entity.clusterer.enablestopwords";
 	public static final String STOP_WORDS = "entity.clusterer.stopwords";
 	public static final String CLUSTER_FIELDS = "entity.clusterer.clusterfields";
-	public static final String MIN_CLUSTER_SIZE = "entity.clusterer.minclustersize";
+	public static final String MAX_CLUSTER_SIZE = "entity.clusterer.maxclustersize";
 	public static final String CLUSTER_PROPERTIES = "entity.clusterer.clusterproperties";
 	
 }

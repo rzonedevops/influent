@@ -37,6 +37,8 @@ import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.kiva.server.dataaccess.KivaPropertyMapping;
 import influent.kiva.server.dataaccess.KivaPropertyMaps;
+import influent.server.clustering.ClusterDistributionProperty;
+import influent.server.clustering.utils.ClustererProperties;
 import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
@@ -48,6 +50,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import oculus.aperture.spi.common.Properties;
 import org.apache.avro.AvroRemoteException;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
@@ -64,20 +67,25 @@ import org.slf4j.Logger;
 
 public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 
+	private final Properties _config;
+	private String _imageURLPrefix = "";
+
 	private static Logger s_logger = org.slf4j.LoggerFactory.getLogger(KivaAnonEntitySearchIterator.class);
 	
 	private static HashSet<String> LENDER_IGNORE_FIELDS = new HashSet<String>(Arrays.asList("id", "lender_personalURL", "text", "image_id"));
 	
-	public KivaAnonEntitySearchIterator(SolrServer server, SolrQuery q, FL_Geocoding geocoding) {
-		super(server, q, geocoding);
-
+	public KivaAnonEntitySearchIterator(SolrServer server, SolrQuery q, Properties config, FL_Geocoding geocoding) {
+		super(server, q, config, geocoding);
+		_config = config;
+		_imageURLPrefix = _config.getString("influent.kiva.imageURL", 
+											"http://www.kiva.org/img/w400/");
 	}
 	
 	@Override
 	protected Logger getLogger() {
 		return s_logger;
 	}
-	
+
 	@Override
 	protected FL_Entity buildEntityFromDocument(SolrDocument sd) {
 		
@@ -125,7 +133,7 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 		
 		for (Object url :  imageURLs) {
 		
-			String imageURL = "http://www.kiva.org/img/w400/" + url.toString() + ".jpg";
+			String imageURL = _imageURLPrefix + url.toString() + ".jpg";
 			
 			// Add a Kiva image
 			props.add(FL_Property.newBuilder().setKey("image")
@@ -227,9 +235,9 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 				
 				//Special case value handling - jodatime
 				if (val instanceof Date) {
-					propBuilder.setRange(new SingletonRangeHelper(((Date)val).getTime(), FL_PropertyType.OTHER));
+					propBuilder.setRange(new SingletonRangeHelper(((Date)val).getTime(), FL_PropertyType.DATE));
 				} else if (val instanceof DateTime) {
-					propBuilder.setRange(new SingletonRangeHelper(((DateTime)val).getMillis(), FL_PropertyType.OTHER));
+					propBuilder.setRange(new SingletonRangeHelper(((DateTime)val).getMillis(), FL_PropertyType.DATE));
 				} else {
 					propBuilder.setRange(new SingletonRangeHelper(val, FL_PropertyType.OTHER));
 				}

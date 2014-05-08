@@ -24,7 +24,6 @@
  */
 package influent.server.clustering;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,21 +36,24 @@ import org.apache.avro.AvroRemoteException;
 import com.oculusinfo.ml.DataSet;
 import com.oculusinfo.ml.Instance;
 import com.oculusinfo.ml.feature.spatial.GeoSpatialFeature;
-import com.oculusinfo.ml.feature.spatial.centroid.GeoSpatialCentroid;
+import com.oculusinfo.ml.feature.spatial.centroid.FastGeoSpatialCentroid;
 import com.oculusinfo.ml.feature.spatial.distance.HaversineDistance;
 import com.oculusinfo.ml.unsupervised.cluster.BaseClusterer;
 import com.oculusinfo.ml.unsupervised.cluster.Cluster;
 import com.oculusinfo.ml.unsupervised.cluster.ClusterResult;
 import com.oculusinfo.ml.unsupervised.cluster.dpmeans.DPMeans;
-
 import influent.idl.FL_Cluster;
 import influent.idl.FL_ContinentCode;
 import influent.idl.FL_Country;
+import influent.idl.FL_DistributionRange;
 import influent.idl.FL_Entity;
 import influent.idl.FL_Frequency;
 import influent.idl.FL_GeoData;
 import influent.idl.FL_Geocoding;
+import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
+import influent.idlhelper.ClusterHelper;
+import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.clustering.utils.EntityClusterFactory;
 
@@ -79,71 +81,167 @@ public class GeoEntityClusterer extends BaseEntityClusterer {
 		 }
 	}
 	
-	private Map<String, FL_Country> createGeoCache(Collection<FL_Entity> entities) {
-		Map<String, FL_Country> geoCache = new HashMap<String, FL_Country>();
+	private String toGeoKey(FL_GeoData geo) {
+		String key = "Unknown";
 		
-		// create geo Cache
-		for (FL_Entity entity : entities) {
-			PropertyHelper prop = getFirstProperty(entity, clusterField);
-			if (prop != null) {
+		try {
+			List<FL_Country> country = null;
+			switch (level) {
+			case Continent:
+				country = geoCoder.getCountries(Collections.singletonList(geo));
+				if (country != null && !country.isEmpty() && country.get(0) != null) {
+					FL_ContinentCode continent = country.get(0).getContinent();
+					if (continent != null && !continent.name().isEmpty()) {
+						key = continent.name();
+					}
+				}
+				break;
+			case Region:
+				country = geoCoder.getCountries(Collections.singletonList(geo));
+				if (country != null && !country.isEmpty() && country.get(0) != null) {
+					String region = country.get(0).getRegion();
+					if (region != null && !region.isEmpty()) {
+						key = country.get(0).getRegion();
+					}
+				}
+				break;
+			case Country:
+				String cc = geo.getCc();
+				if (cc != null && !cc.isEmpty()) {
+					key = cc;
+				}
+				break;
+			default:
+				break;
+			}
+		} catch (AvroRemoteException e) {
+			log.error("Cluster geo field is not a valid FL_GeoData object! Ignoring.");
+		}
+		return key;
+	}
+	
+	@Override
+	protected String getBucketKey(FL_Cluster cluster, ClusterContext context) {
+		String key = "Unknown";
+		
+		PropertyHelper prop = getFirstProperty(cluster, FL_PropertyType.GEO.name());
+		if (prop != null) {
+			@SuppressWarnings("unchecked")
+			List<FL_Frequency> dist = (List<FL_Frequency>)prop.getValue();
+			if (!dist.isEmpty()) {
+				FL_Frequency freq = dist.get(0);
+				FL_GeoData geo = (FL_GeoData)freq.getRange();	
+				key = toGeoKey(geo);
+			}
+		}
+		return key;
+	}
+
+	@Override
+	protected String getBucketKey(FL_Entity entity) {
+		String key = "UNKNOWN";
+		
+		PropertyHelper prop = getFirstProperty(entity, clusterField);
+		if (prop != null) {
+			FL_GeoData geo = (FL_GeoData)prop.getValue();
+			key = toGeoKey(geo);
+		}
+		return key;
+	}
+	
+	private Instance createInstance(String id, FL_GeoData geo) {
+		Instance inst = new Instance(id);
+		
+		double lat = 0.0, lon = 0.0;
+		
+		// sanity check
+		if (geo != null && geo.getLat() != null && geo.getLon() != null) {
+			lat = geo.getLat();
+			lon = geo.getLon();
+		}
+		
+		GeoSpatialFeature feature = new GeoSpatialFeature("geo");
+		feature.setValue(lat, lon);
+		inst.addFeature( feature );
+		
+		return inst;
+	}
+	
+	private FL_GeoData getGeoValue(PropertyHelper property) {
+		FL_GeoData geo = null;
+		
+		// try to read the latitude and longitude of the entity
+		if (property != null && property.getRange() != null) {
+			if (property.getRange() instanceof FL_DistributionRange) {
+				@SuppressWarnings("unchecked")
+				List<FL_Frequency> dist = (List<FL_Frequency>)property.getValue();
+				if (!dist.isEmpty()) {
+					FL_Frequency freq = dist.get(0);
+					geo = (FL_GeoData) freq.getRange();	
+				}
+			}
+			else {
+				geo = (FL_GeoData) property.getValue();
+			}
+			
+			// if the geo property is missing valid lat/long try to use the latitude and longitude of the country
+			if (geo == null || geo.getLat() == null || geo.getLon() == null || (geo.getLat() == 0 && geo.getLon() == 0)) {
 				try {
-					FL_GeoData geo = (FL_GeoData)prop.getValue();
 					List<FL_Country> countries = geoCoder.getCountries(Collections.singletonList(geo));
 					if (!countries.isEmpty()) {
 						FL_Country country = countries.get(0);
-						geoCache.put(entity.getUid(), country);
+						if (country != null) {
+							geo = country.getCountry();
+						}
 					}
-				}
-				catch (Exception e) {
-					log.error("Geo field is not an FL_GeoData object! Ignoring.");
-				}
+				} catch (AvroRemoteException e) { /* ignore */ }
 			}
 		}
-		return geoCache;
+		return geo;
 	}
 	
-	private DataSet createDataSet(Collection<FL_Entity> entities, Map<String, FL_Country> geoCache) {
+	private DataSet createDataSet(Collection<FL_Entity> entities,
+								  Collection<FL_Cluster> immutableClusters) {
 		DataSet ds = new DataSet();
 		
 		for (FL_Entity entity : entities) {			
-			FL_Country country = geoCache.get(entity.getUid());
+			PropertyHelper prop = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.GEO);
+			FL_GeoData geo = getGeoValue(prop);
 			
-			Double lat = 0.0, lon = 0.0;
-			
-			if (country != null) {
-				FL_GeoData geo = country.getCountry();
-				
-				if (geo.getLat() != null) {
-					lat = geo.getLat();
-				}
-				if (geo.getLon() != null) {
-					lon = geo.getLon();
-				}
+			if (geo != null) {
+				Instance inst = createInstance(entity.getUid(), geo);		
+				ds.add(inst);
 			}
+		}
+		for (FL_Cluster immutableCluster : immutableClusters) {
+			PropertyHelper prop = getFirstProperty(immutableCluster, FL_PropertyType.GEO.name());
+			FL_GeoData geo = getGeoValue(prop);
 			
-			Instance inst = new Instance(entity.getUid());
-			GeoSpatialFeature feature = new GeoSpatialFeature("geo");
-			feature.setValue(lat, lon);
-			inst.addFeature( feature );
-			ds.add(inst);
+			if (geo != null) {
+				Instance inst = createInstance(immutableCluster.getUid(), geo);		
+				ds.add(inst);
+			}
 		}
 		return ds;
 	}
 	
 	private BaseClusterer createGeoClusterer() {
 		DPMeans clusterer = new DPMeans(3, true);
-		clusterer.setThreshold(0.2);
-		clusterer.registerFeatureType("geo", GeoSpatialCentroid.class, new HaversineDistance(1.0));
+		clusterer.setThreshold(0.01);
+		clusterer.registerFeatureType("geo", FastGeoSpatialCentroid.class, new HaversineDistance(1.0));
 		return clusterer;
 	}
 	
 	@SuppressWarnings("unchecked")
-	private Map<String, FL_Cluster> clusterByLatLon(Collection<FL_Entity> entities, Collection<FL_Cluster> clusters, Map<String, FL_Country> geoCache) {
+	private Map<String, FL_Cluster> clusterByLatLon(Collection<FL_Entity> entities,
+													Collection<FL_Cluster> immutableClusters,
+													Collection<FL_Cluster> clusters) {
 		// Haversine clustering
 		Map<String, FL_Entity> entityIndex = createEntityIndex(entities);
+		Map<String, FL_Cluster> immutableClusterIndex = createClusterIndex(immutableClusters);
 		Map<String, FL_Cluster> clusterIndex = createClusterIndex(clusters);
 					
-		DataSet ds = createDataSet(entities, geoCache);
+		DataSet ds = createDataSet(entities, immutableClusters);
 					
 		BaseClusterer clusterer = createGeoClusterer();
 		
@@ -174,139 +272,54 @@ public class GeoEntityClusterer extends BaseEntityClusterer {
 		
 		ClusterResult rs = clusterer.doIncrementalCluster(ds, existingClusters);
 		
+		// clean up
+		clusterer.terminate();
+		
 		Map<String, FL_Cluster> modifiedClusters = new HashMap<String, FL_Cluster>();
 		
 		for (Cluster c : rs) {
+			List<FL_Cluster> subClusters = new LinkedList<FL_Cluster>();
 			List<FL_Entity> members = new LinkedList<FL_Entity>();
 			
 			for (Instance inst : c.getMembers()) {
-				members.add( entityIndex.get(inst.getId()) );
+				String id = inst.getId();
+				if (entityIndex.containsKey(id)) {
+					members.add( entityIndex.get(inst.getId()) );
+				}
+				else if (immutableClusterIndex.containsKey(id)){
+					subClusters.add( immutableClusterIndex.get(id) );
+				}
 			}
 			FL_Cluster cluster = clusterIndex.get(c.getId());
 			if (cluster == null) {
-				cluster = this.clusterFactory.toCluster(members, null);
+				cluster = clusterFactory.toCluster(members, subClusters);
 			}
 			else {
-				for (FL_Entity entity : members) {
-					cluster.getMembers().add(entity.getUid());
-				}
+				ClusterHelper.addMembers(cluster, members);
+				EntityClusterFactory.setEntityCluster(members, cluster);
+				
+				for (FL_Cluster subCluster : subClusters) {
+					ClusterHelper.addSubCluster(cluster, subCluster);
+					subCluster.setParent(cluster.getUid());
+				}			
 			}
 			modifiedClusters.put(cluster.getUid(), cluster);
 		}
 		return modifiedClusters;
 	}
 	
-	private Map<String, List<FL_Entity>> bucketByGeo(Collection<FL_Entity> entities, Map<String, FL_Country> geoCache, GEO_LEVEL level) {
-		Map<String, List<FL_Entity>> buckets = new HashMap<String, List<FL_Entity>>();
-		
-		// bucket by geo level
-		for (FL_Entity entity : entities) {
-			String value = "Unknown";
-			FL_Country country = geoCache.get(entity.getUid());
-			if (country != null) {
-				switch (level) {
-				case Continent:
-					value = country.getContinent().name();
-					break;
-				case Region:
-					value = country.getRegion();
-					break;
-				case Country:
-					value = country.getCountry().getCc();
-					break;
-				default:
-					break;
-				}
-			}
-			if (!buckets.containsKey(value)) {
-				buckets.put(value, new LinkedList<FL_Entity>());
-			}
-			buckets.get(value).add(entity);
-		}
-		return buckets;
-	}
-	
-	@SuppressWarnings("unchecked")
-	private Map<String, FL_Cluster> retrieveClusterBuckets(Collection<FL_Cluster> clusters) {
-		Map<String, FL_Cluster> buckets = new HashMap<String, FL_Cluster>();
-		
-		for (FL_Cluster cluster : clusters) {
-			String value = "Unknown";
-			
-			PropertyHelper prop = getFirstProperty(cluster, FL_PropertyType.GEO.name());
-			if (prop != null) {
-				List<FL_Frequency> dist = (List<FL_Frequency>)prop.getValue();
-				if (!dist.isEmpty()) {
-					try {
-						FL_Frequency freq = dist.get(0);
-						FL_GeoData geo = (FL_GeoData)freq.getRange();
-						List<FL_Country> country = null;
-						switch (level) {
-						case Continent:
-							country = geoCoder.getCountries(Collections.singletonList(geo));
-							if (country != null && !country.isEmpty() && country.get(0) != null) {
-								FL_ContinentCode continent = country.get(0).getContinent();
-								if (continent != null && !continent.name().isEmpty()) {
-									value = continent.name();
-								}
-							}
-							break;
-						case Region:
-							country = geoCoder.getCountries(Collections.singletonList(geo));
-							if (country != null && !country.isEmpty() && country.get(0) != null) {
-								String region = country.get(0).getRegion();
-								if (region != null && !region.isEmpty()) {
-									value = country.get(0).getRegion();
-								}
-							}
-							break;
-						case Country:
-							String cc = geo.getCc();
-							if (cc != null && !cc.isEmpty()) {
-								value = cc;
-							}
-							break;
-						default:
-							break;
-						}
-					} catch (AvroRemoteException e) {
-						log.error("Cluster geo field is not an FL_GeoData object! Ignoring.");
-					}
-				}
-			}
-			buckets.put(value, cluster);
-		}
-		return buckets;
-	}
-	
 	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities) {
-		return this.clusterEntities(entities, new ArrayList<FL_Cluster>(0), new ClusterContext());
-	}
-	
-	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities, ClusterContext context) {	
-		throw new UnsupportedOperationException();
-	}
-	
-	@Override
-	public ClusterContext clusterEntities(Collection<FL_Entity> entities, Collection<FL_Cluster> clusters, ClusterContext context) {		
-		Map<String, FL_Cluster> modifiedClusters = null;
+	public ClusterContext clusterEntities(Collection<FL_Entity> entities,
+										  Collection<FL_Cluster> immutableClusters,
+										  Collection<FL_Cluster> clusters, 
+										  ClusterContext context) {		
 		
-		Map<String, FL_Country> geoCache = createGeoCache(entities);
+		if (level != GEO_LEVEL.LatLon) {
+			return super.clusterEntities(entities, immutableClusters, clusters, context);
+		}
 		
-		if (level == GEO_LEVEL.LatLon) {
-			modifiedClusters = clusterByLatLon(entities, clusters, geoCache);
-		}
-		else {
-			Map<String, FL_Cluster> prevBuckets = retrieveClusterBuckets(clusters);
-			
-			// bucket by geo
-			Map<String, List<FL_Entity>> buckets = bucketByGeo(entities, geoCache, level);
-			
-			// merge the buckets with the previous Buckets
-			modifiedClusters = mergeBuckets(buckets, prevBuckets);
-		}
+		// Cluster by latitude and longitude
+		Map<String, FL_Cluster> modifiedClusters = clusterByLatLon(entities, immutableClusters, clusters);
 		
 		ClusterContext result = new ClusterContext();
 		result.roots.putAll(modifiedClusters);

@@ -61,15 +61,22 @@ public class ConfigFileDescriptors {
 
 	private Map<String, List<FL_PropertyDescriptor>> _descriptors;
 
+	
+	
 	public ConfigFileDescriptors() {
 		_descriptors = new LinkedHashMap<String, List<FL_PropertyDescriptor>>();
 	}
-
+	
+	
+	
+	
 	public Map<String, List<FL_PropertyDescriptor>> getEntityDescriptors() {
 		return _descriptors;
 	}
-
-	@SuppressWarnings("resource")
+	
+	
+	
+	
 	public void readDescriptorsFromFile(String fileName) throws IOException {		
 		File file = new File("./conf/" + fileName);
 		InputStream is;
@@ -187,7 +194,5 @@ public class ConfigFileDescriptors {
 		is.close();
 		isr.close();
 		br.close();
-
 	}
-
 }

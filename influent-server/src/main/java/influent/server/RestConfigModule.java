@@ -29,20 +29,23 @@ import influent.server.rest.AggregatedLinkResource;
 import influent.server.rest.BigChartResource;
 import influent.server.rest.CacheStatsResource;
 import influent.server.rest.ChartResource;
-import influent.server.rest.ContainedEntitiesResource;
 import influent.server.rest.EntityDetailsResource;
 import influent.server.rest.EntityLookupResource;
 import influent.server.rest.EntitySearchParamsResource;
 import influent.server.rest.EntitySearchResource;
 import influent.server.rest.ExportGraphResource;
 import influent.server.rest.ExportTransactionTableResource;
+import influent.server.rest.ImportGraphResource;
+import influent.server.rest.LeafEntityLookupResource;
 import influent.server.rest.ModifyContextResource;
 import influent.server.rest.PatternSearchResource;
 import influent.server.rest.PersistenceResource;
 import influent.server.rest.RelatedLinkResource;
 import influent.server.rest.TransactionTableResource;
 import influent.server.spi.ExportDataService;
-import influent.server.spi.impl.anb.AnbExportDataService;
+import influent.server.spi.ImportDataService;
+import influent.server.spi.impl.graphml.GraphMLExportDataService;
+import influent.server.spi.impl.graphml.GraphMLImportDataService;
 import oculus.aperture.common.rest.ResourceDefinition;
 
 import org.slf4j.Logger;
@@ -75,7 +78,8 @@ public class RestConfigModule extends AbstractModule {
 		}
 		
 		// Bind the export mechanism implementation
-		bind(ExportDataService.class).to(AnbExportDataService.class);
+		bind(ExportDataService.class).to(GraphMLExportDataService.class);
+		bind(ImportDataService.class).to(GraphMLImportDataService.class);
 		
 	    MapBinder<String, ResourceDefinition> resourceBinder =
 			MapBinder.newMapBinder(binder(), String.class, ResourceDefinition.class);
@@ -92,9 +96,10 @@ public class RestConfigModule extends AbstractModule {
 		resourceBinder.addBinding("/entities").toInstance(new ResourceDefinition(EntityLookupResource.class));
 		resourceBinder.addBinding("/exporttransactions").toInstance(new ResourceDefinition(ExportTransactionTableResource.class));
 		resourceBinder.addBinding("/persist").toInstance(new ResourceDefinition(PersistenceResource.class));
-		resourceBinder.addBinding("/containedentities").toInstance(new ResourceDefinition(ContainedEntitiesResource.class));
+		resourceBinder.addBinding("/containedentities").toInstance(new ResourceDefinition(LeafEntityLookupResource.class));
 		resourceBinder.addBinding("/modifycontext").toInstance(new ResourceDefinition(ModifyContextResource.class));
 		resourceBinder.addBinding("/export").toInstance(new ResourceDefinition(ExportGraphResource.class));
+		resourceBinder.addBinding("/import").toInstance(new ResourceDefinition(ImportGraphResource.class));
 		resourceBinder.addBinding("/entitydetails").toInstance(new ResourceDefinition(EntityDetailsResource.class));
 		resourceBinder.addBinding("/cachestats").toInstance(new ResourceDefinition(CacheStatsResource.class));
 	}

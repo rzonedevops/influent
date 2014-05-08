@@ -51,9 +51,9 @@ import influent.server.utilities.TypedId;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -84,34 +84,45 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 	public static final String s_kivaTypeKey = "kiva_type";
 	private static Logger s_logger = LoggerFactory.getLogger(KivaDataAccess.class);
 
-	
 	// --- Financials ---
-	public static final String FINANCIALS 									= "Financials";
-	public static final String FINANCIALS_FROM 								= "Financials_FromEntityId";
-	public static final String FINANCIALS_TO 								= "Financials_ToEntityId";
-	public static final String FINANCIALS_DATE 								= "Financials_Date";
-	public static final String FINANCIALS_AMOUNT 							= "Financials_Amount";
-	public static final String FINANCIALS_COMMENT 							= "Financials_Comment";
-	public static final String FINANCIALS_LOANID 							= "Financials_LoanId";
+	public static final String FINANCIALS 			= "Financials";
+	public static final String FINANCIALS_FROM 		= "Financials_FromEntityId";
+	public static final String FINANCIALS_TO 		= "Financials_ToEntityId";
+	public static final String FINANCIALS_DATE 		= "Financials_Date";
+	public static final String FINANCIALS_AMOUNT 	= "Financials_Amount";
+	public static final String FINANCIALS_COMMENT 	= "Financials_Comment";
+	public static final String FINANCIALS_LOANID 	= "Financials_LoanId";
 	
 	// --- Brokers ---
-	public static final String PARTNER_BROKERS 								= "PartnerBrokers";
+	public static final String PARTNER_BROKERS 		= "PartnerBrokers";
+	
+	private static DecimalFormat world_df = new DecimalFormat("#,##0.00;-#,##0.00");
+	
+	private static String[] MONETARY_SUFFIX = new String[]{"","k", "m", "b", "t"};
+	
 	
 	
 	@Inject	
 	public KivaDataAccess(
-			SQLConnectionPool connectionPool,
-			FL_EntitySearch search,
-			DataNamespaceHandler namespaceHandler)
-			throws ClassNotFoundException, SQLException, JSONException {
+		SQLConnectionPool connectionPool,
+		FL_EntitySearch search,
+		DataNamespaceHandler namespaceHandler
+	) throws ClassNotFoundException, SQLException, JSONException {
 		super(connectionPool, search, namespaceHandler);
 	}
+	
+	
+	
 	
 	/**
 	 * TODO: push this change down from a list of singleton match descriptors to a single list match descriptor
 	 */
 	@Override
-	public List<FL_Entity> getEntities(List<String> entities, FL_LevelOfDetail levelOfDetail) throws AvroRemoteException {
+	public List<FL_Entity> getEntities(
+		List<String> entities, 
+		FL_LevelOfDetail levelOfDetail
+	) throws AvroRemoteException {
+	
 		//Construct the id search query for the search
 		
 		List<FL_Entity> results = new ArrayList<FL_Entity>();
@@ -195,9 +206,192 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 	}
 	
 	
-	private static DecimalFormat world_df = new DecimalFormat("#,##0.00;-#,##0.00");
 	
-	private List<FL_Link> fetchTransactions(Statement stmt, String sql, List<String> entities, FL_SortBy sort, FL_TransactionResults.Builder results) throws SQLException {
+	
+	@Override
+	public FL_TransactionResults getAllTransactions(
+		List<String> entities,
+		FL_LinkTag tag,
+		FL_DateRange dateRange,
+		FL_SortBy sort,
+		List<String> linkFilter,
+		long start,
+		long max
+	) throws AvroRemoteException {
+		
+		final List<String> summaryIds = TypedId.filterTypedIds(entities, TypedId.CLUSTER_SUMMARY);
+		final List<String> entityIds = TypedId.filterTypedIds(entities, TypedId.ACCOUNT);
+		entityIds.addAll(TypedId.filterTypedIds(entities, TypedId.ACCOUNT_OWNER));
+		
+		final List<String> ns_summaries = TypedId.nativeFromTypedIds(summaryIds);
+		final List<String> ns_entities = TypedId.nativeFromTypedIds(entityIds);
+		final List<String> ns_filters = linkFilter != null? TypedId.nativeFromTypedIds(linkFilter): null;
+
+		final List<FL_Link> links = new ArrayList<FL_Link>();
+		final FL_TransactionResults.Builder results = FL_TransactionResults.newBuilder().setResults(links);
+		
+		try {
+			Connection connection = _connectionPool.getConnection();
+			
+			DateTime startDate = DataAccessHelper.getStartDate(dateRange);
+			DateTime endDate = DataAccessHelper.getEndDate(dateRange);
+			
+			final String financials = getNamespaceHandler().tableName(null, FINANCIALS);
+			
+			// fetch all account transactions
+			List<String> idsCopy = new ArrayList<String>(ns_entities); // copy the ids as we will take 100 at a time to process and the take method is destructive
+			while (idsCopy.size() > 0) {
+				List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
+				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
+				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
+								
+				String preparedStatementString = buildTransactionPreparedStatementString(subIds, false, financials, ns_filters, sort, max);
+				PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
+				
+				setTransactionPreparedStatement(stmt, false, subIds, ns_filters, startDate, endDate);
+				
+				links.addAll(
+					fetchTransactions(
+						stmt, 
+						ns_entities, 
+						sort, 
+						results
+					)
+				);
+				
+				stmt.close();
+			}
+			
+			final List<String> ns_summaryEntities = getSummaryEntities(connection, ns_summaries);
+			
+			// fetch all summary transactions
+			idsCopy = new ArrayList<String>(ns_summaries); // copy the ids as we will take 100 at a time to process and the take method is destructive
+			while (idsCopy.size() > 0) {
+				List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
+				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
+				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
+								
+				String preparedStatementString = buildTransactionPreparedStatementString(subIds, true, financials, ns_filters, sort, max);
+				PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
+
+				setTransactionPreparedStatement(stmt, true, subIds, ns_filters, startDate, endDate);
+				
+				links.addAll(
+					fetchTransactions(
+						stmt, 
+						ns_summaryEntities, 
+						sort, 
+						results
+					) 
+				);
+				
+				stmt.close();
+			}
+			
+			connection.close();
+		} catch (SQLException e) {
+			throw new AvroRemoteException(e);
+		} catch (ClassNotFoundException e) {
+			throw new AvroRemoteException(e);
+		}
+
+		return results.build();
+	}
+
+
+
+
+	@Override
+	public Map<String, List<FL_Entity>> getAccounts(
+		List<String> entities
+	) throws AvroRemoteException {
+
+		final List<String> ns_entities = TypedId.nativeFromTypedIds(entities);
+		Map<String, List<FL_Entity>> map = new HashMap<String, List<FL_Entity>>();
+		
+		if (ns_entities.isEmpty()) return map;
+		
+		try {
+			List<String> accounts = new LinkedList<String>();
+			
+			Connection connection = _connectionPool.getConnection();
+			
+			String partnerBrokersTable = getNamespaceHandler().tableName(null, PARTNER_BROKERS);
+			
+			String preparedStatementString = buildPreparedStatementForGetAccounts(
+				ns_entities.size(),
+				partnerBrokersTable
+			);
+			PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
+			
+			int index = 1;
+			
+			for (int i = 0; i < ns_entities.size(); i++) {
+				stmt.setString(index++, getNamespaceHandler().toSQLId(ns_entities.get(i), null));
+			}
+
+			ResultSet rs = stmt.executeQuery();
+			while (rs.next()) {
+				String accountId = TypedId.fromNativeId(TypedId.ACCOUNT, rs.getString("entityId")).getTypedId();
+				accounts.add(accountId);
+			}
+
+			
+			for (FL_Entity entity : getEntities(accounts, FL_LevelOfDetail.SUMMARY) ) {
+				String ownerId = (String)EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.ACCOUNT_OWNER).getValue();
+				
+				if (!map.containsKey(ownerId)) {
+					map.put(ownerId, new LinkedList<FL_Entity>());
+				}
+				map.get(ownerId).add(entity);
+			}
+			
+			stmt.close();
+			connection.close();
+		}
+		catch (Exception e) {
+			throw new AvroRemoteException(e);
+		}
+		return map;
+	}
+	
+	
+	
+	
+	private String buildPreparedStatementForGetAccounts(
+		int numIds,
+		String partnerBrokersTable
+	) {
+		if (numIds < 1 || 
+			partnerBrokersTable == null
+		) {
+			s_logger.error("buildPreparedStatementForGetAccounts: Invalid parameter");
+			return null;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("SELECT entityId, rawEntityId ");
+		sb.append("FROM " + partnerBrokersTable + " ");
+		sb.append("WHERE rawEntityId IN (");
+		for (int i = 1; i < numIds; i++) {
+			sb.append("?, ");
+		}
+		sb.append("?) ");
+		
+		return sb.toString();
+	}
+
+
+
+
+	private List<FL_Link> fetchTransactions(
+		PreparedStatement stmt, 
+		List<String> entities, 
+		FL_SortBy sort, 
+		FL_TransactionResults.Builder results
+	) throws SQLException {
+		
 		final List<FL_Link> links = new ArrayList<FL_Link>();
 		
 		String fromColumn = unescapeName(getNamespaceHandler().columnName(FINANCIALS_FROM));
@@ -207,96 +401,94 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 		String amountColumn = unescapeName(getNamespaceHandler().columnName(FINANCIALS_AMOUNT));
 		String commentColumn = unescapeName(getNamespaceHandler().columnName(FINANCIALS_COMMENT));
 		
-		if (stmt.execute(sql)) {
-			ResultSet rs = stmt.getResultSet();
-			while (rs.next()) {
-				String from = rs.getString(fromColumn);
+		ResultSet rs = stmt.executeQuery();
+		while (rs.next()) {
+			String from = rs.getString(fromColumn);
+			
+			if (from == null) {
+				results.setTotal(rs.getLong(loanIdColumn));
 				
-				if (from == null) {
-					results.setTotal(rs.getLong(loanIdColumn));
-					
-					continue;
-				}
-				
-				String to = rs.getString(toColumn);
-				Date date = new Date(rs.getTimestamp(dateColumn).getTime());
-				Double amount = rs.getDouble(amountColumn);
-				String comment = rs.getString(commentColumn);
-				
-				Double credit = checkEntitiesContainsEntity(entities, to) ? amount : 0.0;
-				Double debit = checkEntitiesContainsEntity(entities, from) ? amount : 0.0;
-
-				// drop the postfix if we're sorting by amount so that linklist only has 1 value
-				// could probably generalize this but let's be conservative for safety's sake
-				if(FL_SortBy.AMOUNT == sort) {		
-					if(from.indexOf('-') != -1) {
-						from = from.substring(0, from.indexOf('-'));
-					}
-					if(to.indexOf('-') != -1) {
-						to = to.substring(0, to.indexOf('-'));
-					}
-				}
-				
-				// do some aesthetic enhancements on the comments field; this can be removed if the source tables 
-				// are cleaned or properly regenerated in the future
-				comment = formatCommentString(comment);
-				
-				List<FL_Property> properties = new ArrayList<FL_Property>();
-				properties.add(
-					new PropertyHelper(
-						"inflowing", 
-						"inflowing", 
-						credit, 
-						Arrays.asList(
-							FL_PropertyTag.INFLOWING, 
-							FL_PropertyTag.AMOUNT, 
-							FL_PropertyTag.USD
-						)
-					)
-				);
-				properties.add(
-					new PropertyHelper(
-						"outflowing", 
-						"outflowing", 
-						debit, 
-						Arrays.asList(
-							FL_PropertyTag.OUTFLOWING, 
-							FL_PropertyTag.AMOUNT, 
-							FL_PropertyTag.USD
-						)
-					)
-				);
-				properties.add(
-					new PropertyHelper(
-						"comment", 
-						"comment", 
-						comment, 
-						Collections.singletonList(
-							FL_PropertyTag.ANNOTATION
-						)
-					)
-				);
-				properties.add(
-					new PropertyHelper(
-						FL_PropertyTag.DATE, 
-						date
-					)
-				);
-				properties.add(
-					new PropertyHelper(
-						FL_PropertyTag.ID, 
-						rs.getString(loanIdColumn)
-					)
-				);
-				
-				FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), 
-						TypedId.fromNativeId(TypedId.ACCOUNT, from).toString(), 
-						TypedId.fromNativeId(TypedId.ACCOUNT, to).toString(), 
-						true, null, null, properties);
-				links.add(link);
+				continue;
 			}
-			rs.close();
+			
+			String to = rs.getString(toColumn);
+			Date date = new Date(rs.getTimestamp(dateColumn).getTime());
+			Double amount = rs.getDouble(amountColumn);
+			String comment = rs.getString(commentColumn);
+			
+			Double credit = checkEntitiesContainsEntity(entities, to) ? amount : 0.0;
+			Double debit = checkEntitiesContainsEntity(entities, from) ? amount : 0.0;
+
+			// drop the postfix if we're sorting by amount so that linklist only has 1 value
+			// could probably generalize this but let's be conservative for safety's sake
+			if(FL_SortBy.AMOUNT == sort) {		
+				if(from.indexOf('-') != -1) {
+					from = from.substring(0, from.indexOf('-'));
+				}
+				if(to.indexOf('-') != -1) {
+					to = to.substring(0, to.indexOf('-'));
+				}
+			}
+			
+			// do some aesthetic enhancements on the comments field; this can be removed if the source tables 
+			// are cleaned or properly regenerated in the future
+			comment = formatCommentString(comment);
+			
+			List<FL_Property> properties = new ArrayList<FL_Property>();
+			properties.add(
+				new PropertyHelper(
+					"inflowing", 
+					"inflowing", 
+					credit, 
+					Arrays.asList(
+						FL_PropertyTag.INFLOWING, 
+						FL_PropertyTag.AMOUNT, 
+						FL_PropertyTag.USD
+					)
+				)
+			);
+			properties.add(
+				new PropertyHelper(
+					"outflowing", 
+					"outflowing", 
+					debit, 
+					Arrays.asList(
+						FL_PropertyTag.OUTFLOWING, 
+						FL_PropertyTag.AMOUNT, 
+						FL_PropertyTag.USD
+					)
+				)
+			);
+			properties.add(
+				new PropertyHelper(
+					"comment", 
+					"comment", 
+					comment, 
+					Collections.singletonList(
+						FL_PropertyTag.ANNOTATION
+					)
+				)
+			);
+			properties.add(
+				new PropertyHelper(
+					FL_PropertyTag.DATE, 
+					date
+				)
+			);
+			properties.add(
+				new PropertyHelper(
+					FL_PropertyTag.ID, 
+					rs.getString(loanIdColumn)
+				)
+			);
+			
+			FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), 
+					TypedId.fromNativeId(TypedId.ACCOUNT, from).toString(), 
+					TypedId.fromNativeId(TypedId.ACCOUNT, to).toString(), 
+					true, null, null, properties);
+			links.add(link);
 		}
+		rs.close();
 		
 		return links;
 	}
@@ -315,7 +507,14 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 	
 	
 	
-	private String buildTransactionSQL(List<String> entities, boolean summaries, String tableName, DateTime startDate, DateTime endDate, List<String> linkFilter, FL_SortBy sort, long max) {
+	private String buildTransactionPreparedStatementString(
+		List<String> entities, 
+		boolean summaries, 
+		String tableName, 
+		List<String> linkFilter, 
+		FL_SortBy sort, 
+		long max
+	) {
 		
 		String fromColumn = getNamespaceHandler().columnName(FINANCIALS_FROM);
 		String toColumn = getNamespaceHandler().columnName(FINANCIALS_TO);
@@ -328,20 +527,13 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 		if (sort != null) {
 			switch (sort) {
 			case AMOUNT:
-				orderBy = " ORDER BY Amount DESC";
+				orderBy = "ORDER BY Amount DESC ";
 				break;
 			case DATE:
-				orderBy = " ORDER BY " + dateColumn + " ASC";
+				orderBy = "ORDER BY " + dateColumn + " ASC ";
 				break;
 			}
 		}
-		
-		String focusIds = "";
-		if (linkFilter != null) {
-			focusIds = DataAccessHelper.createNodeIdListFromCollection(linkFilter, true, false);
-		}
-		
-		String selector = "";
 		
 		if (summaries) {
 			String membersTable = getNamespaceHandler().tableName(null, DataAccessHelper.CLUSTER_SUMMARY_MEMBERS_TABLE);
@@ -352,33 +544,144 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 			String fromFocus = buildSearchIdsString(fromColumn, linkFilter);
 			String toFocus = buildSearchIdsString(toColumn, linkFilter);
 			
-			selector = " from " +tableName+ " f join " +membersTable+ " m on f."+fromColumn + " = m." + membersEntityIdColumn + " or f."+toColumn + " = m." + membersEntityIdColumn + " " +
-					" where f." + dateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+
-					"' and ((" + fromIds + (focusIds.isEmpty() ? "" : " and " + toFocus) +
-					") or (" + toIds + (focusIds.isEmpty() ? "" : " and " + fromFocus) +
-					")) ";
+			StringBuilder selectorBuilder = new StringBuilder();
 			
-			return "select " + fromColumn + "," + toColumn + "," + dateColumn + ", " + amountColumn + ", " + commentColumn + ", " + loanIdColumn + " from ("+
-					getNamespaceHandler().rowLimit("*"+ selector + orderBy, max) + ") a";
+			selectorBuilder.append("FROM " + tableName + " f ");
+			selectorBuilder.append("JOIN " + membersTable + " m ");
+			selectorBuilder.append("ON f." + fromColumn + " = m." + membersEntityIdColumn + " ");
+			selectorBuilder.append("OR f." + toColumn + " = m." + membersEntityIdColumn + " ");
+			selectorBuilder.append("WHERE f." + dateColumn + " BETWEEN ? AND ? ");
+			selectorBuilder.append("AND (( ");
+			selectorBuilder.append(fromIds + " ");
+			if (linkFilter != null && !linkFilter.isEmpty()) {
+				selectorBuilder.append("AND ");
+				selectorBuilder.append(toFocus + " ");
+			}
+			selectorBuilder.append(") OR ( ");
+			selectorBuilder.append(toIds + " ");
+			if (linkFilter != null && !linkFilter.isEmpty()) {
+				selectorBuilder.append("AND ");
+				selectorBuilder.append(fromFocus + " ");
+			}		
+			selectorBuilder.append(")) ");	
+			
+			StringBuilder sb = new StringBuilder();
+			
+			sb.append("SELECT ");
+			sb.append(fromColumn + ", ");
+			sb.append(toColumn + ", ");
+			sb.append(dateColumn + ", ");
+			sb.append(amountColumn + ", ");
+			sb.append(commentColumn + ", ");
+			sb.append(loanIdColumn + " ");
+			sb.append("FROM (");
+			sb.append(
+				getNamespaceHandler().rowLimit(
+					"* " + selectorBuilder.toString() + orderBy, 
+					max
+				)
+			);
+			sb.append(") a ");
+			
+			return sb.toString();
+			
 		} else {
+			
 			String fromIds = buildSearchIdsString(fromColumn, entities);
 			String toIds = buildSearchIdsString(toColumn, entities);
 			String fromFocus = buildSearchIdsString(fromColumn, linkFilter);
 			String toFocus = buildSearchIdsString(toColumn, linkFilter);
-		
-			selector = " from " +tableName+ 
-				" where " + dateColumn + " between '"+DataAccessHelper.format(startDate)+"' and '"+DataAccessHelper.format(endDate)+
-				"' and ((" + fromIds + (focusIds.isEmpty() ? "" : " and " + toFocus) +
-				") or (" + toIds + (focusIds.isEmpty() ? "" : " and " + fromFocus) +
-				")) ";
+
+			StringBuilder selectorBuilder = new StringBuilder();
 			
-			return "select " + fromColumn + "," + toColumn + "," + dateColumn + ", " + amountColumn + ", " + commentColumn + ", " + loanIdColumn + " from ("+
-						getNamespaceHandler().rowLimit("*"+ selector + orderBy, max)
-						+ ") a union all select NULL,NULL,NULL,NULL,NULL,COUNT(*)" + selector;
+			selectorBuilder.append("FROM " + tableName + " ");
+			selectorBuilder.append("WHERE " + dateColumn + " BETWEEN ? AND ? ");
+			selectorBuilder.append("AND (( ");
+			selectorBuilder.append(fromIds + " ");
+			if (linkFilter != null && !linkFilter.isEmpty()) {
+				selectorBuilder.append("AND ");
+				selectorBuilder.append(toFocus + " ");
+			}
+			selectorBuilder.append(") OR ( ");
+			selectorBuilder.append(toIds + " ");
+			if (linkFilter != null && !linkFilter.isEmpty()) {
+				selectorBuilder.append("AND ");
+				selectorBuilder.append(fromFocus + " ");
+			}		
+			selectorBuilder.append(")) ");	
+			
+			StringBuilder sb = new StringBuilder();
+			
+			sb.append("SELECT ");
+			sb.append(fromColumn + ", ");
+			sb.append(toColumn + ", ");
+			sb.append(dateColumn + ", ");
+			sb.append(amountColumn + ", ");
+			sb.append(commentColumn + ", ");
+			sb.append(loanIdColumn + " ");
+			sb.append("FROM (");
+			sb.append(
+				getNamespaceHandler().rowLimit(
+					"* " + selectorBuilder.toString() + orderBy, 
+					max
+				)
+			);
+			sb.append(") a ");
+			sb.append("UNION ALL SELECT NULL, NULL, NULL, NULL, NULL, COUNT(*) ");
+			sb.append(selectorBuilder.toString());
+			
+			return sb.toString();
 		}
 	}
 	
-	private List<String> getSummaryEntities(Statement stmt, List<String> entities) throws SQLException {
+	
+	
+	
+	private void setTransactionPreparedStatement(
+		PreparedStatement stmt,
+		boolean summaries, 
+		List<String> ids, 
+		List<String> focusIds, 
+		DateTime startDate,
+		DateTime endDate
+	) throws SQLException {
+		int index = 1;
+		
+		stmt.setString(index++, DataAccessHelper.format(startDate));
+		stmt.setString(index++, DataAccessHelper.format(endDate));
+		
+		index = setSearchIdsString(stmt, ids, index);
+		if (focusIds != null && !focusIds.isEmpty()) {
+			index = setSearchIdsString(stmt, focusIds, index);
+		}
+		index = setSearchIdsString(stmt, ids, index);
+		if (focusIds != null && !focusIds.isEmpty()) {
+			index = setSearchIdsString(stmt, focusIds, index);
+		}
+		
+		if (!summaries) {
+			stmt.setString(index++, DataAccessHelper.format(startDate));
+			stmt.setString(index++, DataAccessHelper.format(endDate));
+			
+			index = setSearchIdsString(stmt, ids, index);
+			if (focusIds != null && !focusIds.isEmpty()) {
+				index = setSearchIdsString(stmt, focusIds, index);
+			}
+			index = setSearchIdsString(stmt, ids, index);
+			if (focusIds != null && !focusIds.isEmpty()) {
+				index = setSearchIdsString(stmt, focusIds, index);
+			}
+		}
+	}
+	
+	
+	
+	
+	private List<String> getSummaryEntities(
+		Connection connection, 
+		List<String> entities
+	) throws SQLException {
+		
 		final List<String> summaryEntityIds = new ArrayList<String>();
 		
 		if (entities.isEmpty()) return summaryEntityIds;
@@ -388,142 +691,34 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 
 		String fromIds = buildSearchIdsString("SummaryId", entities);
 		
-		String sql = "select " + membersEntityIdColumn + " from " + membersTable + " where " + fromIds;
+		PreparedStatement stmt = connection.prepareStatement(
+			"SELECT " + membersEntityIdColumn + " FROM " + 
+			membersTable + " " +
+			"WHERE " +
+			fromIds
+		);
 		
-		if (stmt.execute(sql)) {
-			ResultSet rs = stmt.getResultSet();
-			while (rs.next()) {
-				String id = rs.getString(membersEntityIdColumn);
-				summaryEntityIds.add(id);
-			}
-			rs.close();
+		setSearchIdsString(stmt, entities, 1);
+		
+		ResultSet rs = stmt.executeQuery();
+		while (rs.next()) {
+			String id = rs.getString(membersEntityIdColumn);
+			summaryEntityIds.add(id);
 		}
+		rs.close();
+		stmt.close();
 		
 		return summaryEntityIds;
 	}
-	
-	@Override
-	public FL_TransactionResults getAllTransactions(
-			List<String> entities,
-			FL_LinkTag tag,
-			FL_DateRange dateRange,
-			FL_SortBy sort,
-			List<String> linkFilter,
-			long start,
-			long max) throws AvroRemoteException {
-		
-		final List<String> summaryIds = TypedId.filterTypedIds(entities, TypedId.CLUSTER_SUMMARY);
-		final List<String> entityIds = TypedId.filterTypedIds(entities, TypedId.ACCOUNT);
-		entityIds.addAll(TypedId.filterTypedIds(entities, TypedId.ACCOUNT_OWNER));
-		
-		final List<String> ns_summaries = TypedId.nativeFromTypedIds(summaryIds);
-		final List<String> ns_entities = TypedId.nativeFromTypedIds(entityIds);
-		final List<String> ns_filters = linkFilter != null? TypedId.nativeFromTypedIds(linkFilter): null;
 
-		final List<FL_Link> links = new ArrayList<FL_Link>();
-		final FL_TransactionResults.Builder results = FL_TransactionResults.newBuilder().setResults(links);
-		
-		try {
-			Connection connection = _connectionPool.getConnection();
-			Statement stmt = connection.createStatement();
-			
-			DateTime startDate = DataAccessHelper.getStartDate(dateRange);
-			DateTime endDate = DataAccessHelper.getEndDate(dateRange);
-			
-			// TODO remove me when old dbs using 'Date' have been updated or rebuilt
-//			String dateColumnName = getNamespaceHandler().tableName(null, "TransactionDate");
-			
-			// FIX: the splitting of entity ids will cause the top/limit function to be incorrect and require some sort of fix post collection.
-			
-			final String financials = getNamespaceHandler().tableName(null, FINANCIALS);
-			
-			// fetch all account transactions
-			List<String> idsCopy = new ArrayList<String>(ns_entities); // copy the ids as we will take 100 at a time to process and the take method is destructive
-			while (idsCopy.size() > 0) {
-				List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
-				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
-				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
-								
-				String sql = buildTransactionSQL(subIds, false, financials, startDate, endDate, ns_filters, sort, max);
-				
-				s_logger.trace("execute: " + sql);
 
-				links.addAll( fetchTransactions(stmt, sql, ns_entities, sort, results) );
-			}
-			
-			final List<String> ns_summaryEntities = getSummaryEntities(stmt, ns_summaries);
-			
-			// fetch all summary transactions
-			idsCopy = new ArrayList<String>(ns_summaries); // copy the ids as we will take 100 at a time to process and the take method is destructive
-			while (idsCopy.size() > 0) {
-				List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
-				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
-				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
-								
-				String sql = buildTransactionSQL(subIds, true, financials, startDate, endDate, ns_filters, sort, max);
-				
-				s_logger.trace("execute: " + sql);
 
-				links.addAll( fetchTransactions(stmt, sql, ns_summaryEntities, sort, results) );
-			}
-			
-			stmt.close();
-			connection.close();
-		} catch (SQLException e) {
-			throw new AvroRemoteException(e);
-		} catch (ClassNotFoundException e) {
-			throw new AvroRemoteException(e);
-		}
 
-		return results.build();
-	}
-	
-	
-	@Override
-	public Map<String, List<FL_Entity>> getAccounts(List<String> entities) throws AvroRemoteException {
-		final List<String> ns_entities = TypedId.nativeFromTypedIds(entities);
-		Map<String, List<FL_Entity>> map = new HashMap<String, List<FL_Entity>>();
+	private boolean checkEntitiesContainsEntity(
+		List<String> entities, 
+		String entity
+	) {
 		
-		if (ns_entities.isEmpty()) return map;
-		
-		try {
-			Connection connection = _connectionPool.getConnection();
-			Statement stmt = connection.createStatement();
-			
-			String partnerBrokersTable = getNamespaceHandler().tableName(null, PARTNER_BROKERS);
-			
-			// lookup partner accounts for partner entities
-			String sql = "select entityId, rawEntityId " +
-						 "   from " + partnerBrokersTable + " " +
-						 "  where rawEntityId IN " + DataAccessHelper.createInClause(ns_entities);
-			
-			List<String> accounts = new LinkedList<String>();
-			
-			if (stmt.execute(sql)) {
-				ResultSet rs = stmt.getResultSet();
-				while (rs.next()) {
-					String accountId = TypedId.fromNativeId(TypedId.ACCOUNT, rs.getString("entityId")).getTypedId();
-					accounts.add(accountId);
-				}
-			}
-			
-			for (FL_Entity entity : getEntities(accounts, FL_LevelOfDetail.SUMMARY) ) {
-				String ownerId = (String)EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.ACCOUNT_OWNER).getValue();
-				
-				if (!map.containsKey(ownerId)) {
-					map.put(ownerId, new LinkedList<FL_Entity>());
-				}
-				map.get(ownerId).add(entity);
-			}
-		}
-		catch (Exception e) {
-			throw new AvroRemoteException(e);
-		}
-		return map;
-	}
-	
-	
-	private boolean checkEntitiesContainsEntity(List<String> entities, String entity) {
 		if (entities.contains(entity)) {
 			return true;
 		}
@@ -538,15 +733,72 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 		
 		return false;
 	}
-
-
-
-
+	
+	
+	
+	
 	private String buildSearchIdsString(String column, List<String> ids) {
 		
 		if (ids == null) {
 			return "1=1";
 		}
+		
+		int inEntities = 0;
+		int likeEntities = 0;
+		for (String id : ids) {
+			if (id.startsWith("p")) {
+				if (id.contains("-")) {
+					inEntities++;
+				} else {
+					likeEntities++;
+				}
+			} else {
+				inEntities++;
+			}
+		}
+		
+		Boolean needsOr = false;
+		
+		StringBuilder str = new StringBuilder();
+		str.append("( ");
+		if (inEntities > 0) {
+			for (int i = 0; i < inEntities - 1; i++) {
+				str.append(column + " = ? ");
+				str.append("OR ");
+			}
+			str.append(column + " = ? ");
+			needsOr = true;
+		}
+
+		if (likeEntities > 0) {
+			
+			if (needsOr) {
+				str.append("OR ");
+			}
+			
+			for (int i = 0; i < likeEntities - 1; i++) {
+				str.append(column + " LIKE ? ");
+				str.append("OR ");
+			}
+			str.append(column + " LIKE ? ");
+		}
+		
+		str.append(")");
+		
+		return str.toString();
+	}
+	
+	
+	
+	
+	private int setSearchIdsString(
+		PreparedStatement stmt,
+		List<String> ids, 
+		int startIndex
+	) throws SQLException {
+		
+		int index = startIndex;
+		
 		
 		List<String> ins = new ArrayList<String>();
 		List<String> likes = new ArrayList<String>();
@@ -562,35 +814,19 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 			}
 		}
 		
-		Boolean needsOr = false;
-		
-		StringBuilder str = new StringBuilder();
-		str.append("(");
-		if (ins.size() > 0) {
-			for (int i = 0; i < ins.size() - 1; i++) {
-				str.append(column + " = '" + ins.get(i) + "'");
-				str.append(" or ");
+		if (!ins.isEmpty()) {
+			for (int i = 0; i < ins.size(); i++) {
+				stmt.setString(index++, ins.get(i));
 			}
-			str.append(column + " = '" + ins.get(ins.size() - 1) + "'");
-			needsOr = true;
-		}
-
-		if (likes.size() > 0) {
-			
-			if (needsOr) {
-				str.append(" or ");
-			}
-			
-			for (int i = 0; i < likes.size() - 1; i++) {
-				str.append(column + " like '" + likes.get(i) + "'");
-				str.append(" or ");
-			}
-			str.append(column + " like '" + likes.get(likes.size() - 1) + "'");
 		}
 		
-		str.append(")");
+		if (!likes.isEmpty()) {
+			for (int i = 0; i < likes.size(); i++) {
+				stmt.setString(index++, likes.get(i));
+			}
+		}
 		
-		return str.toString();
+		return index;
 	}
 	
 	
@@ -639,11 +875,6 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 		
 		return comment;
 	}
-	
-	
-	
-	
-	private static String[] MONETARY_SUFFIX = new String[]{"","k", "m", "b", "t"};
 	
 	
 	

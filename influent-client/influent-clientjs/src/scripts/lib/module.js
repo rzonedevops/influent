@@ -24,17 +24,17 @@
  */
 
 /**
- * Defines the module registration and management 
+ * Defines the module registration and management
  */
 define(["lib/sandbox", "lib/extern/underscore"], function(Sandbox) {
-	
+
 	var modules = {};
-	
+
 	return {
 		/**
 		 * Registers an application module with a given name and a constructor
 		 * function.  The constructor must return an object that, at minimum,
-		 * supports two functions: start() and end() 
+		 * supports two functions: start() and end()
 		 * @param name the name of the module
 		 * @param constructor the constructor function
 		 */
@@ -44,38 +44,38 @@ define(["lib/sandbox", "lib/extern/underscore"], function(Sandbox) {
 				construct: constructor
 			};
 		},
-		
-		
+
+
 		/**
 		 * Creates an object capable of managing the execution of registered modules.
 		 * Modules managed through this object are independent of any other manager
 		 * created via this method.
-		 * 
+		 *
 		 * This object has an optional sandboxFactory function.
-		 * 
+		 *
 		 * @param sandboxFactory
 		 * @returns object
 		 */
 		createManager : function( sandboxFactory ) {
 			var activeModules = {};
-			
+
 			// If no constructor provided, use a trivial one
 			if( _.isFunction(sandboxFactory) === false ) {
 				sandboxFactory = function( spec ) {
 					return new Sandbox(spec);
 				};
 			}
-			
+
 			return {
 				/**
 				 * Starts the module with the given name.  A specification object is given
-				 * that will be used to pass settings to the object via its sandbox.  The 
+				 * that will be used to pass settings to the object via its sandbox.  The
 				 * spec should at least contain a property called "div" which is the id
-				 * of the div into which the module will insert its view elements.  It may 
+				 * of the div into which the module will insert its view elements.  It may
 				 * also contain configuration settings, parameters, etc.
-				 * 
+				 *
 				 * If the module is already started, this method will do nothing.
-				 * 
+				 *
 				 * @param name the name of the module to start
 				 * @param spec the specification object containing information for the module.
 				 * It must contain a "div" property containing the id of the DOM element in which the module
@@ -89,43 +89,43 @@ define(["lib/sandbox", "lib/extern/underscore"], function(Sandbox) {
 					if( !id ) {
 						id = name;
 					}
-					
-					if( modules[name] && !activeModules[id] ) {						
+
+					if( modules[name] && !activeModules[id] ) {
 						var sandbox = sandboxFactory( spec );
 
 						var instance = modules[name].construct( sandbox );
- 
+
 						activeModules[id] = {
 							"instance" : instance,
-							"sandbox" : sandbox						
+							"sandbox" : sandbox
 						};
-						
+
 						instance.start();
 					}
 				},
-			
+
 				/**
 				 * Ends the module with the given name or unique id.  This will most likely cause the module
 				 * to remove all UI elements from the DOM and unsubscribe all listeners.  The
 				 * module should expect to be garbage collected after this call.
-				 * 
+				 *
 				 * If the module has not been started, this call does nothing.
-				 * 
+				 *
 				 * @param id the name of the module to end, or if an id was used to start it,
 				 * the id
 				 */
 				end : function( id ) {
 					var module = activeModules[id];
-					
+
 					if( module ) {
 						delete activeModules[id];
-						
+
 						module.instance.end();
 						module.sandbox.destroy();
 					}
 				},
-				
-				
+
+
 				/**
 				 * Returns a list of all started modules by name/id
 				 * @returns a list of strings
@@ -139,7 +139,7 @@ define(["lib/sandbox", "lib/extern/underscore"], function(Sandbox) {
 					} );
 					return result;
 				}
-			};			
+			};
 		}
 	};
 });

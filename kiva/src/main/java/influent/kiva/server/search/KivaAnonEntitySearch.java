@@ -24,6 +24,7 @@
  */
 package influent.kiva.server.search;
 
+import oculus.aperture.spi.common.Properties;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
 import org.slf4j.Logger;
@@ -37,15 +38,15 @@ public class KivaAnonEntitySearch extends KivaEntitySearch {
 
 	private static final Logger s_logger = LoggerFactory.getLogger(KivaAnonEntitySearch.class);
 	
-	public KivaAnonEntitySearch(String solrURL, String solrDescriptor,
+	public KivaAnonEntitySearch(String solrURL, String solrDescriptor, Properties config,
 			FL_Geocoding geocoding, SQLConnectionPool connectionPool,
 			DataNamespaceHandler namespaceHandler) {
-		super(solrURL, solrDescriptor, geocoding, connectionPool, namespaceHandler);
+		super(solrURL, solrDescriptor, config, geocoding, connectionPool, namespaceHandler);
 	}
 
 	@Override
-	public KivaEntitySearchIterator buildKivaEntitySearchIterator(SolrServer solr, SolrQuery query, FL_Geocoding geocoding) {
-		return new KivaAnonEntitySearchIterator(solr, query, geocoding);
+	public KivaEntitySearchIterator buildKivaEntitySearchIterator(SolrServer solr, SolrQuery query, Properties config, FL_Geocoding geocoding) {
+		return new KivaAnonEntitySearchIterator(solr, query, config, geocoding);
 	}
 	
 	@Override

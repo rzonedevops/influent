@@ -1,6 +1,62 @@
 # Influent Release Notes
 The following is a detailed summary of changes released with each build version.
 
+## Release 1.3.*
+Version 1.3 includes significant user experience refinements along with new import and export capabilities for saving and sharing work, logging improvements and additional flexibility for integration into different environments. Below is a highlight of its features, a detailed issue list by minor release number and outstanding issues.
+
+### Feature Highlights
+Highlights of the version 1.3.* releases include the following features. Minor release numbers are reserved for high priority hot fixes.
+
+**UI and Usability Improvements**
++ Button visuals and feedback have been updated, along with added tooltips, improved responsiveness and adjusted colors across the application. Menus have been updated. In addition, cards are now automatically sorted by in/out flow when added to a column.
+
++ The pattern search user experience has been greatly simplified to make it more intuitive to invoke. Model patterns can now be imported as a workspace and used in a search in two clicks.
+ 
++ The advanced search user experience has been improved for more intuitive search expression and additional capabilities such as weighted terms. 
+
++ The details pane now expands and collapses in response to selections made in the workspace. Entity details have been changed to support multiple images per entity, with controls to browse and expand in the browser. Chart and table titles in the details pane have also been clarified.
+
++ Filing larger numbers of accounts no longer presents a problem.
+ 
+
+**Import and Export**
++ Import and export of filed workspace contents is now supported for saving and sharing work.
+
+
+**Logging Improvements**
++ Error logging has been made more detailed and comprehensive, including detailed reporting of server errors.
+
++ User instrumentation has been added for optional analysis of usage.
+
+**Integration Features**
++ A new toolbar extension API allows extra buttons to be added to data items that invoke custom defined actions. API Documentation to come.
+ 
++ Enhancements to the screen capture capability to support all conceivable authentication schemes.
+
++ Added support for database column naming variations and numeric entity IDs for additional flexibility.
+
++ Added support for HyperSQL databases.
+
+
+### Release 1.3.2 - Resolved Issues
++ Many issues related to large scale edge cases.
++ Resolved a thread leak issue in clustering.
++ Resolved an ehcache problem with synchronization of column changes.
++ Numerous other bug fixes.
+
+### Release 1.3.1 - Resolved Issues
++ Linking and searching issues relating to filing cards have been resolved.
++ Fixed a number of issues with pattern searching.
++ Fixed Screen capture.
++ Numerous other bug fixes.
+ 
+### Release 1.3.0 - Resolved Issues
++ Branching sometimes caused the current selection to change in an unpredictable way.
++ Export to CSV has been fixed.
++ Chart data now loads properly for non-account owner summaries.
++ Resolved issues with running in IE 9.
++ Numerous other bug fixes.
+
 ## Release 1.2.*
 Version 1.2 includes a significant number of new features, as well as improvements to scalability and robustness. Below is a highlight of new features, a detailed issue list by minor release number, outstanding issues, and a summary of instructions for porting from 1.1.* versions.
 
@@ -39,11 +95,7 @@ Highlights of the version 1.2.* releases include the following features. Minor r
 + Resolved issues with running in IE 9.
 + Numerous other bug fixes.
 
-### Outstanding Issues
-+ Workspace export of both xml files and images has not been addressed yet and is scheduled for resolution in version 1.3.
-+ Filing does not scale well yet to a large number of accounts. Most of the work to resolve this has been done but we have pushed the release of this to 1.3 in order to test this more thoroughly and address any remaining issues.
-
-### Porting from Release 1.1.*
+### Porting from Release 1.1.* to 1.2+
 One of the major goals of the latest version was to greatly simplify application requirements through simplified project structures, elimination of complex clustering pre-processing, and simple configuration files. In order to support all of that, in addition to the introduction of some important new clustering capabilities to address scalability limits, some unusually significant changes were required in this version.
 
 **Database Schema Changes**

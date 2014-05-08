@@ -23,233 +23,234 @@
  * SOFTWARE.
  */
 define(
-    [
-        'jquery', 'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 'lib/render/fileRenderer',
-        'lib/render/clusterRenderer', 'lib/ui/xfModalDialog', 'lib/constants'
-    ],
-    function(
-        $, chan, xfUtil, cardRenderer, fileRenderer,
-        clusterRenderer, xfModalDialog, constants
-    ) {
-        var columnRenderer = {};
+	[
+		'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 'lib/render/fileRenderer',
+		'lib/render/clusterRenderer', 'lib/ui/xfModalDialog', 'lib/constants'
+	],
+	function(
+		chan, xfUtil, cardRenderer, fileRenderer,
+		clusterRenderer, xfModalDialog, constants
+	) {
+		var columnRenderer = {};
 
-        var _cardDefaults = cardRenderer.getRenderDefaults();
-        var _renderDefaults = {
-            COLUMN_DISTANCE : 300 // 300px between columns
-        };
-        var _processChildren = function(childObjects, parentCanvas){
-            for (var i=0; i < childObjects.length; i++){
-                var visualInfo = childObjects[i].getVisualInfo();
-                var element = undefined;
-                switch(childObjects[i].getUIType()){
-                    case constants.MODULE_NAMES.FILE : {
-                        element = fileRenderer.createElement(visualInfo);
-                        break;
-                    }
-                    case constants.MODULE_NAMES.IMMUTABLE_CLUSTER :
-                    case constants.MODULE_NAMES.MUTABLE_CLUSTER :
-                    case constants.MODULE_NAMES.SUMMARY_CLUSTER : {
-                        element = clusterRenderer.createElement(visualInfo);
-                        element.css('left', _cardDefaults.CARD_LEFT);
-                        break;
-                    }
-                    case constants.MODULE_NAMES.ENTITY : {
-                        element = cardRenderer.createElement(visualInfo);
-                        element.css('left', _cardDefaults.CARD_LEFT);
-                        break;
-                    }
-                    default : {
-                        aperture.log.error('Attempted to add an unsupported UIObject type to column: ' + childObjects[i].getUIType());
-                    }
-                }
-                if (element){
-                    parentCanvas.append(element);
-                }
-            }
-        };
+		var _cardDefaults = cardRenderer.getRenderDefaults();
+		var _renderDefaults = {
+			COLUMN_DISTANCE : 300 // 300px between columns
+		};
+		var _processChildren = function(childObjects, parentCanvas){
+			for (var i=0; i < childObjects.length; i++){
+				var visualInfo = childObjects[i].getVisualInfo();
+				var element = null;
+				switch(childObjects[i].getUIType()){
+					case constants.MODULE_NAMES.FILE : {
+						element = fileRenderer.createElement(visualInfo);
+						break;
+					}
+					case constants.MODULE_NAMES.IMMUTABLE_CLUSTER :
+					case constants.MODULE_NAMES.MUTABLE_CLUSTER :
+					case constants.MODULE_NAMES.SUMMARY_CLUSTER : {
+						element = clusterRenderer.createElement(visualInfo);
+						element.css('left', _cardDefaults.CARD_LEFT);
+						break;
+					}
+					case constants.MODULE_NAMES.ENTITY : {
+						element = cardRenderer.createElement(visualInfo);
+						element.css('left', _cardDefaults.CARD_LEFT);
+						break;
+					}
+					default : {
+						aperture.log.error('Attempted to add an unsupported UIObject type to column: ' + childObjects[i].getUIType());
+					}
+				}
+				if (element){
+					parentCanvas.append(element);
+				}
+			}
+		};
 
-        function _makeButton(title, icon) {
-			return $('<button class="column-button"></button>')
-				.text(title)
-				.button({text: false,
-					icons: {primary : icon}
+		columnRenderer.createElement = function(visualInfo){
+			var canvas = $('#' + visualInfo.xfId),
+				container;
+
+			function showHeader() {
+				if ($('.columnHeader', canvas).css('display') === 'none') {
+
+					// hide all, just in case we didn't get a leave event
+					$('.columnHeader').css('display', 'none');
+
+					// show just me
+					$('.columnHeader', canvas).css('display', '');
+				}
+			}
+
+			// exists? empty it
+			if (canvas.length > 0) {
+				container = $('.columnContainer', canvas);
+				container.empty();
+			// else construct it
+			} else {
+				canvas = $('<div class="column"></div>');
+				canvas.attr('id', visualInfo.xfId);
+
+				// create the column header
+				var header = $('<div class="columnHeader"></div>').appendTo(canvas).css('display', 'none');
+
+				// create the content container
+				container = $('<div class="columnContainer"></div>').appendTo(canvas);
+
+				var fileBtn = xfUtil.makeButton('add new file to top of column', 'new-file', null, 'column-button', null).appendTo(header);
+				fileBtn.click(function() {
+					aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, isColumn: true});
+					return false;
 				});
-        }
-        
-        columnRenderer.createElement = function(visualInfo){
-            var canvas = $('#' + visualInfo.xfId),
-                container;
 
-            // exists? empty it
-            if (canvas.length > 0) {
-                container = $('.columnContainer', canvas);
-                container.empty();
-                // Remove all listeners.
-                xfUtil.clearMouseListeners(canvas, ['click', 'hover']);
-            // else construct it
-            } else {
-                canvas = $('<div class="column"></div>');
-                canvas.attr('id', visualInfo.xfId);
+				var cleanColumnBtn = xfUtil.makeButton('clear column of unfiled content', 'column-clear', null, 'column-button', null).appendTo(header);
+				cleanColumnBtn.click(function() {
+					xfModalDialog.createInstance({
+						title: 'Clear Column?',
+						contents: 'Clear all unfiled cards? Everything but file folders and match results will be removed.',
+						buttons: {
+							Clear : function() {
+								aperture.pubsub.publish(
+									chan.CLEAN_COLUMN_REQUEST,
+									{
+										xfId : visualInfo.xfId
+									}
+								);
+							},
+							Cancel : function() {}
+						}
+					});
+					return false;
+				});
 
-                // create the column header
-                var header = $('<div class="columnHeader"></div>').appendTo(canvas).css('display', 'none');
+				var sortColumnBtn = xfUtil.makeButton('sort column by visible flow', 'column-sort', null, 'column-button', null).appendTo(header);
 
-                // create the content container
-                container = $('<div class="columnContainer"></div>').appendTo(canvas);
+				var sortOptions = $('<ul></ul>');
+				sortOptions.attr('id', 'sort-options');
+				sortOptions.addClass('nocapture');
+				sortOptions.css('z-index', 1000);
+				header.append(sortOptions);
 
-                var fileBtn = _makeButton('add new file to top of column', 'new-file').appendTo(header);
-                fileBtn.click(function() {
-                    aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, isColumn: true});
-                    return false;
-                });
+				var inSortOption = $('<li></li>');
+				var inSort = $('<a></a>');
+				inSort.attr('id', 'incoming-descending');
+				inSort.attr('href', '#');
+				inSort.html('Incoming Flow');
+				inSortOption.append(inSort);
+				sortOptions.append(inSortOption);
 
-                var cleanColumnBtn = _makeButton('clear column of unfiled content', 'column-clear').appendTo(header);
-                cleanColumnBtn.click(function() {
-                    xfModalDialog.createInstance({
-                        title: "Clear Column?",
-                        contents: "Clear all unfiled cards? Everything but file folders and match results will be removed.",
-                        buttons: {
-                            "Clear" : function() {
-                                aperture.pubsub.publish(
-                                    chan.CLEAN_COLUMN_REQUEST,
-                                    {
-                                        xfId : visualInfo.xfId,
-                                        removeEmptyColumn : true
-                                    }
-                                );
-                            },
-                            Cancel : function() {}
-                        }
-                    });
-                    return false;
-                });
+				var outSortOption = $('<li></li>');
+				var outSort = $('<a></a>');
+				outSort.attr('id', 'outgoing-descending');
+				outSort.attr('href', '#');
+				outSort.html('Outgoing Flow');
+				outSortOption.append(outSort);
+				sortOptions.append(outSortOption);
 
-                var sortColumnBtn = _makeButton('sort column by visible flow', 'column-sort').appendTo(header);
+				var bothSortOption = $('<li></li>');
+				var bothSort = $('<a></a>');
+				bothSort.attr('id', 'both-descending');
+				bothSort.attr('href', '#');
+				bothSort.html('Both');
+				bothSortOption.append(bothSort);
+				sortOptions.append(bothSortOption);
 
-                var sortOptions = $('<ul></ul>');
-                sortOptions.attr('id', 'sort-options');
-                sortOptions.addClass('nocapture');
-                sortOptions.css('z-index', 1000);
-                header.append(sortOptions);
+				sortColumnBtn.click(
+					function() {
 
-                var inSortOption = $('<li></li>');
-                var inSort = $('<a></a>');
-                inSort.attr('id', 'incoming-descending');
-                inSort.attr('href', '#');
-                inSort.html('Incoming Flow');
-                inSortOption.append(inSort);
-                sortOptions.append(inSortOption);
+						sortOptions.hide();
 
-                var outSortOption = $('<li></li>');
-                var outSort = $('<a></a>');
-                outSort.attr('id', 'outgoing-descending');
-                outSort.attr('href', '#');
-                outSort.html('Outgoing Flow');
-                outSortOption.append(outSort);
-                sortOptions.append(outSortOption);
+						var menu = sortOptions.show().position(
+							{
+								my: 'right top',
+								at: 'right bottom',
+								of: this
+							}
+						);
 
-                var bothSortOption = $('<li></li>');
-                var bothSort = $('<a></a>');
-                bothSort.attr('id', 'both-descending');
-                bothSort.attr('href', '#');
-                bothSort.html('Both');
-                bothSortOption.append(bothSort);
-                sortOptions.append(bothSortOption);
+						$(document).one(
+							'click',
+							function() {
+								menu.hide();
+							}
+						);
 
-                sortColumnBtn.click(
-                    function() {
+						return false;
+					}
+				);
 
-                        sortOptions.hide();
+				sortOptions.menu();
 
-                        var menu = sortOptions.show().position(
-                            {
-                                my: 'right top',
-                                at: 'right bottom',
-                                of: this
-                            }
-                        );
+				inSort.click(
+					function (e) {
+						e.preventDefault();
 
-                        $(document).one(
-                            'click',
-                            function() {
-                                menu.hide();
-                            }
-                        );
+						aperture.pubsub.publish(
+							chan.SORT_COLUMN_REQUEST,
+							{
+								xfId : visualInfo.xfId,
+								sortDescription : constants.SORT_FUNCTION.INCOMING,
+								sortFunction : xfUtil.incomingDescendingSort
 
-                        return false;
-                    }
-                );
+							}
+						);
+					}
+				);
 
-                sortOptions.menu();
+				outSort.click(
+					function (e) {
+						e.preventDefault();
 
-                inSort.click(
-                    function (e) {
-                        e.preventDefault();
+						aperture.pubsub.publish(
+							chan.SORT_COLUMN_REQUEST,
+							{
+								xfId : visualInfo.xfId,
+								sortDescription : constants.SORT_FUNCTION.OUTGOING,
+								sortFunction : xfUtil.outgoingDescendingSort
+							}
+						);
+					}
+				);
 
-                        aperture.pubsub.publish(
-                            chan.SORT_COLUMN_REQUEST,
-                            {
-                                xfId : visualInfo.xfId,
-                                sortFunction : xfUtil.incomingDescendingSort
-                            }
-                        );
-                    }
-                );
+				bothSort.click(
+					function (e) {
+						e.preventDefault();
 
-                outSort.click(
-                    function (e) {
-                        e.preventDefault();
+						aperture.pubsub.publish(
+							chan.SORT_COLUMN_REQUEST,
+							{
+								xfId : visualInfo.xfId,
+								sortDescription : constants.SORT_FUNCTION.BOTH,
+								sortFunction : xfUtil.bothDescendingSort
+							}
+						);
+					}
+				);
 
-                        aperture.pubsub.publish(
-                            chan.SORT_COLUMN_REQUEST,
-                            {
-                                xfId : visualInfo.xfId,
-                                sortFunction : xfUtil.outgoingDescendingSort
-                            }
-                        );
-                    }
-                );
+				// show when hovering or when clicked.
+				canvas.click(showHeader);
+				canvas.mousemove(showHeader);
+				canvas.mouseleave(function() {
+					$('.columnHeader', canvas).css('display', 'none');
+				});
+			}
 
-                bothSort.click(
-                    function (e) {
-                        e.preventDefault();
+			_processChildren(visualInfo.children, container);
 
-                        aperture.pubsub.publish(
-                            chan.SORT_COLUMN_REQUEST,
-                            {
-                                xfId : visualInfo.xfId,
-                                sortFunction : xfUtil.bothDescendingSort
-                            }
-                        );
-                    }
-                );
+			return canvas;
+		};
+		
+		columnRenderer.getHeight = function(element) {
+			var cc = element.children('.columnContainer');
 
-                function showHeader() {
-                    if ($('.columnHeader', canvas).css('display') === 'none') {
-
-                        // hide all, just in case we didn't get a leave event
-                        $('.columnHeader').css('display', 'none');
-
-                        // show just me
-                        $('.columnHeader', canvas).css('display', '');
-                    }
-                }
-
-                // show when hovering or when clicked.
-                canvas.click(showHeader);
-                canvas.mousemove(showHeader);
-                canvas.mouseleave(function() {
-                    $('.columnHeader', canvas).css('display', 'none');
-                });
-            }
-
-            _processChildren(visualInfo.children, container);
-
-            return canvas;
-        };
-        columnRenderer.getRenderDefaults = function(){
-            return _.clone(_renderDefaults);
-        };
-        return columnRenderer;
-    }
+			return cc.position().top + cc.height();
+		};
+		
+		columnRenderer.getRenderDefaults = function(){
+			return _.clone(_renderDefaults);
+		};
+		
+		return columnRenderer;
+	}
 );

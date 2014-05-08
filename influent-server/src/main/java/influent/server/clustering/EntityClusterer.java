@@ -39,7 +39,7 @@ public interface EntityClusterer {
 	public void init(Object[] args);
 	
 	/***
-	 * Cluster the list of entities into Entity Cluster objects.  If an entity is not clustered with any other entity, the entity itself is returned.
+	 * Cluster the list of entities into Entity Cluster objects.
 	 * 
 	 * @param entities to cluster
 	 * @return
@@ -47,7 +47,7 @@ public interface EntityClusterer {
 	public ClusterContext clusterEntities(Collection<FL_Entity> entities);
 	
 	/***
-	 * Cluster the list of entities into Entity Cluster objects.  If an entity is not clustered with any other entity, the entity itself is returned.
+	 * Cluster the list of entities into Entity Cluster objects. 
 	 * 
 	 * @param entities to cluster
 	 * @param clusters is a list of existing cluster the entities should be merged with
@@ -57,7 +57,18 @@ public interface EntityClusterer {
 	public ClusterContext clusterEntities(Collection<FL_Entity> entities, Collection<FL_Cluster> clusters, ClusterContext context);
 	
 	/***
-	 * Cluster the list of entities into Entity Cluster objects.  If an entity is not clustered with any other entity, the entity itself is returned.
+	 * Cluster the list of entities and immutable clusters into Entity Cluster objects. 
+	 * 
+	 * @param entities to cluster
+	 * @param immutable clusters are clusters that are treated as atomic entities (their contents can't be altered)
+	 * @param clusters is a list of existing clusters the entities and immutable clusters should be merged with
+	 * @param context is the current cluster hierarchy in the context
+	 * @return
+	 */
+	public ClusterContext clusterEntities(Collection<FL_Entity> entities, Collection<FL_Cluster> immutableClusters, Collection<FL_Cluster> clusters, ClusterContext context);
+	
+	/***
+	 * Cluster the list of entities into Entity Cluster objects. 
 	 * 
 	 * @param entities to cluster
 	 * @param context is the current cluster hierarchy in the context

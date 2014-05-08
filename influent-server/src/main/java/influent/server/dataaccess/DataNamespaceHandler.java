@@ -27,6 +27,8 @@ package influent.server.dataaccess;
 import java.util.List;
 import java.util.Map;
 
+import org.joda.time.DateTime;
+
 public interface DataNamespaceHandler {
 
 	/**
@@ -178,4 +180,14 @@ public interface DataNamespaceHandler {
 	 * 		the converted id
 	 */
 	public String fromSQLId(String id);
+	
+	/**
+	 * Converts a joda DateTime to a date string appropriate for queries
+	 * in the context of a particular db. Note that this IS NOT synonymous
+	 * with just a simple date format (eg OracleDataNameSpaceHandler)
+	 * 
+	 * @param date the date to format
+	 * @return the SQL-friendly string corresponding to the input date
+	 */
+	public String formatDate(DateTime date);
 }

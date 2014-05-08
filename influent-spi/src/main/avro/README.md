@@ -5,6 +5,38 @@ runtime-injected modules for search, data access, clustering and other services.
 language independent form.
 The following is a log of changes to the avro service provider interfaces (SPIs) made with each version. 
 
+## Version 1.7 Change Log
+
+### Data Types
+Changes to the `FL_DataTypes` protocol:
++ `FL_PropertyTag`
+	+ added `CLUSTER`
++ `FL_Cluster`
+	+ added `version`
+
+### Clustering Data Access
+Changes to the `FL_ClusteringDataAccess` protocol:
++ removed unused sessionId
++ added `getAccountOwners()`
++ `getContext()`
+	+ Removed unused computeSummaries
+
+### Clustering
+Changes to the `FL_Clustering` protocol:
++ removed unused sessionId
++ removed unused `createContext()`
++ `clusterEntitiesById()`
+	+ entityIds can contain uid's to entity clusters
+	+ Added source and target context
++ `clusterEntities()`
+	+ Added clusters to allow for clustering of entity clusters
+	+ Added source and target context
+
+### Search
+Changes to the `FL_Search` protocol:
++ `FL_PropertyMatchDescriptor`
+	+ reinstated `weight`
+	
 ## Version 1.6 Change Log
 
 ### Data Types 

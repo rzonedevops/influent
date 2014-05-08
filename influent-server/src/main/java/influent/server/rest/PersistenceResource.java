@@ -24,24 +24,15 @@
  */
 package influent.server.rest;
 
-import influent.idl.FL_Cluster;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
-import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
-import influent.idlhelper.FileHelper;
 import influent.server.clustering.utils.ClusterContextCache;
-import influent.server.clustering.utils.ClusterContextCache.PermitSet;
-import influent.server.clustering.utils.ContextReadWrite;
-
-import java.util.ArrayList;
 import java.util.Collections;
-
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.restlet.data.CacheDirective;
@@ -52,6 +43,8 @@ import org.restlet.representation.StringRepresentation;
 import org.restlet.resource.Get;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 
@@ -60,10 +53,15 @@ import com.google.inject.Inject;
 public class PersistenceResource extends ApertureServerResource{
 
 	private final FL_Persistence persistence;
+	@SuppressWarnings("unused")
 	private final FL_ClusteringDataAccess clusterAccess;
+	@SuppressWarnings("unused")
 	private final FL_DataAccess entityAccess;
+	@SuppressWarnings("unused")
 	private final ClusterContextCache contextCache;
 
+	@SuppressWarnings("unused")
+	private static final Logger s_logger = LoggerFactory.getLogger(PersistenceResource.class);
 	
 	@Inject
 	public PersistenceResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
@@ -142,10 +140,6 @@ public class PersistenceResource extends ApertureServerResource{
 			sessionId = sessionId.trim();
 
 			String data = persistence.getData(sessionId);
-
-			if(data != null && data.length() != 0) {
-				initializeClusterContextCache(sessionId, data);
-			}
 			
 			JSONObject result = new JSONObject();
 			result.put("sessionId", sessionId);
@@ -171,79 +165,6 @@ public class PersistenceResource extends ApertureServerResource{
 				"Exception during AVRO persistence state deserialization",
 				e
 			);
-		}
-	}
-	
-	private void initializeClusterContextCache(String sessionId, String data) throws JSONException, AvroRemoteException {
-		final JSONObject initState = new JSONObject(data);
-		
-		ArrayList<FL_Cluster> files = new ArrayList<FL_Cluster>();
-		ArrayList<String> clusterIds = new ArrayList<String>();
-		ArrayList<String> entityIds = new ArrayList<String>();
-		
-		final JSONArray columns = initState.getJSONArray("children");
-		
-		for(int c=0; c< columns.length(); c++) {
-			final JSONObject columnSpec = columns.getJSONObject(c);
-			files.clear();
-			clusterIds.clear();
-			entityIds.clear();
-			final JSONArray columnChildren = columnSpec.getJSONArray("children");
-			final String contextId = columnSpec.getString("xfId");
-			
-			for (int k=0; k < columnChildren.length(); k++) {
-				final JSONObject objectSpec = columnChildren.getJSONObject(k);
-				final String objectType = objectSpec.getString("UIType");
-				
-				if(objectType.equals("xfFile")) {
-					ArrayList<String> clusterChildren = new ArrayList<String>();
-
-					JSONObject clusterUIObject = null;
-					
-					try {
-						clusterUIObject = objectSpec.getJSONObject("clusterUIObject");
-					} catch (Exception e) {
-					}
-					
-					if (clusterUIObject != null) {
-						final JSONArray clusterObjectChildren = clusterUIObject.getJSONArray("children");
-						
-						for (int ck=0; ck < clusterObjectChildren.length(); ck++) {
-							clusterChildren.add(clusterObjectChildren.getJSONObject(ck).getString("xfId"));
-						}
-					}
-					
-					final FL_Cluster fileCluster = new FileHelper(objectSpec.getString("xfId"), clusterChildren);
-					files.add(fileCluster);
-				}
-				else if(
-				    objectType.equals("xfImmutableCluster") ||
-				    objectType.equals("xfMutableCluster") ||
-				    objectType.equals("xfSummaryCluster")
-				) {
-					clusterIds.add(objectSpec.getJSONObject("spec").getString("dataId"));
-				}
-				else if(objectType.equals("xfCard")) {
-					entityIds.add(objectSpec.getJSONObject("spec").getString("dataId"));
-					
-				}
-			}
-			
-			if(files.size() > 0 || clusterIds.size() > 0 || entityIds.size() > 0) {
-				PermitSet permits = new PermitSet();
-				
-				try {
-					final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
-					
-					contextRW.merge(files, 
-						clusterAccess.getClusters(clusterIds, contextId, sessionId), 
-						entityAccess.getEntities(entityIds, FL_LevelOfDetail.SUMMARY), 
-						false, true);
-					
-				} finally {
-					permits.revoke();
-				}
-			}
 		}
 	}
 }

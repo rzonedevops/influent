@@ -23,248 +23,456 @@
  * SOFTWARE.
  */
 define(
-    [
-        'jquery', 'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil',
-        'lib/models/xfCard', 'lib/models/xfSummaryCluster',
-        'lib/models/xfClusterBase', 'lib/constants',
-        'lib/extern/underscore'
-    ],
-    function(
-        $, xfUIObject, chan, guid, xfUtil,
-        xfCard, xfSummaryCluster,
-        xfClusterBase, constants
-    ) {
+	[
+		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil',
+		'lib/models/xfCard', 'lib/models/xfSummaryCluster',
+		'lib/models/xfClusterBase', 'lib/constants',
+		'lib/extern/underscore'
+	],
+	function(
+		xfUIObject, chan, guid, xfUtil,
+		xfCard, xfSummaryCluster,
+		xfClusterBase, constants
+	) {
 
-        //--------------------------------------------------------------------------------------------------------------
-        // Private Variables
-        //--------------------------------------------------------------------------------------------------------------
+		//--------------------------------------------------------------------------------------------------------------
+		// Private Variables
+		//--------------------------------------------------------------------------------------------------------------
 
-        var MODULE_NAME = 'xfImmutableCluster';
+		var MODULE_NAME = 'xfImmutableCluster';
 
-        //--------------------------------------------------------------------------------------------------------------
-        // Public
-        //--------------------------------------------------------------------------------------------------------------
+		//--------------------------------------------------------------------------------------------------------------
+		// Public
+		//--------------------------------------------------------------------------------------------------------------
 
-        var xfImmutableCluster = {};
+		var xfImmutableCluster = {};
 
-        //--------------------------------------------------------------------------------------------------------------
+		//--------------------------------------------------------------------------------------------------------------
 
-        xfImmutableCluster.createInstance = function(spec){
+		xfImmutableCluster.createInstance = function(spec){
 
-            //------------------
-            // private variables
-            //------------------
+			//------------------
+			// private variables
+			//------------------
 
-            var guidId = 'immutable_' + guid.generateGuid();
-            
-            var _UIObjectState = {
-                xfId                : guidId,
-                UIType              : MODULE_NAME,
-                spec                : _.clone(spec),
-                toolbarSpec         : xfClusterBase.getToolbarSpecTemplate(),
-                children            : [],
-                isExpanded          : false,
-                isSelected          : false,
-                isHighlighted       : false,
-                isHovered			: false,
-                showToolbar         : false,
-                showDetails         : false,
-                showSpinner         : false,
-                links               : {}
-            };
-            _UIObjectState.spec.type = MODULE_NAME;
+			var guidId = 'immutable_' + guid.generateGuid();
 
-            //----------------
-            // private methods
-            //----------------
+			var _UIObjectState = {
+				xfId                : guidId,
+				UIType              : MODULE_NAME,
+				spec                : _.clone(spec),
+				toolbarSpec         : xfClusterBase.getToolbarSpecTemplate(),
+				children            : [],
+				isExpanded          : false,
+				isSelected          : false,
+				isHighlighted       : false,
+				isHovered			: false,
+				isHidden			: false,
+				showToolbar         : false,
+				showDetails         : false,
+				showSpinner         : false,
+				links               : {}
+			};
+			_UIObjectState.spec.type = MODULE_NAME;
 
-            var _createChildrenFromSpec = function(showSpinner, showToolbar) {
+			//----------------
+			// private methods
+			//----------------
 
-                for (var i = 0; i < _UIObjectState.children.length; i++) {
-                    _UIObjectState.children[i].dispose();
-                    _UIObjectState.children[i] = null;
-                }
-                _UIObjectState.children.length = 0;
+			var _createChildrenFromSpec = function(showSpinner, showToolbar) {
 
-                for (var i = 0; i < _UIObjectState.spec.members.length; i++) {
+				for (var i = 0; i < _UIObjectState.children.length; i++) {
+					_UIObjectState.children[i].dispose();
+					_UIObjectState.children[i] = null;
+				}
+				_UIObjectState.children.length = 0;
 
-                    var childMemberSpec = _UIObjectState.spec.members[i];
+				var length = _UIObjectState.spec.members ? _UIObjectState.spec.members.length : 0;
+				for (i = 0; i < length; i++) {
 
-                    var uiObject = {};
-                    if (childMemberSpec.type == constants.MODULE_NAMES.SUMMARY_CLUSTER) {
-                        uiObject = xfSummaryCluster.createInstance(childMemberSpec);
-                    } else if (xfUtil.isClusterTypeFromSpec(childMemberSpec)) {
-                        uiObject =  xfImmutableCluster.createInstance(childMemberSpec);
-                    } else if (childMemberSpec.type == constants.MODULE_NAMES.ENTITY) {
-                        uiObject = xfCard.createInstance(childMemberSpec);
-                    }
-                    uiObject.showDetails(_UIObjectState.showDetails);
-                    uiObject.showSpinner(showSpinner);
+					var childMemberSpec = _UIObjectState.spec.members[i];
 
-                    // we set the children's toolbar state base on our toolbar state. However,
-                    // we need to specifically set our children to not allow close
-                    uiObject.updateToolbar(_UIObjectState.toolbarSpec);
-                    uiObject.updateToolbar({'allowClose': false});
+					if (!childMemberSpec.accounttype) {
+						childMemberSpec.accounttype = xfUtil.getAccountTypeFromDataId(childMemberSpec.dataId);
+					}
 
-                    // #6947 also specifically set children to be searchable
-                    uiObject.updateToolbar({'allowSearch': true});
+					var uiObject = {};
+					if (childMemberSpec.accounttype === constants.ACCOUNT_TYPES.ENTITY) {
+						uiObject =  xfCard.createInstance(childMemberSpec);
+					}
+					else if (childMemberSpec.accounttype === constants.ACCOUNT_TYPES.CLUSTER_SUMMARY) {
+						uiObject = xfSummaryCluster.createInstance(childMemberSpec);
+					}
+					else if (childMemberSpec.accounttype === constants.ACCOUNT_TYPES.ACCOUNT_OWNER ||
+						childMemberSpec.accounttype === constants.ACCOUNT_TYPES.CLUSTER
+					) {
+						uiObject = xfImmutableCluster.createInstance(childMemberSpec);
+					} else {
+						aperture.log.error('Failed to determine UI object from account type');
+					}
 
-                    uiObject.showToolbar(showToolbar);
+					uiObject.showDetails(_UIObjectState.showDetails);
+					uiObject.showSpinner(showSpinner);
 
-                    // Add the child to the cluster.
-                    uiObject.setParent(xfClusterInstance);
-                    _UIObjectState.children.push(uiObject);
-                }
-            };
+					uiObject.updateToolbar(
+						_UIObjectState.toolbarSpec,
+						true
+					);
 
-            //---------------
-            // public methods
-            //---------------
+					uiObject.showToolbar(showToolbar);
 
-            // create new object instance
-            var xfClusterInstance = xfClusterBase.createInstance(_UIObjectState);
+					// Add the child to the cluster.
+					uiObject.setParent(xfClusterInstance);
+					_UIObjectState.children.push(uiObject);
+				}
+			};
 
-            // create child placeholder cards from spec
-            _createChildrenFromSpec(true, false);
+			//----------------------------------------------------------------------------------------------------------
 
-            //----------
-            // Overrides
-            //----------
+			var _updateChildrenFromSpec = function(showSpinner, showToolbar) {
 
-            xfClusterInstance.clone = function() {
+				var newEntities = [];
 
-                // create cloned object
-                var clonedObject = xfImmutableCluster.createInstance(_UIObjectState.spec);
+				var i;
+				var removeList = {};
+				var addList = [];
+				var dataId = null;
 
-                // add necessary UI state
-                clonedObject.showDetails(_UIObjectState.showDetails);
-                (_UIObjectState.isExpanded) ? clonedObject.expand() : clonedObject.collapse();
+				for (i = 0; i < _UIObjectState.children.length; i++) {
+					dataId = _UIObjectState.children[i].getDataId();
+					if (removeList.hasOwnProperty(dataId)) {
+						removeList[dataId].push(i);
+					} else {
+						removeList[dataId] = [i];
+					}
+				}
 
-                // make the cloned object an orphan
-                clonedObject.setParent(null);
+				for (i = 0; i < _UIObjectState.spec.members.length; i++) {
+					var spec = _UIObjectState.spec.members[i];
 
-                // return cloned object
-                return clonedObject;
-            };
+					if (removeList.hasOwnProperty(spec.dataId)) {
+						delete removeList[spec.dataId];
+					} else {
+						addList.push(spec);
+					}
+				}
 
-            //----------------------------------------------------------------------------------------------------------
+				for (dataId in removeList) {
+					if (removeList.hasOwnProperty(dataId)) {
+						for (i = 0; i < removeList[dataId].length; i++) {
+							var index = removeList[dataId][i];
+							_UIObjectState.children[index].dispose();
+							_UIObjectState.children.splice(index, 1);
+						}
+					}
+				}
 
-            xfClusterInstance.removeChild = function(xfId, disposeObject, preserveLinks) {
-                aperture.log.error('Unable to remove child from ' + MODULE_NAME);
-            };
+				for (i = 0; i < addList.length; i++) {
 
-            //----------------------------------------------------------------------------------------------------------
+					var childMemberSpec = addList[i];
 
-            xfClusterInstance.removeAllChildren = function() {
-                aperture.log.error('Unable to remove children from ' + MODULE_NAME);
-            };
+					if (!childMemberSpec.accounttype) {
+						childMemberSpec.accounttype = xfUtil.getAccountTypeFromDataId(childMemberSpec.dataId);
+					}
 
-            //----------------------------------------------------------------------------------------------------------
+					var uiObject = {};
+					if (childMemberSpec.accounttype === constants.ACCOUNT_TYPES.ENTITY) {
+						uiObject =  xfCard.createInstance(childMemberSpec);
+					}
+					else if (childMemberSpec.accounttype === constants.ACCOUNT_TYPES.CLUSTER_SUMMARY) {
+						uiObject = xfSummaryCluster.createInstance(childMemberSpec);
+					}
+					else if (childMemberSpec.accounttype === constants.ACCOUNT_TYPES.ACCOUNT_OWNER ||
+						childMemberSpec.accounttype === constants.ACCOUNT_TYPES.CLUSTER
+						) {
+						uiObject = xfImmutableCluster.createInstance(childMemberSpec);
+					} else {
+						aperture.log.error('Failed to determine UI object from account type');
+					}
 
-            xfClusterInstance.insert = function(xfUIObj, beforeXfUIObj00) {
-                aperture.log.error('Unable to insert children into ' + MODULE_NAME);
-            };
+					uiObject.showDetails(_UIObjectState.showDetails);
+					uiObject.showSpinner(showSpinner);
 
-            //----------------------------------------------------------------------------------------------------------
+					uiObject.updateToolbar(
+						_UIObjectState.toolbarSpec,
+						true
+					);
 
-            xfClusterInstance.update = function(spec) {
+					uiObject.showToolbar(showToolbar);
 
-                for (var key in spec) {
-                    if (spec.hasOwnProperty(key)) {
-                        _UIObjectState.spec[key] = spec[key];
-                    }
-                }
+					// Add the child to the cluster.
+					uiObject.setParent(xfClusterInstance);
+					_UIObjectState.children.push(uiObject);
 
-                _createChildrenFromSpec(false, true);
-            };
+					newEntities.push(uiObject.getDataId());
+				}
 
-            //----------------------------------------------------------------------------------------------------------
+				return newEntities;
+			};
 
-            xfClusterInstance.restoreVisualState = function(state) {
+			//---------------
+			// public methods
+			//---------------
 
-                this.cleanState();
+			// create new object instance
+			var xfClusterInstance = xfClusterBase.createInstance(_UIObjectState);
 
-                _UIObjectState.xfId = state.xfId;
-                _UIObjectState.UIType = state.UIType;
+			// create child placeholder cards from spec
+			_createChildrenFromSpec(true, false);
 
-                _UIObjectState.isExpanded = state.isExpanded;
-                _UIObjectState.isSelected = state.isSelected;
-                _UIObjectState.isHighlighted = state.isHighlighted;
-                _UIObjectState.showToolbar = state.showToolbar;
-                _UIObjectState.showDetails = state.showDetails;
-                _UIObjectState.toolbarSpec = state.toolbarSpec;
+			//----------
+			// Overrides
+			//----------
 
-                _UIObjectState.spec.dataId = state.spec.dataId;
-                _UIObjectState.spec.type = state.spec.type;
-                _UIObjectState.spec.subtype = state.spec.subtype;
-                _UIObjectState.spec.count = state.spec.count;
-                _UIObjectState.spec.icons = state.spec.icons;
-                _UIObjectState.spec.detailsTextNodes = state.spec.detailsTextNodes;
-                _UIObjectState.spec.graphUrl = state.spec.graphUrl;
-                _UIObjectState.spec.duplicateCount = state.spec.duplicateCount;
-                _UIObjectState.spec.label = state.spec.label;
-                _UIObjectState.spec.confidenceInSrc = state.spec.confidenceInSrc;
-                _UIObjectState.spec.confidenceInAge = state.spec.confidenceInAge;
-                _UIObjectState.spec.flow = state.spec.flow;
-                _UIObjectState.spec.members = state.spec.members;
-                _UIObjectState.spec.inDegree = state.spec.inDegree;
-                _UIObjectState.spec.outDegree = state.spec.outDegree;
+			xfClusterInstance.clone = function() {
 
-                _UIObjectState.children = [];
-                var childCount = state.children.length;
-                for (var i = 0; i < childCount; i++) {
-                    if (state.children[i].UIType == constants.MODULE_NAMES.ENTITY) {
-                        var cardSpec = xfCard.getSpecTemplate();
-                        var cardUIObj = xfCard.createInstance(cardSpec);
-                        cardUIObj.cleanState();
-                        cardUIObj.restoreVisualState(state.children[i]);
-                        this._restoreObjectToCluster(cardUIObj);
-                    } else if (state.children[i].UIType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
-                        var clusterSpec = xfImmutableCluster.getSpecTemplate();
-                        var clusterUIObj = xfImmutableCluster.createInstance(clusterSpec);
-                        clusterUIObj.cleanState();
-                        clusterUIObj.restoreVisualState(state.children[i]);
-                        this._restoreObjectToCluster(clusterUIObj);
-                    } else {
-                        aperture.log.error("cluster children should only be of type " + constants.MODULE_NAMES.ENTITY + " or " + constants.MODULE_NAMES.IMMUTABLE_CLUSTER + ".");
-                    }
-                }
-            };
+				// create cloned object
+				var clonedObject = xfImmutableCluster.createInstance(_UIObjectState.spec);
 
-            //----------------------------------------------------------------------------------------------------------
+				// add necessary UI state
+				clonedObject.showDetails(_UIObjectState.showDetails);
+				if (_UIObjectState.isExpanded) {
+					clonedObject.expand();
+				} else {
+					clonedObject.collapse();
+				}
 
-            xfClusterInstance._restoreObjectToCluster = function(object) {
+				// make the cloned object an orphan
+				clonedObject.setParent(null);
 
-                var memberSpec = _.clone(object.getVisualInfo().spec);
-                memberSpec.parent = this;
+				// return cloned object
+				return clonedObject;
+			};
 
-                _UIObjectState.children.push(object);
-                _UIObjectState.spec.members.push(memberSpec);
+			//----------------------------------------------------------------------------------------------------------
 
-                object.setParent(this);
-            };
+			xfClusterInstance.removeChild = function(xfId, disposeObject, preserveLinks, removeIfEmpty) {
+				var i, linkId=null, link;
 
-            //----------------------------------------------------------------------------------------------------------
+				for (i = 0; i < _UIObjectState.children.length; i++) {
+					if (_UIObjectState.children[i].getXfId() === xfId) {
 
-            return xfClusterInstance;
-        };
+						var links = [];
+						if (preserveLinks) {
+							links = _UIObjectState.children[i].getLinks();
+						}
 
-        //--------------------------------------------------------------------------------------------------------------
+						// Update the in/out degree in the spec
+						_UIObjectState.spec.inDegree -= _UIObjectState.children[i].getInDegree();
+						_UIObjectState.spec.outDegree -= _UIObjectState.children[i].getOutDegree();
 
-        xfImmutableCluster.getSpecTemplate = function() {
-            var spec = xfClusterBase.getSpecTemplate();
-            spec.type = MODULE_NAME;
-            return spec;
-        };
+						_UIObjectState.spec.count -= _UIObjectState.children[i].getCount();
 
-        //--------------------------------------------------------------------------------------------------------------
+						_UIObjectState.children[i].setParent(null);
 
-        xfImmutableCluster.getModuleName = function() {
-            return MODULE_NAME;
-        };
+						if (disposeObject) {
+							_UIObjectState.children[i].dispose();
+							_UIObjectState.children[i] = null;
 
-        //--------------------------------------------------------------------------------------------------------------
+							for (linkId in links) {
+								if (links.hasOwnProperty(linkId)) {
+									link = links[linkId];
+									if (link.getSource().getXfId() !== xfId) {
+										link.getSource().addLink(link);
+									} else if (link.getDestination().getXfId() !== xfId) {
+										link.getDestination().addLink(link);
+									}
+								}
+							}
+						}
 
-        return xfImmutableCluster;
-    }
+						_UIObjectState.children.splice(i, 1);
+						_UIObjectState.spec.members.splice(i, 1);
+
+						break;
+					}
+				}
+
+
+				if (_UIObjectState.children.length === 0 &&
+					removeIfEmpty
+				) {
+					aperture.pubsub.publish(
+						chan.REMOVE_REQUEST,
+						{
+							xfIds : [_UIObjectState.xfId],
+							dispose : true
+						}
+					);
+				}
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfClusterInstance.removeAllChildren = function() {
+				if (_UIObjectState.children.length === 0) {
+					return;
+				}
+
+				for (var i = 0; i < _UIObjectState.children.length; i++) {
+					_UIObjectState.children[i].dispose();
+					_UIObjectState.children[i] = null;
+				}
+
+				_UIObjectState.children.length = 0;
+				_UIObjectState.spec.members.length = 0;
+				_UIObjectState.spec.count = 0;
+
+				// Update the in/out degree in the spec
+				_UIObjectState.spec.inDegree = 0;
+				_UIObjectState.spec.outDegree = 0;
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfClusterInstance.insert = function(xfUIObj, beforeXfUIObj00) {
+				var memberSpec = {};
+				$.extend(true, memberSpec, xfUIObj.getVisualInfo().spec);
+				memberSpec.parent = this;
+
+				if (beforeXfUIObj00 == null) {
+					_UIObjectState.children.push(xfUIObj);
+					// Update the member spec list.
+					_UIObjectState.spec.members.push(memberSpec);
+				} else {
+					var inserted = false;
+					var childCount = _UIObjectState.children.length;
+					for (var i = 0; i < childCount; i++) {
+						if (_UIObjectState.children[i].getXfId() === beforeXfUIObj00.getXfId()) {
+							_UIObjectState.children.splice(i, 0, xfUIObj);
+							// Update the member spec list.
+							_UIObjectState.spec.members.splice(i, 0, memberSpec);
+
+							inserted = true;
+							break;
+						}
+					}
+					if (!inserted) {
+						_UIObjectState.children.push(xfUIObj);
+					}
+				}
+
+				// Update the in/out degree in the spec
+				_UIObjectState.spec.inDegree += memberSpec.inDegree;
+				_UIObjectState.spec.outDegree += memberSpec.outDegree;
+				_UIObjectState.spec.count += (memberSpec.count) ? memberSpec.count : 1;
+
+				xfUIObj.setParent(this);
+
+				// we set the children's toolbar state base on our toolbar state.
+				xfUIObj.updateToolbar(_UIObjectState.toolbarSpec);
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfClusterInstance.update = function(spec) {
+
+				for (var key in spec) {
+					if (spec.hasOwnProperty(key)) {
+						_UIObjectState.spec[key] = spec[key];
+					}
+				}
+
+				return _updateChildrenFromSpec(false, true);
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfClusterInstance.restoreVisualState = function(state) {
+
+				this.cleanState();
+
+				_UIObjectState.xfId = state.xfId;
+				_UIObjectState.UIType = state.UIType;
+
+				_UIObjectState.isExpanded = state.isExpanded;
+				_UIObjectState.isSelected = state.isSelected;
+				_UIObjectState.isHighlighted = state.isHighlighted;
+				_UIObjectState.showToolbar = state.showToolbar;
+				_UIObjectState.showDetails = state.showDetails;
+				_UIObjectState.toolbarSpec = state.toolbarSpec;
+
+				_UIObjectState.spec.dataId = state.spec.dataId;
+				_UIObjectState.spec.type = state.spec.type;
+				_UIObjectState.spec.accounttype = state.spec.accounttype;
+				_UIObjectState.spec.count = state.spec.count;
+				_UIObjectState.spec.icons = state.spec.icons;
+				_UIObjectState.spec.graphUrl = state.spec.graphUrl;
+				_UIObjectState.spec.duplicateCount = state.spec.duplicateCount;
+				_UIObjectState.spec.label = state.spec.label;
+				_UIObjectState.spec.confidenceInSrc = state.spec.confidenceInSrc;
+				_UIObjectState.spec.confidenceInAge = state.spec.confidenceInAge;
+				_UIObjectState.spec.flow = state.spec.flow;
+				_UIObjectState.spec.inDegree = state.spec.inDegree;
+				_UIObjectState.spec.outDegree = state.spec.outDegree;
+
+				_UIObjectState.children = [];
+				var childCount = state.children ? state.children.length : 0;
+				var cardSpec, cardUIObj;
+				var clusterSpec, clusterUIObj;
+				for (var i = 0; i < childCount; i++) {
+					if (state.children[i].UIType === constants.MODULE_NAMES.ENTITY) {
+						cardSpec = xfCard.getSpecTemplate();
+						cardUIObj = xfCard.createInstance(cardSpec);
+						cardUIObj.cleanState();
+						cardUIObj.restoreVisualState(state.children[i]);
+						this._restoreObjectToCluster(cardUIObj);
+					} else if (state.children[i].UIType === constants.MODULE_NAMES.IMMUTABLE_CLUSTER) {
+						clusterSpec = xfImmutableCluster.getSpecTemplate();
+						clusterUIObj = xfImmutableCluster.createInstance(clusterSpec);
+						clusterUIObj.cleanState();
+						clusterUIObj.restoreVisualState(state.children[i]);
+						this._restoreObjectToCluster(clusterUIObj);
+					} else if (state.children[i].UIType === constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+						clusterSpec = xfSummaryCluster.getSpecTemplate();
+						clusterUIObj = xfSummaryCluster.createInstance(clusterSpec);
+						clusterUIObj.cleanState();
+						clusterUIObj.restoreVisualState(state.children[i]);
+						this._restoreObjectToCluster(clusterUIObj);
+					} else {
+						aperture.log.error(
+								'cluster children should only be of type ' +
+								constants.MODULE_NAMES.ENTITY + ', ' +
+								constants.MODULE_NAMES.SUMMARY_CLUSTER + ' or ' +
+								constants.MODULE_NAMES.MUTABLE_CLUSTER + '.'
+						);					}
+				}
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfClusterInstance._restoreObjectToCluster = function(object) {
+
+				var memberSpec = _.clone(object.getVisualInfo().spec);
+				memberSpec.parent = this;
+
+				_UIObjectState.children.push(object);
+				_UIObjectState.spec.members.push(memberSpec);
+
+				object.setParent(this);
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			return xfClusterInstance;
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		xfImmutableCluster.getSpecTemplate = function() {
+			var spec = xfClusterBase.getSpecTemplate();
+			spec.type = MODULE_NAME;
+			return spec;
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		xfImmutableCluster.getModuleName = function() {
+			return MODULE_NAME;
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		return xfImmutableCluster;
+	}
 );
