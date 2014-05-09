@@ -247,20 +247,24 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 			xfUtil.handleTooltipEvent(exportXMLOption, 'export chart of filed workspace');
 			exportOptions.append(exportXMLOption);
 
-			var exportCaptureOption = $('<li></li>');
-			var exportCaptureHref = $('<a></a>');
-			exportCaptureHref.attr('id', 'export-capture');
-			exportCaptureHref.attr('href', '#');
-			var exportCaptureIcon = $('<span></span>');
-			exportCaptureIcon.addClass('ui-icon export-capture-icon');
-			exportCaptureHref.append(exportCaptureIcon);
-			exportCaptureHref.append($(document.createTextNode('Export Image')));
-			exportCaptureOption.append(exportCaptureHref);
-			exportCaptureOption.attr('title', 'export an image of the workspace');
-			xfUtil.handleTooltipEvent(exportCaptureOption, 'export an image of the workspace');
-			exportCaptureOption.addClass('last-menu-group-item');
-			exportOptions.append(exportCaptureOption);
-
+			var exportCaptureHref = null;
+			var INCLUDE_CAPTURE = aperture.config.get()['influent.config']['includeCaptureMenuItem'] !== false;
+			if (INCLUDE_CAPTURE) {
+				var exportCaptureOption = $('<li></li>');
+				exportCaptureHref = $('<a></a>');
+				exportCaptureHref.attr('id', 'export-capture');
+				exportCaptureHref.attr('href', '#');
+				var exportCaptureIcon = $('<span></span>');
+				exportCaptureIcon.addClass('ui-icon export-capture-icon');
+				exportCaptureHref.append(exportCaptureIcon);
+				exportCaptureHref.append($(document.createTextNode('Export Image')));
+				exportCaptureOption.append(exportCaptureHref);
+				exportCaptureOption.attr('title', 'export an image of the workspace');
+				xfUtil.handleTooltipEvent(exportCaptureOption, 'export an image of the workspace');
+				exportCaptureOption.addClass('last-menu-group-item');
+				exportOptions.append(exportCaptureOption);
+			}
+			
 			var USE_AUTH = aperture.config.get()['influent.config']['useAuth'] || false;
 			if (USE_AUTH) {
 				var logoutOption = $('<li></li>');
@@ -402,12 +406,14 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 				}
 			);
 
-			exportCaptureHref.click(
-				function (e) {
-					e.preventDefault();
-					aperture.pubsub.publish(chan.EXPORT_CAPTURED_IMAGE_REQUEST);
-				}
-			);
+			if (INCLUDE_CAPTURE) {
+				exportCaptureHref.click(
+					function (e) {
+						e.preventDefault();
+						aperture.pubsub.publish(chan.EXPORT_CAPTURED_IMAGE_REQUEST);
+					}
+				);
+			}
 
 			exportXMLHref.click(
 				function (e) {
