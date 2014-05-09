@@ -3096,6 +3096,14 @@ define(
 					};
 
 
+					var auth = aperture.config.get()['influent.config']['captureAuthentication'];
+					if (auth != null) {
+						if (auth.username != null && auth.password != null) {
+							settings.username = auth.username;
+							settings.password = auth.password;
+						}
+					}
+					
 					var sessionUrl = window.location.href;
 
 					if (sessionUrl.indexOf('?sessionId=') === -1) {
