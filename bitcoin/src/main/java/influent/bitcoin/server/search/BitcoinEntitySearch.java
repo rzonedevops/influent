@@ -116,10 +116,10 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 					"SELECT d.id, CountOfTransactions, AvgTrasactionAmount, MaxTransactionAmount, SumTransactionAmount, MinTransDate, MaxTransDate, label, degree " + 
 					"FROM Bitcoin." + schema + ".details d " +
 					"WHERE [id] = ? " +
-					"OR [label] = ?"
+					"OR [label] like ?"
 				);
 				stmt.setString(1, searchTerms.trim());
-				stmt.setString(2, searchTerms.trim());
+				stmt.setString(2, "%" + searchTerms.trim() + "%");
 				
 				matches.addAll(searchEntities(connection, stmt, max, schema));
 				
