@@ -3254,6 +3254,11 @@ define(
 
 				var restoreState = JSON.parse(data);
 
+					if(restoreState.message && !restoreState.ok) {
+						aperture.log.error('Server Error' + (restoreState? (' : ' + JSON.stringify(restoreState)): ''));
+						return;
+					}
+
 					var workspaceSpec = xfWorkspaceModule.getSpecTemplate();
 					_UIObjectState.singleton = xfWorkspaceModule.createSingleton(workspaceSpec);
 
