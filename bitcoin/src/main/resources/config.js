@@ -81,7 +81,7 @@
         'maxSearchResults' : 50,
         'searchResultsPerPage' : 12,
         'searchGroupBy' : 'GEO',
-        'usePatternSearch' : false,
+        'usePatternSearch' : true,
         'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
         	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
         	+ 'set of model accounts, specified here, will match accounts with similar activity. To match on a pattern of activity '

@@ -48,11 +48,12 @@ public class RestPatternSearchModule extends AbstractModule {
 	 */
 	@Provides 
 	public QuBEClient connect (
-		@Named("influent.pattern.search.remoteURL") String remoteURL
+		@Named("influent.pattern.search.remoteURL") String remoteURL,
+		@Named("influent.pattern.search.useHMM") boolean useHMM
 	) {
 		try {
 			if(remoteURL != null && remoteURL.length() > 0) {
-				return new QuBEClient(remoteURL);
+				return new QuBEClient(remoteURL, useHMM);
 			}
 			else {
 				return null;
