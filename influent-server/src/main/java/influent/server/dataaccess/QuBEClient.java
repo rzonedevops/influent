@@ -103,8 +103,12 @@ public class QuBEClient extends RestClient implements FL_PatternSearch {
 			//init
 			Form form = new Form();
 			
-			// if HMM is specified with only one role QuBE blow up.
-			form.add("hmm", _useHMM ? "true" : "false");
+			// If HMM is specified with only one role QuBE will blow up.
+			// There is an entirely different interface for querying on just one interface,
+			// but for convenience we are currently using this method.
+			if (_useHMM && example.getEntities().size() > 1) {
+				form.add("hmm", "true");
+			}
 			
 			// args
 			// this is the equivalent of resultLimit and can be removed once the latter works
