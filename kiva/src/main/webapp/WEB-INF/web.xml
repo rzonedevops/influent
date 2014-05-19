@@ -13,8 +13,6 @@
 		<param-name>guice-modules</param-name>
 		
 		<param-value>
-            influent.server.auth.ShiroAuthModule:
-            influent.server.auth.SimpleShiroAuthModule:
 			influent.server.RestConfigModule:
 			oculus.aperture.icons.BaseIconModule: 
 			oculus.aperture.parchment.ParchmentModule:

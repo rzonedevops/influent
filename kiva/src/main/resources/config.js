@@ -117,7 +117,7 @@
 
 	// EXAMPLES.
 	'influent.config' : {
-        'useAuth' : true,
+        'useAuth' : false,
 		'banner' : 'Kiva',
 		'title' : 'Kiva',
 		'workspaceWidth' : 1100,
