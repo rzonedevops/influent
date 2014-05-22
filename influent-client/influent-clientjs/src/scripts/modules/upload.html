@@ -16,7 +16,8 @@
                 if(iframe.removeEventListener) iframe.removeEventListener("load", loadHandler, false);
 
                 if (iframe.contentDocument && document.postCallback) {
-                    document.postCallback(iframe.contentDocument.body.innerText);
+                    var body = iframe.contentDocument.body;
+                    document.postCallback(body.textContent || body.innerText);
                 }
                 document.body.removeChild(iframe);
             };

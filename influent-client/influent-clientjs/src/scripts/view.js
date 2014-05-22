@@ -111,15 +111,15 @@ define(
 					// make sure these modules are started. could do module switches here
 					that.modules.start('xfHeader', {div:'header'});
 					that.modules.start('xfCards', {div:'cards', sessionId: settings.sessionId});
-					that.modules.start('xfFooter', {div:"footer"});
+					that.modules.start('xfFooter', {div:'footer', capture: settings.capture});
 					that.modules.start('xfAdvancedSearch', {div:'search'});
 					that.modules.start('xfEntityDetails', {div:'popup'});
-					that.modules.start('xfTransactionTable', {div:"tableTab"});
-					that.modules.start('xfTransactionGraph', {div:"chartTab"});
-					that.modules.start('xfDropTargetRenderer', {div:"drop-target-canvas"});
+					that.modules.start('xfTransactionTable', {div:'tableTab'});
+					that.modules.start('xfTransactionGraph', {div:'chartTab'});
+					that.modules.start('xfDropTargetRenderer', {div:'drop-target-canvas'});
 					that.modules.start('xfSankey', {div:'sankey', capture: settings.capture});
 					that.modules.start('xfRenderer', {div:'cards', capture: settings.capture});
-					that.modules.start('xfFileUpload', {div:"fileUpload"});
+					that.modules.start('xfFileUpload', {div:'fileUpload'});
 
 					// then call base implementation too
 					View.prototype.doView.call(that, validState, callback);

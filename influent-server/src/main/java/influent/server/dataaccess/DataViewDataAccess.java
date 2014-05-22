@@ -205,7 +205,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 				DateTime startDate = DataAccessHelper.getStartDate(date);
 				DateTime endDate = DataAccessHelper.getEndDate(date);
 				
-				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, true, getNamespaceHandler(), namespace);
+				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, getNamespaceHandler(), namespace);
 				
 				String finFlowTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.FLOW_TABLE);
 				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
@@ -222,7 +222,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 		
-					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, true, getNamespaceHandler(), namespace);
+					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, getNamespaceHandler(), namespace);
 					String sourceDirectionClause = finFlowFromEntityIdColumn + " in ("+ids+")";
 					String destDirectionClause = finFlowToEntityIdColumn + " in ("+ids+")";
 					
@@ -247,7 +247,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							Double amount = rs.getDouble(finFlowAmountColumn);
 							if (fromToAmountMap.containsKey(from)) {
 								if (fromToAmountMap.get(from).containsKey(to)) {
-									throw new AssertionError("Group by clause in dateRespectingFlowSQL erroneously created duplicates"); 
+									fromToAmountMap.get(from).put(to, fromToAmountMap.get(from).get(to) + amount);
+									s_logger.warn("Duplicate entity to entity link discovered: " + from + " to " + to + ". The link has been aggregated.");
 								} else {
 									fromToAmountMap.get(from).put(to, amount);
 								}
@@ -879,7 +880,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 				
 				Statement stmt = connection.createStatement();
 	
-				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, true, getNamespaceHandler(), namespace);
+				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, getNamespaceHandler(), namespace);
 	
 				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
 				String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
@@ -901,7 +902,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 		
-					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, true, getNamespaceHandler(), namespace);
+					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, getNamespaceHandler(), namespace);
 					String tsSQL = "select " + finEntityEntityIdColumn + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " from "+finEntityIntervalTable+" where " + finEntityDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and " + finEntityEntityIdColumn + " in ("+ids+")" ;
 	
 					if (!skipFoci) {

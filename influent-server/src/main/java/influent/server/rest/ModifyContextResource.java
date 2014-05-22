@@ -324,11 +324,8 @@ public class ModifyContextResource extends ApertureServerResource{
 		
 		for (String childId : childIds) {
 			if ( isFile(childId) ) {
-				FL_Cluster file = targetContext.getCluster(childId);
-				if (file != null) {
-					ids.addAll(file.getMembers());
-					ids.addAll(file.getSubclusters());
-				}
+				// remove everything in the context
+				ids.addAll( targetContext.getContext().roots.keySet() );
 			}
 			else {
 				ids.add(childId);

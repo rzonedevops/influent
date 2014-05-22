@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 
-define(["lib/module", "lib/constants", "lib/extern/underscore"], function(modules, constants) {
+define(['lib/module', 'lib/constants', 'lib/extern/underscore'], function(modules, constants) {
 
 	var statusDialog = (function() {
 		var status = $('<div id="ajax-status">'

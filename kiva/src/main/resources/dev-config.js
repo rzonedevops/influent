@@ -28,12 +28,12 @@
 	 * A default log configuration, which simply appends to the console.
 	 */
 	'aperture.log' : {
-		'level' : 'info',
+		'level' : 'log',
 		'logWindowErrors' : {'log': true, 'preventDefault': true},
 		'appenders' : {
 			// Log to the console (if exists)
-			'consoleAppender' : {'level': 'info'},
-			'notifyAppender' : {'level': 'error'}//,
+			'consoleAppender' : {'level' : 'info'},
+			'notifyAppender' : {'level' : 'error'}//,
 			//'draperAppender' : {'address' : 'http://xd-draper.xdata.data-tactics-corp.com:1337'}
 		}
 	},
@@ -135,9 +135,9 @@
         'doubleEncodeSourceUncertainty' : true,
         'maxSearchResults' : 50,
         'searchResultsPerPage' : 12,
-        'searchGroupBy' : 'LABEL',
+        'searchGroupBy' : 'GEO',
         'sessionTimeoutInMinutes' : 24*60,
-        'sessionRestorationEnabled' : true,
+        'sessionRestorationEnabled' : false,
         'usePatternSearch' : true,
         'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
         	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
@@ -147,9 +147,9 @@
         	+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
         	+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
 
-        //enableAdvancedSearchMatchType : true, 
-		//objectDegreeWarningCount : 1000,
-		//objectDegreeLimitCount: 10000,
+        enableAdvancedSearchMatchType : true, 
+		objectDegreeWarningCount : 1000,
+		objectDegreeLimitCount: 10000,
 
         iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],
         

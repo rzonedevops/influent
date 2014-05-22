@@ -44,7 +44,7 @@ define([], function() {
 				return null;
 			}
 
-			var params = hash.split(")!");
+			var params = hash.split(')!');
 			var p={}, param, bs, be, name, value;
 
 			for (var i= 0; i< params.length; i++) {

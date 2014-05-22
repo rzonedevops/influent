@@ -29,7 +29,7 @@
  * TODO Test case needed!
  * TODO Move error/pending UI out of the broker and into an independent view/broker listener
  */
-define(["lib/channels", "lib/ui/status", "lib/extern/underscore"], function(chan, statusDialog) {
+define(['lib/channels', 'lib/ui/status', 'lib/extern/underscore'], function(chan, statusDialog) {
 
 	/**
 	 * Creates a cache with a given size.  If the size is not given, 20 is used.
@@ -98,7 +98,7 @@ define(["lib/channels", "lib/ui/status", "lib/extern/underscore"], function(chan
 		 */
 		var loading = function() {
 			if (errorResponses.length === 0 && !statusDialog.isOpen()){
-				statusDialog.loading("Loading...");
+				statusDialog.loading('Loading...');
 			}
 		},
 
@@ -167,7 +167,7 @@ define(["lib/channels", "lib/ui/status", "lib/extern/underscore"], function(chan
 			// Make request
 			$.ajax( {
 				url:  url,
-				type: "GET",
+				type: 'GET',
 				success: function(data, textStatus, xhr) {
 					// Add to cache
 					cacheData( url, data );
@@ -188,7 +188,7 @@ define(["lib/channels", "lib/ui/status", "lib/extern/underscore"], function(chan
 					var responseData = jqXHR.responseText;
 
 					// Check content-type for json, parse if json
-					var ct = jqXHR.getResponseHeader( "content-type" );
+					var ct = jqXHR.getResponseHeader('content-type');
 					if( responseData && ct && ct.indexOf('json') > -1 ) {
 						try {
 							responseData = jQuery.parseJSON( responseData );

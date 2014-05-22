@@ -1,5 +1,6 @@
 <ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="../../main/config/ehcache.xsd">
+         xsi:noNamespaceSchemaLocation="../../main/config/ehcache.xsd"
+         updateCheck="false">
     
     <!-- Recommended to allocate 25% of server RAM to working memory and 
          remaining 75% distributed among the ehcaches according the recommendations below.  

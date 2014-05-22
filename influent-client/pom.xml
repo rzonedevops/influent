@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.3.2</version>
+		<version>1.3.3</version>
 	</parent>
 
 	<artifactId>influent-client</artifactId>
@@ -41,8 +41,9 @@
 				<configuration>
 					<version>2.4.1</version>
 					<!--options>maxparams:4,quotmark:single,camelcase,eqnull,forin,freeze,newcap,immed,latedef,noarg,noempty,nonew,undef,unused,smarttabs</options-->
-					<options>browser,camelcase,eqnull,forin,freeze,newcap,immed,latedef,noarg,noempty,nonew,undef,unused:vars,smarttabs,sub,laxbreak</options>
-					<globals>define,require,$,jQuery,aperture,_,activityLogger</globals>
+					<!--options>browser,camelcase,eqnull,forin,freeze,newcap,immed,latedef,noarg,noempty,nonew,undef,unused:vars,smarttabs,sub,laxbreak</options-->
+					<!--globals>define,require,$,jQuery,aperture,_,activityLogger</globals-->
+					<configFile>influent.jshintrc</configFile>
 					<directories>
 						<directory>${baseProjectSrc}/scripts</directory>
 					</directories>

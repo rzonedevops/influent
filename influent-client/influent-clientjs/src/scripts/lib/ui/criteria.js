@@ -270,7 +270,7 @@ define([],
 				var down = false;
 				
 				[1,2,3,4,5].forEach(function(i) {
-					$('<span class="advancedsearch-boost-one">&#x2605;</span>')
+					$('<span class="advancedsearch-boost-one"></span>')
 						.attr('id', String(i))
 						.appendTo(set)
 						.hover(function() {

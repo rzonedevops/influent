@@ -85,13 +85,13 @@ table.tablesorter thead tr .headerSortDown {
 
 .sorting_asc_disabled {
 	cursor: pointer;
-	background: url('asc.gif') no-repeat center right;
+	background: url('asc_disabled.gif') no-repeat center right;
 	padding-right: 20px;
 }
 
 .sorting_desc_disabled {
 	cursor: pointer;
-	background: url('desc.gif') no-repeat center right;
+	background: url('desc_disabled.gif') no-repeat center right;
 	padding-right: 20px;
 }
  

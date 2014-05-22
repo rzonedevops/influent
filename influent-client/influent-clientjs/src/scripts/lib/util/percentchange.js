@@ -52,10 +52,10 @@ define([], function() {
 		 */
 		format : function (pctChange) {
 			if (this.isNominal(pctChange)) {
-				return "~UNCH";
+				return '~UNCH';
 			}
 			if (!pctChange) {
-				return "UNCH";
+				return 'UNCH';
 			}
 
 			// either one or zero decimals, that's it.
@@ -64,13 +64,13 @@ define([], function() {
 			// if positive
 			if (pctChange > 0) {
 				if (pctChange > 1000)
-					return "+1000+%";
+					return '+1000+%';
 
 				return '+' + s + '%';
 			}
 
 			if (pctChange < -1000)
-				return "-1000+%";
+				return '-1000+%';
 
 			return s + '%';
 		}

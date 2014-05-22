@@ -253,6 +253,9 @@ public class PatternSearchResource extends ApertureServerResource{
 					String resultUid = entityResult.getUid();
 					if (hackMap.containsKey(resultUid)) {
 						resultUid = hackMap.get(resultUid);
+					} else {
+						s_logger.warn("Result UID of: " + resultUid + " does not have a matching file ID");
+						continue;
 					}
 					
 					// Calculate the actual entity id by assuming it matches the searched-for type/namespace

@@ -26,7 +26,7 @@
 /**
  * Defines the module registration and management
  */
-define(["lib/sandbox", "lib/extern/underscore"], function(Sandbox) {
+define(['lib/sandbox', 'lib/extern/underscore'], function(Sandbox) {
 
 	var modules = {};
 
@@ -96,8 +96,8 @@ define(["lib/sandbox", "lib/extern/underscore"], function(Sandbox) {
 						var instance = modules[name].construct( sandbox );
 
 						activeModules[id] = {
-							"instance" : instance,
-							"sandbox" : sandbox
+							instance : instance,
+							sandbox : sandbox
 						};
 
 						instance.start();

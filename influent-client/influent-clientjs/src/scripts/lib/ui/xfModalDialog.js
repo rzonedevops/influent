@@ -33,7 +33,7 @@ define([],
 				aperture.util.forEach(spec.buttons, function(callback, key) {
 					autoCloseButtons[key] = function() {
 						callback();
-						$(this).dialog("close");
+						$(this).dialog('close');
 					};
 				});
 						
@@ -58,7 +58,7 @@ define([],
 					resizeStop: function(event, ui) {
 					},
 					close: function(event, ui) {
-						$(this).dialog("destroy");
+						$(this).dialog('destroy');
 					}
 				});
 			}

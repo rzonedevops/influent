@@ -64,7 +64,7 @@ define(
 								}
 							}
 							else {
-								aperture.log.error("Unable to render icons of type " + iconClass + "; misconfiguration in config.js.");
+								aperture.log.error('Unable to render icons of type ' + iconClass + '; misconfiguration in config.js.');
 							}
 						}
 					}
@@ -351,7 +351,7 @@ define(
 							endDate :  xfWorkspace.getFilterDates().endDate,
 							numBuckets : xfWorkspace.getFilterDates().numBuckets,
 							focusId : [focus.dataId],
-							focusMaxDebitCredit : "",
+							focusMaxDebitCredit : '',
 							focuscontextid : focus.contextId
 						},
 						contentType: 'application/json'

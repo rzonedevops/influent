@@ -32,7 +32,7 @@ define(['lib/channels'], function(chan) {
 	var Sandbox = function(spec, parentSandbox) {
 
 			// JQuery element for the given div
-		var jqElem = $("#"+spec.div),
+		var jqElem = $('#' + spec.div),
 
 			// these all link back to singletons in app. parent pre-empts local
 			state  = parentSandbox? parentSandbox.spec.state  : spec.state,
@@ -71,9 +71,9 @@ define(['lib/channels'], function(chan) {
 			 */
 			subscribe = function( callback, variables, context ) {
 				var listener = {
-					"callback" : callback,
-					"variables" : variables,
-					"context": context
+					callback : callback,
+					variables : variables,
+					context : context
 				};
 
 				for( var i = listeners.length-1; i > -1; i-- ) {
