@@ -104,7 +104,8 @@ public class DataAccessHelper {
 	
 	
     private static class DetailsSubjectList extends AbstractList<String> implements DetailsSubject, RandomAccess, Serializable {
-        static final long serialVersionUID = 3093736618740652951L;
+        
+    	static final long serialVersionUID = 3093736618740652951L;
         private final String _id;
 
         DetailsSubjectList(String id) {
@@ -335,7 +336,9 @@ public class DataAccessHelper {
 	
 
 
-	public static String createNodeIdListFromCollection(List<String> nodeIDs) {
+	public static String createNodeIdListFromCollection(
+		List<String> nodeIDs
+	) {
 		return createNodeIdListFromCollection(
 			nodeIDs, 
 			null, 
@@ -343,22 +346,7 @@ public class DataAccessHelper {
 		);
 	}
 	
-	public static String createNodeIdListFromCollection(
-			List<String> nodeIDs,
-			boolean quoted,
-			DataNamespaceHandler nameSpaceHandler, 
-			String namespace
-		) {
-		if (nodeIDs == null || nodeIDs.size() == 0) {
-			return null;
-		}
-		
-		List<String> quotedIds = new ArrayList<String>();
-		for (String id : nodeIDs) {
-			quotedIds.add("'" + id + "'");
-		}
-		return createNodeIdListFromCollection(quotedIds, nameSpaceHandler, namespace);
-	}
+	
 	
 	
 	public static String createNodeIdListFromCollection(
@@ -370,13 +358,15 @@ public class DataAccessHelper {
 		if (nodeIDs == null || nodeIDs.isEmpty()) return null;
 	
 		StringBuilder resultString = new StringBuilder();
+		
 		for (String id : nodeIDs) {
 			if(nameSpaceHandler == null) {
 				resultString.append("'" + id + "', ");
 			} else {
-				resultString.append(nameSpaceHandler.toSQLId(id, namespace) + ", ");
+				resultString.append("'" + nameSpaceHandler.toSQLId(id, namespace) + "', ");
 			}
 		}
+		
 		resultString.replace(
 			resultString.lastIndexOf(","),
 			resultString.length() - 1,
@@ -408,7 +398,7 @@ public class DataAccessHelper {
 			if(nameSpaceHandler == null) {
 				resultString.append("'" + item + "',");
 			} else {
-				resultString.append(nameSpaceHandler.toSQLId(item, namespace) + ",");
+				resultString.append("'" + nameSpaceHandler.toSQLId(item, namespace) + "',");
 			}
 		}
 		if (!inItemIds.isEmpty()) {

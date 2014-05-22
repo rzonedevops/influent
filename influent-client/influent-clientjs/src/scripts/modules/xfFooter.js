@@ -29,6 +29,7 @@ define(
 		var transactionsConstructor = function(sandbox) {
 
 			var _transactionsState = {
+				capture : sandbox.spec.capture,
 				subscriberTokens : null,
 				userSelectedTab: 'table',
 				autoSelecting: false
@@ -98,7 +99,7 @@ define(
 				if (isExpanded !== data.expand) {
 					isExpanded = data.expand;
 
-					if (isExpanded) {
+					if (isExpanded && !_transactionsState.capture) {
 						$('#footer-content').animate({
 							height: FOOTER_HEIGHT
 

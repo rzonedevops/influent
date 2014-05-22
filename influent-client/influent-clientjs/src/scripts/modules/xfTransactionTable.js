@@ -29,7 +29,7 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 		var _transactionsState = {
 			table: '',
 			curEntity : '',
-			focus : null,
+			focus : [],
 			startDate : null,
 			endDate : null,
 			subscriberTokens : null,
@@ -43,9 +43,8 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 		var processRowData = function(nRow, aData, iDisplayIndex, iDisplayIndexFull){
 			var srcId = aData[5];
 			var dstId = aData[6];
-			var focusId = _transactionsState.focus.dataId;
-
-			if (srcId == focusId || dstId == focusId){
+			var focusIdArray = _transactionsState.focus;
+			if (focusIdArray.indexOf(srcId) != -1 || focusIdArray.indexOf(dstId) != -1){
 				$(nRow).addClass('transactionsHighlight-'+ (iDisplayIndex % 2));
 			}
 		};
@@ -76,7 +75,7 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 				}
 			}
 
-			if(_transactionsState.table.is(":visible")) {
+			if(_transactionsState.table.is(':visible') || $('#chartTab').is(':visible')) {
 				_transactionsState.table.fnDraw();
 			}
 		};
@@ -84,25 +83,54 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 		//--------------------------------------------------------------------------------------------------------------
 
 		var onFocusChange = function(channel, data) {
-			_transactionsState.focus = data;
+			_transactionsState.focus = [];
 
-			if (_transactionsState.table) {
-				if(_transactionsState.bFilterFocused) {
-					_transactionsState.table.fnDraw();
-				}
-				else {
-					// avoid using fnDraw where possible, as it will reset the page/scroll location on the table view
-					$('tr', _transactionsState.table).each(function(i, e){
-						var rowData = _transactionsState.table.fnGetData( this );
-						if(rowData != null && data != null && (rowData[5] == data.dataId || rowData[6] == data.dataId)) {
-							$(e).addClass('transactionsHighlight-'+ ((i+1) % 2));
-						}
-						else {
-							$(e).removeClass('transactionsHighlight-'+ ((i+1) % 2));
-						}
-					});
-				}
-			}
+            // We need to get a list of entities that are focused if this is a file cluster.   Ask the server
+            // so they are all treated as 'focused' according to the transaction table
+            aperture.io.rest(
+                '/containedentities',
+                'POST',
+                function (response,restInfo) {
+
+                    // Parse response
+                    for (var i = 0; i < response.data.length; i++) {
+                        var entities = response.data[i].entities;
+                        for (var j = 0; j < entities.length; j++) {
+                            _transactionsState.focus.push(entities[j]);
+                        }
+                    }
+
+                    if (_transactionsState.table) {
+                        if(_transactionsState.bFilterFocused) {
+                            _transactionsState.table.fnDraw();
+                        }
+                        else {
+                            // avoid using fnDraw where possible, as it will reset the page/scroll location on the table view
+                            $('tr', _transactionsState.table).each(function(i, e){
+                                var rowData = _transactionsState.table.fnGetData( this );
+                                if(rowData != null && data != null && (_transactionsState.focus.indexOf(rowData[5]) != -1 || _transactionsState.focus.indexOf(rowData[6]) != -1)) {
+                                    $(e).addClass('transactionsHighlight-'+ ((i+1) % 2));
+                                }
+                                else {
+                                    $(e).removeClass('transactionsHighlight-'+ ((i+1) % 2));
+                                }
+                            });
+                        }
+                    }
+                },
+                {
+                    postData : {
+                        sessionId : data.sessionId,
+                        queryId: (new Date()).getTime(),
+                        entitySets : [{
+                            contextId :  data.contextId,
+                            entities: [data.dataId]
+                        }],
+                        details : false
+                    },
+                    contentType: 'application/json'
+                }
+            );
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -111,7 +139,7 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 			_transactionsState.startDate = data.startDate.getUTCFullYear()+'-'+(data.startDate.getUTCMonth()+1)+'-'+data.startDate.getUTCDate();
 			_transactionsState.endDate = data.endDate.getUTCFullYear()+'-'+(data.endDate.getUTCMonth()+1)+'-'+data.endDate.getUTCDate();
 
-			aperture.log.debug('onFilter transactions : '+_transactionsState.startDate+" -> "+_transactionsState.endDate);
+			aperture.log.debug('onFilter transactions : ' + _transactionsState.startDate + ' -> ' + _transactionsState.endDate);
 
 			if (!_transactionsTableInitialized) {
 				if (_transactionsState.curEntity && _transactionsState.startDate && _transactionsState.endDate) {
@@ -156,22 +184,22 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 				'aaSorting': [],				//No sorting initially - results are in order from server
 				'aoColumnDefs': [
 					// TODO: # column needs to be sortable but it doesn't actually exist yet.
-					{'bSortable':false, 'aTargets':[0,2]},		//No sorting on # column or comment column
+					{'bSortable':false, 'aTargets':[0,1,2,3,4]},		//No sorting on # column or comment column
 					{'sWidth': '40px', 'sName': '#', 'aTargets':[0]},				//Column name 0
-					{'sWidth': '80px', 'sName': 'Date', 'aTargets':[1]},			//Column name 1
+					{'sWidth': '80px', 'sName': 'Date', 'aTargets':[1], 'asSorting': [ 'asc' ]},			//Column name 1
 					{'sName': 'Comment', 'aTargets':[2]},		//Column name 2
-					{'sClass': 'currency-table-column', 'sWidth': '100px', 'sName': 'Inflowing', 'aTargets':[3]},		//Column name 3
-					{'sClass': 'currency-table-column', 'sWidth': '100px', 'sName': 'Outflowing', 'aTargets':[4]}		//Column name 4
-					//Column 5: Reserved for source entity ID
+					{'sClass': 'currency-table-column', 'sWidth': '100px', 'sName': 'Inflowing', 'aTargets':[3], 'asSorting': [ 'desc' ]},		//Column name 3
+					{'sClass': 'currency-table-column', 'sWidth': '100px', 'sName': 'Outflowing', 'aTargets':[4], 'asSorting': [ 'desc' ]}		//Column name 4
+					//Column 5: Reserved for source entity ID2
 					//Column 6: Reserved for target entity ID
 				],
 				'fnServerData': function ( sSource, aoData, fnCallback, oSettings ) {
 					oSettings.jqXHR = $.ajax( {
-						"dataType": 'json',
-						"type": "GET",
-						"url": sSource,
-						"data": aoData,
-						"success": function ( data ) {
+						dataType: 'json',
+						type: 'GET',
+						url: sSource,
+						data: aoData,
+						success: function ( data ) {
 							if (data.aoColumnUnits) {
 								if (data.aoColumnUnits[2].sUnits) {
 									oSettings.aoColumns[3].sTitle = 'In (' + data.aoColumnUnits[2].sUnits + ')';
@@ -215,6 +243,14 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 				return;
 			}
 
+			var beforeUnloadEvents = $(window).data('events').beforeunload;
+			var handlers = [];
+			beforeUnloadEvents.forEach(function(event) {
+				handlers.push(event.handler);
+			});
+
+			$(window).unbind('beforeunload');
+
 			var a = document.createElement('a');
 			a.href = aperture.io.restUrl(
 				'/exporttransactions?entityId=' +
@@ -230,6 +266,10 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 				function() {
 					a.click();
 					document.body.removeChild(a);
+
+					handlers.forEach(function(handler) {
+						$(window).bind('beforeunload', handler);
+					});
 				},
 				0
 			);

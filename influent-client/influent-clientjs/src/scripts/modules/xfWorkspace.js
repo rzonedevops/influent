@@ -143,6 +143,7 @@ define(
 						entityLabel: _UIObjectState.focus.entityLabel,
 						entityCount: _UIObjectState.focus.entityCount,
 						contextId: _UIObjectState.focus.contextId,
+						sessionId : _UIObjectState.singleton.getSessionId(),
 						noRender: true
 					}
 				);
@@ -1250,7 +1251,8 @@ define(
 						entityType: firstSearchObject.getUIType(),
 						entityLabel: firstSearchObject.getLabel(),
 						entityCount: firstSearchObject.getVisualInfo().spec.count,
-						contextId: contextObj ? contextObj.getXfId() : null
+						contextId: contextObj ? contextObj.getXfId() : null,
+                        sessionId : _UIObjectState.singleton.getSessionId()
 					});
 
 				// else if we are showing card details then we need to populate the card specs with chart data
@@ -1424,6 +1426,14 @@ define(
 			var targetContainer = _UIObjectState.singleton.getUIObjectByXfId(data.containerId);
 			var cardParent = addCard.getParent();
 
+			// Determine if the resulting target cluster should be expanded or not
+			var targetExpanded = cardParent.getUIType() == constants.MODULE_NAMES.FILE &&
+									cardParent.hasCluster() ?
+										cardParent.getClusterUIObject().getVisualInfo().isExpanded :
+										targetContainer.hasCluster() ?
+											targetContainer.getClusterUIObject().getVisualInfo().isExpanded :
+											true;
+
 			if(addCard == null) {
 				aperture.log.error(
 					'_onAddCardToContainer: ' +
@@ -1574,6 +1584,19 @@ define(
 
 						targetContextObj.setClusterUIObject(uiObject);
 
+						// Expand the new file cluster if necessary
+						if (targetExpanded) {
+							aperture.pubsub.publish(chan.EXPAND_EVENT, { xfId: uiObject.getXfId() });
+						} else {
+							_updateLinks(
+								true,
+								true,
+								[uiObject],
+								renderCallback,
+								[uiObject]
+							);
+						}
+
 						if(requiresFocusChange) {
 							aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {
 								xfId: uiObject.getXfId(),
@@ -1596,14 +1619,6 @@ define(
 							data.onAddedCallback();
 						}
 
-						_updateLinks(
-							true,
-							true,
-							[uiObject],
-							renderCallback,
-							[uiObject]
-						);
-						
 						// pattern search may now be valid if files had no content before.
 						_checkPatternSearchState();
 						
@@ -1644,7 +1659,8 @@ define(
 					entityType: xfUiObj.getUIType(),
 					entityLabel: xfUiObj.getLabel(),
 					entityCount: xfUiObj.getVisualInfo().spec.count,
-					contextId: contextObj ? contextObj.getXfId() : null
+					contextId: contextObj ? contextObj.getXfId() : null,
+                    sessionId : _UIObjectState.singleton.getSessionId()
 				};
 			}
 
@@ -2166,7 +2182,8 @@ define(
 			var degree = direction === 'left' ? uiObject.getInDegree() : uiObject.getOutDegree();
 			var sdegree = _numberFormatter.format(degree);
 			
-			if (OBJECT_DEGREE_LIMIT_COUNT > 0 && degree > OBJECT_DEGREE_LIMIT_COUNT) {
+			if (uiObject.getUIType() !== constants.MODULE_NAMES.SUMMARY_CLUSTER &&
+				OBJECT_DEGREE_LIMIT_COUNT > 0 && degree > OBJECT_DEGREE_LIMIT_COUNT) {
 				xfModalDialog.createInstance({
 					title : 'Sorry! Try a More Focused Branch',
 					contents : 'This branch operation would retrieve '+ sdegree+ ' accounts, which is more than '+
@@ -2180,7 +2197,8 @@ define(
 					}
 				});
 				
-			} else if (OBJECT_DEGREE_WARNING_COUNT > 0 && degree > OBJECT_DEGREE_WARNING_COUNT) {
+			} else if (uiObject.getUIType() !== constants.MODULE_NAMES.SUMMARY_CLUSTER &&
+						OBJECT_DEGREE_WARNING_COUNT > 0 && degree > OBJECT_DEGREE_WARNING_COUNT) {
 				xfModalDialog.createInstance({
 					title : 'Warning!',
 					contents : 'This branch operation will retrieve '+ sdegree +' linked accounts. Are you ' +
@@ -2356,7 +2374,7 @@ define(
 			uiObj.collapse();
 
 			if (_UIObjectState.showDetails) {
-				_collectAndShowDetails(true);
+				_UIObjectState.childModule.updateCardsWithCharts(uiObj.getSpecs(false));
 			}
 
 			_updateLinks(true, true, [uiObj], renderCallback, affectedObjects);
@@ -2384,6 +2402,11 @@ define(
 
 			if (objToRemove === null || objToRemove.getVisualInfo() == null) {
 				// Object no longer exists, or it has been disposed
+
+				if (renderCallback) {
+					renderCallback();
+				}
+
 				return;
 			}
 
@@ -3125,9 +3148,14 @@ define(
 								function() {
 									$(window).unbind('beforeunload');
 									a.click();
-									$(window).bind('beforeunload', _onUnload);
 									document.body.removeChild(a);
 									$.unblockUI();
+									setTimeout(
+										function() {
+											$(window).bind('beforeunload', _onUnload);
+										},
+										0
+									);
 								},
 								0
 							);
@@ -3188,9 +3216,14 @@ define(
 								function() {
 									$(window).unbind('beforeunload');
 									a.click();
-									$(window).bind('beforeunload', _onUnload);
 									document.body.removeChild(a);
 									$.unblockUI();
+									setTimeout(
+										function() {
+											$(window).bind('beforeunload', _onUnload);
+										},
+										0
+									);
 								},
 								0
 							);
@@ -3254,6 +3287,11 @@ define(
 
 				var restoreState = JSON.parse(data);
 
+					if(restoreState.message && !restoreState.ok) {
+						aperture.log.error('Server Error' + (restoreState? (' : ' + JSON.stringify(restoreState)): ''));
+						return;
+					}
+
 					var workspaceSpec = xfWorkspaceModule.getSpecTemplate();
 					_UIObjectState.singleton = xfWorkspaceModule.createSingleton(workspaceSpec);
 
@@ -3264,6 +3302,8 @@ define(
 					_pruneColumns();
 
 					_loadWorkspaceCallback();
+
+					_checkPatternSearchState();
 				}
 			});
 

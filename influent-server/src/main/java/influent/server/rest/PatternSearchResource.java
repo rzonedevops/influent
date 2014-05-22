@@ -249,10 +249,18 @@ public class PatternSearchResource extends ApertureServerResource{
 					String nId = entityResult.getEntity().getUid().toString();
 					trace.append(" ");
 					trace.append(nId);
+
+					String resultUid = entityResult.getUid();
+					if (hackMap.containsKey(resultUid)) {
+						resultUid = hackMap.get(resultUid);
+					} else {
+						s_logger.warn("Result UID of: " + resultUid + " does not have a matching file ID");
+						continue;
+					}
 					
 					// Calculate the actual entity id by assuming it matches the searched-for type/namespace
-					char entityType = searchEntityTypeMap.get(entityResult.getUid());
-					String entityNamespace = searchEntityNamespaceMap.get(entityResult.getUid());
+					char entityType = searchEntityTypeMap.get(resultUid);
+					String entityNamespace = searchEntityNamespaceMap.get(resultUid);
 					String entityId = TypedId.fromNativeId(entityType, entityNamespace, nId).getTypedId();
 					
 					// Put our new entityId back into the results set
@@ -268,11 +276,7 @@ public class PatternSearchResource extends ApertureServerResource{
 							link.getLink().setTarget(entityId);
 						}
 					}
-					
-					String resultUid = entityResult.getUid();
-					if (hackMap.containsKey(resultUid)) {
-						resultUid = hackMap.get(resultUid);
-					}
+				
 					
 					// find the role back
 					List<FL_EntityMatchResult> roleMatches = roleResults.get(resultUid);

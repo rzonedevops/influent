@@ -40,7 +40,7 @@ define(
 				subscriberTokens: null
 			};
 
-			var MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+			var MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 			var SCREEN_TYPES = {};
 			SCREEN_TYPES[constants.MODULE_NAMES.ENTITY] = 'Account';
 			SCREEN_TYPES[constants.MODULE_NAMES.MUTABLE_CLUSTER] = 'File';
@@ -96,8 +96,8 @@ define(
 					_state.selectedEntity.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
 
 					// Some clusters may already have a count appended
-					if (!(label.indexOf("(+")!==-1 && label.charAt(label.length - 1) == ")")) {
-						label += " (+" + (count - 1) + ")";
+					if (!(label.indexOf('(+') !== -1 && label.charAt(label.length - 1) == ')')) {
+						label += ' (+' + (count - 1) + ')';
 					}
 				}
 
@@ -140,8 +140,8 @@ define(
 						_state.focusData.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
 
 						// Some clusters may already have a count appended
-						if (!(focusLabel.indexOf("(+")!==-1 && focusLabel.charAt(focusLabel.length - 1) == ")")) {
-							focusLabel += " (+" + (focusCount - 1) + ")";
+						if (!(focusLabel.indexOf('(+')!==-1 && focusLabel.charAt(focusLabel.length - 1) == ')')) {
+							focusLabel += ' (+' + (focusCount - 1) + ')';
 						}
 					}
 
@@ -555,7 +555,7 @@ define(
 							startDate : state.filterDates.startDate,
 							endDate :  state.filterDates.endDate,
 							focusId : [focusId],
-							focusMaxDebitCredit : "",
+							focusMaxDebitCredit : '',
 							focuscontextid : state.focusData.contextId
 						},
 						contentType: 'application/json'

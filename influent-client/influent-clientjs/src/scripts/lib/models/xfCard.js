@@ -25,7 +25,8 @@
 define(
 	[
 		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil', 'lib/constants',
-		'lib/extern/underscore'],
+		'lib/extern/underscore'
+    ],
 	function(
 		xfUIObject, chan, guid, xfUtil, constants
 	) {

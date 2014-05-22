@@ -65,7 +65,7 @@ define(function() {
 				});
 
 			} else {
-				aperture.log.error("influent.plugins config does not consist of named properties.");
+				aperture.log.error('influent.plugins config does not consist of named properties.');
 			}
 		});
 	});

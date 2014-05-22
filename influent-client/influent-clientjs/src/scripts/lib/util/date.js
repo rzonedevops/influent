@@ -155,7 +155,7 @@ define(['lib/util/duration'], function(mDuration) {
 				if (day.length === 1){
 					day = '0' + day;
 				}
-				return date.getFullYear() + "-" + month + "-" + day;
+				return date.getFullYear() + '-' + month + '-' + day;
 			}
 
 			return months[date.getMonth()] + ' ' +

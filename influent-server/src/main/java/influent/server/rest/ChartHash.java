@@ -136,8 +136,8 @@ public class ChartHash {
 	private String _getVersion(String id, ContextRead contextRO) {
 		TypedId tId = TypedId.fromTypedId(id);
 		
-		// if it's a cluster, append its version
-		if (tId.getType() == TypedId.CLUSTER) {
+		// if it's a cluster in a valid context, append its version
+		if (contextRO != null && tId.getType() == TypedId.CLUSTER) {
 			
 			if (tId.getNativeId().startsWith("file")) {
 				

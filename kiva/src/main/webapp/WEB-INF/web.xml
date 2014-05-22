@@ -13,8 +13,6 @@
 		<param-name>guice-modules</param-name>
 		
 		<param-value>
-            influent.server.auth.ShiroAuthModule:
-            influent.server.auth.SimpleShiroAuthModule:
 			influent.server.RestConfigModule:
 			oculus.aperture.icons.BaseIconModule: 
 			oculus.aperture.parchment.ParchmentModule:
@@ -60,5 +58,14 @@
 	<!-- Servlet config must run on app deployment -->
 	<listener>
 		<listener-class>oculus.aperture.ApertureServerConfig</listener-class>
+	</listener>
+	<listener>
+		<listener-class>net.sf.ehcache.constructs.web.ShutdownListener</listener-class>
+	</listener>
+	<listener>
+		<listener-class>influent.server.utilities.BoneCPShutdownListener</listener-class>
+	</listener>
+	<listener>
+		<listener-class>oculus.aperture.capture.phantom.impl.WebShutdownListener</listener-class>
 	</listener>
 </web-app>

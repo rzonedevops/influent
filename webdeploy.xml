@@ -77,7 +77,7 @@
 		<copy tofile="${demo_dir}/apache-tomcat-${tomcat_version}/webapps/kiva/WEB-INF/web.xml.noshiro" file="${demo_dir}/apache-tomcat-${tomcat_version}/webapps/kiva/WEB-INF/web.xml">
             <filterchain>
                 <linecontains negate="true">
-                    <contains value="shiro"/>
+                    <contains value="Shiro"/>
                 </linecontains>
             </filterchain>
         </copy>
