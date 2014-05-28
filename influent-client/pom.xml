@@ -20,6 +20,10 @@
 		<baseProjectFiltered>influent-clientjs/filtered</baseProjectFiltered>
 	</properties>
 	
+	<modules>
+		<module>influent-docs</module>
+	</modules>
+	
 	<build>
 		<!-- overridden in the default case -->
 		<filters>
@@ -134,7 +138,6 @@
 					</execution>
 				</executions>
 			</plugin>
-			
 			
 			<plugin>
 				<groupId>com.github.mcheely</groupId>

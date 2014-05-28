@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+		<title>Help | Influent</title>
+		<link rel="stylesheet" type="text/css" href="Resources/stylesheets/styles.css" />
+		<link rel="SHORTCUT ICON" href="../img/aperture-16x16.ico"/>
+    </head>
+    <body>
+        <div id="header">
+        </div>
+        <div id="content-strip">
+            <div id="header-logo"><a href=""><img src="../img/influent.png" /></a>
+            </div>
+            <div id="header-menu">
+				<a href="../" class="overview">&#160;</a>
+				<a href="../demos/">Demos</a>
+				<a href="https://github.com/oculusinfo/influent" target="_blank">Download</a>
+				<a href="." class="selected">Help</a>
+            </div>
+            <div id="all">
+				<div id="help-nav-index">
+					<p><a href="index.html#about-help">Home</a> > Importing and Exporting Data</p>
+				</div>
+				<div id="help-nav-page">
+					
+						<p><a href="activity-search.html">Prev</a> | <a href="intellectual-property.html">Next</a></p>
+					
+				</div>
+                <div id="content">
+                    <h1>Importing and Exporting Data</h1>
+
+<p>Influent enables you to import and export transaction flow data in order to:</p>
+
+<ul>
+<li>  Save transaction flow data across multiple Influent sessions</li>
+<li>  Share transaction flow data with other analysts that use Influent</li>
+<li>  Share transaction flow data with individuals who do not have access to Influent</li>
+</ul>
+
+<h2>File Formats</h2>
+
+<p>Influent supports the following file formats:</p>
+
+<ul>
+<li>  <strong>Influent Files (XML)</strong>: Transaction flow data that can be exported from and imported into Influent is saved as an XML file (*.infml). This file format enables you to save and work with files, folders and transaction flow information across multiple sessions. Note that Influent XML files do not contain search results or other unfiled accounts loaded in the workspace.</li>
+<li>  <strong>Workspace Images (PNG)</strong>: A complete screenshot of the workspace can be saved as an image that can be easily included in reports or emailed to individuals without access to Influent.</li>
+<li>  <strong>Detailed Transaction History (CSV)</strong>: Detailed transaction history data for an individual account can be exported to a comma-separated values (CSV) file. This information can then be opened or imported into your spreadsheet or database program of choice.</li>
+</ul>
+
+<h2>Importing Influent Project Data</h2>
+
+<p>You can use Influent&#39;s import functionality to open project data that was saved from a previous session or shared with you by another analyst. Only Influent XML files (*.infml) are supported for import.</p>
+
+<ol>
+<li> If you are currently working on transaction flow data that you do not want to lose, open a blank workspace in a new tab by selecting <strong>New Workspace</strong> from the <strong>Workspace</strong> menu. Otherwise, the import process will overwrite any information you have in your current workspace.
+<img src="Resources/image/workspace-new-bl.png" class="home-image" alt=""></li>
+<li> Select <strong>Import Chart</strong> from the <strong>Workspace</strong> menu.
+<img src="Resources/image/workspace-import-bl.png" class="home-image" alt=""></li>
+<li> Browse to the location of the Influent XML file (*.infml) you want to import and click <strong>Open</strong>.</li>
+</ol>
+
+<p>Your Influent workspace is refreshed to show the filed accounts, relational transaction flow data and workspace focus contained in the XML file.</p>
+
+<h2>Exporting Influent Project Data</h2>
+
+<p>You can use Influent&#39;s export functionality to save and share transaction flow data you have loaded in your workspace.</p>
+
+<h3>Exporting Influent Files</h3>
+
+<p>Influent files are XML-formatted files that contain all of the filed accounts in your workspace. They also retain the relational links between those accounts and the focus of your workspace (highlighted and selected accounts) at the time of export. To export an Influent XML file:</p>
+
+<ol>
+<li> Make sure that all of the accounts you want to save are filed in the workspace. Unfiled accounts and search results will not be saved to the XML file.</li>
+<li> Select <strong>Export Chart</strong> from the <strong>Workspace</strong> menu.
+<img src="Resources/image/workspace-export-bl.png" class="home-image" alt=""></li>
+<li> The XML is automatically saved to the download location specified in your Web browser (e.g., <em>C:\Users\jsmith\Downloads</em>) as <em>influent-saved.infml</em>. It is recommended that you rename the XML file to indicate when it was generated and/or the nature of its contents.</li>
+</ol>
+
+<h3>Exporting Transaction Flow Images</h3>
+
+<p>You can save your transaction flow data as an image that can be included in a report or shared with individuals without access to Influent. Exported images show the entire Influent workspace (i.e., accounts in the workspace, in files and in the Search Results) and the header with the Transaction Flow period. Note that exported images do not include the Details Pane for the selected account. To export an image of the transaction flow data in your workspace:</p>
+
+<ol>
+<li> Select <strong>Export Image</strong> from the <strong>Workspace</strong> menu.
+<img src="Resources/image/workspace-export-image-bl.png" class="home-image" alt=""></li>
+<li> The PNG is automatically saved to the download location specified in your Web browser (e.g., <em>C:\Users\jsmith\Downloads</em>) as <em>influent-snapshot.png</em>. It is recommended that you rename the PNG file to indicate when it was generated and/or the nature of its contents.</li>
+</ol>
+
+<h3>Exporting Detailed Transaction Information</h3>
+
+<p>The Details Pane lists complete records of the transactions made by the selected account. To export this information from Influent into a CSV file:</p>
+
+<ol>
+<li> Select in the workspace the account for which you want to export the transaction data by clicking on it.</li>
+<li> A blue border is drawn on the selected account and the Details Pane is displayed.</li>
+<li> Click the <strong>Export</strong> button below the Transaction Table in the Details Pane. Note that while you can filter the Transaction Table to display only transactions made with the highlighted account, your CSV export will still contain a complete list of the selected account&#39;s transactions.
+<img src="Resources/image/export-transactions-bl.png" class="home-image" alt=""></li>
+<li> The CSV is automatically saved to the download location specified in your Web browser (e.g., <em>C:\Users\jsmith\Downloads</em>) as <em>transactions-&lt;Name of Account&gt;.csv</em>. It is recommended that you rename the CSV file to indicate when it was generated and/or the nature of its contents.
+<img src="Resources/image/csv-bl.png" class="home-image" alt=""></li>
+</ol>
+
+                </div>
+                <div id="footer"><a href="http://www.oculusinfo.com/" >©2014 Oculus Info Inc.</a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

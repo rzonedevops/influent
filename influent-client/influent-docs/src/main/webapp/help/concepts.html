@@ -1,0 +1,249 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+		<title>Help | Influent</title>
+		<link rel="stylesheet" type="text/css" href="Resources/stylesheets/styles.css" />
+		<link rel="SHORTCUT ICON" href="../img/aperture-16x16.ico"/>
+    </head>
+    <body>
+        <div id="header">
+        </div>
+        <div id="content-strip">
+            <div id="header-logo"><a href=""><img src="../img/influent.png" /></a>
+            </div>
+            <div id="header-menu">
+				<a href="../" class="overview">&#160;</a>
+				<a href="../demos/">Demos</a>
+				<a href="https://github.com/oculusinfo/influent" target="_blank">Download</a>
+				<a href="." class="selected">Help</a>
+            </div>
+            <div id="all">
+				<div id="help-nav-index">
+					<p><a href="index.html#about-help">Home</a> > Concepts</p>
+				</div>
+				<div id="help-nav-page">
+					
+						<p><a href="getting-started.html">Prev</a> | <a href="interface.html">Next</a></p>
+					
+				</div>
+                <div id="content">
+                    <h1>Concepts</h1>
+
+<p>This topic describes the concepts and terminology used throughout the Influent user interface to display and describe transaction flow patterns and their actors. The concepts in this topic include:</p>
+
+<ol>
+<li><p><a href="#accounts">Accounts</a></p>
+
+<ol>
+<li> <a href="#account-cards">Account Cards</a></li>
+<li> <a href="#account-actions">Account Actions</a></li>
+</ol></li>
+<li><p><a href="#clusters">Clusters</a></p>
+
+<ol>
+<li> <a href="#cluster-stacks">Cluster Stacks</a></li>
+<li> <a href="#cluster-actions">Cluster Actions</a></li>
+</ol></li>
+<li><p><a href="#workspace">Workspace</a></p>
+
+<ol>
+<li> <a href="#columns">Columns</a></li>
+<li> <a href="#files">Files</a></li>
+<li> <a href="#branching">Branching</a></li>
+<li> <a href="#transaction-flow">Transaction Flow Lines</a></li>
+<li> <a href="#highlight-select">Highlighted vs. Selected</a></li>
+</ol></li>
+</ol>
+
+<h2><a name="accounts"></a>Accounts</h2>
+
+<p>Accounts represent individual actors in the transaction flow. Influent can distinguish actors of various types. In the Kiva data, for example, there are three types of accounts:</p>
+
+<ul>
+<li>  Lenders, who donate money to partners to fulfill a requested loan, then receive money from the partner once the borrower begins repaying the loan.</li>
+<li>  Partners, who receive money donated by lenders, distribute it to the borrower, manage repayments from the borrower and redistribute them back to the original lenders.</li>
+<li>  Borrowers, who request loans, receive money from partners, then make repayments back to the partner based on the terms of the loan.</li>
+</ul>
+
+<p>Each account is associated with a set of account details (e.g., name, location, description and a photograph) and a set of transaction details, including the identity of the other accounts the transactions were carried out with, the date on which they occurred and their value.</p>
+
+<h3><a name="account-cards"></a>Account Cards</h3>
+
+<p>In the Influent <a href="#workspace">workspace</a>, individual accounts are represented by cards. By default, each card displays:</p>
+
+<p><img src="Resources/image/card-example-bl.png" class="home-image" alt=""></p>
+
+<ul>
+<li>  The <strong>Name</strong> of the Account. This could be the name of the borrower or lender or the name of the partner organization handling the loan transactions.</li>
+<li>  <strong>Summary Icons</strong>. These icons give a quick overview of the account. Hover over an icon to view a tooltip explaining what it represents. The Kiva data example uses the following icons are used:
+
+<ul>
+<li>  <strong>Type</strong>: Indicates whether the account is a Lender <img src="Resources/image/lender-il.png" alt="">, Partner <img src="Resources/image/partner-il.png" alt=""> or Borrower <img src="Resources/image/borrower-il.png" alt="">.</li>
+<li>  <strong>Location</strong> <img src="Resources/image/country-il.png" alt="">: Lists the ISO country code in which the account owner is located.</li>
+<li>  <strong>Status</strong> <img src="Resources/image/status-il.png" alt="">: Indicates whether the account has closed or defaulted.</li>
+<li>  <strong>Warnings</strong> <img src="Resources/image/warning-il.png" alt="">: Indicates whether the account has a high delinquency rate or a high default rate.</li>
+</ul></li>
+<li>  An <strong>Account Activity Histogram</strong>. This chart shows the account&#39;s transaction history over the selected Transaction Flow period. Transactions flowing into the account are represented above the x-axis, while transactions flowing out of the account are represented below the x-axis.</li>
+<li>  If the card appears more than once in a transaction flow, a display <strong>Counter</strong> appears in the upper right corner of the card. For example, money flow out of an account can flow back to the originating account.</li>
+</ul>
+
+<p>In addition to the summary iconography, a card&#39;s background may also indicate information about the data source:</p>
+
+<ul>
+<li>  <strong>White Background</strong>: The data set for the account represented by the card is complete, and there is no uncertainty about its transactions.</li>
+<li>  <strong>Parchment Background</strong>: The data set for the account represented by the card is incomplete. Uncertainty exists about the exact transactions the account has made. In the Kiva data, parchment backgrounds are displayed for all lender accounts, as the total amount of each loan to the borrower is known, but not the exact amount from each lender.
+<img src="Resources/image/parchment-bl.png" class="home-image" alt=""></li>
+</ul>
+
+<h3><a name="account-actions"></a>Account Actions</h3>
+
+<p>Mouse over an account card in the workspace to reveal the actions you can perform on the card. See the <a href="#workspace">Workspace</a> section in this topic for more information on actions you can perform on account cards.</p>
+
+<ul>
+<li>  <strong>Highlight Flow</strong> <img src="Resources/image/highlight-il.png" alt="">: Makes the card the main focal point in the Influent <a href="#workspace">workspace</a>. All other Activity History charts in the workspace are scaled in proportion to the transaction values on the highlighted card. In addition, direct transactions (in Account Activity charts and flow lines) are denoted in color to distinguish the involvement of the highlighted card. Unrelated and indirect transactions are displayed in grayscale.</li>
+<li>  <strong>Add to File</strong> <img src="Resources/image/add-to-file-il.png" alt="">: Only available for cards in the search results. Adds the card to the <a href="#files">file</a> under which the search was performed. Files are used to distinguish accounts of interest and manage the workspace.</li>
+<li>  <strong>Move to New File</strong> <img src="Resources/image/move-to-new-file-il.png" alt="">: Only available for cards in the workspace that have been <a href="#branching">branched</a> off of filed cards. Creates a new file with the same name as the card and adds the card to it.</li>
+<li>  <strong>Remove</strong> <img src="Resources/image/remove-il.png" alt="">: Removes the card from the workspace, file or search results.</li>
+<li>  <strong>Search for Similar Accounts</strong> <img src="Resources/image/search-for-similar-accounts-il.png" alt="">: Not available for cards in the search results. Initiates an Advanced Search dialog prepopulated with attributes of the selected card.</li>
+<li>  <strong>Branch</strong> <img src="Resources/image/branch-il.png" alt="">: Not available for cards in the search results until they are filed. Left and right <strong>Branch</strong> buttons expand the accounts with which the card has participated in transactions.</li>
+</ul>
+
+<p>Click on an account card to see that account&#39;s information in the <a href="interface.html#details-pane">Details Pane</a>.</p>
+
+<h2><a name="clusters"></a>Clusters</h2>
+
+<p>In order to organize and simplify the workspace layout, returned search results and <a href="#branching">branched</a> transactions, Influent often groups together similar <a href="#accounts">accounts</a> into clusters. Clusters can contain individual accounts and/or other clusters to form a hierarchy. The Influent hierarchical clustering algorithm can be configured to sort accounts based on any attribute. In the Kiva data, accounts are clustered together based on the following hierarchical rules:</p>
+
+<ol>
+<li> <strong>Categorical Sort on Account Type</strong>: Influent first groups accounts together based on type. Accounts in the Kiva data are grouped by lenders, partners or borrowers.</li>
+<li> <strong>Geographical Sort on Location</strong>: If the clustered accounts are all of the same type, Influent may further sort the accounts by geography. Geographical clusters are also hierarchical. Influent first sorts by continent, then region (e.g., Central Africa or Eastern Africa), country and finally similar latitude/longitude (if available).</li>
+<li> <strong>Label Sort on Account Name</strong>: Finally, Influent will cluster accounts with similar names. For example, Thus, &quot;Héctor&quot; and &quot;hector &quot; are treated as the same name and sorted together, as are &quot;John Doe&quot; and &quot;Doe John&quot;. By default, the label sort groups similar names alphabetically, then performs a fuzzy string matching to cluster accounts with similar names. Fuzzy string clustering:
+
+<ul>
+<li>  Removes leading and trailing non-printing characters and special characters from the account names</li>
+<li>  Converts all characters to lower case</li>
+<li>  Changes accented characters to their ASCII representation</li>
+<li>  Sorts all unique, white space-separated parts of the name</li>
+</ul></li>
+</ol>
+
+<p>Each cluster is associated with a summary of the account attributes and total transaction data of the individual account members in the group. By default, a cluster can contain a maximum of 10 accounts and/or sub-clusters. This value can be configured for each Influent deployment.</p>
+
+<h3><a name="cluster-stacks"></a>Cluster Stacks</h3>
+
+<p>Similar to individual <a href="#accounts">accounts</a>, clusters are represented in the Influent <a href="#workspace">workspace</a> as a stack of cards held together by a paperclip. Clicking on the paperclip expands and reveals the individual accounts and sub-clusters that comprise the cluster. The top card of the unexpanded stack displays:</p>
+
+<p><img src="Resources/image/cluster-example-bl.png" class="home-image" alt=""></p>
+
+<ul>
+<li>  The cluster <strong>Name</strong> is chosen from one of the associated individual accounts in the cluster.</li>
+<li><p><strong>Summary Icons</strong>: These icons give a quick overview of the member accounts and sub-clusters in the group. A bar is displayed under each icon indicates the percentage of accounts in the cluster with the corresponding attribute. In the Kiva data, the following icons are used:</p>
+
+<ul>
+<li>  <strong>Type</strong>: Indicates whether the members are Lenders <img src="Resources/image/lender-il.png" alt="">, Partners <img src="Resources/image/partner-il.png" alt=""> or Borrowers <img src="Resources/image/borrower-il.png" alt="">.</li>
+<li>  <strong>Location</strong> <img src="Resources/image/country-il.png" alt="">: Lists each of the ISO country codes in which member accounts owner are located.</li>
+<li>  <strong>Status</strong> <img src="Resources/image/status-il.png" alt="">: Indicates the percentage of member accounts that are closed.</li>
+<li>  <strong>Warnings</strong> <img src="Resources/image/warning-il.png" alt="">: Indicates the percentage of member accounts with high delinquency rates or a high default rates.</li>
+</ul></li>
+<li><p>A <strong>Cluster Activity Histogram</strong>. This chart shows the total transaction history of all the cluster members over the selected Transaction Flow period. Transactions flowing into the accounts are represented above the x-axis, while transactions flowing out of the accounts are represented below the x-axis.</p></li>
+<li><p>A <strong>Member Count</strong> in the upper right corner of the stack. This is total number of individual accounts in the cluster and any sub-clusters.</p></li>
+</ul>
+
+<p>In addition to the summary iconography, a stack&#39;s background also indicates information about the data source:</p>
+
+<ul>
+<li>  <strong>White Background</strong>: The data set for the cluster represented by the stack is complete, and there is no uncertainty about its transactions.</li>
+<li>  <strong>Parchment Background</strong>: The data set for the cluster represented by the stack is incomplete. Uncertainty exists about the exact transactions the cluster has made. In the Kiva data, parchment backgrounds are displayed for all clusters of lenders, as the total amount of each loan to the financier is known, but not the exact amount from each lender.</li>
+</ul>
+
+<h3><a name="cluster-actions"></a>Cluster Actions</h3>
+
+<p>Mouse over a cluster stack in the <a href="#workspace">workspace</a> to reveal the actions you can perform:</p>
+
+<ul>
+<li>  <strong>Unstack</strong> <img src="Resources/image/unstack-il.png" alt="">: Expands the member <a href="#accounts">accounts</a> and sub-clusters that make up the stack.</li>
+<li>  <strong>Restack</strong> <img src="Resources/image/restack-il.png" alt="">: Collapses the member accounts and sub-clusters that make up the stack.</li>
+<li>  <strong>Highlight Flow</strong> <img src="Resources/image/highlight-il.png" alt="">: Makes the cluster the main focal point in the Influent workspace. All other Activity History charts in the workspace are scaled in proportion to the transaction values on the highlighted stack. In addition, direct transactions (in Account Activity charts and flow lines) with the highlighted stack are denoted in color. Unrelated and indirect transactions are displayed in grayscale.</li>
+<li>  <strong>Add to File</strong> <img src="Resources/image/add-to-file-il.png" alt="">: Only available for stacks in the search results. Adds the stack to the <a href="#files">file</a> under which the search was performed.</li>
+<li>  <strong>Move to New File</strong> <img src="Resources/image/move-to-new-file-il.png" alt="">: Only available for stacks in the workspace that have been <a href="#branching">branched</a> off of filed cards. Creates a new file with the same name as the stack and adds the stack to it.</li>
+<li>  <strong>Remove</strong> <img src="Resources/image/remove-il.png" alt="">: Removes the stack from the workspace, file or search results.</li>
+<li>  <strong>Search for Similar Clusters</strong> <img src="Resources/image/search-for-similar-accounts-il.png" alt="">: Not available for stacks in the search results. Initiates an Advanced Search dialog prepopulated with attributes of the selected stack.</li>
+<li>  <strong>Branch</strong> <img src="Resources/image/branch-il.png" alt="">: Not available for stacks in the search results until they are filed. Left and right <strong>Branch</strong> buttons expand the accounts with which the stack has participated in transactions.</li>
+</ul>
+
+<p>Click on an account card to see that account&#39;s information in the <a href="interface.html#details-pane">Details Pane</a>.</p>
+
+<h2><a name="workspace"></a>Workspace</h2>
+
+<p>The Influent workspace is your desktop for viewing, investigating and assessing transaction flows and <a href="#accounts">accounts</a>. The workspace is separated into <a href="#columns">columns</a>, each of which can contain any number of <a href="#files">files</a> in which you organize accounts for investigation or unfiled accounts that <a href="#branching">branch</a> off of accounts of interest.</p>
+
+<h3><a name="columns"></a>Columns</h3>
+
+<p>A column in the Influent workspace is an invisible entity used to emphasize the left-to-right flow of transactions. <a href="#accounts">Accounts</a> in columns on the left send transactions to accounts on the right. Columns can contain <a href="#files">files</a> or unfiled <a href="#branching">branched</a> accounts.</p>
+
+<h4>Column Actions</h4>
+
+<p>Mouse over the workspace above a column</p>
+
+<ul>
+<li>  <strong>Sort Column</strong> <img src="Resources/image/sort-column-il.png" alt="">: Sorts all accounts in the column by their Incoming Flow, Outgoing Flow or Both.</li>
+<li>  <strong>Clear Column</strong> <img src="Resources/image/clear-column-il.png" alt="">: Removes all unfiled content (branched accounts) from the column.</li>
+<li>  <strong>Add New File</strong> <img src="Resources/image/move-to-new-file-il.png" alt="">: Creates a new empty file in the column.</li>
+</ul>
+
+<h3><a name="files"></a>Files</h3>
+
+<p>In the Influent <a href="#workspace">workspace</a>, files are used to store and organize <a href="#accounts">accounts</a> and <a href="#clusters">clusters</a> you want to investigate. Every new workspace starts with one empty file and a Search Panel. In order to the view the transaction flow involving an account or cluster in your search results, you must first add its <a href="#account-cards">card</a> or <a href="#cluster-stacks">stack</a> to a file.</p>
+
+<p>You can add search results to a file by mousing over the desired result and clicking its <strong>Add to File</strong> button. When you add an account or cluster to a new file, the file inherits the account or cluster name. You can change this name at any time by double clicking on it.</p>
+
+<p>Accounts added to files are clustered to automatically organize them within the file using hierarchical entity clustering. As new accounts are added to a file, Influent will automatically create a new cluster containing all of the members in the file.</p>
+
+<h4>File Actions</h4>
+
+<p>Mouse over a file in the workspace to reveal the actions you can perform:</p>
+
+<ul>
+<li>  <strong>Search for Accounts to Add</strong>: Opens the Search Panel for the selected file.</li>
+<li>  <strong>Remove</strong>: Removes the file from the workspace.</li>
+</ul>
+
+<h3><a name="branching"></a>Branching</h3>
+
+<p>Once you have <a href="#files">filed</a> a result, you can begin investigating the transactions in which the <a href="#accounts">account</a> or <a href="#clusters">cluster</a> of interest has participated. Mouse over the account or cluster to reveal its <strong>Branch</strong> buttons. Click the left <strong>Branch</strong> button to view transactions flowing into the account or the right <strong>Branch</strong> button to view the transactions flowing out of the account.</p>
+
+<p>Note that you cannot create branches directly from accounts in your search results. You can only branch from accounts saved in files or from accounts branched off of accounts saved in files.</p>
+
+<h3><a name="transaction-flow"></a>Transaction Flow Lines</h3>
+
+<p>Lines between <a href="#accounts">accounts</a> and <a href="#clusters">clusters</a> in the Influent <a href="#workspace">workspace</a> indicate transaction flow. The wider the lines, the greater the value of the transaction between the actors.</p>
+
+<p>Transaction flow is always depicted as moving left to right. Accounts are arranged in <a href="#columns">columns</a>. Columns on the left side contain accounts that send transactions to accounts in the column to their right.</p>
+
+<p>Note that depending on your data source, an individual account may appear in both the left and right branches of an account you are investigating. In the Kiva data, for example, all transactions are part of the organization&#39;s microloan structure. Therefore, it is common for an account to both initiate (lend) and accept (receive repayments) transactions with the same account. Understanding the expected transactional patterns in your data source is the key to using Influent to find accounts of interest.</p>
+
+<h3><a name="highlight-select"></a>Highlighted vs. Selected</h3>
+
+<p>Two terms used throughout this help that should not be confused are &quot;highlighted&quot; and &quot;selected&quot;:</p>
+
+<ul>
+<li><p>A <strong>highlighted</strong> <a href="#accounts">account</a> or <a href="#clusters">cluster</a> is the current main focal point of the Influent <a href="#workspace">workspace</a>. The highlighted <a href="#account-cards">card</a> has an orange border. The following transaction flow details associated with all other cards in the workspace are drawn in relation to the highlighted card:</p>
+
+<ul>
+<li>  Account Activity Histograms are scaled in relation to the proportions of the highlighted account.</li>
+<li>  Transactional data is represented (all charts and flow lines) in grayscale, except for portions of those transactions made directly with the highlighted account, which are represented in color.</li>
+</ul>
+
+<p>To change the highlighted card in the workspace, mouse over the desired card and click its <strong>Highlight Flow</strong> <img src="Resources/image/highlight-il.png" alt=""> button. Influent will refresh the workspace to redisplay the transaction history of all other cards relative to the newly highlighted card.</p></li>
+<li><p>A <strong>selected</strong> account or cluster is one for which the Details Pane is currently displayed. The selected card has a blue border.
+To change the selected card, simply click a new card in the workspace.</p></li>
+</ul>
+
+                </div>
+                <div id="footer"><a href="http://www.oculusinfo.com/" >©2014 Oculus Info Inc.</a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
