@@ -264,8 +264,34 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 				exportCaptureOption.addClass('last-menu-group-item');
 				exportOptions.append(exportCaptureOption);
 			}
-			
+
+			var helplink = aperture.config.get()['influent.config']['help'];
 			var USE_AUTH = aperture.config.get()['influent.config']['useAuth'] || false;
+			
+			if (helplink) {
+				var helpOption = $('<li></li>');
+				var helpHref = $('<a></a>');
+				helpHref.attr('id', 'logout');
+				helpHref.attr('href', helplink);
+				helpHref.attr('target', '_blank');
+				var helpIcon = $('<span></span>');
+				helpIcon.addClass('ui-icon logout-icon');
+				helpHref.append(helpIcon);
+				helpHref.append($(document.createTextNode('User Guide')));
+				helpOption.append(helpHref);
+				exportOptions.append(helpOption);
+				
+				if (USE_AUTH) {
+					helpOption.addClass('last-menu-group-item');
+				}
+				
+				helpHref.click(
+					function (e) {
+						window.open(helplink);
+					}
+				);
+			}
+			
 			if (USE_AUTH) {
 				var logoutOption = $('<li></li>');
 				var logoutHref = $('<a></a>');

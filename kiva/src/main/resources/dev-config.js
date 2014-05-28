@@ -117,106 +117,107 @@
 
 	// EXAMPLES.
 	'influent.config' : {
-        'useAuth' : true,
+		'useAuth' : true,
 		'banner' : 'Kiva',
 		'title' : 'Kiva',
+		'help' : 'http://localhost:8888/help',
 		'workspaceWidth' : 1100,
 		'dateRangeIntervals' : {
-		    P14D : '2 weeks',
-		    P112D : '16 weeks',
-		    P1Y : '1 year',
-		    P16M : '16 months',
-		    P4Y : '4 years',
-		    P16Y : '16 years'
+			P14D : '2 weeks',
+			P112D : '16 weeks',
+			P1Y : '1 year',
+			P16M : '16 months',
+			P4Y : '4 years',
+			P16Y : '16 years'
 		},
-        'startingDateRange' : 'P16M',
-        'defaultEndDate': new Date(2013, 4, 1),
-        'defaultShowDetails' : true,
-        'doubleEncodeSourceUncertainty' : true,
-        'maxSearchResults' : 50,
-        'searchResultsPerPage' : 12,
-        'searchGroupBy' : 'GEO',
-        'sessionTimeoutInMinutes' : 24*60,
-        'sessionRestorationEnabled' : false,
-        'usePatternSearch' : true,
-        'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
-        	+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
-        	+ 'set of model accounts, specified here, will match accounts with similar activity. To match on a pattern of activity '
-        	+ '<i>between</i> accounts, open a match card for each of the roles in the pattern and provide one or more model accounts for each. '
-        	+ 'To supply more than one account as a model use commas. '
-        	+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
-        	+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
+		'startingDateRange' : 'P16M',
+		'defaultEndDate': new Date(2013, 4, 1),
+		'defaultShowDetails' : true,
+		'doubleEncodeSourceUncertainty' : true,
+		'maxSearchResults' : 50,
+		'searchResultsPerPage' : 12,
+		'searchGroupBy' : 'GEO',
+		'sessionTimeoutInMinutes' : 24*60,
+		'sessionRestorationEnabled' : false,
+		'usePatternSearch' : true,
+		'patternQueryDescriptionHTML' : 'Behavioral query by example is provided by Graph QuBE, an MIT Lincoln Labs technology. '
+			+ 'Graph QuBE uses one or more model accounts to find accounts with similar patterns of activity. Searching with one such '
+			+ 'set of model accounts, specified here, will match accounts with similar activity. To match on a pattern of activity '
+			+ '<i>between</i> accounts, open a match card for each of the roles in the pattern and provide one or more model accounts for each. '
+			+ 'To supply more than one account as a model use commas. '
+			+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
+			+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
 
-        enableAdvancedSearchMatchType : true, 
+		enableAdvancedSearchMatchType : true, 
 		objectDegreeWarningCount : 1000,
 		objectDegreeLimitCount: 10000,
 
-        iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],
-        
-        // maps property tags to icons.
+		iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],
+		
+		// maps property tags to icons.
 		// for each, can supply an icon spec or a url, and optionally a title.
-        iconMap : {
-        	TYPE : {
-        		map : function(name, value) {
-        			switch (value) {
-        			case 'lender':
-        				return {
-	    					title: 'lender',
-        	        		icon: {type: 'Person', attributes: {role: 'business'}}
-        	        	};
-        			case 'partner':
-        				return {
-        					title: 'partner',
-	    	        		icon: {type: 'Organization', attributes: {role: 'business'}}
-	    	        	};
-        			case 'loan':
-        				return {
-	    	        		title: 'borrower / loan',
-	    	        		icon: {type: 'Person'}
-	    	        	};
-        			}
-        		},
-        		limit : 1
-        	},
-        	
-        	GEO : {
-        		map : function(name, value) {
-        			if (value && value.cc) {
-	        			return {
-	        				title: value.text || value.cc,
-	        				icon: {type: 'Place', attributes: {code: value.cc, country: value.cc}}
-	        			};
-        			}
-        		},
-        		limit: 3
-        	},
-        	
-        	STATUS : {
-        		map : function(name, value) {
-        			switch (value) {
-        			case 'defaulted': 
-                		return {
-        					title: 'defaulted',
-                			icon: {type: 'stamp', attributes: {text: 'default'}}
-                		};
-        			case 'closed':
-                		return {
-	    					title: 'closed',
-	            			icon: {type: 'stamp', attributes: {text: 'closed'}}
-        				};
-        			}
-        		},
-        		limit: 1
-        	},
-        	
-        	WARNING : {
-        		map : function(name, value) {
-            		return {
-            			title: value,
-            			icon: {type: 'warning'}
-            		};
-        		}
-        	}
-        }
+		iconMap : {
+			TYPE : {
+				map : function(name, value) {
+					switch (value) {
+					case 'lender':
+						return {
+							title: 'lender',
+							icon: {type: 'Person', attributes: {role: 'business'}}
+						};
+					case 'partner':
+						return {
+							title: 'partner',
+							icon: {type: 'Organization', attributes: {role: 'business'}}
+						};
+					case 'loan':
+						return {
+							title: 'borrower / loan',
+							icon: {type: 'Person'}
+						};
+					}
+				},
+				limit : 1
+			},
+			
+			GEO : {
+				map : function(name, value) {
+					if (value && value.cc) {
+						return {
+							title: value.text || value.cc,
+							icon: {type: 'Place', attributes: {code: value.cc, country: value.cc}}
+						};
+					}
+				},
+				limit: 3
+			},
+			
+			STATUS : {
+				map : function(name, value) {
+					switch (value) {
+					case 'defaulted': 
+						return {
+							title: 'defaulted',
+							icon: {type: 'stamp', attributes: {text: 'default'}}
+						};
+					case 'closed':
+						return {
+							title: 'closed',
+							icon: {type: 'stamp', attributes: {text: 'closed'}}
+						};
+					}
+				},
+				limit: 1
+			},
+			
+			WARNING : {
+				map : function(name, value) {
+					return {
+						title: value,
+						icon: {type: 'warning'}
+					};
+				}
+			}
+		}
 	}
 }
