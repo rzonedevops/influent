@@ -27,7 +27,10 @@ define([],
 	
 		var CUSTOM_JQUERY_EVENT = 'component.change';
 		var _supportsWeight = true;
-		
+
+		var _advancedSearchFuzzyLevels =
+			aperture.config.get()['influent.config']['advancedSearchFuzzyLevels'];
+
 		/**
 		 * Returns true if fuzzy option is allowed by the range type and constraint
 		 */
@@ -107,12 +110,21 @@ define([],
 		 * TO DO: support customizations via plugin api
 		 */
 		function _valueUI(descriptor, parent, operator, boost) {
-			operator.add('is').add('not', 'is NOT');
+			operator.add('is');
 			
 			if (_fuzzyAllowed(descriptor)) {
-				operator.add('fuzzy', '~like');
-			} 
-	
+
+				if (_advancedSearchFuzzyLevels == null) {
+					operator.add('fuzzy', 'is ~like');
+				} else {
+					aperture.util.forEach(_advancedSearchFuzzyLevels, function(value, key) {
+						operator.add('fuzzy_' + value, key);
+					});
+				}
+			}
+			
+			operator.add('not', 'is NOT');
+
 			function committed(changed) {
 				changed.call(this, true);
 			}
@@ -136,7 +148,8 @@ define([],
 					
 				},
 				value : function(text) {
-					var weight;
+					var weight = 0;
+					var fuzzySimilarity = 0;
 					
 					if (arguments.length !== 0) {
 						var match = /([^:\s]+):(.+?)\s*$/.exec(text||'');
@@ -152,7 +165,7 @@ define([],
 							
 							if (key === descriptor.key) {
 								value = match[2];
-								
+
 								var bmatch = /\^([\.0-9]+)$/.exec(value);
 								if (bmatch != null) {
 									weight = Number(bmatch[1]);
@@ -162,32 +175,56 @@ define([],
 										
 										value = value.substring(0, value.length - bmatch[1].length - 1);
 									}
-								}	
-								
+								}
+
+								var fmatch = /\~([\.0-9]+)$/.exec(value);
+								if (fmatch != null) {
+									fuzzySimilarity = Number(fmatch[1]);
+
+									if (!isNaN(fuzzySimilarity) && fuzzySimilarity > 0) {
+										value = value.substring(0, value.length - fmatch[1].length - 1);
+									}
+								}
+
 								if (!(fuzzy = (value.charAt(0) !== '"'))) {
 									value = value.substring(1, value.length-1);
 								}
-								
+
+								// Escape lucene characters
+								value = value.replace(/([\\]?)([*+?&^!:{}()|\[\]\/\\])/g, '\\$2');
+
 							} else {
 								aperture.log.error('key does not match descriptor in advanced search term');
 							}
 						}
 						
-						operator.value(not? 'not': fuzzy? 'fuzzy' : 'is');
+						if (not) {
+							operator.value('not');
+						} else if (fuzzySimilarity > 0) {
+							operator.value('fuzzy_' + fuzzySimilarity);
+						} else if (fuzzy) {
+							operator.value('fuzzy');
+						} else {
+							operator.value('is');
+						}
+
 						val.val(value);
 	
 					} else {
 						text = val.val();
-	
+
+						// Escape lucene characters
+						text = text.replace(/([\\]?)([*+?&^!:{}()|\[\]\/\\])/g, '\\$2');
+
 						if (text !== '') {
-							switch (operator.value()) {
-							case 'not':
-								text= '-' + descriptor.key + ':' + text;
-								break;
-							case 'fuzzy':
+							if (operator.value() === 'not') {
+								text = '-' + descriptor.key + ':' + text;
+							} else if (operator.value() === 'fuzzy') {
 								text= descriptor.key + ':' + text;
-								break;
-							default:
+							} else if (operator.value().indexOf('fuzzy_') !== -1) {
+								var fuzz = Number(operator.value().substring('fuzzy_'.length, operator.value().length));
+								text = descriptor.key + ':' + text + '~' + fuzz;
+							} else {
 								text= descriptor.key + ':"' + text+ '"';
 							}
 							

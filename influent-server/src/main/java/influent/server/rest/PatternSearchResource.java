@@ -207,7 +207,8 @@ public class PatternSearchResource extends ApertureServerResource{
 				try {
 					response = patternSearcher.searchByExample(example, "QuBE", (long)startIndex, (long)resultLimit, dateRange, useAptima);
 				} catch (AvroRemoteException are) {
-					throw new RuntimeException("Error reported by Query by Example. ", are);
+					// FIXME: Temporarily suppressing QuBE errors until version is updated (#7758)
+					//throw new RuntimeException("Error reported by Query by Example. ", are);
 				}
 			}
 			
@@ -251,9 +252,12 @@ public class PatternSearchResource extends ApertureServerResource{
 					trace.append(nId);
 
 					String resultUid = entityResult.getUid();
+					
+					// The returned UID may be an alias or a fully qualified id. 
+					// If it's an alias then map it back to an id. 
 					if (hackMap.containsKey(resultUid)) {
 						resultUid = hackMap.get(resultUid);
-					} else {
+					} else if (!hackMap.containsValue(resultUid)) {
 						s_logger.warn("Result UID of: " + resultUid + " does not have a matching file ID");
 						continue;
 					}

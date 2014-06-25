@@ -79,12 +79,8 @@ public class ConfigFileDescriptors {
 	
 	public void readDescriptorsFromFile(String fileName) throws IOException {		
 		File file = new File("./conf/" + fileName);
-		InputStream is;
-
-		if (file.exists()) 
-			is = new FileInputStream(file);
-		else
-			is = getClass().getResourceAsStream("/"+fileName);
+		InputStream is = file.exists()? new FileInputStream(file) : 
+			getClass().getResourceAsStream("/"+fileName);
 
 		InputStreamReader isr = new InputStreamReader(is);
 		BufferedReader br = new BufferedReader(isr);
@@ -179,6 +175,10 @@ public class ConfigFileDescriptors {
 						pd.setFriendlyText(m.group(1));
 						s_logger.info("Added " + m.group(1) + ": friendly text for " + pd.getKey());
 					}
+				}
+				
+				if (line.trim().endsWith("<<")) {
+					pd.setDefaultTerm(true);
 				}
 				
 				if (curDesc == null) {

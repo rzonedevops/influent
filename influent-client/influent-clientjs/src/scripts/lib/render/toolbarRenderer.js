@@ -376,36 +376,11 @@ define(
 					);
 
 					buttonItemList.push(closeButton);
+
 				}
+
+				_createPluginButtons(visualInfo, buttonItemList);
 			}
-
-			var extensions = plugins.get('cards');
-			aperture.util.forEach(extensions, function(e) {
-				if (e.toolbar) {
-					var cardspec = {
-						dataId : visualInfo.spec.dataId,
-						type : visualInfo.spec.accounttype
-					};
-
-					var ebuttons = e.toolbar(cardspec);
-					if (ebuttons) {
-						if (!aperture.util.isArray(ebuttons)) {
-							ebuttons = [ebuttons];
-						}
-
-						aperture.util.forEach(ebuttons, function(ebutton) {
-							buttonItemList.splice(0,0,
-								xfUtil.makeButton(ebutton.title || '', ebutton.icon, null, 'card-button', null).click(
-									function() {
-										if (ebutton.click) {
-											return ebutton.click(arguments);
-										}
-									})
-							);
-						});
-					}
-				}
-			});
 
 			for (var i=0; i < buttonItemList.length; i++){
 				_toolbarState.toolbarDiv.append(buttonItemList[i]);
@@ -424,6 +399,8 @@ define(
 		 */
 		var _createMatchControls = function(visualInfo){
 			_toolbarState.matchDiv = _getStateElement('.matchToolbar');
+			var buttonItemList = [];
+
 			if (_toolbarState.matchDiv == null){
 				_toolbarState.matchDiv = $('<div class="matchToolbar"></div>');
 				_toolbarState.canvas.append(_toolbarState.matchDiv);
@@ -437,7 +414,7 @@ define(
 							return false;
 						});
 
-					_toolbarState.matchDiv.append(focusBtn);
+					buttonItemList.push(focusBtn);
 
 				}
 
@@ -453,7 +430,7 @@ define(
 							});
 							return false;
 						});
-					_toolbarState.matchDiv.append(fileBtn);
+					buttonItemList.push(fileBtn);
 				}
 				else {
 					aperture.log.error('There is no parent xfFile associated with the xfMatch: ' + visualInfo.xfId);
@@ -474,7 +451,13 @@ define(
 						}
 					);
 
-				_toolbarState.matchDiv.append(closeBtn);
+				buttonItemList.push(closeBtn);
+
+				_createPluginButtons(visualInfo, buttonItemList);
+			}
+
+			for (var i=0; i < buttonItemList.length; i++){
+				_toolbarState.matchDiv.append(buttonItemList[i]);
 			}
 		};
 
@@ -503,6 +486,38 @@ define(
 				visualInfo.UIType === constants.MODULE_NAMES.FILE)){
 				_createBranchControls(visualInfo, cardHeight);
 			}
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		var _createPluginButtons = function(visualInfo, buttonItemList) {
+			var extensions = plugins.get('cards');
+			aperture.util.forEach(extensions, function(e) {
+				if (e.toolbar) {
+					var cardspec = {
+						dataId : visualInfo.spec.dataId,
+						type : visualInfo.spec.accounttype
+					};
+
+					var ebuttons = e.toolbar(cardspec);
+					if (ebuttons) {
+						if (!aperture.util.isArray(ebuttons)) {
+							ebuttons = [ebuttons];
+						}
+
+						aperture.util.forEach(ebuttons, function(ebutton) {
+							buttonItemList.splice(0,0,
+								xfUtil.makeButton(ebutton.title || '', ebutton.icon, null, 'card-button', null).click(
+									function() {
+										if (ebutton.click) {
+											return ebutton.click(arguments);
+										}
+									})
+							);
+						});
+					}
+				}
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------

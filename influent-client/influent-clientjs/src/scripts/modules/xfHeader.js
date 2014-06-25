@@ -277,7 +277,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 				var helpIcon = $('<span></span>');
 				helpIcon.addClass('ui-icon logout-icon');
 				helpHref.append(helpIcon);
-				helpHref.append($(document.createTextNode('User Guide')));
+				helpHref.append($(document.createTextNode('Help')));
 				helpOption.append(helpHref);
 				exportOptions.append(helpOption);
 				

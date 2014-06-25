@@ -102,6 +102,7 @@ protocol FL_DataTypes {
 							// The ID contains only sufficient information to perform searches, not to retrieve exact matches.
 							// For example, in Kiva, a Borrower has no UID, but is represented as a FirstName&LastName&Gender
 							// query in the Loans table.
+		PROMPT_FOR_DETAILS,	// Should prompt before showing full details
 		OTHER
 	}
 

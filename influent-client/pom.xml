@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.3.3</version>
+		<version>1.3.4</version>
 	</parent>
 
 	<artifactId>influent-client</artifactId>
@@ -19,10 +19,6 @@
 		<baseProjectSrc>influent-clientjs/src</baseProjectSrc>
 		<baseProjectFiltered>influent-clientjs/filtered</baseProjectFiltered>
 	</properties>
-	
-	<modules>
-		<module>influent-docs</module>
-	</modules>
 	
 	<build>
 		<!-- overridden in the default case -->

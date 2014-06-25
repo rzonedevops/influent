@@ -36,6 +36,13 @@ Changes to the `FL_Clustering` protocol:
 Changes to the `FL_Search` protocol:
 + `FL_PropertyMatchDescriptor`
 	+ reinstated `weight`
+	+ added `similarity`
+Changes to the `FL_EntitySearch` protocol:
++ `FL_PropertyDescriptor`
+	+ added `defaultTerm` to indicate whether to include in the set of default criteria to specify
+	+ added `freeTextIndexed` to indicate whether it is indexed for free text queries
+
+
 	
 ## Version 1.6 Change Log
 

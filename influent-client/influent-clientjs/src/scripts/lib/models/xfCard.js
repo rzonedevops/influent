@@ -73,7 +73,8 @@ define(
 			inDegree			: 0,
 			outDegree			: 0,
 			leftOperation       : 'branch',
-			rightOperation      : 'branch'
+			rightOperation      : 'branch',
+			promptForDetails	: false
 		};
 
 		//--------------------------------------------------------------------------------------------------------------

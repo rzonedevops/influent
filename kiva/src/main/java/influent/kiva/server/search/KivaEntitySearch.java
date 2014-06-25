@@ -191,6 +191,8 @@ public class KivaEntitySearch implements FL_EntitySearch {
 					.setConstraint(pst.getConstraint())
 					.setInclude(pst.getInclude())
 					.setVariable(pst.getVariable())
+					.setWeight(pst.getWeight())
+					.setSimilarity(pst.getSimilarity())
 					.setRange(FL_ListRange.newBuilder().setType(FL_PropertyType.STRING).setValues(filtered).build())
 					.build();
 		}

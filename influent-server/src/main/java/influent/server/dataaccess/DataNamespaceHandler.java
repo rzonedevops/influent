@@ -24,6 +24,8 @@
  */
 package influent.server.dataaccess;
 
+import influent.server.dataaccess.AbstractDataNamespaceHandler.ID_TYPE;
+
 import java.util.List;
 import java.util.Map;
 
@@ -157,6 +159,18 @@ public interface DataNamespaceHandler {
 	 */
 	public String rowLimit(String selectBody, long limit);
 
+	/**
+	 * Gets the type of an id. SQL type is specified in app.properties.
+	 * 
+	 * @param id 
+	 * 		the id to be typed
+	 * @param namespace
+	 * 		the optional namespace to use for conversion
+	 * @return
+	 * 		the id type
+	 */
+	public ID_TYPE getIdType(String id, String namespace);	
+	
 	/**
 	 * Converts an influent string id to a SQL id. SQL type is specified
 	 * in app.properties.

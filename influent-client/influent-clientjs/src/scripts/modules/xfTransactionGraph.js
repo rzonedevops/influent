@@ -24,8 +24,8 @@
  */
 
 define(
-	['lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/util/currency', 'lib/util/duration', 'lib/constants'],
-	function(modules, chan, xfUtil, currency, duration, constants) {
+	['lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/util/currency', 'lib/util/duration', 'lib/constants', 'modules/xfWorkspace'],
+	function(modules, chan, xfUtil, currency, duration, constants, xfWorkspace) {
 
 		var transactionGraphConstructor = function(sandbox) {
 
@@ -589,7 +589,15 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			var _requestState = function() {
+			var _requestState = function(channel, data) {
+
+				if (channel === chan.SELECTION_CHANGE_EVENT && data != null) {
+					var visualInfo = xfWorkspace.getUIObjectByXfId(data.xfId).getVisualInfo();
+					var shouldPrompt = visualInfo.spec.promptForDetails;
+					if (shouldPrompt)
+						return;
+				}
+
 				aperture.pubsub.publish(
 					chan.REQUEST_CURRENT_STATE,
 					{}

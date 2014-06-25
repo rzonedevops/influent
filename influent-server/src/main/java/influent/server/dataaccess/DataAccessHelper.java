@@ -28,6 +28,7 @@ import influent.idl.FL_DateInterval;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_DirectionFilter;
 import influent.idl.FL_LinkEntityTypeFilter;
+import influent.server.dataaccess.AbstractDataNamespaceHandler.ID_TYPE;
 
 import java.io.Serializable;
 import java.util.AbstractList;
@@ -363,7 +364,11 @@ public class DataAccessHelper {
 			if(nameSpaceHandler == null) {
 				resultString.append("'" + id + "', ");
 			} else {
-				resultString.append("'" + nameSpaceHandler.toSQLId(id, namespace) + "', ");
+                if (nameSpaceHandler.getIdType(id, namespace) == ID_TYPE.HEX) {
+                    resultString.append(nameSpaceHandler.toSQLId(id, namespace) + ", ");
+                } else {
+                    resultString.append("'" + id + "', ");
+                }
 			}
 		}
 		
@@ -398,7 +403,12 @@ public class DataAccessHelper {
 			if(nameSpaceHandler == null) {
 				resultString.append("'" + item + "',");
 			} else {
-				resultString.append("'" + nameSpaceHandler.toSQLId(item, namespace) + "',");
+				
+				if (nameSpaceHandler.getIdType(item, namespace) == ID_TYPE.HEX) {
+					resultString.append(nameSpaceHandler.toSQLId(item, namespace) + ",");
+				} else {
+					resultString.append("'" + item + "',");
+				}
 			}
 		}
 		if (!inItemIds.isEmpty()) {

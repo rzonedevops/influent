@@ -22,7 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['lib/module', 'lib/channels'], function(modules, chan) {
+define(
+	['lib/module', 'lib/channels', 'modules/xfWorkspace'],
+	function(modules, chan, xfWorkspace) {
 
 	var transactionsConstructor = function(sandbox) {
 
@@ -63,6 +65,11 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 		var onUpdate = function(channel, data) {
 			if (data != null) {
 				aperture.log.debug('onUpdate transactions : ' + data.dataId);
+
+				var visualInfo = xfWorkspace.getUIObjectByXfId(data.xfId).getVisualInfo();
+				var shouldPrompt = visualInfo.spec.promptForDetails;
+				if (shouldPrompt)
+					return;
 			}
 
 			_transactionsState.curEntity = data && data.dataId;
@@ -175,10 +182,13 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 					aoData.push({'name':'entityId', 'value':_transactionsState.curEntity});
 					aoData.push({'name':'startDate', 'value':_transactionsState.startDate});
 					aoData.push({'name':'endDate', 'value':_transactionsState.endDate});
-					if (_transactionsState.bFilterFocused && (_transactionsState.curEntity != _transactionsState.focus.dataId)) {
-						//if (!_transactionsState.focus.isCluster) {
-							aoData.push({'name':'focusIds', 'value':_transactionsState.focus.dataId});			//TODO:  Send list of comma separated entities in clusters
-						//}
+					if (_transactionsState.bFilterFocused &&
+						_transactionsState.focus != null &&
+						_transactionsState.focus.length > 0 &&
+						_transactionsState.curEntity != null &&
+						(_transactionsState.focus.length > 1 || _transactionsState.focus[0] !== _transactionsState.curEntity)
+					) {
+						aoData.push({'name':'focusIds', 'value':_transactionsState.focus});
 					}
 				},
 				'aaSorting': [],				//No sorting initially - results are in order from server

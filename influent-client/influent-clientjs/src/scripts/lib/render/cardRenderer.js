@@ -404,12 +404,13 @@ define(
 
 		//------------------------------------------------------------------------------------------------------------------
 
-		var _selectHandler = function(bSelect, xfId) {
+		var _selectHandler = function(event, bSelect, xfId) {
 			if ( bSelect ) {
 				// Notify the UIObject that it has been clicked.
-			   aperture.pubsub.publish(chan.SELECTION_CHANGE_REQUEST, {
-				   xfId : xfId,
-				   selected : bSelect
+				aperture.pubsub.publish(chan.SELECTION_CHANGE_REQUEST, {
+					xfId : xfId,
+					selected : bSelect,
+					clickEvent: event
 				});
 			}
 		};
@@ -506,9 +507,9 @@ define(
 
 			_constructCard(visualInfo, _instanceState);
 
-			canvas.click(function() {
+			canvas.click(function(event) {
 				var selectionState = !visualInfo.isSelected;
-				_selectHandler(selectionState, visualInfo.xfId);
+				_selectHandler(event, selectionState, visualInfo.xfId);
 				return selectionState;
 			});
 

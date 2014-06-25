@@ -252,7 +252,6 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 				.setTags(Collections.singletonList(FL_PropertyTag.IMAGE))
 				.setRange(new SingletonRangeHelper("img/kiva.png", FL_PropertyType.STRING))
 				.build());
-				
 		
 		//TODO : get tags once added to solr.
 		

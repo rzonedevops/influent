@@ -23,8 +23,8 @@
  * SOFTWARE.
  */
 define(
-	['lib/module', 'lib/channels', 'lib/constants'],
-	function(modules, chan, constants) {
+	['modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/constants', 'lib/plugins'],
+	function(xfWorkspace, modules, chan, constants, plugins) {
 
 		var transactionsConstructor = function(sandbox) {
 
@@ -39,12 +39,77 @@ define(
 
 			var _onUpdate = function(channel, data) {
 
+				var footerContentDiv = $('#footer-content');
 				var transDiv = $('#transactions');
 				var tableIndex = $('#tableTab').index() - 1;
 				var chartIndex = $('#chartTab').index() - 1;
 				var tableDiv = $('#transactions-table');
 
 				if (data) {
+
+					if (aperture.config.get()['influent.config'].promptForDetailsInFooter) {
+
+						// Check if overlay already exists
+						footerContentDiv.find('.footer-overlay').remove();
+
+						var visualInfo = xfWorkspace.getUIObjectByXfId(data.xfId).getVisualInfo();
+						var shouldPrompt = visualInfo.spec.promptForDetails;
+						if (shouldPrompt) {
+
+							// Add overlay
+							var overlay = $('<div></div>');
+							overlay.addClass('footer-overlay');
+							footerContentDiv.append(overlay);
+
+							// Add prompt
+							var prompt = $('<div></div>');
+							prompt.addClass('footer-textbox');
+
+							var html = 'Press OK to view details';
+
+							// Override with plugin
+							var extensions = plugins.get('details');
+							var plugin = aperture.util.find(extensions, function(e) {
+								return e.prompt !== undefined;
+							});
+
+							if (plugin) {
+								html = plugin.prompt({
+									dataId: data.dataId,
+									type: data.accountType,
+									label: data.label,
+									numMembers: data.count
+								});
+							}
+
+							prompt.html(html);
+
+							prompt.append('<br><br>');
+							overlay.append(prompt);
+
+							// Add OK Button
+							var button = $('<button></button>');
+							button.text('OK');
+							prompt.append(button);
+							button.click({container: footerContentDiv},
+								function (e) {
+
+									// Remove overlay
+									e.data.container
+										.find('.footer-overlay')
+										.fadeOut(150, function () {
+											this.remove();
+										});
+
+									e.stopImmediatePropagation();
+
+									visualInfo.spec.promptForDetails = false;
+									aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, data);
+								}
+							);
+						}
+					}
+
 					tableDiv.show();
 					if (data.uiType === constants.MODULE_NAMES.ENTITY) {
 
@@ -137,8 +202,6 @@ define(
 			var initialize = function() {
 
 				var footer = $('#footer');
-
-
 
 				var footerContentDiv = $('<div></div>');
 				footerContentDiv.attr('id', 'footer-content');

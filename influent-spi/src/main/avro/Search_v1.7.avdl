@@ -72,6 +72,9 @@ protocol FL_Search {
 
 		/** Relative importance of this match criteria, where the default is 1.0.  */		
 		union {float, null} weight = 1.0;  // ADDED IN 1.7
+
+		/** Require similarity for fuzzy searches, the default is null.  */		
+		union {float, null} similarity = 1.0;  // ADDED IN 1.7
 		
 		/** If true, INCLUDE all values matching this descriptor. If false, EXCLUDE all values matching this descriptor. */
 		boolean include = true;  // ADDED IN 1.5

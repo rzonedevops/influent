@@ -93,9 +93,9 @@ public class EntitySearchTerms {
 	
 	public EntitySearchTerms(String term) {
 		Pattern extraTermRegEx = Pattern.compile("\\A([^:]*)(\\s*$| [^:\\s]+:.*)");
-		Pattern tagsRegEx = Pattern.compile("([^:\\s]+):(\"([^\"]*)\"|[^:]*)( |$)");
+		Pattern tagsRegEx = Pattern.compile("([^:\\s]+)(?<!\\\\):(.*?) (?=[^\\s\\\\]*?:)");
 		Pattern boostPattern = Pattern.compile("\\^([\\.0-9]+)$");
-		
+		Pattern similarityPattern = Pattern.compile("\\~([\\.0-9]+)$");		
 		Matcher extraTermMatcher = extraTermRegEx.matcher(term);
 		StringBuilder extraTermsBuilder = new StringBuilder();
 		while (extraTermMatcher.find()) {
@@ -114,7 +114,7 @@ public class EntitySearchTerms {
 				continue;
 			}
 			
-			String[] values = tagsMatcher.group(2).toString().trim().split(",(?=(?:[^\"]*\"[^\"]*\")*(?![^\"]*\"))");
+			String[] values = tagsMatcher.group(2).toString().trim().split("(?<!\\\\),(?=(?:[^\"]*\"[^\"]*\")*(?![^\"]*\"))");
 			for (String val : values) {
 				val = val.trim();
 				
@@ -136,6 +136,22 @@ public class EntitySearchTerms {
 					}
 					
 				}
+				
+				Matcher similarityMatch = similarityPattern.matcher(val);
+				if (similarityMatch.find()) {
+					String similarityStr = similarityMatch.group(1);
+
+					try {
+						Float similarity = Float.valueOf(similarityStr);
+						val = val.substring(0, val.length()-similarityStr.length()-1);
+						
+						termBuilder.setSimilarity(similarity);
+						
+					} catch (Exception e) {
+					}
+					
+				}				
+				
 				if (val.startsWith("\"") && val.endsWith("\"")) {
 					val = val.substring(1, val.length() - 1);
 					quoted = true;

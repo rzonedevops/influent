@@ -37,8 +37,6 @@ import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.kiva.server.dataaccess.KivaPropertyMapping;
 import influent.kiva.server.dataaccess.KivaPropertyMaps;
-import influent.server.clustering.ClusterDistributionProperty;
-import influent.server.clustering.utils.ClustererProperties;
 import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
@@ -51,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 
 import oculus.aperture.spi.common.Properties;
+
 import org.apache.avro.AvroRemoteException;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
@@ -91,7 +90,8 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 		
 		FL_Entity.Builder entityBuilder = FL_Entity.newBuilder();
 		List<FL_Property> props = new ArrayList<FL_Property>();
-		
+		List<FL_EntityTag> etags = new ArrayList<FL_EntityTag>();
+
 		String uid = (String)sd.getFieldValue("id");
 
 		entityBuilder.setProvenance(null);
@@ -102,11 +102,6 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 		
 		if (uid.startsWith("l")) {
 			type = "lender";
-			
-			final double notVeryConfidentDemonstration = 0.4*Math.random();
-			
-			//HACK : this is for demo purposes only, makes lenders parchmenty
-			entityBuilder.setUncertainty(FL_Uncertainty.newBuilder().setConfidence(notVeryConfidentDemonstration).build());
 		} else if (uid.startsWith("b")) {
 			type = "loan";
 		} else if (uid.startsWith("p")) {
@@ -123,13 +118,35 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 		
 		Collection<Object> imageURLs = null;
 		
-		if(type.equals("lender")) {
+		if (type.equals("lender")) {
 			imageURLs = new ArrayList<Object>();
 			imageURLs.add("726677");
 			
 		} else {
 			imageURLs = sd.getFieldValues("image_id");
 		}
+		
+		// --- FEATURE DEMOS ------------------------------------------
+		
+		// Prompt for details
+		if (uid.equals("leivind")) {
+			etags.add(FL_EntityTag.PROMPT_FOR_DETAILS);
+		}
+
+		// Multiple image carousel
+		if (uid.equals("b150236")) {
+			imageURLs.add("146773");
+			imageURLs.add("148448");
+		}
+		
+		// Make lenders parchmenty
+		if (type.equals("lender")) {
+			final double notVeryConfidentDemonstration = 0.4*Math.random();
+			
+			entityBuilder.setUncertainty(FL_Uncertainty.newBuilder().setConfidence(notVeryConfidentDemonstration).build());
+		}
+		
+		// ------------------------------------------------------------		
 		
 		for (Object url :  imageURLs) {
 		
@@ -325,8 +342,6 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 		propBuilder.setRange(new SingletonRangeHelper(label, FL_PropertyType.OTHER));
 		
 		props.add(propBuilder.build());
-		
-		List<FL_EntityTag> etags = new ArrayList<FL_EntityTag>();
 		
 		if (type.equals("partner")) {
 			 KivaPropertyMaps.INSTANCE.appendPartnerProperties(props);

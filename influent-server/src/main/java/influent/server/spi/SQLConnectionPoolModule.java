@@ -27,6 +27,17 @@ package influent.server.spi;
 import influent.server.utilities.BoneCPConnectionPool;
 import influent.server.utilities.SQLConnectionPool;
 
+import java.sql.Driver;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Enumeration;
+
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -36,7 +47,10 @@ import com.google.inject.name.Names;
 
 /**
  */
-public class SQLConnectionPoolModule extends AbstractModule {
+public class SQLConnectionPoolModule extends AbstractModule implements ServletContextListener {
+	
+	private static final Logger s_logger = LoggerFactory.getLogger(SQLConnectionPoolModule.class);
+	private BoneCPConnectionPool pool;
 	
 	@Override
 	protected void configure() {
@@ -58,12 +72,42 @@ public class SQLConnectionPoolModule extends AbstractModule {
 		@Named("influent.midtier.user.password") String password,
 		@Named("influent.midtier.ehcache.config") String ehCacheConfig
 	) {
-		final SQLConnectionUrl url = genericUrl.isValid()? genericUrl : mssqlUrl;
-		
-		if (!url.isValid()) {
-			throw new IllegalArgumentException("SQLConnectionPool missing a connection configuration!");
+		if (pool == null) {
+			final SQLConnectionUrl url = genericUrl.isValid()? genericUrl : mssqlUrl;
+			
+			if (!url.isValid()) {
+				throw new IllegalArgumentException("SQLConnectionPool missing a connection configuration!");
+			}
+			
+			pool = new BoneCPConnectionPool(url, username, password, null);
 		}
 		
-		return new BoneCPConnectionPool(url, username, password, null);
+		return pool;
+	}
+
+	@Override
+	public void contextInitialized(ServletContextEvent sce) {
+	}
+
+	@Override
+	public void contextDestroyed(ServletContextEvent sce) {
+		if (pool != null) {
+			try {
+				pool.shutdownConnectionPool();
+			} catch (SQLException e) {
+				s_logger.error("Failed to shutdown connection pool", e);
+			}
+		}
+
+		// This manually deregisters JDBC driver, which prevents Tomcat 7 from complaining about memory leaks wrto this class
+		Enumeration<Driver> drivers = DriverManager.getDrivers();
+		while (drivers.hasMoreElements()) {
+			Driver driver = drivers.nextElement();
+			try {
+				DriverManager.deregisterDriver(driver);
+			} catch (SQLException e) {
+				s_logger.error("Error deregistering driver %s", driver, e);
+			}
+		}
 	}
 }

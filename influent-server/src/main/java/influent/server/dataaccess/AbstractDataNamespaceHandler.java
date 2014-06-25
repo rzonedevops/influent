@@ -213,13 +213,11 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	}
 	
 	
-	
-	
 	/* (non-Javadoc)
-	 * @see influent.server.dataaccess.DataNamespaceHandler#toSQLId(java.lang.String)
+	 * @see influent.server.dataaccess.DataNamespaceHandler#getSQLIdType(java.lang.String, java.lang.String)
 	 */
-	@Override
-	public String toSQLId(String id, String namespace) {
+
+	public ID_TYPE getIdType(String id, String namespace) {
 		ID_TYPE type = _idType;
 		if(namespace != null) {
 			String idConfig = "influent.data.view." + namespace + ".idType";
@@ -232,6 +230,17 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 				}
 			}
 		}
+		
+		return type;
+	}
+	
+	
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.DataNamespaceHandler#toSQLId(java.lang.String, java.lang.String)
+	 */
+	@Override
+	public String toSQLId(String id, String namespace) {
+		ID_TYPE type = getIdType(id, namespace);
 
 		if (type == ID_TYPE.HEX) {
 			return toBinaryFromHex(id);

@@ -27,14 +27,14 @@ define(
 		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/models/xfColumn', 'lib/models/xfFile',
 		'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster', 'lib/models/xfClusterBase',
 		'lib/models/xfCard', 'lib/models/xfLink', 'lib/layout/xfLayoutProvider', 'lib/util/xfUtil',
-		'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/ui/xfLinkType',
+		'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/ui/xfLinkType', 'lib/plugins',
 		'modules/xfRenderer', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/extern/cookieUtil'
 	],
 	function(
 		xfUIObject, chan, guid, xfColumn, xfFile,
 		xfImmutableCluster, xfMutableCluster, xfSummaryCluster, xfClusterBase,
 		xfCard, xfLink, xfLayoutProvider, xfUtil,
-		duration, toolbarOp, xfLinkType,
+		duration, toolbarOp, xfLinkType, plugins,
 		xfRenderer, xfModalDialog, constants, cookieUtil
 	) {
 
@@ -424,7 +424,7 @@ define(
 					break;
 				case chan.REMOVE_REQUEST :
 					performLog = true;
-					activityData.workflow = _logWorkflow.WF_ENRICH;
+					activityData.workflow = _logWorkflow.WF_TRANSFORM;
 					activityData.description = 'Remove a card or stack of cards from the workspace';
 					activityData.data['UIOjectIds'] = data.xfIds;
 					_onRemoveRequest(eventChannel, data, renderCallback);
@@ -1723,6 +1723,29 @@ define(
 
 				_UIObjectState.singleton.setSelection(objectToBeSelected.getXfId());
 
+				// Call any selection plugins
+				var extensions = plugins.get('cards');
+				var plugin = aperture.util.find(extensions, function (e) {
+					return e.select !== undefined;
+				});
+
+				if (plugin) {
+
+					plugin.select({
+						dataId: _UIObjectState.selectedUIObject.dataId,
+						type: _UIObjectState.selectedUIObject.accountType,
+						label: _UIObjectState.selectedUIObject.label,
+						numMembers: _UIObjectState.selectedUIObject.count,
+
+						// is the entity flagged PROMPT_FOR_DETAILS?
+						shouldPrompt: objectToBeSelected.getVisualInfo().spec.promptForDetails,
+
+						// Include mouse details in the event
+						mouseButton : data.clickEvent.which,
+						mouseX : data.clickEvent.pageX,
+						mouseY : data.clickEvent.pageY
+					});
+				}
 			}
 
 			aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, _UIObjectState.selectedUIObject);
@@ -1742,7 +1765,6 @@ define(
 			window.setTimeout(function() {
 				aperture.pubsub.publish(chan.FOOTER_STATE_REQUEST, {selection: objectToBeSelected, expand: expand});
 			}, 100);
-
 		};
 
 		//--------------------------------------------------------------------------------------------------------------

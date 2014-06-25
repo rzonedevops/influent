@@ -112,12 +112,18 @@ public class SolrUtils {
 				for (String token : wsTokens) {
 					if (token.indexOf('-') == -1 || NUMBER_PATTERN.matcher(token).find()) {
 						s.append(escapeQueryChars(token));
-						s.append("~ ");
+						s.append("~");
+						if (descriptor.getSimilarity() != null && descriptor.getSimilarity() != 1.0)
+							s.append(descriptor.getSimilarity());
+						s.append(" ");
 					} else {
 						String hyphenTokens[] = token.split("-");
 						for (String seg : hyphenTokens) {
 							s.append(escapeQueryChars(seg));
-							s.append("~ ");
+							s.append("~");
+							if (descriptor.getSimilarity() != null && descriptor.getSimilarity() != 1.0)
+								s.append(descriptor.getSimilarity());
+							s.append(" ");
 						}
 					}
 				}

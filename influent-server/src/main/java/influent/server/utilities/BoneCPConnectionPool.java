@@ -34,7 +34,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
@@ -51,8 +50,6 @@ import com.jolbox.bonecp.BoneCPConfig;
 public class BoneCPConnectionPool implements SQLConnectionPool {
 	
 	private static final Logger s_logger = LoggerFactory.getLogger(SQLConnectionPool.class);
-
-	static final List<BoneCPConnectionPool> ALL_POOLS = new CopyOnWriteArrayList<BoneCPConnectionPool>();
 
 	private BoneCP connectionPool = null;
 	private final SelfPopulatingCache cache;
@@ -134,7 +131,6 @@ public class BoneCPConnectionPool implements SQLConnectionPool {
 			
 //			connectionPool = DriverManager.getConnection(getConnectionUrl(), username, password);
 			s_logger.info("Connected to " + url);
-			ALL_POOLS.add(this);
 		}
 		
 		return connectionPool.getConnection();
@@ -143,11 +139,10 @@ public class BoneCPConnectionPool implements SQLConnectionPool {
 	
 	
 	
-	void shutdownConnectionPool() throws SQLException {
+	public void shutdownConnectionPool() throws SQLException {
 		if (connectionPool != null) {
 			connectionPool.shutdown();
 		}
-		ALL_POOLS.remove(this);
 		connectionPool = null;
 	}
 	

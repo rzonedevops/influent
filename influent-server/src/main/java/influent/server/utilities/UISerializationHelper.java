@@ -64,12 +64,16 @@ public class UISerializationHelper {
 			entityType = "account_owner";
 		}
 		
-		fle.put("entitytype", entityType);
+		fle.put("entityType", entityType);
 		fle.put("members", cluster.getMembers());
 		fle.put("subclusters", cluster.getSubclusters());
 		
 		if (cluster.getUncertainty() != null) {
 			fle.put("uncertainty", new JSONObject(cluster.getUncertainty().toString()));
+		}
+		
+		if (cluster.getTags().contains(FL_EntityTag.PROMPT_FOR_DETAILS)) {
+			fle.put("promptForDetails", true);
 		}
 		
 		JSONObject props = new JSONObject();
@@ -113,10 +117,14 @@ public class UISerializationHelper {
 
 		fle.put("uid", entity.getUid());
 
-		fle.put("entitytype", "entity");
+		fle.put("entityType", "entity");
 		
 		if (entity.getUncertainty() != null) {
 			fle.put("uncertainty", new JSONObject(entity.getUncertainty().toString()));
+		}
+		
+		if (entity.getTags().contains(FL_EntityTag.PROMPT_FOR_DETAILS)) {
+			fle.put("promptForDetails", true);
 		}
 		
 		JSONObject props = new JSONObject();
@@ -163,6 +171,7 @@ public class UISerializationHelper {
 		oj.put("type",flpd.getType());
 		oj.put("constraint",  flpd.getConstraint());
 		oj.put("range", flpd.getRange());
+		oj.put("defaultTerm", flpd.getDefaultTerm());
 		
 		return oj;
 	}

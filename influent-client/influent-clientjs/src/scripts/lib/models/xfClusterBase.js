@@ -75,7 +75,8 @@ define(
 			outDegree			: 0,
 			leftOperation       : 'branch',
 			rightOperation      : 'branch',
-			ownerId             : ''
+			ownerId             : '',
+			promptForDetails	: false
 		};
 
 		//--------------------------------------------------------------------------------------------------------------

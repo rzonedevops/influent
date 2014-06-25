@@ -144,6 +144,7 @@ define(
 			spec.label = label;
 			spec.inDegree = xfWorkspace.getValueByTag(elementData, 'INFLOWING');
 			spec.outDegree = xfWorkspace.getValueByTag(elementData, 'OUTFLOWING');
+			spec.promptForDetails = elementData.promptForDetails;
 
 			if (type == constants.ACCOUNT_TYPES.ACCOUNT_OWNER) {
 				spec.ownerId = spec.dataId;
@@ -166,6 +167,7 @@ define(
 			spec.label = xfWorkspace.getValueByTag(elementData, 'LABEL');
 			spec.inDegree = xfWorkspace.getValueByTag(elementData, 'INFLOWING');
 			spec.outDegree = xfWorkspace.getValueByTag(elementData, 'OUTFLOWING');
+			spec.promptForDetails = elementData.promptForDetails;
 			spec.icons = [];
 
 			// do icons

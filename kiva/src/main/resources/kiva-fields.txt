@@ -43,7 +43,7 @@
 
 type:lender
 string:id {ID}
-string:lenders_name {Name}
+string:lenders_name {Name}<<
 string:lenders_occupation {Occupation}
 string:lenders_loanBecause {Loaned because}
 string:lenders_wherebouts {Whereabouts}
@@ -59,7 +59,7 @@ string:lenders_inviterId {Inviter ID}
 
 type:loan
 string:id {ID}
-string:loans_name {Name}
+string:loans_name {Name}<<
 string:loans_location_country {Country}
 string:loans_status [fundraising,funded,in_repayment,paid,ended_with_loss,defaulted] {Status}
 string:description {Description}
@@ -94,7 +94,7 @@ string:loans_location_countryCode {Country code}
 
 type:partner
 string:id {ID}
-string:partners_name {Name}
+string:partners_name {Name}<<
 string:partners_status [active,closed,paused,pilot] {Status}
 # real:partners_rating {Rating}
 string:partners_dueDiligenceType {Due diligence type}

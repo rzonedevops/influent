@@ -20,7 +20,7 @@
 		<influent.war.exclusions>WEB-INF/lib/servlet*.jar,WEB-INF/lib/jetty*.jar</influent.war.exclusions>
 	</properties>
 
-	<!-- NOTE ONLY THE REQUIRED!!! SECTIONS are needed to build the ware. 
+	<!-- NOTE ONLY THE REQUIRED!!! SECTIONS are needed to build the war. 
 		The rest of the configuration is for dynamic editing in a development environment. -->
 	<dependencies>
 	
@@ -56,7 +56,7 @@
 				<filtering>true</filtering>
 				<includes>
 					<include>**/*.properties</include>
-					<include>**/config.js</include>
+					<include>**/*config.js</include>
 				</includes>
 			</resource>
 			<resource>
@@ -64,7 +64,7 @@
 				<filtering>false</filtering>
 				<excludes>
 					<exclude>**/*.properties</exclude>
-					<exclude>**/config.js</exclude>
+					<exclude>**/*config.js</exclude>
 				</excludes>
 			</resource>
 		</resources>

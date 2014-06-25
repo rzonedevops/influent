@@ -1072,6 +1072,28 @@ body {
 	font-size: 16px;
 }
 
+.footer-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9;
+    background-color: rgba(255,255,255,0.85);
+}
+
+.footer-textbox {
+    width:600px;
+    height:100px;
+    position:absolute;
+    top: 50%;
+    left: 50%;
+    margin:-50px 0 0 -300px;    
+    text-align: center;
+    color: #dd0000;
+    font-size: 150%;
+}
+
 .searchControls {
     background-color: @influent-match-search-bar-color;
   	.rounded-top-right(@influent-card-corner-radius);
@@ -1210,13 +1232,13 @@ body {
 }
 .advancedsearch-paramchoice {
 	border: none;
-	width: 70%;
+	width: 62%;
 	height: 100%;
 }
 .advancedsearch-constraint {
 	border: none;
 	border-left: 1px dotted #555;
-	width: 30%;
+	width: 38%;
 	height: 100%;
 }
 .advancedsearch-input {

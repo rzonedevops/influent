@@ -34,7 +34,7 @@ protocol FL_EntitySearch {
 	 value field is set to the desired value. The type field indicates how the constraint should be treated (ex,
 	 constrain results to those where the "count" property has a value of "LESS_THAN" "100").
 	 
-	 CHANGED IN 1.5
+	 CHANGED IN 1.7
 	 
 	 */
 	record FL_PropertyDescriptor {
@@ -50,8 +50,14 @@ protocol FL_EntitySearch {
 		/** range of the Property to search on */
 		union{FL_RangeType, null} range; // ADDED IN 1.5
 		
-		/** MUST_EQUALS, FUZZY_PARTIAL_OPTIONAL, MUST_NOT */
+		/** REQUIRED_EQUALS, FUZZY_PARTIAL_OPTIONAL, NOT, OPTIONAL_EQUALS, FUZZY_REQUIRED */
 		union {FL_Constraint, null} constraint; // CHANGED IN 1.5
+		
+		/** indicates whether the property is indexed for free text queries **/
+		boolean freeTextIndexed = false; // CHANGED IN 1.7
+		
+		/** indicates whether it should be included in the set of default criteria to specify **/
+		boolean defaultTerm = false; // CHANGED IN 1.7
 	}
 	
 	/*
