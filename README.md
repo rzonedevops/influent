@@ -6,6 +6,9 @@ Service Provider Interfaces (SPIs) provide a plugin style framework for develope
 
 ![Influent example with public Kiva data set](https://raw.github.com/oculusinfo/wiki-assets/master/influent/influent-kiva.png) 
 
+### Live Demo
+To see a live demo of Influent visit the Influent web page at http://influent.org.
+
 ## Building Influent
 The Influent web app is a servlet, with server side Java and client side JavaScript + HTML5. To build Influent on the command line you will need the following to be installed first:
 
