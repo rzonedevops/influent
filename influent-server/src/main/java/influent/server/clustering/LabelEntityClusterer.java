@@ -148,7 +148,7 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 	}
 	
 	private String getStringValue(PropertyHelper property) {
-		String val = null;
+		String val = "Unknown";  // default if no valid property value found
 		
 		// try to read the double value of the entity
 		if (property != null && property.getRange() != null) {
@@ -177,14 +177,13 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 			PropertyHelper prop = getFirstProperty(entity, clusterField);
 			if (prop != null) {
 				String val = getStringValue(prop);
-				
-				if (val != null) {
-					Instance inst = createInstance(entity.getUid(), val);
-					ds.add(inst);
-				}
+				Instance inst = createInstance(entity.getUid(), val);
+				ds.add(inst);
 			}
 			else {
-				// TODO what to do with entities that can't be clustered?
+				// No valid clusterField property found default to "Unknown"
+				Instance inst = createInstance(entity.getUid(), "Unknown");
+				ds.add(inst);
 			}
 		}
 		for (FL_Cluster immutableCluster : immutableClusters) {
@@ -197,14 +196,13 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 			}
 			if (prop != null) {
 				String val = getStringValue(prop);
-				
-				if (val != null) {
-					Instance inst = createInstance(immutableCluster.getUid(), val);
-					ds.add(inst);
-				}
+				Instance inst = createInstance(immutableCluster.getUid(), val);
+				ds.add(inst);
 			}
 			else {
-				// TODO what to do with entities that can't be clustered?
+				// No valid clusterField property found default to "Unknown"
+				Instance inst = createInstance(immutableCluster.getUid(), "Unknown");
+				ds.add(inst);
 			}
 		}
 		return ds;
