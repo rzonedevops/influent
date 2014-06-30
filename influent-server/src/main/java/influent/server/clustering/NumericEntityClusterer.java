@@ -107,7 +107,9 @@ public class NumericEntityClusterer extends BaseEntityClusterer {
 				}
 			}
 			else {
-				// TODO what to do with entities that can't be clustered?
+				// No valid clusterField property found default to -1
+				Instance inst = createInstance(entity.getUid(), -1.0);
+				ds.add(inst);
 			}
 		}
 		for (FL_Cluster immutableCluster : immutableClusters) {
@@ -127,7 +129,9 @@ public class NumericEntityClusterer extends BaseEntityClusterer {
 				}
 			}
 			else {
-				// TODO what to do with entities that can't be clustered?
+				// No valid clusterField property found default to -1
+				Instance inst = createInstance(immutableCluster.getUid(), -1.0);
+				ds.add(inst);
 			}
 		}
 		return ds;
