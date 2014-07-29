@@ -24,14 +24,7 @@
  */
 package influent.server.utilities;
 
-import influent.idl.FL_Cluster;
-import influent.idl.FL_Entity;
-import influent.idl.FL_EntityTag;
-import influent.idl.FL_Link;
-import influent.idl.FL_Property;
-import influent.idl.FL_PropertyType;
-import influent.idl.FL_PropertyDescriptor;
-import influent.idl.FL_SingletonRange;
+import influent.idl.*;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.idlhelper.PropertyHelper;
 
@@ -52,7 +45,7 @@ import org.json.JSONObject;
 
 public class UISerializationHelper {
 
-	public static JSONObject toUIJson(FL_Cluster cluster) throws JSONException {
+    public static JSONObject toUIJson(FL_Cluster cluster) throws JSONException {
 		JSONObject fle = new JSONObject();
 		
 		fle.put("uid", cluster.getUid());
@@ -152,13 +145,14 @@ public class UISerializationHelper {
 					value = new JSONObject(value.toString());
 				}
 				
-				json.put("value", value);
+				json.put("value", value);//getFriendlyValue(prop));
 				
 			} else {
 				json.put("range", new JSONObject(prop.getRange().toString()));
 			}
 		}
-		
+
+        json.put("uncertainty", prop.getUncertainty());
 		json.put("tags", prop.getTags());
 		
 		return json;

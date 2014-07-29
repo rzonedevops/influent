@@ -49,6 +49,7 @@ define(
 		},
 		AJAX_SPINNER_FILE : 'img/ajax-loader.gif',
 		AJAX_SPINNER_BG	: 'url("img/ajax-loader.gif") no-repeat center center',
+		AJAX_SPINNER_LARGE_BG	: 'url("img/ajax-loader-large.gif") no-repeat center center',
 		SORT_FUNCTION : {
 			INCOMING : 'incoming',
 			OUTGOING : 'outgoing',

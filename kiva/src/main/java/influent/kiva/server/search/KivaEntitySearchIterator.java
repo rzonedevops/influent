@@ -408,7 +408,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 			
 			FL_Property geoProp = FL_Property.newBuilder()
 					.setKey("geo")
-					.setFriendlyText("Location")
+					.setFriendlyText("")
 					.setTags(Collections.singletonList(FL_PropertyTag.GEO))
 					.setRange(geoVal)
 					.setProvenance(null)

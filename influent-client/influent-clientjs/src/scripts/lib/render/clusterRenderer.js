@@ -100,8 +100,7 @@ define(
 				visualInfo.UIType === constants.MODULE_NAMES.MUTABLE_CLUSTER
 			) {
 				var clipContainer = $('<div class="clipContainer"></div>');
-				clipContainer.attr('title', 'Unstack ' + state.spec.label);
-				xfUtil.handleTooltipEvent(clipContainer, 'unstack');
+				xfUtil.makeTooltip(clipContainer, 'Unstack ' + state.spec.label, 'unstack cards');
 				clipContainer.click(function() {
 					aperture.pubsub.publish(
 						chan.EXPAND_EVENT,
@@ -122,8 +121,7 @@ define(
 
 			// Add a margin div that will contract on click
 			var marginDiv = $(document.createElement('div'));
-			marginDiv.attr('title', 'Restack ' + state.spec.label);
-			xfUtil.handleTooltipEvent(marginDiv, 'restack');
+			xfUtil.makeTooltip(marginDiv, 'Restack ' + state.spec.label, 'restack cards');
 			marginDiv.addClass('clusterBracket');
 			marginDiv.append($('<div class="clusterBracketClip"></div>'));
 			state.canvas.append(marginDiv);

@@ -24,8 +24,10 @@
  */
 
 define(
-	['lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/util/currency', 'lib/util/duration', 'lib/constants', 'modules/xfWorkspace'],
-	function(modules, chan, xfUtil, currency, duration, constants, xfWorkspace) {
+	['lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/util/currency', 'lib/util/duration', 'lib/constants',
+		'modules/xfWorkspace', 'modules/xfRest'],
+	function(modules, chan, xfUtil, currency, duration, constants,
+				xfWorkspace, xfRest) {
 
 		var transactionGraphConstructor = function(sandbox) {
 
@@ -58,6 +60,8 @@ define(
 
 			var _numberFormatter = aperture.Format.getNumberFormat(0.01);
 
+            var BAR_ELEMENT_TOOLTIP_ID = 'Transaction Graph Bar Element';
+
 			//----------------------------------------------------------------------------------------------------------
 
 			var _createXAxis = function(plot, order){
@@ -75,96 +79,117 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			var _createTooltipHtml = function(event, isInflowing){
+			var _attachTooltip = function(element, isInflowing){
 
-				var index = event.index[0];
-				var baseValue = event.data.data[index].base;
-				var focusValue = event.data.data[index].focus;
-				var startDate = event.data.data[index].startDate;
-				var endDate = xfUtil.dayBefore(event.data.data[index].endDate);
-				var focusType = SCREEN_TYPES[_state.focusData.entityType];
-				var focusLabel = _state.focusData.entityLabel;
-				var focusCount = _state.focusData.entityCount;
-				var focusDataId = _state.focusData.entityType === constants.MODULE_NAMES.ENTITY? _state.focusData.dataId.substr(2): '';
-				var selectionXfId = _state.selectedEntity.xfId;
-				var focusXfId = _state.focusData.xfId;
-				var label = _state.selectedEntity.label;
-				var count = _state.selectedEntity.count;
+                var createHTML = function(event, isInflowing) {
 
-				// HACK: append cluster count to selected entity label
-				if (count && count > 1 &&
-					_state.selectedEntity.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-
-					// Some clusters may already have a count appended
-					if (!(label.indexOf('(+') !== -1 && label.charAt(label.length - 1) == ')')) {
-						label += ' (+' + (count - 1) + ')';
-					}
-				}
-
-				var dataId = _state.selectedEntity.entityType === constants.MODULE_NAMES.ENTITY? _state.selectedEntity.dataId.substr(2): '';
-				var entityType = SCREEN_TYPES[_state.selectedEntity.entityType];
-
-				if (!isInflowing) {
-					baseValue *= -1;
-					focusValue *= -1;
-				}
-
-				var html = '<div class="influent-tooltip"><B>';
-				html += MONTH_NAMES[startDate.getMonth()] + ' ' + startDate.getDate() + ', ' + startDate.getFullYear() + ' ';
-				html += '</B>';
-				if (startDate.getTime() !== endDate.getTime()) {
-					html += 'to<B> ';
-					html += MONTH_NAMES[endDate.getMonth()] + ' ' + endDate.getDate() + ', ' + endDate.getFullYear() + ' ';
-					html += '</B>';
-				}
-				html += '<br><br><span class="tooltip-selected-entity">';
-				html += entityType + ': ';
-				if (dataId) {
-					html += dataId + ', ';
-				}
-				html += label;
-				html += '</span><br>';
-
-				if (isInflowing) {
-					html += 'Total Inflowing: <B>';
-				} else {
-					html += 'Total Outflowing: <B>';
-				}
-				html += _numberFormatter.format(baseValue);
-				html += '</B>';
-
-				if (focusValue !== 0 && selectionXfId != focusXfId) {
-
-					// HACK: append cluster count to focus label
-					if (focusCount && focusCount > 1 &&
-						_state.focusData.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-
-						// Some clusters may already have a count appended
-						if (!(focusLabel.indexOf('(+')!==-1 && focusLabel.charAt(focusLabel.length - 1) == ')')) {
-							focusLabel += ' (+' + (focusCount - 1) + ')';
-						}
+					if (event.index === undefined) {
+						return;
 					}
 
-					html += '<br><br>';
-					html += '<span class="tooltip-focus-entity">Subset Involving ';
-					html += focusType + ': ';
-					if (focusDataId) {
-						html += focusDataId + ', ';
-					}
-					html += focusLabel + '</span><br>';
+                    var index = event.index[0];
+                    var baseValue = event.data.data[index].base;
+                    var focusValue = event.data.data[index].focus;
+                    var startDate = event.data.data[index].startDate;
+                    var endDate = xfUtil.dayBefore(event.data.data[index].endDate);
+                    var focusType = SCREEN_TYPES[_state.focusData.entityType];
+                    var focusLabel = _state.focusData.entityLabel;
+                    var focusCount = _state.focusData.entityCount;
+                    var focusDataId = _state.focusData.entityType === constants.MODULE_NAMES.ENTITY ? _state.focusData.dataId.substr(2) : '';
+                    var selectionXfId = _state.selectedEntity.xfId;
+                    var focusXfId = _state.focusData.xfId;
+                    var label = _state.selectedEntity.label;
+                    var count = _state.selectedEntity.count;
 
-					if (isInflowing) {
-						html += 'Total Inflowing: <B>';
-					} else {
-						html += 'Total Outflowing: <B>';
-					}
-					html += _numberFormatter.format(focusValue);
-					html += '</B>';
-				}
-				html += '</div>';
+                    // HACK: append cluster count to selected entity label
+                    if (count && count > 1 &&
+                        _state.selectedEntity.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
 
-				return html;
-			};
+                        // Some clusters may already have a count appended
+                        if (!(label.indexOf('(+') !== -1 && label.charAt(label.length - 1) == ')')) {
+                            label += ' (+' + (count - 1) + ')';
+                        }
+                    }
+
+                    var dataId = _state.selectedEntity.entityType === constants.MODULE_NAMES.ENTITY ? _state.selectedEntity.dataId.substr(2) : '';
+                    var entityType = SCREEN_TYPES[_state.selectedEntity.entityType];
+
+                    if (!isInflowing) {
+                        baseValue *= -1;
+                        focusValue *= -1;
+                    }
+
+                    var html = '<div class="influent-tooltip"><B>';
+                    html += MONTH_NAMES[startDate.getMonth()] + ' ' + startDate.getDate() + ', ' + startDate.getFullYear() + ' ';
+                    html += '</B>';
+                    if (startDate.getTime() !== endDate.getTime()) {
+                        html += 'to<B> ';
+                        html += MONTH_NAMES[endDate.getMonth()] + ' ' + endDate.getDate() + ', ' + endDate.getFullYear() + ' ';
+                        html += '</B>';
+                    }
+                    html += '<br><br><span class="tooltip-selected-entity">';
+                    html += entityType + ': ';
+                    if (dataId) {
+                        html += dataId + ', ';
+                    }
+                    html += label;
+                    html += '</span><br>';
+
+                    if (isInflowing) {
+                        html += 'Total Inflowing: <B>';
+                    } else {
+                        html += 'Total Outflowing: <B>';
+                    }
+                    html += _numberFormatter.format(baseValue);
+                    html += '</B>';
+
+                    if (focusValue !== 0 && selectionXfId != focusXfId) {
+
+                        // HACK: append cluster count to focus label
+                        if (focusCount && focusCount > 1 &&
+                            _state.focusData.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
+
+                            // Some clusters may already have a count appended
+                            if (!(focusLabel.indexOf('(+') !== -1 && focusLabel.charAt(focusLabel.length - 1) == ')')) {
+                                focusLabel += ' (+' + (focusCount - 1) + ')';
+                            }
+                        }
+
+                        html += '<br><br>';
+                        html += '<span class="tooltip-focus-entity">Subset Involving ';
+                        html += focusType + ': ';
+                        if (focusDataId) {
+                            html += focusDataId + ', ';
+                        }
+                        html += focusLabel + '</span><br>';
+
+                        if (isInflowing) {
+                            html += 'Total Inflowing: <B>';
+                        } else {
+                            html += 'Total Outflowing: <B>';
+                        }
+                        html += _numberFormatter.format(focusValue);
+                        html += '</B>';
+                    }
+                    html += '</div>';
+
+                    return html;
+                };
+
+                element.on('mouseover', function(event){
+                    var html = createHTML(event, isInflowing);
+                    aperture.tooltip.showTooltip({event:event, html:html});
+                    aperture.pubsub.publish(chan.HOVER_START_EVENT, { element : BAR_ELEMENT_TOOLTIP_ID });
+                    aperture.pubsub.publish(chan.TOOLTIP_START_EVENT, { element : BAR_ELEMENT_TOOLTIP_ID });
+                    return true;
+                });
+                element.on('mouseout', function(event){
+                    aperture.tooltip.hideTooltip();
+                    aperture.pubsub.publish(chan.HOVER_END_EVENT, { element : BAR_ELEMENT_TOOLTIP_ID });
+                    aperture.pubsub.publish(chan.TOOLTIP_END_EVENT, { element : BAR_ELEMENT_TOOLTIP_ID });
+                    return true;
+                });
+            };
 
 			//----------------------------------------------------------------------------------------------------------
 
@@ -395,20 +420,7 @@ define(
 					)
 				);
 				baseCreditSeries.map('opacity').from('type').using(opacityKey);
-				baseCreditSeries.on(
-					'mouseover',
-					function(event){
-						var html = _createTooltipHtml(event, true);
-						aperture.tooltip.showTooltip({event:event, html:html});
-						return true;
-					}
-				);
-				baseCreditSeries.on('mouseout', function(event){
-					aperture.tooltip.hideTooltip();
-
-					// handled.
-					return true;
-				});
+                _attachTooltip(baseCreditSeries, true);
 
 				// base debit series
 				var baseDebitSeries = chart.addLayer(aperture.chart.BarSeriesLayer);
@@ -427,17 +439,7 @@ define(
 					)
 				);
 				baseDebitSeries.map('opacity').from('type').using(opacityKey);
-				baseDebitSeries.on('mouseover', function(event){
-					var html = _createTooltipHtml(event, false);
-					aperture.tooltip.showTooltip({event:event, html:html});
-					return true;
-				});
-				baseDebitSeries.on('mouseout', function(event){
-					aperture.tooltip.hideTooltip();
-
-					// handled.
-					return true;
-				});
+                _attachTooltip(baseDebitSeries, false);
 
 				// focus credit series
 				var focusCreditSeries = chart.addLayer(aperture.chart.BarSeriesLayer);
@@ -456,17 +458,7 @@ define(
 					)
 				);
 				focusCreditSeries.map('opacity').from('type').using(opacityKey);
-				focusCreditSeries.on('mouseover', function(event){
-					var html = _createTooltipHtml(event, true);
-					aperture.tooltip.showTooltip({event:event, html:html});
-					return true;
-				});
-				focusCreditSeries.on('mouseout', function(event){
-					aperture.tooltip.hideTooltip();
-
-					// handled.
-					return true;
-				});
+                _attachTooltip(focusCreditSeries, true);
 
 				// focus debit series
 				var focusDebitSeries = chart.addLayer(aperture.chart.BarSeriesLayer);
@@ -485,17 +477,7 @@ define(
 					)
 				);
 				focusDebitSeries.map('opacity').from('type').using(opacityKey);
-				focusDebitSeries.on('mouseover', function(event){
-					var html = _createTooltipHtml(event, false);
-					aperture.tooltip.showTooltip({event:event, html:html});
-					return true;
-				});
-				focusDebitSeries.on('mouseout', function(event){
-					aperture.tooltip.hideTooltip();
-
-					// handled.
-					return true;
-				});
+                _attachTooltip(focusDebitSeries, false);
 
 				chart.all().redraw();
 			};
@@ -527,64 +509,55 @@ define(
 					dataId : focusId
 				};
 
-				aperture.io.rest(
-					'/bigchart',
-					'POST',
-					function(response) {
-						// pull MDC out of response
-						var maxCreditDebit = 0;
+				xfRest.request('/bigchart').inContext( focusEntity.contextId ).withData({
 
-						if (response[focusId]) {
-							var credit = Math.abs(Number(response[focusId].maxCredit));
-							var debit = Math.abs(Number(response[focusId].maxDebit));
+					sessionId: state.sessionId,
+					entities: [focusEntity],
+					startDate: state.filterDates.startDate,
+					endDate: state.filterDates.endDate,
+					focusId: [focusId],
+					focusMaxDebitCredit: '',
+					focuscontextid: state.focusData.contextId
 
-							if (credit > maxCreditDebit) {
-								maxCreditDebit = credit;
-							}
-							if (debit > maxCreditDebit) {
-								maxCreditDebit = debit;
-							}
+				}).then(function (response) {
+
+					// pull MDC out of response
+					var maxCreditDebit = 0;
+
+					if (response[focusId]) {
+						var credit = Math.abs(Number(response[focusId].maxCredit));
+						var debit = Math.abs(Number(response[focusId].maxDebit));
+
+						if (credit > maxCreditDebit) {
+							maxCreditDebit = credit;
 						}
-
-						onReturn(maxCreditDebit);
-					},
-					{
-						postData: {
-							sessionId : state.sessionId,
-							entities : [focusEntity],
-							startDate : state.filterDates.startDate,
-							endDate :  state.filterDates.endDate,
-							focusId : [focusId],
-							focusMaxDebitCredit : '',
-							focuscontextid : state.focusData.contextId
-						},
-						contentType: 'application/json'
+						if (debit > maxCreditDebit) {
+							maxCreditDebit = debit;
+						}
 					}
-				);
+
+					onReturn(maxCreditDebit);
+				});
 			}
 
 			//----------------------------------------------------------------------------------------------------------
 
 			var _getGraphData = function(state, focusMDC) {
-				aperture.io.rest(
-					'/bigchart',
-					'POST',
-					function(response) {
-						_createBarChart(response[state.selectedEntity.dataId]);
-					},
-					{
-						postData: {
-							sessionId : state.sessionId,
-							entities : [state.selectedEntity],
-							startDate : state.filterDates.startDate,
-							endDate :  state.filterDates.endDate,
-							focusId : [state.focusData.dataId],
-							focusMaxDebitCredit : focusMDC.toString(),
-							focuscontextid : state.focusData.contextId
-						},
-						contentType: 'application/json'
-					}
-				);
+
+				xfRest.request('/bigchart').inContext( state.selectedEntity.contextId ).withData({
+
+					sessionId : state.sessionId,
+					entities : [state.selectedEntity],
+					startDate : state.filterDates.startDate,
+					endDate :  state.filterDates.endDate,
+					focusId : [state.focusData.dataId],
+					focusMaxDebitCredit : focusMDC.toString(),
+					focuscontextid : state.focusData.contextId
+
+				}).then(function (response) {
+
+					_createBarChart(response[state.selectedEntity.dataId]);
+				});
 			};
 
 			//----------------------------------------------------------------------------------------------------------

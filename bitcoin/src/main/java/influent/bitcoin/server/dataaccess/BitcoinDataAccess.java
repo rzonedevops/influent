@@ -51,6 +51,8 @@ import java.util.Date;
 import java.util.List;
 
 import org.apache.avro.AvroRemoteException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Hopefully a better implementation of the Data Access
@@ -61,7 +63,8 @@ import org.apache.avro.AvroRemoteException;
 public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAccess {
 	
 	
-	
+	private static final Logger s_logger = LoggerFactory.getLogger(BitcoinDataAccess.class);
+
 	public BitcoinDataAccess(
 		SQLConnectionPool connectionPool,
 		FL_EntitySearch search,
@@ -112,19 +115,29 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 		long max,
 		List<String> linkFilter
 	) throws AvroRemoteException {
+		Integer iid = null;
+		String schema= null;
 		
-		if (id == null || id.isEmpty()) {
-			return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
+		try {
+			// translate global to local ids, with namespace
+			schema = getNamespaceHandler().namespaceFromGlobalEntityId(id);
+			id = getNamespaceHandler().localFromGlobalEntityId(id);
+			iid = Integer.valueOf(id);
+			
+		} catch (Exception e) {
+			s_logger.warn("Failed to convert id to number: "+ id);
 		}
 		
-		// translate global to local ids, with namespace
-		String schema = getNamespaceHandler().namespaceFromGlobalEntityId(id);
-		id = getNamespaceHandler().localFromGlobalEntityId(id);
+		if (iid == null) {
+			return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
+		}
 		
 		try {
 			Connection connection = _connectionPool.getConnection();
 			
 			String top = max > 0 ? ("top " + max) : "";
+			
+			List<Integer> linkFilterIds = null;
 			if (linkFilter != null) {
 				// we will never find links across schemas, so filter it down again.
 				linkFilter = getNamespaceHandler().entitiesByNamespace(linkFilter).get(schema);
@@ -132,10 +145,19 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 				if (linkFilter == null) {
 					return new FL_TransactionResults(0L, new ArrayList<FL_Link>(0));
 				}
+				
+				linkFilterIds = new ArrayList<Integer>(linkFilter.size());
+				for (String lid : linkFilter) {
+					try {
+						linkFilterIds.add(Integer.valueOf(lid));
+					} catch (Exception e) {
+						s_logger.warn("Failed to convert linked id to number: " + lid);
+					}
+				}
 			}
 			
 			String preparedStatementString = buildPreparedStatement(
-				(linkFilter == null) ? 0 : linkFilter.size(),
+				(linkFilter == null) ? 0 : linkFilterIds.size(),
 				top,
 				(date != null && date.getStartDate() != null),
 				sort
@@ -144,16 +166,16 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 			
 			int index = 1;
 			
-			stmt.setString(index++, id);
-			if (linkFilter != null) {
-				for (int i = 0; i < linkFilter.size(); i++) {
-					stmt.setString(index++, getNamespaceHandler().toSQLId(linkFilter.get(i), schema));
+			stmt.setInt(index++, iid);
+			if (linkFilterIds != null) {
+				for (Integer lid : linkFilterIds) {
+					stmt.setInt(index++, lid);
 				}
 			}
-			stmt.setString(index++, id);
-			if (linkFilter != null) {
-				for (int i = 0; i < linkFilter.size(); i++) {
-					stmt.setString(index++, getNamespaceHandler().toSQLId(linkFilter.get(i), schema));
+			stmt.setInt(index++, iid);
+			if (linkFilterIds != null) {
+				for (Integer lid : linkFilterIds) {
+					stmt.setInt(index++, lid);
 				}
 			}
 			stmt.setString(index++, DataAccessHelper.format(DataAccessHelper.getStartDate(date)));
@@ -209,20 +231,20 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 		
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("SELECT " + top + " id, source_id, dest_id, dt, amount, usd ");
-		sb.append("FROM Bitcoin.dbo.[bitcoin-20130410] ");
-		sb.append("WHERE ((source_id = ?");
+		sb.append("SELECT " + top + " TxId, SenderId, ReceiverId, TxTime, BTC, USD ");
+		sb.append("FROM Bitcoin.dbo.UserTransactions ");
+		sb.append("WHERE ((SenderId = ?");
 		if (numFocusIds > 0) {
-			sb.append(" AND dest_id IN (");
+			sb.append(" AND ReceiverId IN (");
 			for (int i = 1; i < numFocusIds; i++) {
 				sb.append("?, ");
 			}
 			sb.append("?)");
 		}
 		sb.append(") ");
-		sb.append("OR (dest_id = ?");
+		sb.append("OR (ReceiverId = ?");
 		if (numFocusIds > 0) {
-			sb.append(" AND source_id IN (");
+			sb.append(" AND SenderId IN (");
 			for (int i = 1; i < numFocusIds; i++) {
 				sb.append("?, ");
 			}
@@ -231,12 +253,12 @@ public class BitcoinDataAccess extends DataViewDataAccess implements FL_DataAcce
 		sb.append(")) ");
 		
 		if (hasDate) {
-			sb.append("AND dt BETWEEN ? AND ? ");
+			sb.append("AND TxTime BETWEEN ? AND ? ");
 		}
 		
 		if (sort != null) {
 			sb.append("ORDER BY ");
-			sb.append((sort == FL_SortBy.DATE ? "dt ASC" : "amount DESC"));
+			sb.append((sort == FL_SortBy.DATE ? "TxTime ASC" : "USD DESC"));
 		}
 		
 		return sb.toString();

@@ -669,33 +669,25 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfFileInstance.setHidden = function(xfId) {
+			xfFileInstance.setHidden = function(xfId, state) {
 
-				var stateChanged = false;
+
 				if (_UIObjectState.xfId === xfId) {
-					if (!_UIObjectState.isHidden) {
-						_UIObjectState.isHidden = true;
-						stateChanged = true;
-					}
-				} else {
-					if (_UIObjectState.isHidden) {
-						_UIObjectState.isHidden = false;
-						stateChanged = true;
+					if (_UIObjectState.isHidden != state) {
+
+						_UIObjectState.isHidden = state;
+						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject: xfFileInstance});
 					}
 				}
 
 				// Update all the children.
-				if (_hasCluster(_UIObjectState)){
-					_UIObjectState.clusterUIObject.setHidden(xfId);
+				if (_hasCluster(_UIObjectState)) {
+					_UIObjectState.clusterUIObject.setHidden(xfId, state);
 				}
 
 				// Update any attached xfMatch objects.
-				if (_hasMatchcard(_UIObjectState)){
-					_UIObjectState.matchUIObject.setHidden(xfId);
-				}
-
-				if (stateChanged) {
-					aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfFileInstance});
+				if (_hasMatchcard(_UIObjectState)) {
+					_UIObjectState.matchUIObject.setHidden(xfId, state);
 				}
 			};
 

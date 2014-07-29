@@ -162,10 +162,11 @@ define(
 					var subTokens = {};
 					// Subscribe to the appropriate calls.
 					subTokens[chan.RENDER_UPDATE_REQUEST] = aperture.pubsub.subscribe(chan.RENDER_UPDATE_REQUEST, render);
-					subTokens[chan.SUSPEND_RENDERING] = aperture.pubsub.subscribe(chan.SUSPEND_RENDERING, _onSuspendRendering);
-					subTokens[chan.RESUME_RENDERING] = aperture.pubsub.subscribe(chan.RESUME_RENDERING, _onResumeRendering);
+					subTokens[chan.SUSPEND_RENDERING_REQUEST] = aperture.pubsub.subscribe(chan.SUSPEND_RENDERING_REQUEST, _onSuspendRendering);
+					subTokens[chan.RESUME_RENDERING_REQUEST] = aperture.pubsub.subscribe(chan.RESUME_RENDERING_REQUEST, _onResumeRendering);
 
 					subTokens[chan.ALL_MODULES_STARTED] = aperture.pubsub.subscribe(chan.ALL_MODULES_STARTED, _initializeModule);
+
 					_renderState.subscriberTokens = subTokens;
 				},
 				end : function(){

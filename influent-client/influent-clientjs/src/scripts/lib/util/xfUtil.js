@@ -674,20 +674,7 @@ define(
 			}
 
 			if (title != null) {
-				var timer = null;
-				button.hover(
-					function() {
-						timer = setTimeout(
-							function() {
-								aperture.pubsub.publish(chan.TOOLTIP, {text: title});
-							},
-							1000
-						);
-					},
-					function() {
-						clearTimeout(timer);
-					}
-				);
+                _makeTooltip(button, title);
 			}
 
 			return button;
@@ -695,20 +682,53 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		function _handleTooltipEvent(container, text) {
+		function _makeTooltip(element, tooltipText, elementFriendlyDesc) {
 
-			var timer = null;
-			container.hover(
+            if (!element) {
+                return;
+            }
+
+            // Assign text to the tooltip
+            if (tooltipText) {
+                element.attr('title', tooltipText);
+            }
+
+            // Find a friendly way to describe the element
+            var elementDesc = elementFriendlyDesc ?
+                elementFriendlyDesc : tooltipText;
+
+            var timer = null;
+
+            element.hover(
 				function() {
+                    aperture.pubsub.publish(chan.HOVER_START_EVENT, {
+                        element : elementDesc
+                    });
+
 					timer = setTimeout(
 						function() {
-							aperture.pubsub.publish(chan.TOOLTIP, {text: text});
+							aperture.pubsub.publish(chan.TOOLTIP_START_EVENT, {
+                                element : elementDesc
+                            });
+							timer = null;
 						},
 						1000
 					);
 				},
 				function() {
-					clearTimeout(timer);
+                    if (timer) {
+                        clearTimeout(timer);
+                        timer = null;
+                    } else {
+						aperture.pubsub.publish(chan.TOOLTIP_END_EVENT, {
+							element : elementDesc
+						});
+					}
+
+
+                    aperture.pubsub.publish(chan.HOVER_END_EVENT, {
+                        element : elementDesc
+                    });
 				}
 			);
 		}
@@ -744,7 +764,7 @@ define(
 			getContainedCardDataIds : _getContainedCardDataIds,
 			getAccountTypeFromDataId : _getAccountTypeFromDataId,
 			makeButton : _makeButton,
-			handleTooltipEvent : _handleTooltipEvent
+            makeTooltip : _makeTooltip
 		};
 	}
 );

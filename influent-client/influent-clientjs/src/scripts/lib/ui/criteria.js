@@ -22,8 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define([],
-	function() {
+define( [ 'lib/util/xfUtil' ],
+
+    function( xfUtil ) {
 	
 		var CUSTOM_JQUERY_EVENT = 'component.change';
 		var _supportsWeight = true;
@@ -95,7 +96,15 @@ define([],
 					return opt.val();
 				},
 				change : function(callback) {
-					opt.change(callback);
+					opt.change(function() {
+                        aperture.log.log({
+                            type: aperture.log.draperType.USER,
+                            workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                            activity: 'select_filter_menu_option',
+                            description: 'Criteria constraint changed'
+                        });
+                        callback();
+                    });
 					return this;
 				},
 				clear : function() {
@@ -129,6 +138,13 @@ define([],
 				changed.call(this, true);
 			}
 			function keypress(changed, e) {
+                aperture.log.log({
+                    type: aperture.log.draperType.USER,
+                    workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                    activity: 'enter_filter_text',
+                    description: 'Entering text into search criteria'
+                });
+
 				if (e.which) {
 					changed.call(this, false);
 				}
@@ -145,7 +161,6 @@ define([],
 				change : function(callback) {
 					val.keypress(keypress.bind(this, callback))
 						.change(committed.bind(this, callback));
-					
 				},
 				value : function(text) {
 					var weight = 0;
@@ -262,10 +277,11 @@ define([],
 				
 			} else {
 				var set = $('<div class="advancedsearch-boost"></div>')
-					.attr('title', 'boost the weight of this criteria')
 					.appendTo(parent);
-				
-				api =  {
+
+                xfUtil.makeTooltip(set, 'boost the weight of this criteria');
+
+                api =  {
 					value : function(boost) {
 						var kids = set.children();
 						if (arguments.length !== 0) {
@@ -287,7 +303,6 @@ define([],
 					
 					change : function(callback) {
 						set.bind(CUSTOM_JQUERY_EVENT, callback.bind(this));
-						
 						return this;
 					}
 				};
@@ -321,7 +336,18 @@ define([],
 						.mouseup(function() {
 							if (down) {
 								down = false;
-								api.value(Number($(this).attr('id')));
+                                var level = Number($(this).attr('id'));
+								api.value(level);
+
+                                aperture.log.log({
+                                    type: aperture.log.draperType.USER,
+                                    workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                                    activity: 'select_filter_menu_option',
+                                    description: 'Boosting criteria',
+                                    data: {
+                                        level : level
+                                    }
+                                });
 							}
 						});
 				});
@@ -373,8 +399,11 @@ define([],
 		 * Enables the field choices specified.
 		 */
 		function _removeButton() {
-			return $('<div class="advancedsearch-remove-button"></div>')
-				.attr('title', 'remove this criteria');
+
+            var removeButton = $('<div class="advancedsearch-remove-button"></div>');
+            xfUtil.makeTooltip(removeButton, 'remove this criteria');
+
+            return removeButton;
 		}
 
 		var allowMultival = false;
@@ -453,12 +482,19 @@ define([],
 					.appendTo(parent)
 					.append(_removeButton().click(function() {
 						api.remove();
+
+                        aperture.log.log({
+                            type: aperture.log.draperType.USER,
+                            workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                            activity: 'select_filter_menu_option',
+                            description: 'Criteria removed'
+                        });
 					}));
 				
 				// set up wrapper callbacks
 				function changed(committed) {
 					_ui.trigger(CUSTOM_JQUERY_EVENT, [committed]);
-				}
+                }
 				function onChange(callback, e, committed) {
 					callback.call(this, committed);
 				}
@@ -485,13 +521,23 @@ define([],
 						var descriptor = descriptors.map[$(this).val()];
 
 //						var val = _privates.editor.value();
-						
+
 						_privates.key = descriptor.key;
 						_privates.operator.clear();
 						_privates.editor.remove();
 						_privates.editor = _valueUI(descriptor, _right, _privates.operator, boost);
 //						_privates.editor.value(val);
 						_privates.editor.change(changed);
+
+                        aperture.log.log({
+                            type: aperture.log.draperType.USER,
+                            workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                            activity: 'select_filter_menu_option',
+                            description: 'Criteria field changed',
+                            data: {
+                                field: descriptor.friendlyText
+                            }
+                        });
 					});
 				
 				// create the editor

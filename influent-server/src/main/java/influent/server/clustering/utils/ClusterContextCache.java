@@ -129,11 +129,16 @@ public class ClusterContextCache {
 		
 		ColumnContext writableContext;
 		
+		
+		
 		private void unlockRead(int readCount) {
 			while (readCount-- > 0) {
 				read.unlock();
 			}
 		}
+		
+		
+		
 		
 		private void lockRead(int readCount, String contextId) {
 			while (readCount-- > 0) {
@@ -148,12 +153,13 @@ public class ClusterContextCache {
 		
 	}
 	
+	
+	
 	private final Ehcache cache;
-
 	private Map<String, LockableContext> lockables;
-	
-	
 	private static int LOCK_TIMEOUT = /*30*/60*1000;
+	
+	
 	
 	/**
 	 * A permit holds a context lock within the execution of one client thread.
@@ -165,6 +171,9 @@ public class ClusterContextCache {
 		ColumnContext context;
 		LockableContext lockable;
 		
+		
+		
+		
 		/**
 		 * Retrieve the associated context
 		 */
@@ -172,6 +181,9 @@ public class ClusterContextCache {
 			return context;
 		}
 
+		
+		
+		
 		/**
 		 * Release all permits
 		 */
@@ -186,6 +198,9 @@ public class ClusterContextCache {
 				lc.read.unlock();
 			}
 		}
+		
+		
+		
 		
 		// construct
 		private ReadPermit(String contextId) {
@@ -225,6 +240,9 @@ public class ClusterContextCache {
 			}
 		}
 
+		
+		
+		
 		/**
 		 * Get the context again.
 		 */
@@ -233,6 +251,8 @@ public class ClusterContextCache {
 		}
 		
 
+		
+		
 		/* (non-Javadoc)
 		 * @see java.lang.Object#finalize()
 		 */
@@ -247,12 +267,18 @@ public class ClusterContextCache {
 			super.finalize();
 		}
 
+		
+		
+		
 		@Override
 		public String id() {
 			return contextId;
 		}
 
 	}
+	
+	
+	
 	
 	/**
 	 * A permit holds a context lock within the execution of one client thread.
@@ -264,12 +290,17 @@ public class ClusterContextCache {
 		ColumnContext context;
 		LockableContext lockable;
 		
+		
+		
 		/**
 		 * Retrieve the associated context
 		 */
 		public ColumnContext context() {
 			return context;
 		}
+		
+		
+		
 		
 		/**
 		 * Release all permits
@@ -299,6 +330,9 @@ public class ClusterContextCache {
 			}
 		}
 		
+		
+		
+		
 		// construct
 		private WritePermit(String contextId) {
 			this.contextId = contextId;
@@ -322,7 +356,11 @@ public class ClusterContextCache {
 						return;
 					}
 
-					if (lockable.write.tryLock(LOCK_TIMEOUT, TimeUnit.MILLISECONDS)) {
+					if (lockable.write.tryLock(
+							LOCK_TIMEOUT, 
+							TimeUnit.MILLISECONDS
+						)
+					) {
 						context = lockable.writableContext;
 
 						lockable.lockRead(readCount, contextId);
@@ -379,6 +417,9 @@ public class ClusterContextCache {
 			}
 		}
 
+		
+		
+		
 		/* (non-Javadoc)
 		 * @see java.lang.Object#finalize()
 		 */
@@ -393,19 +434,25 @@ public class ClusterContextCache {
 			super.finalize();
 		}
 
+		
+		
+		
 		@Override
 		public String id() {
 			return contextId;
 		}
 	}
 	
+	
+	
+	
 	/**
 	 * (self construct).
 	 */
 	public ClusterContextCache(
-			String ehCacheConfig,
-			String cacheName) {
-		
+		String ehCacheConfig,
+		String cacheName
+	) {		
 		CacheManager cacheManager = (ehCacheConfig != null) ? CacheManager.create(ehCacheConfig) : null;
 		if (cacheManager == null) {
 			throw new RuntimeException("Failed to initialize ehcache with specified config");
@@ -415,12 +462,18 @@ public class ClusterContextCache {
 		lockables = new ConcurrentHashMap<String, LockableContext>();
 	}
 
+	
+	
+	
 	/**
 	 * Fetch a context for ready only access. Permit will be added to permit set. PERMITS MUST BE RELEASED.
 	 */
 	public ContextRead getReadOnly(String contextId, PermitSet permits) {
 		return permits.add(new ReadPermit(contextId)).context();
 	}
+	
+	
+	
 	
 	/**
 	 * Fetch a read write context permit. PERMITS MUST BE RELEASED.
@@ -429,6 +482,9 @@ public class ClusterContextCache {
 		return permits.add(new WritePermit(contextId)).context();
 	}
 
+	
+	
+	
 	/**
 	 * Remove a context
 	 */
@@ -463,6 +519,4 @@ public class ClusterContextCache {
 		
 		return success;
 	}
-	
-	
 }

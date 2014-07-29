@@ -74,8 +74,8 @@ define(
 		/* Channel used by xfHeader to request a filter change
 		 *
 		 * data {
-		 *      start, (string)
-		 *      end, (string)
+		 *      startDate, (string)
+		 *      endDate, (string)
 		 *      duration, (string)
 		 *      numBuckets (number)
 		 * }
@@ -85,36 +85,108 @@ define(
 		/* Channel used by xfWorkspace to inform xfHeader what the current filter criteria is
 		 *
 		 * data {
-		 *      start, (string)
-		 *      end, (string)
+		 *      startDate, (string)
+		 *      endDate, (string)
 		 *      duration, (string)
 		 *      numBuckets (number)
 		 * }
 		 */
 		FILTER_CHANGE_EVENT : 'filter-change-event',
 
+
+        /*
+         * data {
+         *    containerId : (string)
+         *    cardId: (string)
+         *    showSpinner: (boolean)
+         * }
+         */
 		DROP_EVENT : 'drop-event',
 
+        /*
+         * data {
+         *    xfId : (string)
+         * }
+         */
 		FOCUS_CHANGE_REQUEST : 'focus-change-request',
 
+
+        /*
+         * data {
+         *    xfId: (string)
+         *    dataId: (string)
+         *    entityType: (string)
+         *    entityLabel: (string)
+         *    entityCount: (number)
+         *    contextId: (string)
+         *    sessionId : (string)
+         * }
+         */
 		FOCUS_CHANGE_EVENT : 'focus-change-event',
 
+        /*
+         * data {
+         *    xfId: (string)
+         *    selected: (boolean)
+         *    noRender: (boolean)
+
+         * }
+         */
 		SELECTION_CHANGE_REQUEST: 'selection-change-request',
 
+        /*
+         * data {
+         *    xfId: (string)
+         *    dataId: (string)
+         *    label: (string)
+         *    count: (number)
+         *    uiType: (string)
+         *    accountType: (string)
+         *    contextId : (string)
+         * }
+         */
 		SELECTION_CHANGE_EVENT : 'selection-change-event',
 
-		HOVER_CHANGE_REQUEST : 'hover-change-request',
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
+		UI_OBJECT_HOVER_CHANGE_REQUEST : 'ui-object-hover-change-request',
 
-		EXPORT_TRANSACTIONS : 'export-transactions',
+		EXPORT_TRANSACTIONS_REQUEST : 'export-transactions',
 
+        /*
+         * data {
+         *    xfId: (string)
+         *    newTitleText: (string)
+         *    noRender: (boolean)
+         * }
+         */
 		CHANGE_FILE_TITLE : 'change-file-title',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		SEARCH_CONTROL_FOCUS_CHANGE_REQUEST : 'search-control-focus-change-request',
 
+        /*
+         * data {
+         *    xfId: (string)
+         *    val: (string)
+         *    noRender: (boolean)
+         * }
+         */
 		SEARCH_BOX_CHANGED : 'search-box-changed',
 
-		APPLY_PATTERN_SEARCH_TERM : 'apply-pattern-search-term',
-
+        /*
+         * data {
+         *    xfId: (string)
+         *    isHighlighted: (boolean)
+         * }
+         */
 		HIGHLIGHT_SEARCH_ARGUMENTS : 'highlight-search-arguments',
 
 		/* Channel used to publish a basic search request
@@ -126,22 +198,53 @@ define(
 		 */
 		SEARCH_REQUEST : 'basic-search-request',
 
+        /*
+         * data {
+         *    fileId: (string)
+         *    terms: (string)
+         *    dataIds: (strings)
+         *    contextId: (string)
+         * }
+         */
 		ADVANCE_SEARCH_DIALOG_REQUEST : 'advance-search-dialog-request',
+
+        ADVANCE_SEARCH_DIALOG_CLOSE_EVENT : 'advance-search-dialog-close-event',
 
 		PATTERN_SEARCH_REQUEST : 'pattern-search-request',
 
-		BRANCH_LEFT_EVENT : 'branch-left-event',
+        /*
+         * data {
+         *    xfId: (string)
+         *    direction: (string)
+         * }
+         */
+		BRANCH_REQUEST : 'branch-request',
 
-		BRANCH_RIGHT_EVENT : 'branch-right-event',
+        BRANCH_RESULTS_RETURNED_EVENT : 'branch-results-returned-event',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		EXPAND_EVENT : 'expand-event',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		COLLAPSE_EVENT : 'collapse-event',
 
-		SUSPEND_RENDERING : 'suspend-rendering',
+		SUSPEND_RENDERING_REQUEST : 'suspend-rendering-request',
 
-		RESUME_RENDERING : 'resume-rendering',
+		RESUME_RENDERING_REQUEST : 'resume-rendering-request',
 
+        /*
+         * data {
+         *    UIObject: (string)
+         * }
+         */
 		RENDER_UPDATE_REQUEST : 'render-update-request',
 
 		/* Channel used to publish a request to remove an object
@@ -194,14 +297,43 @@ define(
 
 		RESTORE_STATE : 'restore-state',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		PREV_SEARCH_PAGE_REQUEST : 'prev-search-page-request',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		NEXT_SEARCH_PAGE_REQUEST : 'next-search-page-request',
 
+        /*
+         * data {
+         *    xfId: (string)
+         *    page: (number)
+         *    noRender: (boolean)
+         * }
+         */
 		SET_SEARCH_PAGE_REQUEST : 'set-search-page-request',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		CLEAN_COLUMN_REQUEST : 'clean-column-request',
 
+        /*
+         * data {
+         *    xfId: (string)
+         *    sortDescription: (string)
+         *    sortFunction: (function)
+         * }
+         */
 		SORT_COLUMN_REQUEST : 'sort-column-request',
 
 		EXPORT_CAPTURED_IMAGE_REQUEST : 'export-captured-image-request',
@@ -212,9 +344,29 @@ define(
 
 		NEW_WORKSPACE_REQUEST : 'new-workspace-request',
 
+        /*
+         * data {
+         *    link: (string)
+         * }
+         */
+        OPEN_EXTERNAL_LINK_REQUEST : 'open-external-link-request',
+
+        /*
+         * data {
+         *    tab: (string)
+         * }
+         */
+        FOOTER_CHANGE_DATA_VIEW_EVENT : 'footer-change-data-view-event',
+
+        /*
+         * data {
+         *    action: (string)
+         *    filter: (string)
+         *    preCallback: (function)
+         *    postCallback: (function)
+         * }
+         */
 		FILE_UPLOAD_REQUEST : 'file-upload-request',
-
-
 
 		/* Channel used to publish a request a change in the pinned state of a card or cluster
 		 * data {
@@ -225,12 +377,79 @@ define(
 
 		CURRENT_STATE : 'current-state',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		REQUEST_OBJECT_BY_XFID : 'request-object-by-xfid',
 
+        /*
+         * data {
+         *    clonedObject: (string)
+         * }
+         */
 		OBJECT_FROM_XFID : 'object-from-xfid',
 
+        /*
+         * data {
+         *    xfId: (string)
+         * }
+         */
 		UPDATE_CHART_REQUEST : 'update-chart-request',
 
-		TOOLTIP : 'tooltip'
+        /*
+         * data {
+         *    element: (string)
+         * }
+         */
+		TOOLTIP_START_EVENT : 'tooltip-start-event',
+
+        /*
+         * data {
+         *    element: (string)
+         * }
+         */
+        TOOLTIP_END_EVENT : 'tooltip-end-event',
+
+        /*
+         * data {
+         *    element: (string)
+         * }
+         */
+        HOVER_START_EVENT : 'hover-start-event',
+
+        /*
+         * data {
+         *    element: (string)
+         * }
+         */
+        HOVER_END_EVENT : 'hover-end-event',
+
+        /*
+         * data {
+         *    div: (string)
+         * }
+         */
+        SCROLL_VIEW_EVENT : 'scroll-view-event',
+
+        /*
+         * data {
+         *    filterHighlighted: (boolean)
+         * }
+         */
+        TRANSACTIONS_FILTER_EVENT : 'transactions-filter-event',
+
+		TRANSACTIONS_PAGE_CHANGE_EVENT : 'transactions-page-change-event',
+
+        /*
+         * data {
+         *    shownMatches: (number)
+         *    totalMatches: (number)
+         * }
+         */
+        SEARCH_RESULTS_RETURNED_EVENT : 'search-results-returned-event',
+
+		SEND_REST_REQUEST : 'queue-rest-request'
 	}
 );

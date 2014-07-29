@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
-	function(modules, chan, criteriaUI, xfWorkspace) {
+define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 'modules/xfRest'],
+	function(modules, chan, criteriaUI, xfWorkspace, xfRest) {
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Private Variables
@@ -63,9 +63,9 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 		// Private Methods
 		//--------------------------------------------------------------------------------------------------------------
 		function onInit() {
-			aperture.io.rest('/searchparams?queryId='+(new Date()).getTime(),
-				'GET',
-				function(response) {
+			xfRest.request( '/searchparams?queryId='+(new Date()).getTime(), 'GET' )
+				.inContext( _UIObjectState.contextId )
+				.then(function(response) {
 
 					// store the search parameter list
 					aperture.util.forEach(response.data, function(searchable) {
@@ -98,9 +98,8 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 
 					// build the static part of the UI
 					buildDialog();
-					
-				}, {}
-			);
+
+				});
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -128,11 +127,12 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 				advancedTabs.append(buildActivityTab(tabList, buttons));
 			}
 
-			// cancel buttton last.
+			// cancel button last.
 			buttons.push({
 				text: 'Cancel',
 				click: function() {
 					$(this).dialog('close');
+                    aperture.pubsub.publish(chan.ADVANCE_SEARCH_DIALOG_CLOSE_EVENT);
 				}});
 
 			// tab construction
@@ -154,7 +154,14 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 					effect: 'clip',
 					duration: 100
 				},
-				width:650
+				width:650,
+                open: function(event, ui) {
+
+                    // publish a closing event when the X close button is pressed
+                    $(this).parent().children().children('.ui-dialog-titlebar-close').click( function() {
+                        aperture.pubsub.publish(chan.ADVANCE_SEARCH_DIALOG_CLOSE_EVENT);
+                    });
+                }
 			});
 
 			// ?
@@ -166,6 +173,16 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 			var matchType = $('input[name=advancedSearchbooleanOperation]:checked').val();
 
 			criteriaUI.multival(matchType === 'any'? true:false);
+
+            aperture.log.log({
+                type: aperture.log.draperType.USER,
+                workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                activity: 'select_filter_menu_option',
+                description: 'Changed advanced search boolean operation',
+                data : {
+                    matchType : matchType
+                }
+            });
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -199,6 +216,16 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 				.change(function() {
 					var text = assembleSearchString();
 					setFieldsFromString(text);
+
+                    aperture.log.log({
+                        type: aperture.log.draperType.USER,
+                        workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                        activity: 'select_filter_menu_option',
+                        description: 'Changed advanced search entity type',
+                        data: {
+                            type : $(this).val()
+                        }
+                    });
 				});
 
 
@@ -250,6 +277,13 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 				.appendTo(attributes)
 				.click(function() {
 					addCriteriaRow($('#advancedsearch-entity-type').val(), undefined, $('#advancedsearch-criteria-container'));
+
+                    aperture.log.log({
+                        type: aperture.log.draperType.USER,
+                        workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                        activity: 'select_filter_menu_option',
+                        description: 'Adding new search criteria'
+                    });
 				});
 
 			return attributes;
@@ -284,6 +318,14 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 			idfield.attr('id', 'likeIdProperty');
 			idfield.addClass('textPropertyClass');
 			idfield.css('width', 140);
+            idfield.bind('input', function() {
+                aperture.log.log({
+                    type: aperture.log.draperType.USER,
+                    workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                    activity: 'enter_filter_text',
+                    description: 'User entering text in pattern search criteria'
+                });
+            });
 			idline.append(idfield);
 
 			var patternEngineDescription =
@@ -568,29 +610,24 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 		function setFieldsFromDataIds(dataIds) {
 			clear();
 
-			aperture.io.rest(
-				'/containedentities',
-				'POST',
-				function (response) {
-					seedFromEntities(response.data);
+			xfRest.request( '/containedentities' ).inContext( _UIObjectState.contextId ).withData({
 
-					if (criteriaUI.list().length === 0) {
-						addBlankCriteriaRow();
-					}
-				},
-				{
-					postData : {
-						sessionId : xfWorkspace.getSessionId(),
-						queryId: (new Date()).getTime(),
-						entitySets : [{
-							contextId : _UIObjectState.contextId,
-							entities : dataIds
-						}],
-						details : true
-					},
-					contentType: 'application/json'
+				sessionId : xfWorkspace.getSessionId(),
+				queryId: (new Date()).getTime(),
+				entitySets : [{
+					contextId : _UIObjectState.contextId,
+					entities : dataIds
+				}],
+				details : true
+
+			}).then(function (response) {
+
+				seedFromEntities(response.data);
+
+				if (criteriaUI.list().length === 0) {
+					addBlankCriteriaRow();
 				}
-			);
+			});
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -601,7 +638,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 				xfId : _UIObjectState.fileId,
 				searchTerm : searchTerm,
 				executeSearch : execute,
-				noRener: true
+				noRender: true
 			});
 		}
 

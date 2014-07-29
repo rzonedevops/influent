@@ -25,11 +25,11 @@
 
 define(
 	[
-		'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xfWorkspace',
+		'lib/module', 'lib/channels', 'lib/util/currency', 'modules/xfWorkspace', 'modules/xfRest',
 		'lib/models/xfClusterBase', 'lib/models/xfCard', 'lib/util/xfUtil', 'lib/constants'
 	],
 	function(
-		modules, chan, currency, xfWorkspace,
+		modules, chan, currency, xfWorkspace, xfRest,
 		xfClusterBase, xfCard, xfUtil, constants
 	) {
 		var module = {};
@@ -334,31 +334,26 @@ define(
 			};
 
 			// Separate call for files?
-			aperture.io.rest(
-					'/chart',
-					'POST',
-					function(response) {
-						var responseData = response[focusId];
-						var maxCreditDebit = responseData?
-								responseData.maxDebit > responseData.maxCredit ?
-										responseData.maxDebit : responseData.maxCredit : null;
+			xfRest.request('/chart').inContext( entity.contextId ).withData({
 
-						onReturn(maxCreditDebit);
-					},
-					{
-						postData: {
-							sessionId : xfWorkspace.getSessionId(),
-							entities : [entity],
-							startDate : xfWorkspace.getFilterDates().startDate,
-							endDate :  xfWorkspace.getFilterDates().endDate,
-							numBuckets : xfWorkspace.getFilterDates().numBuckets,
-							focusId : [focus.dataId],
-							focusMaxDebitCredit : '',
-							focuscontextid : focus.contextId
-						},
-						contentType: 'application/json'
-					}
-				);
+				sessionId: xfWorkspace.getSessionId(),
+				entities: [entity],
+				startDate: xfWorkspace.getFilterDates().startDate,
+				endDate: xfWorkspace.getFilterDates().endDate,
+				numBuckets: xfWorkspace.getFilterDates().numBuckets,
+				focusId: [focus.dataId],
+				focusMaxDebitCredit: '',
+				focuscontextid: focus.contextId
+
+			}).then(function (response) {
+
+				var responseData = response[focusId];
+				var maxCreditDebit = responseData ?
+						responseData.maxDebit > responseData.maxCredit ?
+					responseData.maxDebit : responseData.maxCredit : null;
+
+				onReturn(maxCreditDebit);
+			});
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -369,30 +364,35 @@ define(
 				return;
 			}
 
-			// Sort the files from the other uiObjects. We handle files
-			// separately to account for the pseudo-ability to cluster.
-			var nonFileClusterArray = entityIdArray;
 
-			if (!_.isEmpty(nonFileClusterArray)){
-				// Update the charts for non-collapsed files.
-				aperture.io.rest(
-					'/chart',
-					'POST',
-					_updateCard,
-					{
-						postData: {
-							sessionId : xfWorkspace.getSessionId(),
-							entities : nonFileClusterArray,
-							startDate : xfWorkspace.getFilterDates().startDate,
-							endDate :  xfWorkspace.getFilterDates().endDate,
-							numBuckets : xfWorkspace.getFilterDates().numBuckets,
-							focusId : [focus.dataId],
-							focusMaxDebitCredit : focusMDC,
-							focuscontextid : focus.contextId
-						},
-						contentType: 'application/json'
+			if (!_.isEmpty(entityIdArray)){
+					var entityByContext = [];
+					for (var i = 0; i < entityIdArray.length; i++) {
+						if (!entityByContext[entityIdArray[i].contextId]) {
+							entityByContext[entityIdArray[i].contextId] = [];
+						}
+
+						entityByContext[entityIdArray[i].contextId].push(entityIdArray[i]);
 					}
-				);
+
+
+					for (var context in entityByContext) {
+						if (entityByContext.hasOwnProperty(context)) {
+
+							xfRest.request('/chart').inContext( context ).withData({
+
+								sessionId: xfWorkspace.getSessionId(),
+								entities: entityByContext[context],
+								startDate: xfWorkspace.getFilterDates().startDate,
+								endDate: xfWorkspace.getFilterDates().endDate,
+								numBuckets: xfWorkspace.getFilterDates().numBuckets,
+								focusId: [focus.dataId],
+								focusMaxDebitCredit: focusMDC,
+								focuscontextid: focus.contextId
+
+							}).then( _updateCard );
+						}
+					}
 			}
 		}
 

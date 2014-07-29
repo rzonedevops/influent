@@ -119,6 +119,11 @@ define(
 				var uiObjectHeight = 0;
 				var uiObjectLeft = left;
 				var clusterStackHeight = (_clusterDefaults.STACK_COUNT-1)*_clusterDefaults.STACK_WIDTH;
+
+				// Skip links to/from hidden objects
+				if (visualInfo.isHidden)
+					continue;
+
 				switch (objectType){
 					case constants.MODULE_NAMES.FILE : {
 						// Store the height of the card before processing its children.

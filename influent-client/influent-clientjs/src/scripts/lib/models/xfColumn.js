@@ -401,9 +401,9 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfColumnInstance.setHidden = function(xfId) {
+			xfColumnInstance.setHidden = function(xfId, state) {
 				for (var i = 0; i < _UIObjectState.children.length; i++) {
-					_UIObjectState.children[i].setHidden(xfId);
+					_UIObjectState.children[i].setHidden(xfId, state);
 				}
 			};
 

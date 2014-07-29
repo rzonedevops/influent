@@ -38,11 +38,16 @@
 			},
 			notifyAppender : {
 				level : 'error'
-			}//,
-			//'draperAppender' : {'address' : 'http://xd-draper.xdata.data-tactics-corp.com:1337'}
+			},
+			/*
+			draperAppender : {
+			    address : 'http://10.1.90.46:1337',
+			    webworker : 'scripts/lib/extern/draper.activity_worker-2.1.1.js',
+			}
+			*/
 		}
 	},
-	
+
 	/*
 	 * The endpoint locations for Aperture services accessed through the io interface
 	 */

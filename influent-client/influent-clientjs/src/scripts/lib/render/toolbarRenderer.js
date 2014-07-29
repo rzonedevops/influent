@@ -170,7 +170,7 @@ define(
 				if (requestedLeftOp === toolbarOp.BRANCH) {
 					leftImg.click(
 							function(event) {
-								publishBranchRequest(chan.BRANCH_LEFT_EVENT, 'left');
+								publishBranchRequest('left');
 								event.stopImmediatePropagation();
 							}
 					);
@@ -211,7 +211,7 @@ define(
 				if (requestedRightOp === toolbarOp.BRANCH) {
 					rightImg.click(
 							function(event) {
-								publishBranchRequest(chan.BRANCH_RIGHT_EVENT, 'right');
+								publishBranchRequest('right');
 								event.stopImmediatePropagation();
 							}
 					);
@@ -222,9 +222,9 @@ define(
 			}
 			rightOp.css('top', (cardHeight - _renderDefaults.CARD_BUTTON_HEIGHT)/2);
 
-			var publishBranchRequest = function(branchEvent, direction) {
+			var publishBranchRequest = function(direction) {
 				aperture.pubsub.publish(
-					branchEvent,
+					chan.BRANCH_REQUEST,
 					{
 						xfId : visualInfo.xfId,
 						direction : direction
@@ -354,7 +354,8 @@ define(
 												chan.REMOVE_REQUEST,
 												{
 													xfIds : [visualInfo.xfId],
-													dispose : true
+													dispose : true,
+                                                    userRequested : true
 												}
 											);
 										},
@@ -367,7 +368,8 @@ define(
 									chan.REMOVE_REQUEST,
 									{
 										xfIds : [visualInfo.xfId],
-										dispose : true
+										dispose : true,
+                                        userRequested : true
 									}
 								);
 							}

@@ -143,7 +143,7 @@ public class ModifyContextResource extends ApertureServerResource{
 			}
 			else {
 				PermitSet permits = new PermitSet();
-				
+
 				try {
 					// there are non-trivial ops like calls out to the db here while we have a lock on the context,
 					// but the changes can be extensive. Safer for now to lock it for the complete op.
@@ -349,8 +349,8 @@ public class ModifyContextResource extends ApertureServerResource{
 				
 		// remove the children from the cluster context
 		clusterAccess.removeMembers(removalIds, targetContextId);
-		
-		// collapse context entity cluster hierarchy by simplifying the tree for usability
+
+        // collapse context entity cluster hierarchy by simplifying the tree for usability
 		// returns root level entities that have no containing cluster and all the simplified clusters in the context
 		Pair<Collection<FL_Entity>, Collection<FL_Cluster>> simpleContext = ContextCollapser.collapse(targetContext, false, null);
 

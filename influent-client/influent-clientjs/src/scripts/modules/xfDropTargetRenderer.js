@@ -26,7 +26,7 @@ define(['lib/module', 'lib/channels', 'lib/render/cardRenderer',
 	'lib/render/clusterRenderer', 'lib/render/fileRenderer', 'lib/render/matchRenderer','lib/render/columnRenderer',
 	'lib/render/workspaceRenderer', 'lib/render/toolbarRenderer', 'lib/layout/xfLayoutProvider', 'modules/xfWorkspace', 'lib/util/GUID'],
 	function(modules, chan, cardRenderer, clusterRenderer, fileRenderer, matchRenderer, columnRenderer,
-			 workspaceRenderer, toolbarRenderer, xfLayoutProvider, xfWorkspace, GUID) {
+			workspaceRenderer, toolbarRenderer, xfLayoutProvider, xfWorkspace, GUID) {
 
 		var DROP_TOLERANCE = 25;        // Must be < DROP_TOLERANCE pixels away to activate drop target
 
@@ -152,7 +152,7 @@ define(['lib/module', 'lib/channels', 'lib/render/cardRenderer',
 		var _onAddDropTargets = function(eventChannel, data) {
 
 			// create a canvas to overlay the original workspace
-		   _renderState.workspaceWidth = $('.workspace').width();
+			_renderState.workspaceWidth = $('.workspace').width();
 			_renderState.workspaceHeight = $('.workspace').height();
 
 			_renderState.canvas.width( _renderState.workspaceWidth);
