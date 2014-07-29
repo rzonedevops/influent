@@ -206,6 +206,16 @@ define(
 			}
 		});
 
+        //------------------------------------------------------------------------------------------------------------------
+
+        $('#workspace').scroll(function(event) {
+            aperture.pubsub.publish(chan.SCROLL_VIEW_EVENT, {
+                div : event.target
+            });
+        });
+
+        //------------------------------------------------------------------------------------------------------------------
+
 		workspaceRenderer.createElement = function(visualInfo, capturing) {
 
 			// the column container.

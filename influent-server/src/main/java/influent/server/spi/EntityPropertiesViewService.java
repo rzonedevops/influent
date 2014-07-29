@@ -26,11 +26,10 @@ package influent.server.spi;
 
 import influent.idl.FL_Entity;
 import influent.server.dataaccess.DataAccessException;
-
-
+import org.json.JSONObject;
 
 
 public interface EntityPropertiesViewService {
 
-	public String getContent(FL_Entity entity, int imageIdx) throws DataAccessException;
+	public JSONObject getContent(FL_Entity entity) throws DataAccessException;
 }

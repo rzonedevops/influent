@@ -72,12 +72,8 @@ define(
 			// Insert image into icon container
 			var imageContainer = $('<img/>');
 			imageContainer.attr('src', imgUrl);
-			imageContainer.attr('title', title);
+            xfUtil.makeTooltip(imageContainer, title, 'card icon');
 			iconContainer.append(imageContainer);
-
-			if (title) {
-				imageContainer.attr('title', title);
-			}
 
 			// Create a bar chart based on score
 			if ( score != null ) {
@@ -109,7 +105,7 @@ define(
 			textNodeContainer.css('left',left);
 			textNodeContainer.width( _renderDefaults.CARD_WIDTH - 2*_renderDefaults.MARGIN );
 			textNodeContainer.append(document.createTextNode(text));
-			textNodeContainer.attr('title', text);
+            xfUtil.makeTooltip(textNodeContainer, text, 'card label');
 			return _getLineHeight();
 		};
 
@@ -515,7 +511,7 @@ define(
 
 			canvas.mouseover(function() {
 				if(!visualInfo.isHovered) {         // Notify the UIObject that it's being hovered over.
-					aperture.pubsub.publish(chan.HOVER_CHANGE_REQUEST, {
+					aperture.pubsub.publish(chan.UI_OBJECT_HOVER_CHANGE_REQUEST, {
 						xfId : visualInfo.xfId
 					});
 				}

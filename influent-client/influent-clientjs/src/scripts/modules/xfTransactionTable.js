@@ -23,8 +23,8 @@
  * SOFTWARE.
  */
 define(
-	['lib/module', 'lib/channels', 'modules/xfWorkspace'],
-	function(modules, chan, xfWorkspace) {
+	['lib/module', 'lib/channels', 'modules/xfWorkspace', 'modules/xfRest'],
+	function(modules, chan, xfWorkspace, xfRest) {
 
 	var transactionsConstructor = function(sandbox) {
 
@@ -35,10 +35,10 @@ define(
 			startDate : null,
 			endDate : null,
 			subscriberTokens : null,
-			bFilterFocused : false
+			bFilterFocused : false,
+            tableInitialized : false,
+            tablePopulated : false
 		};
-
-		var _transactionsTableInitialized = false;
 
 		//--------------------------------------------------------------------------------------------------------------
 
@@ -49,14 +49,16 @@ define(
 			if (focusIdArray.indexOf(srcId) != -1 || focusIdArray.indexOf(dstId) != -1){
 				$(nRow).addClass('transactionsHighlight-'+ (iDisplayIndex % 2));
 			}
+			_transactionsState.tablePopulated = false;
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
 
 		var onSearch = function(channel, data) {
 			aperture.log.debug('onSearch transactions : clear transactions table');
-			if (_transactionsTableInitialized) {
+			if (_transactionsState.tableInitialized) {
 				$('#transactions-table tbody').empty();
+                _transactionsState.tablePopulated = false;
 			}
 		};
 
@@ -72,9 +74,10 @@ define(
 					return;
 			}
 
+            _transactionsState.tablePopulated = false;
 			_transactionsState.curEntity = data && data.dataId;
 
-			if (!_transactionsTableInitialized) {
+			if (!_transactionsState.tableInitialized) {
 				if (_transactionsState.curEntity && _transactionsState.startDate && _transactionsState.endDate) {
 					initializeTransactionsTable();
 				} else {
@@ -94,50 +97,44 @@ define(
 
             // We need to get a list of entities that are focused if this is a file cluster.   Ask the server
             // so they are all treated as 'focused' according to the transaction table
-            aperture.io.rest(
-                '/containedentities',
-                'POST',
-                function (response,restInfo) {
+			xfRest.request('/containedentities').inContext( data.contextId ).withData({
 
-                    // Parse response
-                    for (var i = 0; i < response.data.length; i++) {
-                        var entities = response.data[i].entities;
-                        for (var j = 0; j < entities.length; j++) {
-                            _transactionsState.focus.push(entities[j]);
-                        }
-                    }
+				sessionId : data.sessionId,
+				queryId: (new Date()).getTime(),
+				entitySets : [{
+					contextId :  data.contextId,
+					entities: [data.dataId]
+				}],
+				details : false
 
-                    if (_transactionsState.table) {
-                        if(_transactionsState.bFilterFocused) {
-                            _transactionsState.table.fnDraw();
-                        }
-                        else {
-                            // avoid using fnDraw where possible, as it will reset the page/scroll location on the table view
-                            $('tr', _transactionsState.table).each(function(i, e){
-                                var rowData = _transactionsState.table.fnGetData( this );
-                                if(rowData != null && data != null && (_transactionsState.focus.indexOf(rowData[5]) != -1 || _transactionsState.focus.indexOf(rowData[6]) != -1)) {
-                                    $(e).addClass('transactionsHighlight-'+ ((i+1) % 2));
-                                }
-                                else {
-                                    $(e).removeClass('transactionsHighlight-'+ ((i+1) % 2));
-                                }
-                            });
-                        }
-                    }
-                },
-                {
-                    postData : {
-                        sessionId : data.sessionId,
-                        queryId: (new Date()).getTime(),
-                        entitySets : [{
-                            contextId :  data.contextId,
-                            entities: [data.dataId]
-                        }],
-                        details : false
-                    },
-                    contentType: 'application/json'
-                }
-            );
+			}).then(function (response) {
+
+				// Parse response
+				for (var i = 0; i < response.data.length; i++) {
+					var entities = response.data[i].entities;
+					for (var j = 0; j < entities.length; j++) {
+						_transactionsState.focus.push(entities[j]);
+					}
+				}
+
+				if (_transactionsState.table) {
+					if(_transactionsState.bFilterFocused) {
+						_transactionsState.table.fnDraw();
+					}
+					else {
+						// avoid using fnDraw where possible, as it will reset the page/scroll location on the table view
+						$('tr', _transactionsState.table).each(function(i, e){
+							var rowData = _transactionsState.table.fnGetData( this );
+							if(rowData != null && data != null && (_transactionsState.focus.indexOf(rowData[5]) != -1 || _transactionsState.focus.indexOf(rowData[6]) != -1)) {
+								$(e).addClass('transactionsHighlight-'+ ((i+1) % 2));
+							}
+							else {
+								$(e).removeClass('transactionsHighlight-'+ ((i+1) % 2));
+							}
+						});
+					}
+				}
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -145,10 +142,11 @@ define(
 		var _onFilter = function(channel, data) {
 			_transactionsState.startDate = data.startDate.getUTCFullYear()+'-'+(data.startDate.getUTCMonth()+1)+'-'+data.startDate.getUTCDate();
 			_transactionsState.endDate = data.endDate.getUTCFullYear()+'-'+(data.endDate.getUTCMonth()+1)+'-'+data.endDate.getUTCDate();
+            _transactionsState.tablePopulated = false;
 
 			aperture.log.debug('onFilter transactions : ' + _transactionsState.startDate + ' -> ' + _transactionsState.endDate);
 
-			if (!_transactionsTableInitialized) {
+			if (!_transactionsState.tableInitialized) {
 				if (_transactionsState.curEntity && _transactionsState.startDate && _transactionsState.endDate) {
 					initializeTransactionsTable();
 				} else {
@@ -221,15 +219,32 @@ define(
 								}
 							}
 							fnCallback(data);
+
+							if (data.iTotalDisplayRecords > 0)
+								_transactionsState.tablePopulated = true;
 						}
 					} );
 				},
 				'fnRowCallback' : processRowData
 			});
 
+            $('#transactions-table_wrapper').find('.dataTables_scrollBody').scroll( function(e) {
+                if (_transactionsState.tablePopulated) {
+                    aperture.pubsub.publish(chan.SCROLL_VIEW_EVENT, {
+                        div : e.target
+                    });
+                }
+            });
+
+			$('#transactions-table_wrapper').find('[class^="paginate"][role="button"]').click( function(e) {
+				if (e.target.className.indexOf('enabled') !== -1) {
+					aperture.pubsub.publish(chan.TRANSACTIONS_PAGE_CHANGE_EVENT);
+				}
+			});
+
 			$('#exportTransactions').click(
 				function() {
-					aperture.pubsub.publish(chan.EXPORT_TRANSACTIONS);
+					aperture.pubsub.publish(chan.EXPORT_TRANSACTIONS_REQUEST);
 				}
 			);
 
@@ -237,10 +252,14 @@ define(
 				function() {
 					_transactionsState.bFilterFocused = $('#filterHighlighted')[0].checked;
 					_transactionsState.table.fnDraw();
+
+                    aperture.pubsub.publish(chan.TRANSACTIONS_FILTER_EVENT, {
+                        filterHighlighted : _transactionsState.bFilterFocused
+                    });
 				}
 			);
 
-			_transactionsTableInitialized = true;
+            _transactionsState.tableInitialized = true;
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -305,7 +324,7 @@ define(
 			subTokens[chan.SEARCH_REQUEST] = aperture.pubsub.subscribe(chan.SEARCH_REQUEST, onSearch);
 			subTokens[chan.FILTER_CHANGE_EVENT] = aperture.pubsub.subscribe(chan.FILTER_CHANGE_EVENT, _onFilter);
 			subTokens[chan.ALL_MODULES_STARTED] = aperture.pubsub.subscribe(chan.ALL_MODULES_STARTED, _initializeModule);
-			subTokens[chan.EXPORT_TRANSACTIONS] = aperture.pubsub.subscribe(chan.EXPORT_TRANSACTIONS, _onExportTransactions);
+			subTokens[chan.EXPORT_TRANSACTIONS_REQUEST] = aperture.pubsub.subscribe(chan.EXPORT_TRANSACTIONS_REQUEST, _onExportTransactions);
 
 			_transactionsState.subscriberTokens = subTokens;
 		};

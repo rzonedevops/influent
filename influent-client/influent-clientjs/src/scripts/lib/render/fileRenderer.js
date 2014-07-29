@@ -233,7 +233,7 @@ define(
 
 			var enterFunction = function() {
 				if(!visualInfo.isHovered) {         // Notify the UIObject that it's being hovered over.
-					aperture.pubsub.publish(chan.HOVER_CHANGE_REQUEST, {
+					aperture.pubsub.publish(chan.UI_OBJECT_HOVER_CHANGE_REQUEST, {
 						xfId : visualInfo.xfId
 					});
 				}

@@ -257,63 +257,75 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		}
 	}
 	
+	
+	
 	@Override
 	public long removeMembers(List<String> entityIds, String contextId)
 			throws AvroRemoteException {
-
-		int count = 0;
 		
 		PermitSet permits = new PermitSet();
-		
-		// make local copy of list to avoid concurrent modification exceptions
-		List<String> removeMembers = new ArrayList<String>(entityIds);
 		
 		try {
 			ContextReadWrite contextRW = _cache.getReadWrite(contextId, permits);
 			ClusterContext context = contextRW.getContext();
+		
+			// first remove the members from the context
+			long count = removeMembers(entityIds, context);
 			
-			if (context != null) {			
-				for (String id : removeMembers) {
-					if (TypedId.hasType(id, TypedId.ACCOUNT)) { 
-						// remove the entity from the context
-						FL_Entity entity = context.entities.remove(id);
-						if (entity != null) {
-							removeFromAncestor(entity, context);
-							count++;
-						}
-					}
-					else {
-						// remove the cluster and all it's members and sub-clusters from the context
-						FL_Cluster cluster = context.clusters.remove(id);
-						if (cluster != null) {
-							count++;
-						
-							// remove all entities from the context that were members of this cluster
-							for (String eId : cluster.getMembers()) {
-								context.entities.remove(eId);
-							}
-						
-							// remove all sub-clusters from the context too!
-							count += removeMembers(cluster.getSubclusters(), contextId);
-							
-							if (cluster.getParent() != null) {
-								removeFromAncestor(cluster, context);
-							}
-							else {
-								context.roots.remove(id);
-							}
-						}
-					} 
-				}
-				// lastly update the clusters starting from the roots
-				_clusterFactory.updateClusterProperties(context.roots, context, true);
-				
-				// update the raw cluster context stored in the context
-				contextRW.setContext(context);
-			}
+			// lastly update the clusters starting from the roots
+			_clusterFactory.updateClusterProperties(context.roots, context, true);
+
+			// update the raw cluster context stored in the context
+			contextRW.setContext(context);
+			
+			return count; 
 			
 		} finally {
 			permits.revoke();
+		}
+	}
+
+	
+	private long removeMembers(List<String> entityIds, ClusterContext context) 
+			throws AvroRemoteException {
+		int count = 0;
+		
+		// make local copy of list to avoid concurrent modification exceptions
+		List<String> removeMembers = new ArrayList<String>(entityIds);
+	
+		if (context != null) {			
+			for (String id : removeMembers) {
+				if (TypedId.hasType(id, TypedId.ACCOUNT)) {  // remove account
+					// remove the entity from the context
+					FL_Entity entity = context.entities.remove(id);
+					if (entity != null) {
+						removeFromAncestor(entity, context);
+						count++;
+					}
+				}
+				else {  // remove cluster
+					// remove the cluster and all it's members and sub-clusters from the context
+					FL_Cluster cluster = context.clusters.remove(id);
+					if (cluster != null) {
+						count++;
+					
+						// remove all entities from the context that were members of this cluster
+						for (String eId : cluster.getMembers()) {
+							context.entities.remove(eId);
+						}
+					
+						// remove all sub-clusters from the context too!
+						count += removeMembers(cluster.getSubclusters(), context);
+						
+						if (cluster.getParent() != null) {
+							removeFromAncestor(cluster, context);
+						}
+						else {
+							context.roots.remove(id);
+						}
+					}
+				} 
+			}
 		}
 		return count;
 	}

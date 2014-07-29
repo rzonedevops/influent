@@ -31,7 +31,7 @@ define(
 		'lib/viewproto', 'lib/channels', 'lib/extern/cookieUtil', 'lib/util/GUID', 'lib/ui/xfModalDialog',
 		'modules/xfCards', 'modules/xfRenderer', 'modules/xfHeader', 'modules/xfEntityDetails',
 		'modules/xfAdvancedSearch', 'modules/xfSankey', 'modules/xfTransactionTable', 'modules/xfTransactionGraph',
-		'modules/xfDropTargetRenderer', 'modules/xfFooter', 'modules/xfFileUpload'
+		'modules/xfDropTargetRenderer', 'modules/xfFooter', 'modules/xfFileUpload', 'modules/xfRest'
 	],
 	function(View, chan, cookieUtil, GUID, dialog) {
 
@@ -120,6 +120,7 @@ define(
 					that.modules.start('xfSankey', {div:'sankey', capture: settings.capture});
 					that.modules.start('xfRenderer', {div:'cards', capture: settings.capture});
 					that.modules.start('xfFileUpload', {div:'fileUpload'});
+					that.modules.start('xfRest', {});
 
 					// then call base implementation too
 					View.prototype.doView.call(that, validState, callback);

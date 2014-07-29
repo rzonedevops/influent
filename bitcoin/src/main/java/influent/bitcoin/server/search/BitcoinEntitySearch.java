@@ -39,20 +39,17 @@ import influent.idl.FL_SearchResults;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.PropertyMatchDescriptorHelper;
-import influent.server.dataaccess.DataAccessHelper;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.TypedId;
 
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,14 +109,24 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 					schema = "dbo";
 				}
 				
+				Integer iid= null;
+				
+				try {
+					iid = Integer.valueOf(searchTerms);
+				} catch (Exception e) {
+				}
+				
 				PreparedStatement stmt = connection.prepareStatement(
-					"SELECT d.id, CountOfTransactions, AvgTrasactionAmount, MaxTransactionAmount, SumTransactionAmount, MinTransDate, MaxTransDate, label, degree " + 
-					"FROM Bitcoin." + schema + ".details d " +
-					"WHERE [id] = ? " +
-					"OR [label] like ?"
+					"SELECT EntityId, Label, InboundDegree, UniqueInboundDegree, OutboundDegree, UniqueOutboundDegree " + 
+					"FROM Bitcoin." + schema + ".FinEntity WHERE " +
+					(iid != null? "EntityId = ? OR ": "") +
+					"Label like ?"
 				);
-				stmt.setString(1, searchTerms.trim());
-				stmt.setString(2, "%" + searchTerms.trim() + "%");
+				int i = 1;
+				if (iid != null) {
+					stmt.setInt(i++, iid);
+				}
+				stmt.setString(i++, "%" + searchTerms.trim() + "%");
 				
 				matches.addAll(searchEntities(connection, stmt, max, schema));
 				
@@ -132,7 +139,7 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 				for (FL_PropertyMatchDescriptor pmd : terms) {
 					PropertyMatchDescriptorHelper term = PropertyMatchDescriptorHelper.from(pmd); 
 					String key = term.getKey();
-					if (!key.equals("uid")) {
+					if (!key.equals("uid") && !key.equals("id")) {
 						// we only support "search" but id right now
 						s_logger.error("Invalid Property term in search: " + key);
 					} else {
@@ -151,9 +158,9 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 						}
 						
 						StringBuilder sb = new StringBuilder();
-						sb.append("SELECT d.id, CountOfTransactions, AvgTrasactionAmount, MaxTransactionAmount, SumTransactionAmount, MinTransDate, MaxTransDate, label, degree ");
-						sb.append("FROM Bitcoin."+ entry.getKey() + ".details d ");
-						sb.append("WHERE [id] IN (");
+						sb.append("SELECT EntityId, Label, InboundDegree, UniqueInboundDegree, OutboundDegree, UniqueOutboundDegree ");
+						sb.append("FROM Bitcoin."+ entry.getKey() + ".FinEntity ");
+						sb.append("WHERE EntityId IN (");
 						for (int i = 1; i < entry.getValue().size(); i++) {
 							sb.append("?, ");
 						}
@@ -163,7 +170,13 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 						
 						int index = 1;
 						for (String id : entry.getValue()) {
-							stmt.setString(index++, _namespaceHandler.toSQLId(id, entry.getKey()));
+							try {
+								id = _namespaceHandler.toSQLId(id, entry.getKey());
+								stmt.setInt(index++, Integer.valueOf(id));
+								
+							} catch (NumberFormatException e) {
+								s_logger.error("Failed to convert the following id to a number: "+ id);
+							}
 						}
 
 						matches.addAll(searchEntities(connection, stmt, max, entry.getKey()));
@@ -201,93 +214,41 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 		if (max > 0) statement.setFetchSize((int) max);
 		
 		List<FL_SearchResult> matches = new ArrayList<FL_SearchResult>();
-		List<String> rawIds = new ArrayList<String>();
 
 		ResultSet resultSet = statement.executeQuery();
 		while (resultSet.next() && matches.size() < max) {
-			String id = resultSet.getString(1);
-			rawIds.add(id);
-			long CountOfTransactions = resultSet.getLong(2);
-			long AvgTrasactionAmount = resultSet.getLong(3);
-			long MaxTransactionAmount = resultSet.getLong(4);
-			long SumTransactionAmount = resultSet.getLong(5);
-			Date MinTransDate = resultSet.getDate(6);
-			Date MaxTransDate = resultSet.getDate(7);
-			String label = resultSet.getString(8);
-			long degree = resultSet.getLong(9);
+			Integer entityId = resultSet.getInt(1);
+			String label = resultSet.getString(2);
+			
+			long inboundDegree = resultSet.getLong(3);
+			long uniqueInboundDegree = resultSet.getLong(4);
+			long outboundDegree = resultSet.getLong(5);
+			long uniqueOutboundDegree = resultSet.getLong(6);
+			
+			boolean labeled = label != null && !label.trim().isEmpty();
 			
 			List<FL_Property> props = new ArrayList<FL_Property>();
-			props.add(new PropertyHelper("CountOfTransactions", "transaction count", CountOfTransactions, Collections.singletonList(FL_PropertyTag.STAT)));
-			props.add(new PropertyHelper("AvgTrasactionAmount", "avg transaction amount", AvgTrasactionAmount, Collections.singletonList(FL_PropertyTag.STAT)));
-			props.add(new PropertyHelper("MaxTransactionAmount", "max transaction amount", MaxTransactionAmount, Collections.singletonList(FL_PropertyTag.STAT)));
-			props.add(new PropertyHelper("SumTransactionAmount", "total transaction amount", SumTransactionAmount, Collections.singletonList(FL_PropertyTag.STAT)));
-			props.add(new PropertyHelper("MinTransDate", "first transaction date", MinTransDate, Collections.singletonList(FL_PropertyTag.STAT)));
-			props.add(new PropertyHelper("MaxTransDate", "last transaction date", MaxTransDate, Collections.singletonList(FL_PropertyTag.STAT)));
-			props.add(new PropertyHelper("Degree", "degree", degree, Collections.singletonList(FL_PropertyTag.STAT)));
-			
-			if (label != null && !label.trim().isEmpty()) {
-				props.add(new PropertyHelper("UserTag", "userTag", label, Collections.singletonList(FL_PropertyTag.TEXT)));
+			props.add(new PropertyHelper("Identification", "Identification", labeled? "Tagged":"Anonymous", Collections.singletonList(FL_PropertyTag.TYPE)));
+			props.add(new PropertyHelper("InboundDegree", "Inbound Transfers", inboundDegree, Collections.singletonList(FL_PropertyTag.STAT)));
+			props.add(new PropertyHelper("UniqueInboundDegree", "Unique Inbound Links", uniqueInboundDegree, Collections.singletonList(FL_PropertyTag.INFLOWING)));
+			props.add(new PropertyHelper("OutboundDegree", "Outbound Transfers", outboundDegree, Collections.singletonList(FL_PropertyTag.STAT)));
+			props.add(new PropertyHelper("UniqueOutboundDegree", "Unique Outbound Links", uniqueOutboundDegree, Collections.singletonList(FL_PropertyTag.OUTFLOWING)));
+            props.add(new PropertyHelper("image", "Image", "img/bitcoin_default.png", Collections.singletonList(FL_PropertyTag.IMAGE)));
+
+            if (labeled) {
+				props.add(new PropertyHelper("UserTag", "User Tag", label, Collections.singletonList(FL_PropertyTag.TEXT)));
 			} else {
-				label = id;
+				label = entityId.toString();
 			}
 
-			id = _namespaceHandler.globalFromLocalEntityId(schema, id, TypedId.ACCOUNT);
+			String uid = _namespaceHandler.globalFromLocalEntityId(schema, entityId.toString(), TypedId.ACCOUNT);
 			
-			FL_Entity entity = new EntityHelper(id, label,
+			FL_Entity entity = new EntityHelper(uid, label,
 					FL_EntityTag.ACCOUNT.name(), FL_EntityTag.ACCOUNT, props);
 			matches.add(new FL_SearchResult(1.0, entity));
 		}
+		
 		resultSet.close();
-		
-		Map<String, int[]> entityStats = new HashMap<String, int[]>();
-		
-		if (!rawIds.isEmpty()) {
-			
-			// separately grab the FinEntity stats
-			String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
-			String finEntityEntityIdColumn = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
-			String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
-			String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
-			
-			StringBuilder sb = new StringBuilder();
-			sb.append("SELECT " + finEntityEntityIdColumn + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " ");
-			sb.append("FROM " + finEntityTable + " ");
-			sb.append("WHERE " + finEntityEntityIdColumn + " IN (");
-			for (int i = 1; i < rawIds.size(); i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-			
-			PreparedStatement stmt = connection.prepareStatement(sb.toString());
-			
-			int index = 1;
-			for (String id : rawIds) {
-				stmt.setString(index++, _namespaceHandler.toSQLId(id, schema));
-			}
-			
-			ResultSet rs = stmt.executeQuery();
-			while (rs.next()) {
-				String entityId = rs.getString(finEntityEntityIdColumn);
-				int inDegree = rs.getInt(finEntityUniqueInboundDegree);
-				int outDegree = rs.getInt(finEntityUniqueOutboundDegree);
-			
-				entityStats.put(entityId, new int[]{inDegree, outDegree});
-			}
-			rs.close();
-			
-			stmt.close();
-		}
-		
-		for (FL_SearchResult result : matches) {
-			FL_Entity fle = (FL_Entity)result.getResult();
-			int[] stats = entityStats.get( TypedId.fromTypedId( fle.getUid() ).getNativeId() );
-		
-			if (stats != null) {
-				// add degree stats
-				fle.getProperties().add( new PropertyHelper("inboundDegree", stats[0], FL_PropertyTag.INFLOWING) );
-				fle.getProperties().add( new PropertyHelper("outboundDegree", stats[1], FL_PropertyTag.OUTFLOWING) );
-			}
-		}
 		
 		return matches;
 	}
@@ -307,7 +268,7 @@ public class BitcoinEntitySearch implements FL_EntitySearch {
 				FL_PropertyDescriptor.newBuilder()
 				.setKey("id")
 				.setFriendlyText("id")
-				.setType(FL_PropertyType.STRING)
+				.setType(FL_PropertyType.LONG)
 				.setConstraint(FL_Constraint.REQUIRED_EQUALS)
 				.setRange(FL_RangeType.SINGLETON)
 				.build()

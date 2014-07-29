@@ -24,22 +24,24 @@
  */
 package influent.server.rest;
 
-import influent.idl.FL_DataAccess;
-import influent.idl.FL_Entity;
-import influent.idl.FL_LevelOfDetail;
+import influent.idl.*;
 import influent.server.dataaccess.DataAccessException;
 import influent.server.dataaccess.DataAccessHelper;
 import influent.server.spi.EntityPropertiesViewService;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
+import org.json.JSONObject;
+
 import org.apache.avro.AvroRemoteException;
 import org.restlet.data.Form;
+import org.restlet.representation.StringRepresentation;
+import org.restlet.data.MediaType;
+import org.restlet.data.Status;
 import org.restlet.resource.Get;
+import org.restlet.resource.ResourceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,54 +49,50 @@ import com.google.inject.Inject;
 
 public class EntityDetailsResource extends ApertureServerResource {
 
-	private static final Logger s_logger = LoggerFactory.getLogger(EntityDetailsResource.class);
+    private static final Logger s_logger = LoggerFactory.getLogger(EntityDetailsResource.class);
 
-	private FL_DataAccess service;
-	private EntityPropertiesViewService propView;
+    private FL_DataAccess service;
+    private EntityPropertiesViewService propView;
 
-	
-	@Inject 
-	public EntityDetailsResource (FL_DataAccess service, EntityPropertiesViewService propView) {
-		this.service = service;
-		this.propView = propView;
-	}
-	
-	
-	
-	
-	@Get
-	public Map<String, Object> getContent()  {
-		Map<String, Object> props = new HashMap<String, Object> ();
-		
-		Form form = getRequest().getResourceRef().getQueryAsForm();
-		String queryId = form.getFirstValue("queryId").trim();
-		props.put("queryId", queryId);
-		String entityId = form.getFirstValue("entityId").trim();
-		int imageIdx = Integer.parseInt(form.getFirstValue("imageIdx").trim());
 
-		try {
-			String html = "";
-			try {
-				List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId), FL_LevelOfDetail.FULL);
-				if (entities != null && !entities.isEmpty()) {
-					//html="<html><head>Found</head><body>Found entity for "+entityId+"</body></html>";
-					html = propView.getContent(entities.get(0), imageIdx);
-				}
-				else{
-					s_logger.error("Unable to look up entity (for details pane) " + entityId);
-				}
-			} catch (AvroRemoteException e) {
-				e.printStackTrace();
-			}
-			
-			props.put("content", html);
-	
-			//return new StringRepresentation(html, MediaType.TEXT_PLAIN);
-			return props;
-		} catch (DataAccessException e) {
-			String html="<html><body>Couldn't find entity for "+entityId+"</body></html>";
-			props.put("content", html);
-			return props;
-		}
-	}
+    @Inject
+    public EntityDetailsResource(FL_DataAccess service, EntityPropertiesViewService propView) {
+        this.service = service;
+        this.propView = propView;
+    }
+
+
+    @Get
+    public StringRepresentation getContent() {
+
+        Form form = getRequest().getResourceRef().getQueryAsForm();
+        //String queryId = form.getFirstValue("queryId").trim();
+        String entityId = form.getFirstValue("entityId").trim();
+
+        try {
+
+            List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId), FL_LevelOfDetail.FULL);
+            if (entities != null && !entities.isEmpty()) {
+
+                JSONObject result = propView.getContent(entities.get(0));
+                return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);
+
+            } else {
+                s_logger.error("Unable to look up entity (for details pane) " + entityId);
+                return null;
+            }
+        } catch (DataAccessException e) {
+            throw new ResourceException(
+                    Status.CLIENT_ERROR_BAD_REQUEST,
+                    "Unable to create JSON object from supplied options string",
+                    e
+            );
+        } catch (AvroRemoteException e) {
+            throw new ResourceException(
+                    Status.CLIENT_ERROR_BAD_REQUEST,
+                    "Unable to create JSON object from supplied options string",
+                    e
+            );
+        }
+    }
 }

@@ -30,7 +30,7 @@ define(
 	function(
 		modules, chan, cardRenderer, fileRenderer,
 		clusterRenderer, xfUtil, xfLinkType, constants
-	){
+		){
 
 		var _cardDefaults = cardRenderer.getRenderDefaults();
 		var _fileDefaults = fileRenderer.getRenderDefaults();
@@ -63,9 +63,9 @@ define(
 		//------------------------------------------------------------------------------------------------------------------
 
 		var _getWidthForLink = function(linkObj, maxAmount) {
-			if (linkObj.getType() == xfLinkType.FILE) {
+			if (linkObj.getType() === xfLinkType.FILE) {
 				return 2;
-			} else if (linkObj.getType() == xfLinkType.TPS) {
+			} else if (linkObj.getType() === xfLinkType.TPS) {
 				return 2;
 			} else {
 				return Math.max((linkObj.getAmount()/maxAmount) * _sankeyState.maxSankeyWidth, _sankeyState.minSankeyWidth);
@@ -94,7 +94,7 @@ define(
 				default:
 					style['sankey-style'] = 'solid';
 					style['sankey-color'] = '#C4BDAD';
-				break;
+					break;
 			}
 			return style;
 		};
@@ -111,17 +111,17 @@ define(
 		var _getCardMetrics = function(sourceObj){
 			var uiType = sourceObj.getUIType();
 			var isDescendantOfFile = xfUtil.isUITypeDescendant(sourceObj, constants.MODULE_NAMES.FILE);
-			if (uiType == constants.MODULE_NAMES.FILE || isDescendantOfFile){
+			if (uiType === constants.MODULE_NAMES.FILE || isDescendantOfFile){
 				return {
 					width : _fileDefaults.FILE_WIDTH,
 					offset : isDescendantOfFile ? _fileDefaults.FILE_WIDTH - _cardDefaults.CARD_LEFT : _fileDefaults.FILE_WIDTH
 				};
 			}
 			else if (
-				uiType == constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
-				uiType == constants.MODULE_NAMES.MUTABLE_CLUSTER ||
-				uiType == constants.MODULE_NAMES.SUMMARY_CLUSTER
-			){
+				uiType === constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
+				uiType === constants.MODULE_NAMES.MUTABLE_CLUSTER ||
+				uiType === constants.MODULE_NAMES.SUMMARY_CLUSTER
+				){
 				// If this card is a child of a file or matchcard, we want to use the width of the parent.
 				var isExpanded = sourceObj.isExpanded();
 				var clusterWidth = isExpanded ? _cardDefaults.CARD_WIDTH : _cardDefaults.CARD_WIDTH + ((_clusterDefaults.STACK_COUNT-1)*_clusterDefaults.STACK_WIDTH);
@@ -130,13 +130,13 @@ define(
 					offset : clusterWidth
 				};
 			}
-			else if (uiType == constants.MODULE_NAMES.ENTITY) {
+			else if (uiType === constants.MODULE_NAMES.ENTITY) {
 				return {
 					width : _cardDefaults.CARD_WIDTH,
 					offset : _cardDefaults.CARD_WIDTH
 				};
 			}
-			else if (uiType == constants.MODULE_NAMES.MATCH) {
+			else if (uiType === constants.MODULE_NAMES.MATCH) {
 				aperture.log.error('Matchcards do not currently support branching operations and should not contain any links');
 			}
 			else {
@@ -225,12 +225,12 @@ define(
 			var incidentLinks = linkMap[xfId];
 			var maxAmount = Math.max(_.max(_sankeyState.amountDistribution), _sankeyState.minSankeyWidth);
 			var linkStyle;
-			if (type=='outgoing'){
+			if (type === 'outgoing'){
 				for (var tId in incidentLinks.outgoing) {
 					if (incidentLinks.outgoing.hasOwnProperty(tId)) {
 						linkStyle = {
-								'id' : incidentLinks.outgoing[tId].getXfId(),
-								'sankey-width' : Math.max((incidentLinks.outgoing[tId].getAmount()/maxAmount) * _sankeyState.maxSankeyWidth, _sankeyState.minSankeyWidth)
+							'id' : incidentLinks.outgoing[tId].getXfId(),
+							'sankey-width' : Math.max((incidentLinks.outgoing[tId].getAmount()/maxAmount) * _sankeyState.maxSankeyWidth, _sankeyState.minSankeyWidth)
 						};
 
 						linkStyle = _addStyleFromSpecs(linkStyle, incidentLinks.outgoing[tId].getType(), incidentLinks.outgoing[tId].isSelected());
@@ -254,39 +254,46 @@ define(
 			return links;
 		};
 
-		//------------------------------------------------------------------------------------------------------------------
+		//--------------------------------------------------------------------------------------------------------------
+
+		var createLinkId = function(uiObject) {
+			var column = xfUtil.getUITypeAncestor(uiObject, constants.MODULE_NAMES.COLUMN);
+
+			return column.getXfId() + '__' + uiObject.getDataId();
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
 
 		var _createLinkSpecs = function(positionMap, workspaceObject, linkMap){
 			var changedIds = [];
 			var workspaceLinks = workspaceObject.getLinks();
 			var maxAmount = Math.max(_.max(_sankeyState.amountDistribution), _sankeyState.minSankeyWidth);
 
-			for (var linkId in workspaceLinks){
-				if (workspaceLinks.hasOwnProperty(linkId)) {
-					var linkObj = workspaceLinks[linkId];
+			aperture.util.forEach(
+				workspaceLinks,
+				function(linkObj) {
+
+					var linkId = linkObj.getXfId();
+
 					var sourceObj = linkObj.getSource();
 					var targetObj = linkObj.getDestination();
 
-					// Skip links to/from hidden objects
-					if (sourceObj.getVisualInfo().isHidden || targetObj.getVisualInfo().isHidden)
-						continue;
+					if (sourceObj.getVisualInfo().isHidden || targetObj.getVisualInfo().isHidden) {
+						return;
+					}
 
 					var sourceId = _getNormalizedXfId(sourceObj);
 					var sourceHeight = sourceObj.getUIType() === constants.MODULE_NAMES.FILE ?
-										fileRenderer.getFileHeight(sourceObj.getVisualInfo().showDetails) :
-										cardRenderer.getCardHeight(sourceObj.getVisualInfo().showDetails);
+						fileRenderer.getFileHeight(sourceObj.getVisualInfo().showDetails) :
+						cardRenderer.getCardHeight(sourceObj.getVisualInfo().showDetails);
 
 					var targetId = _getNormalizedXfId(targetObj);
 					var targetHeight = targetObj.getUIType() === constants.MODULE_NAMES.FILE ?
-										fileRenderer.getFileHeight(targetObj.getVisualInfo().showDetails) :
-										cardRenderer.getCardHeight(targetObj.getVisualInfo().showDetails);
+						fileRenderer.getFileHeight(targetObj.getVisualInfo().showDetails) :
+						cardRenderer.getCardHeight(targetObj.getVisualInfo().showDetails);
 
-					// Check to see if the link is selected.
-					// TODO: This logic needs to change to
-					// accommodate the logic for brokers.
 					var isHighlighted = sourceObj.isHighlighted() || targetObj.isHighlighted();
 
-					// Logic to enable highlighting of a files internal cluster.
 					if (sourceObj.getUIType() === constants.MODULE_NAMES.FILE && sourceObj.getClusterUIObject() != null){
 						if (sourceObj.getClusterUIObject().isHighlighted()){
 							isHighlighted = true;
@@ -311,14 +318,15 @@ define(
 					if(positionMap[sourceId] == null || positionMap[targetId] == null) {
 						var missingId = (positionMap[sourceId] == null) ? sourceId : targetId;
 						aperture.log.warn('Position map is missing value for ' +
-								((positionMap[sourceId] == null) ? 'source' : 'target') + ' key ' + missingId);
-						continue;
+							((positionMap[sourceId] == null) ? 'source' : 'target') + ' key ' + missingId);
+						return;
 					}
 
 					var linkSpec = {
 						id : linkObj.getXfId(),
 						source : {
-							id : sourceId,
+							uid : sourceId,
+							id : createLinkId(sourceObj),
 							x : positionMap[sourceId].left,
 							y : positionMap[sourceId].top + sourceHeight/2,
 							width : sMetric.width,
@@ -327,7 +335,8 @@ define(
 							'source-offset' : sMetric.offset
 						},
 						target : {
-							id : targetId,
+							uid : targetId,
+							id : createLinkId(targetObj),
 							x : positionMap[targetId].left,
 							y : positionMap[targetId].top + targetHeight/2 + _sankeyState.targetOffsetY,
 							width : tMetric.width,
@@ -337,11 +346,95 @@ define(
 						},
 						'sankey-width' : _getWidthForLink(linkObj, maxAmount)
 					};
+
 					_addStyleFromSpecs(linkSpec, linkObj.getType(), linkObj.isSelected());
 					changedIds.push(linkSpec.id);
 					_sankeyState.links.push(linkSpec);
 				}
-			}
+			);
+
+//			for (var linkId in workspaceLinks){
+//				if (workspaceLinks.hasOwnProperty(linkId)) {
+//					var linkObj = workspaceLinks[linkId];
+//					var sourceObj = linkObj.getSource();
+//					var targetObj = linkObj.getDestination();
+//
+//					// Skip links to/from hidden objects
+//					if (sourceObj.getVisualInfo().isHidden || targetObj.getVisualInfo().isHidden) {
+//						continue;
+//					}
+//
+//					var sourceId = _getNormalizedXfId(sourceObj);
+//					var sourceHeight = sourceObj.getUIType() === constants.MODULE_NAMES.FILE ?
+//										fileRenderer.getFileHeight(sourceObj.getVisualInfo().showDetails) :
+//										cardRenderer.getCardHeight(sourceObj.getVisualInfo().showDetails);
+//
+//					var targetId = _getNormalizedXfId(targetObj);
+//					var targetHeight = targetObj.getUIType() === constants.MODULE_NAMES.FILE ?
+//										fileRenderer.getFileHeight(targetObj.getVisualInfo().showDetails) :
+//										cardRenderer.getCardHeight(targetObj.getVisualInfo().showDetails);
+//
+//					// Check to see if the link is selected.
+//					// TODO: This logic needs to change to
+//					// accommodate the logic for brokers.
+//					var isHighlighted = sourceObj.isHighlighted() || targetObj.isHighlighted();
+//
+//					// Logic to enable highlighting of a files internal cluster.
+//					if (sourceObj.getUIType() === constants.MODULE_NAMES.FILE && sourceObj.getClusterUIObject() != null){
+//						if (sourceObj.getClusterUIObject().isHighlighted()){
+//							isHighlighted = true;
+//						}
+//					}
+//					else if (targetObj.getUIType() === constants.MODULE_NAMES.FILE && targetObj.getClusterUIObject() != null){
+//						if (targetObj.getClusterUIObject().isHighlighted()){
+//							isHighlighted = true;
+//						}
+//					}
+//
+//					if (isHighlighted){
+//						_sankeyState.selection.add(linkId);
+//					}
+//
+//					var sMetric = _getCardMetrics(sourceObj);
+//					var tMetric = _getCardMetrics(targetObj);
+//
+//					var sIncident = _getIncidentLinks(linkMap, sourceId, 'outgoing');
+//					var tIncident = _getIncidentLinks(linkMap, targetId, 'incoming');
+//
+//					if(positionMap[sourceId] == null || positionMap[targetId] == null) {
+//						var missingId = (positionMap[sourceId] == null) ? sourceId : targetId;
+//						aperture.log.warn('Position map is missing value for ' +
+//								((positionMap[sourceId] == null) ? 'source' : 'target') + ' key ' + missingId);
+//						continue;
+//					}
+//
+//					var linkSpec = {
+//						id : linkObj.getXfId(),
+//						source : {
+//							id : sourceId,
+//							x : positionMap[sourceId].left,
+//							y : positionMap[sourceId].top + sourceHeight/2,
+//							width : sMetric.width,
+//							height : sourceHeight,
+//							links : sIncident,
+//							'source-offset' : sMetric.offset
+//						},
+//						target : {
+//							id : targetId,
+//							x : positionMap[targetId].left,
+//							y : positionMap[targetId].top + targetHeight/2 + _sankeyState.targetOffsetY,
+//							width : tMetric.width,
+//							height : targetHeight,
+//							links : tIncident,
+//							'source-offset' : 0
+//						},
+//						'sankey-width' : _getWidthForLink(linkObj, maxAmount)
+//					};
+//					_addStyleFromSpecs(linkSpec, linkObj.getType(), linkObj.isSelected());
+//					changedIds.push(linkSpec.id);
+//					_sankeyState.links.push(linkSpec);
+//				}
+//			}
 			return changedIds;
 		};
 
@@ -396,9 +489,11 @@ define(
 			var plot = new aperture.NodeLink(_sankeyState.divId);
 			var linkLayer = plot.addLayer( aperture.SankeyPathLayer );
 
+			linkLayer.map('node-uid').from('uid');
+			linkLayer.map('node-id').from('id');
+
 			linkLayer.map('node-x').from('x');
 			linkLayer.map('node-y').from('y');
-
 
 			linkLayer.all(_sankeyState.links, 'id');
 			linkLayer.map('source').from('source');
@@ -420,7 +515,7 @@ define(
 
 			_sankeyState['plot'] = plot;
 			_sankeyState['linkLayer'] = linkLayer;
-	//		_linkLayer.map('opacity').asValue(0.5).filter(highlightedLinks.constant(1));
+			//		_linkLayer.map('opacity').asValue(0.5).filter(highlightedLinks.constant(1));
 		};
 
 		//------------------------------------------------------------------------------------------------------------------

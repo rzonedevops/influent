@@ -115,15 +115,13 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 				.setTags(Collections.singletonList(FL_PropertyTag.TYPE))
 				.setRange(new SingletonRangeHelper(type, FL_PropertyType.STRING))
 				.build());
-		
-		Collection<Object> imageURLs = null;
-		
+
+        List<Object> imageIds = new ArrayList<Object>();
+
 		if (type.equals("lender")) {
-			imageURLs = new ArrayList<Object>();
-			imageURLs.add("726677");
-			
+            imageIds.add("726677");
 		} else {
-			imageURLs = sd.getFieldValues("image_id");
+            imageIds.addAll(sd.getFieldValues("image_id"));
 		}
 		
 		// --- FEATURE DEMOS ------------------------------------------
@@ -135,8 +133,8 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 
 		// Multiple image carousel
 		if (uid.equals("b150236")) {
-			imageURLs.add("146773");
-			imageURLs.add("148448");
+            imageIds.add("146773");
+            imageIds.add("148448");
 		}
 		
 		// Make lenders parchmenty
@@ -146,22 +144,27 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 			entityBuilder.setUncertainty(FL_Uncertainty.newBuilder().setConfidence(notVeryConfidentDemonstration).build());
 		}
 		
-		// ------------------------------------------------------------		
-		
-		for (Object url :  imageURLs) {
-		
-			String imageURL = _imageURLPrefix + url.toString() + ".jpg";
-			
-			// Add a Kiva image
-			props.add(FL_Property.newBuilder().setKey("image")
-					.setFriendlyText("Image")
-					.setProvenance(null)
-					.setTags(Collections.singletonList(FL_PropertyTag.IMAGE))
-					.setRange(new SingletonRangeHelper(imageURL, FL_PropertyType.OTHER))
-					.build());
-		}
-				
-		
+		// ------------------------------------------------------------
+        List<Object> imageURLs = new ArrayList<Object>();
+        for (Object url :  imageIds) {
+            imageURLs.add(_imageURLPrefix + url.toString() + ".jpg");
+        }
+
+        Object values = FL_ListRange.newBuilder()
+            .setType(FL_PropertyType.STRING)
+            .setValues(imageURLs)
+            .build();
+
+        props.add(FL_Property.newBuilder().setKey("image")
+                .setFriendlyText("Image")
+                .setProvenance(null)
+                .setUncertainty(null)
+                .setTags(Collections.singletonList(FL_PropertyTag.IMAGE))
+                .setRange(values)
+                .build());
+
+        // ------------------------------------------------------------
+
 		//TODO : get tags once added to solr.
 		
 		//Read and build properties.
@@ -320,7 +323,7 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 			
 			FL_Property geoProp = FL_Property.newBuilder()
 					.setKey("geo")
-					.setFriendlyText("Location")
+					.setFriendlyText("")
 					.setTags(Collections.singletonList(FL_PropertyTag.GEO))
 					.setRange(geoVal)
 					.setProvenance(null)
@@ -329,17 +332,14 @@ public class KivaAnonEntitySearchIterator extends KivaEntitySearchIterator {
 			
 			props.add(geoProp);
 		}
-		
-		
-		propBuilder = FL_Property.newBuilder();
-		propBuilder.setKey("label");
-		propBuilder.setFriendlyText("label");
-		propBuilder.setProvenance(null);
-		propBuilder.setUncertainty(null);
-		ltags = new ArrayList<FL_PropertyTag>();
-		ltags.add(FL_PropertyTag.LABEL);
-		propBuilder.setTags(ltags);
-		propBuilder.setRange(new SingletonRangeHelper(label, FL_PropertyType.OTHER));
+
+
+		propBuilder = FL_Property.newBuilder().setKey("label")
+                .setFriendlyText("label")
+		        .setProvenance(null)
+		        .setUncertainty(null)
+                .setTags(Collections.singletonList(FL_PropertyTag.LABEL))
+		        .setRange(new SingletonRangeHelper(label, FL_PropertyType.STRING));
 		
 		props.add(propBuilder.build());
 		

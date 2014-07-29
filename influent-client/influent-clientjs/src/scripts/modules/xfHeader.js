@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'lib/ui/xfModalDialog'],
-	function(modules, chan, duration, xfUtil, xfModalDialog) {
+define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil'],
+	function(modules, chan, duration, xfUtil) {
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Private Variables
@@ -109,8 +109,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 			entitiesHref.append(entitiesIcon);
 			entitiesHref.append($(document.createTextNode('Account Holders')));
 			entitiesOption.append(entitiesHref);
-			entitiesOption.attr('title', 'view cards without activity charts');
-			xfUtil.handleTooltipEvent(entitiesOption, 'view cards without activity charts');
+			xfUtil.makeTooltip(entitiesOption, 'view cards without activity charts');
 			displayOptions.append(entitiesOption);
 
 			var chartsOption = $('<li></li>');
@@ -122,41 +121,43 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 			chartsHref.append(chartsIcon);
 			chartsHref.append($(document.createTextNode('Account Activity')));
 			chartsOption.append(chartsHref);
-			chartsOption.attr('title', 'view cards with activity charts');
-			xfUtil.handleTooltipEvent(chartsOption, 'view cards with activity charts');
+			xfUtil.makeTooltip(chartsOption, 'view cards with activity charts');
 			displayOptions.append(chartsOption);
 
 
 			
 			if (aperture.config.get()['influent.config']['usePatternSearch']) {
 				var searchCurrent = $('<li id="pattern-search-item"></li>')
-					.attr('title', 'Search for similar patterns of activity')
 					.append($('<a href="#"><span class="ui-icon pattern-search-icon"/>Find Patterns Like This</a>')
 						.click(
 							function (e) {
 								if (_UIObjectState.enablePatternSearch) {
-									aperture.pubsub.publish(chan.PATTERN_SEARCH_REQUEST, {});
+									aperture.pubsub.publish(chan.PATTERN_SEARCH_REQUEST);
 								}
 								e.preventDefault();
 							}
 						).mouseenter(
-							function() {
+							function(e) {
 								aperture.pubsub.publish(chan.HIGHLIGHT_SEARCH_ARGUMENTS, {
 									xfId : null,
 									isHighlighted : true
 								});
+                                aperture.pubsub.publish(chan.HOVER_START_EVENT, { element : e.target.title });
+                                aperture.pubsub.publish(chan.TOOLTIP_START_EVENT, { element : e.target.title });
 								return false;
 							}
 						).mouseleave(
-							function() {
+							function(e) {
 								aperture.pubsub.publish(chan.HIGHLIGHT_SEARCH_ARGUMENTS, {
 									xfId : null,
 									isHighlighted : false
 								});
+                                aperture.pubsub.publish(chan.HOVER_END_EVENT, { element : e.target.title });
+                                aperture.pubsub.publish(chan.TOOLTIP_END_EVENT, { element : e.target.title });
 								return false;
 							}
-						));
-				xfUtil.handleTooltipEvent(searchCurrent, 'Search for similar patterns of activity');
+						).attr('title', 'Search for similar patterns of activity')
+                );
 				
 				var searchButton = $('<button></button>')
 					.addClass('nocapture influent-menu-button')
@@ -215,8 +216,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 			newWorkspaceHref.append(newWorkspaceIcon);
 			newWorkspaceHref.append($(document.createTextNode('New Workspace')));
 			newWorkspaceOption.append(newWorkspaceHref);
-			newWorkspaceOption.attr('title', 'open a blank workspace in a new tab');
-			xfUtil.handleTooltipEvent(newWorkspaceOption, 'open a blank workspace in a new tab');
+			xfUtil.makeTooltip(newWorkspaceOption, 'open a blank workspace in a new tab');
 			exportOptions.append(newWorkspaceOption);
 
 			var importXMLOption = $('<li></li>');
@@ -228,8 +228,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 			importXMLHref.append(importXMLIcon);
 			importXMLHref.append($(document.createTextNode('Import Chart...')));
 			importXMLOption.append(importXMLHref);
-			importXMLOption.attr('title', 'Import chart of filed workspace');
-			xfUtil.handleTooltipEvent(importXMLOption, 'import chart of filed workspace');
+			xfUtil.makeTooltip(importXMLOption, 'import chart of filed workspace');
 			importXMLOption.addClass('last-menu-group-item');
 			exportOptions.append(importXMLOption);
 
@@ -243,8 +242,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 			exportXMLHref.append(exportXMLIcon);
 			exportXMLHref.append($(document.createTextNode('Export Chart')));
 			exportXMLOption.append(exportXMLHref);
-			exportXMLOption.attr('title', 'Export chart of filed workspace');
-			xfUtil.handleTooltipEvent(exportXMLOption, 'export chart of filed workspace');
+			xfUtil.makeTooltip(exportXMLOption, 'export chart of filed workspace');
 			exportOptions.append(exportXMLOption);
 
 			var exportCaptureHref = null;
@@ -259,8 +257,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 				exportCaptureHref.append(exportCaptureIcon);
 				exportCaptureHref.append($(document.createTextNode('Export Image')));
 				exportCaptureOption.append(exportCaptureHref);
-				exportCaptureOption.attr('title', 'export an image of the workspace');
-				xfUtil.handleTooltipEvent(exportCaptureOption, 'export an image of the workspace');
+				xfUtil.makeTooltip(exportCaptureOption, 'export an image of the workspace');
 				exportCaptureOption.addClass('last-menu-group-item');
 				exportOptions.append(exportCaptureOption);
 			}
@@ -279,6 +276,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 				helpHref.append(helpIcon);
 				helpHref.append($(document.createTextNode('Help')));
 				helpOption.append(helpHref);
+                xfUtil.makeTooltip(helpOption, 'open help documentation');
 				exportOptions.append(helpOption);
 				
 				if (USE_AUTH) {
@@ -287,7 +285,10 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 				
 				helpHref.click(
 					function (e) {
-						window.open(helplink);
+                        aperture.pubsub.publish(chan.OPEN_EXTERNAL_LINK_REQUEST, {
+                            link : helplink
+                        });
+                        e.preventDefault();
 					}
 				);
 			}
@@ -357,7 +358,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 
 			var dateButton = $('<button></button>');
 			dateButton.attr('id', 'applydates');
-			dateButton.attr('title', 'apply date range to workspace');
+            xfUtil.makeTooltip(dateButton, 'apply date range to workspace');
 			dateButton.css('display', 'none');
 			dateButton.text('Apply');
 			filterDiv.append(dateButton);
@@ -471,8 +472,8 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 			aperture.pubsub.publish(
 				chan.FILTER_CHANGE_REQUEST,
 				{
-					start: _UIObjectState.startDate,
-					end: _UIObjectState.endDate,
+					startDate: _UIObjectState.startDate,
+					endDate: _UIObjectState.endDate,
 					duration: _UIObjectState.duration,
 					numBuckets: _UIObjectState.numBuckets
 				}
@@ -512,12 +513,20 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 					var localEnd = duration.addToDate(_UIObjectState.duration, localStart);
 
 					_updateFromLocalShiftedDates(localStart, localEnd);
-					
-					$('#datepickerto').datepicker('setDate', xfUtil.dayBefore(localEnd));
 
-					_adjustRangeBar();
 					// unhide apply button
 					$('#applydates').css('display', '');
+
+                    aperture.pubsub.publish(
+                        chan.FILTER_CHANGE_EVENT,
+                        {
+                            startDate: _UIObjectState.startDate,
+                            endDate: _UIObjectState.endDate,
+                            duration: _UIObjectState.duration,
+                            numBuckets: _UIObjectState.numBuckets,
+                            userRequested: true
+                        }
+                    );
 				},
 				beforeShowDay: function(date) {
 					// validation fn for dates, return valid (bool), css classname
@@ -535,12 +544,20 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 					var localStart = duration.subtractFromDate(_UIObjectState.duration, localEnd);
 
 					_updateFromLocalShiftedDates(localStart, localEnd);
-					
-					$('#datepickerfrom').datepicker('setDate', localStart);
 
-					_adjustRangeBar();
 					// unhide apply button
 					$('#applydates').css('display', '');
+
+                    aperture.pubsub.publish(
+                        chan.FILTER_CHANGE_EVENT,
+                        {
+                            startDate: _UIObjectState.startDate,
+                            endDate: _UIObjectState.endDate,
+                            duration: _UIObjectState.duration,
+                            numBuckets: _UIObjectState.numBuckets,
+                            userRequested: true
+                        }
+                    );
 				},
 				beforeShowDay: function(date) {
 					// validation fn for dates, return valid (bool), css classname
@@ -561,18 +578,23 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 
 				var localEnd = xfUtil.localShiftedDate(_UIObjectState.endDate);
 				localEnd = duration.roundDateByDuration(localEnd, _UIObjectState.duration);
-				
 				var localStart = duration.subtractFromDate(_UIObjectState.duration, localEnd);
-				
 				_updateFromLocalShiftedDates(localStart, localEnd);
-				
-				$('#datepickerto').datepicker('setDate', xfUtil.dayBefore(localEnd));
-				$('#datepickerfrom').datepicker('setDate', localStart);
 				_UIObjectState.numBuckets = bucketsForDuration(_UIObjectState.duration);
 
-				_adjustRangeBar();
 				// unhide apply button
 				$('#applydates').css('display', '');
+
+                aperture.pubsub.publish(
+                    chan.FILTER_CHANGE_EVENT,
+                    {
+                        startDate: _UIObjectState.startDate,
+                        endDate: _UIObjectState.endDate,
+                        duration: _UIObjectState.duration,
+                        numBuckets: _UIObjectState.numBuckets,
+                        userRequested: true
+                    }
+                );
 			});
 
 			applyDates.css('display', 'none');
@@ -678,7 +700,7 @@ define(['lib/module', 'lib/channels', 'lib/util/duration', 'lib/util/xfUtil', 'l
 
 		var _updateFilter = function (chan, data) {
 
-			_UIObjectState.startDate =data.startDate;
+			_UIObjectState.startDate = data.startDate;
 			_UIObjectState.endDate = data.endDate;
 			_UIObjectState.duration = data.duration;
 			_UIObjectState.numBuckets = bucketsForDuration(data.duration);

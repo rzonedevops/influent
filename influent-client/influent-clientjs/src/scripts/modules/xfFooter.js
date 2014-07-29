@@ -213,6 +213,11 @@ define(
 				var detailsDiv = $('<div></div>');
 				detailsDiv.attr('id', 'details');
 				footerContentDiv.append(detailsDiv);
+                detailsDiv.scroll(function(event) {
+                    aperture.pubsub.publish(chan.SCROLL_VIEW_EVENT, {
+                        div : event.target
+                    });
+                });
 
 				var detailsContentDiv = $('<div></div>');
 				detailsContentDiv.attr('id', 'details-content');
@@ -286,17 +291,18 @@ define(
 						{
 							select: function(event, ui) {
 
-								if (ui.panel.id === 'chartTab') {
-									aperture.pubsub.publish(chan.REQUEST_CURRENT_STATE);
-								}
-
 								if (_transactionsState.autoSelecting) {
 									_transactionsState.autoSelecting = false;
 								} else {
-									_transactionsState.userSelectedTab = (ui.panel.id === 'chartTab') ?
-										_transactionsState.userSelectedTab = 'chart' :
-										_transactionsState.userSelectedTab = 'table';
+									_transactionsState.userSelectedTab = (ui.panel.id === 'chartTab') ? 'chart' : 'table';
+                                    aperture.pubsub.publish(chan.FOOTER_CHANGE_DATA_VIEW_EVENT, {
+                                        tab : _transactionsState.userSelectedTab
+                                    });
 								}
+
+                                if (ui.panel.id === 'chartTab') {
+                                    aperture.pubsub.publish(chan.REQUEST_CURRENT_STATE);
+                                }
 							}
 						}
 					);

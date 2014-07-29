@@ -25,17 +25,19 @@
 define(
 	[
 		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/models/xfColumn', 'lib/models/xfFile',
-		'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster', 'lib/models/xfClusterBase',
-		'lib/models/xfCard', 'lib/models/xfLink', 'lib/layout/xfLayoutProvider', 'lib/util/xfUtil',
-		'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/ui/xfLinkType', 'lib/plugins',
-		'modules/xfRenderer', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/extern/cookieUtil'
-	],
+		'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster',
+        'lib/models/xfClusterBase',	'lib/models/xfCard', 'lib/models/xfLink', 'lib/layout/xfLayoutProvider',
+        'lib/util/xfUtil', 'lib/util/duration', 'lib/ui/toolbarOperations', 'lib/ui/xfLinkType', 'lib/plugins',
+		'modules/xfRenderer', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/extern/cookieUtil',
+		'modules/xfRest'
+    ],
 	function(
 		xfUIObject, chan, guid, xfColumn, xfFile,
-		xfImmutableCluster, xfMutableCluster, xfSummaryCluster, xfClusterBase,
-		xfCard, xfLink, xfLayoutProvider, xfUtil,
-		duration, toolbarOp, xfLinkType, plugins,
-		xfRenderer, xfModalDialog, constants, cookieUtil
+		xfImmutableCluster, xfMutableCluster, xfSummaryCluster,
+        xfClusterBase, xfCard, xfLink, xfLayoutProvider,
+        xfUtil, duration, toolbarOp, xfLinkType, plugins,
+		xfRenderer, xfModalDialog, constants, cookieUtil,
+		xfRest
 	) {
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -53,29 +55,20 @@ define(
 
 		
 		var _UIObjectState = {
-			xfId : '',
-			UIType : MODULE_NAME,
-			sessionId : '',
-			children : [], // This should only ever contain xfColumn objects.
-			childModule : undefined,
-			focus : undefined,
-			showDetails : true,
-			footerDisplay : 'none',
-			dates : {startDate: '', endDate: '', numBuckets: 0, duration: ''},
-			singleton : undefined,
-			selectedUIObject : null,                 // this assumes one selected object, could make this an [] if needed
-			subscriberTokens : null,
-			graphSearchActive : null
-		};
-
-		var _logWorkflow = {
-			WF_OTHER       : 'WF_OTHER',
-			WF_DEFINE      : 'WF_DEFINE',
-			WF_GETDATA     : 'WF_GETDATA',
-			WF_EXPLORE     : 'WF_EXPLORE',
-			WF_CREATE      : 'WF_CREATE',
-			WF_ENRICH      : 'WF_ENRICH',
-			WF_TRANSFORM   : 'WF_TRANSFORM'
+			xfId: '',
+			UIType: MODULE_NAME,
+			sessionId: '',
+			children: [], // This should only ever contain xfColumn objects.
+			childModule: undefined,
+			focus: undefined,
+			showDetails: true,
+			footerDisplay: 'none',
+			dates: {startDate: '', endDate: '', numBuckets: 0, duration: ''},
+			singleton: undefined,
+			selectedUIObject: null,                 // this assumes one selected object, could make this an [] if needed
+			subscriberTokens: null,
+			graphSearchActive: null,
+			scrollStates: []
 		};
 
 		var xfWorkspaceSpecTemplate = {};
@@ -197,91 +190,106 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _initWorkspaceState = function(callback) {
-			aperture.io.rest(
-				'/persist',
-				'GET',
-				function (response) {
+			xfRest.request( '/persist' , 'GET').withData(
 
-					var workspaceSpec = null;
-					var workspaceUIObj = null;
+				{sessionId : _UIObjectState.sessionId}
 
-					if (response.data == null || response.data.length < 1) {
+			).then(function (response) {
 
-						// Set the flag for displaying/hiding charts.
-						var show = aperture.config.get()['influent.config']['defaultShowDetails'];
+				var workspaceSpec = null;
+				var workspaceUIObj = null;
 
-						_UIObjectState.showDetails = show != null? show : true;
+				if (response.data == null || response.data.length < 1) {
 
-						aperture.pubsub.publish(chan.DETAILS_CHANGE_EVENT, {showDetails : _UIObjectState.showDetails});
+					// Set the flag for displaying/hiding charts.
+					var show = aperture.config.get()['influent.config']['defaultShowDetails'];
 
-						var initDuration = aperture.config.get()['influent.config']['startingDateRange'];
-						var initEndDate = aperture.config.get()['influent.config']['defaultEndDate'] || new Date();
+					_UIObjectState.showDetails = show != null? show : true;
 
-						initEndDate = duration.roundDateByDuration(initEndDate, initDuration);
-						var initStartDate = duration.roundDateByDuration(duration.subtractFromDate(initDuration, initEndDate), initDuration);
-						_UIObjectState.dates = {
-							startDate: xfUtil.utcShiftedDate(initStartDate), 
-							endDate: xfUtil.utcShiftedDate(initEndDate), 
-							numBuckets: 16, duration: initDuration
-						};
+					aperture.pubsub.publish(chan.DETAILS_CHANGE_EVENT, {showDetails : _UIObjectState.showDetails});
 
-						workspaceSpec = xfWorkspaceModule.getSpecTemplate();
-						workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
-						_UIObjectState.singleton = workspaceUIObj;
+					var initDuration = aperture.config.get()['influent.config']['startingDateRange'];
+					var initEndDate = aperture.config.get()['influent.config']['defaultEndDate'] || new Date();
 
-						// Create an empty column container and add to the workspace
-						var columnSpec = xfColumn.getSpecTemplate();
-						var columnUIObj = _createColumn(columnSpec);
-						workspaceUIObj.insert(columnUIObj, null);
+					initEndDate = duration.roundDateByDuration(initEndDate, initDuration);
+					var initStartDate = duration.roundDateByDuration(duration.subtractFromDate(initDuration, initEndDate), initDuration);
+					_UIObjectState.dates = {
+						startDate: xfUtil.utcShiftedDate(initStartDate),
+						endDate: xfUtil.utcShiftedDate(initEndDate),
+						numBuckets: 16, duration: initDuration
+					};
 
-						// Create an initial file and add to the above column
-						var fileSpec = xfFile.getSpecTemplate();
-						var fileUIObj = xfFile.createInstance(fileSpec);
-						columnUIObj.insert(fileUIObj, null);
+					workspaceSpec = xfWorkspaceModule.getSpecTemplate();
+					workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
+					_UIObjectState.singleton = workspaceUIObj;
 
-						_modifyContext(
-							fileUIObj.getXfId(),
-							columnUIObj.getXfId(),
-							'create'
-						);
+					// Create an empty column container and add to the workspace
+					var columnSpec = xfColumn.getSpecTemplate();
+					var columnUIObj = _createColumn(columnSpec);
+					workspaceUIObj.insert(columnUIObj, null);
 
-						fileUIObj.showSearchControl(true, '');
-						aperture.pubsub.publish(
-							chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST,
-							{
-								xfId: fileUIObj.getMatchUIObject().getXfId(),
-								noRender: true
-							}
-						);
+					// Create an initial file and add to the above column
+					var fileSpec = xfFile.getSpecTemplate();
+					var fileUIObj = xfFile.createInstance(fileSpec);
+					columnUIObj.insert(fileUIObj, null);
 
-					} else {
+					_modifyContext(
+						fileUIObj.getXfId(),
+						columnUIObj.getXfId(),
+						'create'
+					);
 
-						var restoreState = JSON.parse(response.data);
+					fileUIObj.showSearchControl(true, '');
+					aperture.pubsub.publish(
+						chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST,
+						{
+							xfId: fileUIObj.getMatchUIObject().getXfId(),
+							noRender: true
+						}
+					);
 
-						workspaceSpec = xfWorkspaceModule.getSpecTemplate();
-						workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
-						_UIObjectState.singleton = workspaceUIObj;
+				} else {
 
-						_UIObjectState.singleton.cleanState();
-						_UIObjectState.singleton.restoreVisualState(restoreState);
-						_UIObjectState.singleton.restoreHierarchy(restoreState, _UIObjectState.singleton);
-					}
+					var restoreState = JSON.parse(response.data);
 
-					_pruneColumns();
-					_checkPatternSearchState();
+					workspaceSpec = xfWorkspaceModule.getSpecTemplate();
+					workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
+					_UIObjectState.singleton = workspaceUIObj;
 
-					callback();
-				},
-				{
-					params : {
-						sessionId : _UIObjectState.sessionId
-					},
-					contentType: 'application/json'
+					_UIObjectState.singleton.cleanState();
+					_UIObjectState.singleton.restoreVisualState(restoreState);
+					_UIObjectState.singleton.restoreHierarchy(restoreState, _UIObjectState.singleton);
 				}
-			);
+
+				_pruneColumns();
+				_checkPatternSearchState();
+
+				callback();
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
+
+        var logActivity = function(activity, eventChannel) {
+            var activityData = {
+                type: null,
+                workflow: null,
+                activity: eventChannel,
+                description: null,
+                data: {}
+            };
+
+            _.extend(activityData, activity);
+
+            // If a draper workflow is defined, assume it's a draper user event
+            if (activityData.workflow in aperture.log.draperWorkflow) {
+                activityData.type = aperture.log.draperType.USER;
+            }
+
+            aperture.log.log(activityData);
+        };
+
+        //--------------------------------------------------------------------------------------------------------------
 
 		var _pubsubHandler = function(eventChannel, data) {
 
@@ -302,199 +310,354 @@ define(
 				}
 			};
 
-			var performLog = false;
-			var activityData = {
-				workflow: null,
-				activity: eventChannel,
-				description: null,
-				data: {
-					sessionId : _UIObjectState.sessionId
-				}
-			};
+            var _logActivity = function(activity) {
+                logActivity(activity, eventChannel);
+            };
 
 			switch (eventChannel) {
-				case chan.LOGOUT_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_OTHER;
-					activityData.description = 'Logout user';
-					_onLogout();
-					break;
-				case chan.SEARCH_REQUEST :
-					_onSearchRequest(eventChannel, data, renderCallback);
-					break;					
-				case chan.PATTERN_SEARCH_REQUEST :
-					_onPatternSearchRequest(eventChannel, data, renderCallback);
-					break;					
-				case chan.DETAILS_CHANGE_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_EXPLORE;
-					if (data.showDetails) {
-						activityData.description = 'View both account holder and activity information for all visible cards and stacks of cards';
-					} else {
-						activityData.description = 'View account holder information only for all visible cards and stacks of cards';
-					}
-					activityData.data['showDetails'] = data.showDetails;
-					_onDetailsChangeRequest(eventChannel, data, renderCallback);
-					break;
-				case chan.FILTER_CHANGE_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_TRANSFORM;
-					activityData.description = 'Change date range';
-					activityData.data['startDate'] = data.start;
-					activityData.data['endDate'] = data.end;
-					activityData.data['numBuckets'] = data.numBuckets;
-					activityData.data['duration'] = data.duration;
-					_onFilterChangeRequest(eventChannel, data, renderCallback);
-					break;
-				case chan.ADD_TO_FILE_REQUEST :
-				case chan.DROP_EVENT :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_ENRICH;
-					activityData.description = 'Add one or more account cards into a file';
-					activityData.data['UIOjectId'] = data.cardId;
-					activityData.data['UIContainerId'] = data.containerId;
-					activityData.data['fromDragDropEvent'] = (eventChannel === chan.DROP_EVENT) ? 'true' : 'false';
-					_onAddCardToContainer(eventChannel, data, renderCallback);
-					break;
-				case chan.FOCUS_CHANGE_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_EXPLORE;
-					activityData.description = 'Highlight a card or stack of cards';
-					activityData.data['UIOjectId'] = data.xfId;
-					_onFocusChangeRequest(eventChannel, data);
-					break;
-				case chan.FOCUS_CHANGE_EVENT :
-					_onFocusChangeEvent(eventChannel, data, renderCallback);
-					break;
-				case chan.SELECTION_CHANGE_REQUEST :
-					if (data.xfId != null) {
-						performLog = true;
-						activityData.workflow = _logWorkflow.WF_EXPLORE;
-						activityData.description = 'Select a card or stack of cards';
-						activityData.data['UIOjectId'] = data.xfId;
-					}
-					_onSelectionChangeRequest(eventChannel, data);
-					break;
-				case chan.HOVER_CHANGE_REQUEST :
-					_onHoverChangeRequest(eventChannel, data);
-					break;
-				case chan.CHANGE_FILE_TITLE :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_ENRICH;
-					activityData.description = 'Change title of a file';
-					activityData.data['fileId'] = data.xfId;
-					_onChangeFileTitle(eventChannel, data, renderCallback);
-					break;
-				case chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST :
-					_setSearchControlFocused(eventChannel, data);
-					break;
-				case chan.SEARCH_BOX_CHANGED :
-					_onSearchBoxChanged(eventChannel, data, renderCallback);
-					break;
-				case chan.APPLY_PATTERN_SEARCH_TERM :
-					_applyPatternSearchTerm(eventChannel, data, renderCallback);
-					break;
-				case chan.BRANCH_LEFT_EVENT :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_GETDATA;
-					activityData.description = 'Branch on a card or stack of cards for related incoming links';
-					activityData.data['UIOjectId'] = data.xfId;
-					_onBranchLeftEvent(eventChannel, data, renderCallback);
-					break;
-				case chan.BRANCH_RIGHT_EVENT :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_GETDATA;
-					activityData.description = 'Branch on a card or stack of cards for related outgoing links';
-					activityData.data['UIOjectId'] = data.xfId;
-					_onBranchRightEvent(eventChannel, data, renderCallback);
-					break;
-				case chan.EXPAND_EVENT :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_EXPLORE;
-					activityData.description = 'Expand stack and show members';
-					activityData.data['UIOjectId'] = data.xfId;
-					_onExpandEvent(eventChannel, data, renderCallback);
-					break;
-				case chan.COLLAPSE_EVENT :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_EXPLORE;
-					activityData.description = 'Collapse stack and hide members';
-					activityData.data['UIOjectId'] = data.xfId;
-					_onCollapseEvent(eventChannel, data, renderCallback);
-					break;
-				case chan.REMOVE_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_TRANSFORM;
-					activityData.description = 'Remove a card or stack of cards from the workspace';
-					activityData.data['UIOjectIds'] = data.xfIds;
-					_onRemoveRequest(eventChannel, data, renderCallback);
-					break;
-				case chan.CREATE_FILE_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_ENRICH;
-					activityData.description = 'Create a new file';
-					activityData.data['UIOjectId'] = data.xfId;
-					activityData.data['requestedFromColumn'] = data.isColumn ? data.isColumn : 'false';
-					_onCreateFileRequest(eventChannel, data, renderCallback);
-					break;
-				case chan.SHOW_MATCH_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_GETDATA;
-					activityData.description = 'Show search controls for a file';
-					activityData.data['UIOjectId'] = data.xfId;
-					_onShowMatchRequest(eventChannel, data, renderCallback);
-					break;
-				case chan.PREV_SEARCH_PAGE_REQUEST :
-				case chan.NEXT_SEARCH_PAGE_REQUEST :
-				case chan.SET_SEARCH_PAGE_REQUEST :
-					if (eventChannel === chan.PREV_SEARCH_PAGE_REQUEST ||
-						eventChannel === chan.NEXT_SEARCH_PAGE_REQUEST
-					) {
-						performLog = true;
-						activityData.workflow = _logWorkflow.WF_EXPLORE;
+                case chan.LOGOUT_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_OTHER,
+                        description: 'Logout user'
+                    });
+                    _onLogout(eventChannel);
+                    break;
+                case chan.SEARCH_REQUEST :
+                    _onSearchRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.PATTERN_SEARCH_REQUEST :
+                    _onPatternSearchRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.ADVANCE_SEARCH_DIALOG_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_CREATE,
+                        activity: 'open_modal_tools',
+                        description: 'Open the advanced search modal dialog'
+                    });
+                    break;
+                case chan.ADVANCE_SEARCH_DIALOG_CLOSE_EVENT:
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_CREATE,
+                        activity: 'close_modal_tools',
+                        description: 'Close the advanced search modal dialog without searching'
+                    });
+                    break;
+                case chan.DETAILS_CHANGE_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_CREATE,
+                        activity: 'select_view',
+                        description: (data.showDetails) ?
+                            'View both account holder and activity information for all visible cards and stacks of cards' :
+                            'View account holder information only for all visible cards and stacks of cards',
+                        data: {
+                            showDetails: data.showDetails
+                        }
+                    });
+                    _onDetailsChangeRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.FILTER_CHANGE_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                        activity: 'execute_query_filter',
+                        description: 'Execute date range filter query',
+                        data: {
+                            startDate: data.startDate,
+                            endDate: data.endDate,
+                            numBuckets: data.numBuckets,
+                            duration: data.duration
+                        }
+                    });
+                    _onFilterChangeRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.FILTER_CHANGE_EVENT :
+                    if (data.userRequested) {
+                        _logActivity({
+                            workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                            activity: 'select_filter_menu_option',
+                            description: 'Change date range menu options',
+                            data: {
+                                startDate: data.startDate,
+                                endDate: data.endDate,
+                                numBuckets: data.numBuckets,
+                                duration: data.duration
+                            }
+                        });
+                    }
 
-						if (eventChannel === chan.PREV_SEARCH_PAGE_REQUEST) {
-							activityData.description = 'Page to previous set of search results';
-						} else {
-							activityData.description = 'Page to next set of search results';
-						}
+                    break;
+                case chan.TRANSACTIONS_FILTER_EVENT :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                        activity: 'select_filter_menu_option',
+                        description: 'Change transaction table highlight filter',
+                        data: {
+                            filterHighlighted: data.filterHighlighted
+                        }
+                    });
+                    break;
+				case chan.TRANSACTIONS_PAGE_CHANGE_EVENT :
+					_logActivity({
+						workflow: aperture.log.draperWorkflow.WF_GETDATA,
+						activity: 'select_filter_menu_option',
+						description: 'Change transaction table page'
+					});
+					break;
+                case chan.ADD_TO_FILE_REQUEST :
+                case chan.DROP_EVENT :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_ENRICH,
+                        activity: 'add_to_workspace',
+                        description: 'Add one or more account cards into a file',
+                        data: {
+                            UIObjectId: data.cardId,
+                            UIContainerId: data.containerId,
+                            fromDragDropEvent: (eventChannel === chan.DROP_EVENT) ? 'true' : 'false'
+                        }
+                    });
+                    _onAddCardToContainer(eventChannel, data, renderCallback);
+                    break;
+                case chan.FOCUS_CHANGE_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_EXPLORE,
+                        activity: 'highlight_data',
+                        description: 'Highlight a card or stack of cards',
+                        data: {
+                            UIObjectId: data.xfId
+                        }
+                    });
+                    _onFocusChangeRequest(eventChannel, data);
+                    break;
+                case chan.FOCUS_CHANGE_EVENT :
+                    _onFocusChangeEvent(eventChannel, data, renderCallback);
+                    break;
+                case chan.SELECTION_CHANGE_REQUEST :
+                    if (data.xfId != null) {
+                        _logActivity({
+                            workflow: aperture.log.draperWorkflow.WF_EXPLORE,
+                            activity: 'show_data_info',
+                            description: 'Select a card or stack of cards',
+                            data: {
+                                UIObjectId: data.xfId
+                            }
+                        });
+                    }
+                    _onSelectionChangeRequest(eventChannel, data);
+                    break;
+                case chan.UI_OBJECT_HOVER_CHANGE_REQUEST :
+                    _onHoverChangeRequest(eventChannel, data);
+                    break;
+                case chan.CHANGE_FILE_TITLE :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_ENRICH,
+                        description: 'Change title of a file',
+                        data: {
+                            fileId: data.xfId
+                        }
+                    });
+                    _onChangeFileTitle(eventChannel, data, renderCallback);
+                    break;
+                case chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST :
+                    _setSearchControlFocused(eventChannel, data);
+                    break;
+                case chan.SEARCH_BOX_CHANGED :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                        activity: 'enter_filter_text',
+                        description: 'User entering text in match card search field'
+                    });
+                    _onSearchBoxChanged(eventChannel, data, renderCallback);
+                    break;
+                case chan.BRANCH_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                        activity: 'execute_visual_filter',
+                        description: 'Branch on a card or stack of cards for related links',
+                        data: {
+                            UIObjectId: data.xfId,
+                            direction: data.direction
+                        }
+                    });
+                    _onBranchRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.BRANCH_RESULTS_RETURNED_EVENT :
+                    _logActivity({
+                        type: aperture.log.draperType.SYSTEM,
+                        description: 'Branch results returned'
+                    });
+                    break;
+                case chan.EXPAND_EVENT :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_EXPLORE,
+                        activity: 'expand_data',
+                        description: 'Expand stack and show members',
+                        data: {
+                            UIObjectId: data.xfId
+                        }
+                    });
+                    _onExpandEvent(eventChannel, data, renderCallback);
+                    break;
+                case chan.COLLAPSE_EVENT :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_EXPLORE,
+                        activity: 'collapse_data',
+                        description: 'Collapse stack and hide members',
+                        data: {
+                            UIObjectId: data.xfId
+                        }
+                    });
+                    _onCollapseEvent(eventChannel, data, renderCallback);
+                    break;
+                case chan.REMOVE_REQUEST :
+                    if (data.userRequested) {
+                        if (data.isMatchCard) {
+                            _logActivity({
+                                workflow: aperture.log.draperWorkflow.WF_CREATE,
+                                activity: 'hide_tools',
+                                description: 'Remove a match card from a file',
+                                data: {
+                                    UIObjectIds: data.xfIds
+                                }
+                            });
+                        } else {
+                            _logActivity({
+                                workflow: aperture.log.draperWorkflow.WF_ENRICH,
+                                activity: 'remove_from_workspace',
+                                description: 'Remove a card or stack of cards from the workspace',
+                                data: {
+                                    UIObjectIds: data.xfIds
+                                }
+                            });
+                        }
+                    }
+                    _onRemoveRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.CREATE_FILE_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_ENRICH,
+                        activity: 'create_workspace',
+                        description: 'Create a new file',
+                        data: {
+                            UIObjectId: data.xfId,
+                            requestedFromColumn: data.isColumn ? data.isColumn : 'false'
+                        }
+                    });
+                    _onCreateFileRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.SHOW_MATCH_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_CREATE,
+                        activity: 'open_modal_tools',
+                        description: 'Show search controls for a file',
+                        data: {
+                            UIObjectId: data.xfId
+                        }
+                    });
+                    _onShowMatchRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.SEARCH_RESULTS_RETURNED_EVENT :
+                    _logActivity({
+                        type: aperture.log.draperType.SYSTEM,
+                        description: 'Search results returned',
+                        data: {
+                            shownMatches: data.shownMatches,
+                            totalMatches: data.totalMatches
+                        }
+                    });
+                    break;
+                case chan.PREV_SEARCH_PAGE_REQUEST :
+                case chan.NEXT_SEARCH_PAGE_REQUEST :
+                case chan.SET_SEARCH_PAGE_REQUEST :
+                    if (eventChannel === chan.PREV_SEARCH_PAGE_REQUEST ||
+                        eventChannel === chan.NEXT_SEARCH_PAGE_REQUEST
+                        ) {
+                        _logActivity({
+                            workflow: aperture.log.draperWorkflow.WF_EXPLORE,
+                            description: (eventChannel === chan.PREV_SEARCH_PAGE_REQUEST) ?
+                                'Page to previous set of search results' :
+                                'Page to next set of search results',
+                            data: {
+                                UIObjectId: data.xfId,
+                                page: data.page
+                            }
+                        });
+                    }
+                    _onPageSearch(eventChannel, data, renderCallback);
+                    break;
+                case chan.CLEAN_COLUMN_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_ENRICH,
+                        activity: 'clear_workspace',
+                        description: 'Clear any unfiled cards or stacks of cards from a column',
+                        data: {
+                            UIObjectId: data.xfId
+                        }
+                    });
+                    _onCleanColumnRequest(eventChannel, data, renderCallback);
+                    break;
+                case chan.EXPORT_CAPTURED_IMAGE_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_OTHER,
+                        activity: 'export_data',
+                        description: 'Export an image capture of the workspace'
+                    });
+                    _onExportCapture(eventChannel);
+                    break;
+                case chan.EXPORT_GRAPH_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_OTHER,
+                        activity: 'export_data',
+                        description: 'Export a chart of all filed content to the local computer'
+                    });
+                    _onExportGraph(eventChannel);
+                    break;
+                case chan.IMPORT_GRAPH_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_OTHER,
+                        activity: 'import_data',
+                        description: 'Import a chart of all filed content from the local computer'
+                    });
+                    _onImportGraph(eventChannel);
+                    break;
+                case chan.EXPORT_TRANSACTIONS_REQUEST:
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_OTHER,
+                        activity: 'export_data',
+                        description: 'Export transactions from the entity details data table'
+                    });
+                    break;
+                case chan.NEW_WORKSPACE_REQUEST :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_CREATE,
+                        activity: 'create_workspace',
+                        description: 'Create new empty workspace'
+                    });
+                    _onNewWorkspace(eventChannel);
+                    break;
+                case chan.OPEN_EXTERNAL_LINK_REQUEST :
+                    var isHelplink = data.link === aperture.config.get()['influent.config']['help'];
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_CREATE,
+                        activity: (isHelplink) ?
+                            'show_instructional_materials' :
+                            'show_external_link',
+                        description: (isHelplink) ?
+                            'Opening help documentation' :
+                            'Opening external link: ' + data.link
+                    });
 
-						activityData.data['UIOjectId'] = data.xfId;
-						activityData.data['page'] = data.page;
+					if (data.link) {
+						window.open(data.link);
 					}
-					_onPageSearch(eventChannel, data, renderCallback);
-					break;
-				case chan.CLEAN_COLUMN_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_TRANSFORM;
-					activityData.description = 'Clear any unfiled cards or stacks of cards from a column';
-					activityData.data['UIOjectId'] = data.xfId;
-					_onCleanColumnRequest(eventChannel, data, renderCallback);
-					break;
-				case chan.EXPORT_CAPTURED_IMAGE_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_CREATE;
-					activityData.description = 'Export an image capture of the workspace';
-					_onExportCapture(eventChannel);
-					break;
-				case chan.EXPORT_GRAPH_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_CREATE;
-					activityData.description = 'Export a chart of all filed content to the local computer';
-					_onExportGraph(eventChannel);
-					break;
-				case chan.IMPORT_GRAPH_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_CREATE;
-					activityData.description = 'Import a chart of all filed content from the local computer';
-					_onImportGraph(eventChannel);
-					break;
-				case chan.NEW_WORKSPACE_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_CREATE;
-					activityData.description = 'Create new empty workspace';
-					_onNewWorkspace(eventChannel);
-					break;
+                    break;
+                case chan.FOOTER_CHANGE_DATA_VIEW_EVENT :
+                    _logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_CREATE,
+                        activity: (data.tab === 'tableTab') ?
+                            'show_table' :
+                            'show_chart',
+                        description: 'Moving between data view tabs in the entity details panel'
+                    });
+                    break;
 				case chan.HIGHLIGHT_SEARCH_ARGUMENTS :
 					_onHighlightSearchArguments(eventChannel, data);
 					break;
@@ -508,40 +671,50 @@ define(
 					_onUpdateCharts(eventChannel,data);
 					break;
 				case chan.SORT_COLUMN_REQUEST :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_EXPLORE;
-
-					if (data.sortDescription === constants.SORT_FUNCTION.INCOMING) {
-						activityData.description = 'Sort all cards and stacks of cards in a column by volume of flow in';
-					} else if (data.sortDescription === constants.SORT_FUNCTION.OUTGOING) {
-						activityData.description = 'Sort all cards and stacks of cards in a column by volume of flow out';
-					} else {
-						activityData.description = 'Sort all cards and stacks of cards in a column by volume of flow in and out';
-					}
-
-					activityData.data['UIOjectId'] = data.xfId;
-					activityData.data['sortDescription'] = data.sortDescription;
+                    _logActivity({
+                        workflow : aperture.log.draperWorkflow.WF_EXPLORE,
+                        activity : 'sort',
+                        description : (data.sortDescription === constants.SORT_FUNCTION.INCOMING) ?
+                            'Sort all cards and stacks of cards in a column by volume of flow in' :
+                            (data.sortDescription === constants.SORT_FUNCTION.OUTGOING) ?
+                                'Sort all cards and stacks of cards in a column by volume of flow out' :
+                                'Sort all cards and stacks of cards in a column by volume of flow in and out',
+                        data : {
+                            UIObjectId : data.xfId,
+                            sortDescription : data.sortDescription
+                        }
+                    });
 					_onSortColumnRequest(eventChannel, data, renderCallback);
 					break;
-				case chan.TOOLTIP :
-					performLog = true;
-					activityData.workflow = _logWorkflow.WF_EXPLORE;
-					activityData.description = 'Hover for tooltip information';
-					activityData.data['tooltip'] = data.text;
+                case chan.HOVER_START_EVENT :
+                case chan.HOVER_END_EVENT :
+                    _logActivity({
+                        workflow : aperture.log.draperWorkflow.WF_EXPLORE,
+                        description : (eventChannel === chan.HOVER_START_EVENT) ?
+                            'Hovering over a UI element' :
+                            'Stopped hovering over a UI element',
+                        data : {
+                            element : data.element
+                        }
+                    });
+                    break;
+				case chan.TOOLTIP_START_EVENT :
+				case chan.TOOLTIP_END_EVENT :
+					_logActivity({
+						workflow: aperture.log.draperWorkflow.WF_EXPLORE,
+						description: (eventChannel === chan.TOOLTIP_START_EVENT) ?
+							'Displaying a tooltip' :
+							'Stopped displaying a tooltip',
+						data: {
+							tooltip: data.element
+						}
+					});
+					break;
+				case chan.SCROLL_VIEW_EVENT :
+					_onScrollView(eventChannel, data);
 					break;
 				default :
 					break;
-			}
-
-			if (performLog) {
-				if (activityData.workflow == null ||
-					activityData.description == null
-				) {
-					aperture.log.error('Event ' + eventChannel + ' failed to issue a user action log message.');
-					return;
-				}
-
-				aperture.log.log(activityData);
 			}
 		};
 
@@ -630,76 +803,6 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _applyPatternSearchTerm = function(eventChannel, data, renderCallback) {
-
-			var searchTerm = data.searchTerm;
-			if(searchTerm == null) {
-				searchTerm = _getDefaultPatternSearchTerm(data.xfId);
-			}
-
-			var fileObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
-
-			if(!fileObject) {
-				aperture.log.error('Unable to apply pattern search; file with XfId ' + data.xfId + ' does not exist');
-				return;
-			}
-
-			var matchObject = fileObject.getMatchUIObject();
-
-			if(!matchObject) {
-				aperture.log.error('Unable to apply pattern search; match card  from file with XfId ' + data.xfId + ' does not exist');
-				return;
-			}
-
-			matchObject.setSearchTerm(searchTerm);
-
-			renderCallback();
-		};
-
-		//--------------------------------------------------------------------------------------------------------------
-
-		var _getDefaultPatternSearchTerm = function(fileXfId) {
-
-			var i;
-
-			var fileObject = _UIObjectState.singleton.getUIObjectByXfId(fileXfId);
-
-			if (!fileObject) {
-				aperture.log.error('Unable to apply pattern search; file with XfId ' + fileXfId + ' does not exist');
-				return '';
-			}
-
-			var fileChildren = fileObject.getChildren();
-			var allDataIds = [];
-
-			if (fileChildren.length === 0) {
-				return '';
-			}
-
-			// Add all the card ids
-			for (i = 0; i < fileChildren.length; i++) {
-				var id = fileChildren[i].getDataId();
-				if (allDataIds.indexOf(id) === -1) {
-					allDataIds.push(id);
-				}
-			}
-
-			// Transform all the ids and create the string
-			var str = 'like:';
-			for (i = 0; i < allDataIds.length; i++) {
-				if ( _UIObjectState.childModule.processDataId) {
-					str += '\'' + _UIObjectState.childModule.processDataId(allDataIds[i]) + '\'';
-				} else {
-					str += '\'' + allDataIds[i] + '\'';
-				}
-				str += ',';
-			}
-
-			return str.substring(0, str.length - 1);
-		};
-
-		//--------------------------------------------------------------------------------------------------------------
-
 		var _isPartialQBESearch = function(data) {
 			return data && (data.indexOf('like:') !== -1);
 		};
@@ -770,7 +873,9 @@ define(
 
 		var _onSearchRequest = function(eventChannel, data, renderCallback) {
 
-			if (eventChannel !== chan.SEARCH_REQUEST) {
+			if (eventChannel !== chan.SEARCH_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -784,6 +889,15 @@ define(
 				renderCallback();
 
 				if(!data.executeSearch) {
+                    // DRAPER Instrumentation for logging a basic search.
+                    // Search terms omitted from log for privacy concerns.
+                    logActivity({
+                        workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                        activity: 'enter_filter_text',
+                        description: _isPartialQBESearch(data.searchTerm) ?
+                            'Apply terms for a pattern search' :
+                            'Apply terms for an attribute-based search'
+                    });
 					return;
 				}
 			}
@@ -802,6 +916,11 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 		
 		var _onPatternSearchRequest = function(eventChannel, data, renderCallback) {
+
+			if (eventChannel !== chan.PATTERN_SEARCH_REQUEST) {
+				return;
+			}
+
 			// get files.
 			var files = _getAllFiles();
 			var fileSets = [];
@@ -901,23 +1020,18 @@ define(
 						_searchByExample(_gatherPatternSearchTerm(patternGroups[i]), renderCallback);
 					}					
 				};
-				
-				aperture.io.rest(
-					'/containedentities',
-					'POST',
-					function (response) {
+
+				xfRest.request('/containedentities', 'POST').withData({
+
+						sessionId : _UIObjectState.sessionId,
+						queryId: (new Date()).getTime(),
+						entitySets : fileSets,
+						details : false
+
+				}).then(function (response) {
+
 						onEntityResolution(response.data);
-					},
-					{
-						postData : {
-							sessionId : _UIObjectState.sessionId,
-							queryId: (new Date()).getTime(),
-							entitySets : fileSets,
-							details : false
-						},
-						contentType: 'application/json'
-					}
-				);
+				});
 			}
 		};
 
@@ -931,55 +1045,46 @@ define(
 
 			aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : matchUIObject});
 
-			aperture.io.rest(
-				'/search',
-				'POST',
-				function(response, restInfo){
-					if (!restInfo.success) {
-						response = {
-							data: [],
-							queryId: '',
-							scores: {},
-							sessionId: '',
-							totalResults: 0
-						};
-					}
+			xfRest.request( '/search' ).inContext( contextObj.getXfId() ).withData({
 
-					// Remove children again in case a response arrived before this one.
-					if (matchUIObject.getVisualInfo() != null) {
-						matchUIObject.removeAllChildren();
+				sessionId : _UIObjectState.sessionId,
+				term : matchUIObject.getSearchTerm(),
+				operation : matchUIObject.getSearchOperation(),
+				queryId: (new Date()).getTime(),
+				cluster: false,                         // Feature #6467 - searches no longer clustered
+				limit : MAX_SEARCH_RESULTS,
+				contextId : contextObj.getXfId(),
+				groupby : SEARCH_GROUP_BY
 
-						var newUIObjects = _populateMatchResults(matchUIObject, response, undefined, renderCallback);
-						_updateLinks(true, true, newUIObjects, renderCallback, newUIObjects);
-					}
-				},
-				{
-					postData : {
-						sessionId : _UIObjectState.sessionId,
-						term : matchUIObject.getSearchTerm(),
-						operation : matchUIObject.getSearchOperation(),
-						queryId: (new Date()).getTime(),
-						cluster: false,                         // Feature #6467 - searches no longer clustered
-						limit : MAX_SEARCH_RESULTS,
-						contextId : contextObj.getXfId(),
-						groupby : SEARCH_GROUP_BY
-					},
-					contentType: 'application/json'
+			}).then( function( response, restInfo ) {
+
+				if (!restInfo.success) {
+					response = {
+						data: [],
+						queryId: '',
+						scores: {},
+						sessionId: '',
+						totalResults: 0
+					};
 				}
-			);
+
+				// Remove children again in case a response arrived before this one.
+				if (matchUIObject.getVisualInfo() != null) {
+					matchUIObject.removeAllChildren();
+
+					var newUIObjects = _populateMatchResults(matchUIObject, response, undefined, renderCallback);
+					_updateLinks(true, true, newUIObjects, renderCallback, newUIObjects);
+				}
+			});
+
 
 			// DRAPER Instrumentation for logging a basic search.
 			// Search terms omitted from log for privacy concerns.
-			aperture.log.log(
-				{
-					workflow: _logWorkflow.WF_GETDATA,
-					activity: 'execute-attribute-search',
-					description: 'Execute an attribute-based search for accounts',
-					data: {
-						sessionId : _UIObjectState.sessionId
-					}
-				}
-			);
+			logActivity({
+                workflow: aperture.log.draperWorkflow.WF_GETDATA,
+                activity: 'execute_query_filter',
+                description: 'Execute an attribute-based search for accounts'
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -1061,64 +1166,53 @@ define(
 
 		var _searchByExample = function(term, renderCallback) {
 
-			aperture.io.rest(
-				'/patternsearch',
-				'POST',
-				function(response, restInfo){
-					var parsedResponse= aperture.util.viewOf(response);
+			xfRest.request('/patternsearch').withData({
+				sessionId : _UIObjectState.sessionId,
+				term: term,
+				startDate : _UIObjectState.dates.startDate,
+				endDate :  _UIObjectState.dates.endDate,
+				queryId: (new Date()).getTime(),
+				cluster: false,
+				limit : MAX_PATTERN_SEARCH_RESULTS,
+				useAptima : (_getAllMatchCards().length > 3)
+			}).then(function(response, restInfo) {
+				var parsedResponse = aperture.util.viewOf(response);
 
-					if (!restInfo.success) {
-						_populateEmptyResults(_getAllMatchCards());
-						renderCallback();
+				if (!restInfo.success) {
+					_populateEmptyResults(_getAllMatchCards());
+					renderCallback();
 
-						return;
-					}
-
-					var newUIObjects = _populatePatternResults(parsedResponse, renderCallback);
-
-					var counter = 0;
-					var totalDataIds = [];
-					var callback = function(dataIds) {
-						counter++;
-						totalDataIds = totalDataIds.concat(dataIds);
-						if (counter === newUIObjects.length) {
-							renderCallback(totalDataIds);
-						}
-					};
-
-					for (var i = 0; i < newUIObjects.length; i++) {
-						_updateLinks(true, true, newUIObjects[i], callback, newUIObjects[i]);
-					}
-				},
-				{
-					postData : {
-						sessionId : _UIObjectState.sessionId,
-						term: term,
-						startDate : _UIObjectState.dates.startDate,
-						endDate :  _UIObjectState.dates.endDate,
-						queryId: (new Date()).getTime(),
-						cluster: false,
-						limit : MAX_PATTERN_SEARCH_RESULTS,
-						useAptima : (_getAllMatchCards().length > 3)
-					},
-					contentType: 'application/json'
+					return;
 				}
-			);
+
+				var newUIObjects = _populatePatternResults(parsedResponse, renderCallback);
+
+				var counter = 0;
+				var totalDataIds = [];
+				var callback = function (dataIds) {
+					counter++;
+					totalDataIds = totalDataIds.concat(dataIds);
+					if (counter === newUIObjects.length) {
+						renderCallback(totalDataIds);
+					}
+				};
+
+				for (var i = 0; i < newUIObjects.length; i++) {
+					_updateLinks(true, true, newUIObjects[i], callback, newUIObjects[i]);
+				}
+			});
 
 			// DRAPER Instrumentation for logging a pattern search.
 			// Search terms omitted from log for privacy concerns.
-			aperture.log.log(
-				{
-					workflow: _logWorkflow.WF_GETDATA,
-					activity: 'execute-query-by-example',
-					description: 'Execute query by example to find accounts with a similar pattern of activity',
-					data: {
-						sessionId : _UIObjectState.sessionId,
-						startDate : _UIObjectState.dates.startDate,
-						endDate :  _UIObjectState.dates.endDate
-					}
-				}
-			);
+            logActivity({
+                workflow: aperture.log.draperWorkflow.WF_TRANSFORM,
+                activity: 'execute-pattern-search',
+                description: 'Execute query by example to find accounts with a similar pattern of activity',
+                data: {
+                    startDate: _UIObjectState.dates.startDate,
+                    endDate: _UIObjectState.dates.endDate
+                }
+            });
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -1194,6 +1288,8 @@ define(
 			var dataIds = [];
 
 			var shownMatches = 0;
+            var totalMatches = 0;
+
 			for (var i = 0; i < specs.length; i++) {
 
 				var UIObject = {};
@@ -1230,13 +1326,20 @@ define(
 				createdUIObjects.push(UIObject);
 			}
 
+            totalMatches = serverResponse.totalResults != null ? serverResponse.totalResults : shownMatches;
+
 			//Set the total number of matches, to display
 			if (parent.setTotalMatches) {
-				parent.setTotalMatches(serverResponse.totalResults != null ? serverResponse.totalResults : shownMatches);
+				parent.setTotalMatches(totalMatches);
 			}
 			if (parent.setShownMatches) {
 				parent.setShownMatches(shownMatches);
 			}
+
+            aperture.pubsub.publish(chan.SEARCH_RESULTS_RETURNED_EVENT, {
+                shownMatches : shownMatches,
+                totalMatches : totalMatches
+            });
 
 			// if there is no currently focused object, then we set the first search object as the
 			// focused object
@@ -1313,7 +1416,12 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _onLogout = function() {
+		var _onLogout = function(eventChannel) {
+
+			if (eventChannel !== chan.LOGOUT_REQUEST) {
+				return;
+			}
+
 			// looked at saving state here but it appears we do successfully save state on 'beforeunload'
 			// before the server processes logout.
 			window.location = 'logout';
@@ -1346,7 +1454,9 @@ define(
 
 		var _onDetailsChangeRequest = function(eventChannel, data, renderCallback) {
 
-			if (eventChannel !== chan.DETAILS_CHANGE_REQUEST) {
+			if (eventChannel !== chan.DETAILS_CHANGE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -1369,12 +1479,14 @@ define(
 
 		var _onFilterChangeRequest = function(eventChannel, data, renderCallback) {
 
-			if (eventChannel !== chan.FILTER_CHANGE_REQUEST) {
+			if (eventChannel !== chan.FILTER_CHANGE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
-			_UIObjectState.dates.startDate = data.start;
-			_UIObjectState.dates.endDate = data.end;
+			_UIObjectState.dates.startDate = data.startDate;
+			_UIObjectState.dates.endDate = data.endDate;
 			_UIObjectState.dates.numBuckets = data.numBuckets;
 			_UIObjectState.dates.duration = data.duration;
 
@@ -1391,8 +1503,8 @@ define(
 			aperture.pubsub.publish(
 				chan.FILTER_CHANGE_EVENT,
 				{
-					startDate : data.start,
-					endDate : data.end,
+					startDate : data.startDate,
+					endDate : data.endDate,
 					numBuckets: data.numBuckets,
 					duration: data.duration
 				}
@@ -1419,6 +1531,10 @@ define(
 					'_onAddCardToContainer: ' +
 					'Invalid data parameter: Required parameter was either missing or null.'
 				);
+				return;
+			}
+
+			if (_UIObjectState.singleton == null) {
 				return;
 			}
 
@@ -1510,7 +1626,7 @@ define(
 									(_UIObjectState.singleton.getFocus().contextId === targetContainer.getXfId());							// we're moving a card into a context that is focused
 
 			// Temporarily hide the original card before it is removed.
-			_UIObjectState.singleton.setHidden(data.cardId);
+			_UIObjectState.singleton.setHidden(data.cardId, true);
 
 			// Force a redraw
 			aperture.pubsub.publish(
@@ -1639,7 +1755,9 @@ define(
 
 		var _onFocusChangeRequest = function(eventChannel, data) {
 
-			if (eventChannel !== chan.FOCUS_CHANGE_REQUEST) {
+			if (eventChannel !== chan.FOCUS_CHANGE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -1671,7 +1789,9 @@ define(
 
 		var _onFocusChangeEvent = function(eventChannel, data, renderCallback) {
 
-			if (eventChannel !== chan.FOCUS_CHANGE_EVENT) {
+			if (eventChannel !== chan.FOCUS_CHANGE_EVENT ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -1689,7 +1809,9 @@ define(
 
 		var _onSelectionChangeRequest = function(eventChannel, data) {
 
-			if (eventChannel !== chan.SELECTION_CHANGE_REQUEST) {
+			if (eventChannel !== chan.SELECTION_CHANGE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -1770,7 +1892,10 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onHoverChangeRequest = function(eventChannel, data) {
-			if (eventChannel !== chan.HOVER_CHANGE_REQUEST) {
+
+			if (eventChannel !== chan.UI_OBJECT_HOVER_CHANGE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -1781,7 +1906,9 @@ define(
 
 		var _onChangeFileTitle = function(eventChannel, data, renderCallback) {
 
-			if (eventChannel !== chan.CHANGE_FILE_TITLE) {
+			if (eventChannel !== chan.CHANGE_FILE_TITLE ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -1830,10 +1957,10 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _branchEventHandler = function(eventChannel, data, renderCallback){
+		var _branchRequestHandler = function(eventChannel, data, renderCallback){
 
-			if (eventChannel !== chan.BRANCH_RIGHT_EVENT && eventChannel !== chan.BRANCH_LEFT_EVENT) {
-				aperture.log.error('Branch event handler does not support this event: ' + eventChannel);
+			if (eventChannel !== chan.BRANCH_REQUEST) {
+				aperture.log.error('Branch request handler does not support this event: ' + eventChannel);
 				return;
 			}
 
@@ -1841,6 +1968,13 @@ define(
 			var isBranchRight = data.direction === 'right';
 			var sourceEntity = sourceObj.getDataId();
 			var column = _getColumnByUIObject(sourceObj);
+
+            if (isBranchRight) {
+                sourceObj.setRightOperation(toolbarOp.WORKING);
+            } else {
+                sourceObj.setLeftOperation(toolbarOp.WORKING);
+            }
+            aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : sourceObj});
 
 			//Figure out the target column.  If it exists, use it as the target context id
 			//If it doesn't create an id for it to use as the target context id, and then
@@ -1864,48 +1998,44 @@ define(
 			var srcContextId = srcContext.getDataId();
 			var tarContextId = targetColumn.getDataId();
 
-			aperture.io.rest(
-				'/relatedlinks',
-				'POST',
-				function(response){
-					if(_UIObjectState.singleton.getUIObjectByXfId(data.xfId) != null) {
+			xfRest.request('/relatedlinks').inContext( tarContextId ).withData({
 
-						var newUIObjects = _handleBranchingServerResponse(response, sourceObj, isBranchRight, targetColumn);
+				sessionId: _UIObjectState.sessionId,
+				queryId: (new Date()).getTime(),
+				entity: sourceEntity,
+				targets: [],
+				linktype: isBranchRight ? 'source' : 'destination',
+				type: 'FINANCIAL',
+				aggregate: 'FLOW',
+				startdate: _UIObjectState.dates.startDate,
+				enddate: _UIObjectState.dates.endDate,
+				srcContextId: srcContextId,
+				tarContextId: tarContextId
 
-						if (isBranchRight) {
-							sourceObj.setRightOperation(toolbarOp.BRANCH);
-						} else {
-							sourceObj.setLeftOperation(toolbarOp.BRANCH);
-						}
+			}).then(function (response) {
 
-						_updateLinks(true, true, newUIObjects, function() {
-							targetColumn.sortChildren(DEFAULT_SORT_FUNCTION);
+				if (_UIObjectState.singleton.getUIObjectByXfId(data.xfId) != null) {
 
-							if(renderCallback != null) {
-								renderCallback();
-							}
-						}, newUIObjects);
+					var newUIObjects = _handleBranchingServerResponse(response, sourceObj, isBranchRight, targetColumn);
+
+					if (isBranchRight) {
+						sourceObj.setRightOperation(toolbarOp.BRANCH);
 					} else {
-						renderCallback();
+						sourceObj.setLeftOperation(toolbarOp.BRANCH);
 					}
-				},
-				{
-					postData : {
-						sessionId :     _UIObjectState.sessionId,
-						queryId:        (new Date()).getTime(),
-						entity :        sourceEntity,
-						targets :       [],
-						linktype :      isBranchRight ? 'source' : 'destination',
-						type:           'FINANCIAL',
-						aggregate:      'FLOW',
-						startdate:      _UIObjectState.dates.startDate,
-						enddate:        _UIObjectState.dates.endDate,
-						srcContextId:   srcContextId,
-						tarContextId:   tarContextId
-					},
-					contentType: 'application/json'
+					//renderCallback();
+
+					_updateLinks(true, true, newUIObjects, function () {
+						targetColumn.sortChildren(DEFAULT_SORT_FUNCTION);
+
+						if (renderCallback != null) {
+							renderCallback();
+						}
+					}, newUIObjects);
+				} else {
+					renderCallback();
 				}
-			);
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -1969,35 +2099,30 @@ define(
 			aperture.util.forEach(contextObjectMap.src, function(srcContext, srcContextId) {
 				aperture.util.forEach(contextObjectMap.tar, function(tarContext, tarContextId) {
 					// Fetch related links between the unlinked objects
-					aperture.io.rest(
-						'/aggregatedlinks',
-						'POST',
-						function(response){
-							_handleCascadingLinksResponse(
-								response,
-								cascadeRight ? 'source' : 'destination',
-								column.getXfId(),
-								adjacentColumn.getXfId(),
-								counterCallback
-							);
-						},
-						{
-							postData : {
-								sessionId:          _UIObjectState.sessionId,
-								queryId:            (new Date()).getTime(),
-								sourceIds:          srcContext,
-								targetIds:          tarContext,
-								linktype:           cascadeRight ? 'source' : 'destination',
-								type:               'FINANCIAL',
-								aggregate:          'FLOW',
-								startdate:          _UIObjectState.dates.startDate,
-								enddate:            _UIObjectState.dates.endDate,
-								contextId:          srcContextId,
-								targetContextId:    tarContextId
-							},
-							contentType: 'application/json'
-						}
-					);
+					xfRest.request('/aggregatedlinks').inContext( srcContextId ).withData({
+
+						sessionId: _UIObjectState.sessionId,
+						queryId: (new Date()).getTime(),
+						sourceIds: srcContext,
+						targetIds: tarContext,
+						linktype: cascadeRight ? 'source' : 'destination',
+						type: 'FINANCIAL',
+						aggregate: 'FLOW',
+						startdate: _UIObjectState.dates.startDate,
+						enddate: _UIObjectState.dates.endDate,
+						contextId: srcContextId,
+						targetContextId: tarContextId
+
+					}).then(function (response) {
+
+						_handleCascadingLinksResponse(
+							response,
+							cascadeRight ? 'source' : 'destination',
+							column.getXfId(),
+							adjacentColumn.getXfId(),
+							counterCallback
+						);
+					});
 				});
 			});
 		};
@@ -2194,6 +2319,8 @@ define(
 				aperture.pubsub.publish(chan.COLLAPSE_EVENT, {xfId : toCollapseIds[i]});
 			}
 
+            aperture.pubsub.publish(chan.BRANCH_RESULTS_RETURNED_EVENT);
+
 			return createdUIObjects;
 		};
 
@@ -2248,31 +2375,33 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _onBranchLeftEvent = function(eventChannel, data, renderCallback) {
+		var _onBranchRequest = function(eventChannel, data, renderCallback) {
+
+			if (eventChannel !== chan.BRANCH_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
+
 			var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 			_verifyBranchRequest(uiObj, data.direction, function() {
-				uiObj.setLeftOperation(toolbarOp.WORKING);
-				aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : uiObj});
-				_branchEventHandler(eventChannel, data, renderCallback);
+				_branchRequestHandler(eventChannel, data, renderCallback);
 			});
 
-		};
-
-		//--------------------------------------------------------------------------------------------------------------
-
-		var _onBranchRightEvent = function(eventChannel, data, renderCallback) {
-			var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
-			_verifyBranchRequest(uiObj, data.direction, function() {
-				uiObj.setRightOperation(toolbarOp.WORKING);
-				aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : uiObj});
-				_branchEventHandler(eventChannel, data, renderCallback);
-			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onExpandEvent = function(eventChannel, data, renderCallback) {
+
+			if (eventChannel !== chan.EXPAND_EVENT ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
+
 			var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
+			var contextId = xfUtil.getContextByUIObject(uiObj).getXfId();
 
 			if (!xfUtil.isClusterTypeFromObject(uiObj)) {
 				aperture.log.error('Expand request for a non cluster object');
@@ -2302,22 +2431,18 @@ define(
 			//*********************************
 			// REST call to get actual card data
 			//*********************************
-			aperture.io.rest(
-				'/entities',
-				'POST',
-				function (response) {
-					_populateExpandResults(uiObj, response, renderCallback);
-				},
-				{
-					postData : {
-						sessionId : _UIObjectState.sessionId,
-						queryId: (new Date()).getTime(),
-						entities : uiObj.getVisibleDataIds(),
-						contextid : xfUtil.getContextByUIObject(uiObj).getXfId()
-					},
-					contentType: 'application/json'
-				}
-			);
+			xfRest.request('/entities').inContext( contextId ).withData({
+
+				sessionId : _UIObjectState.sessionId,
+				queryId: (new Date()).getTime(),
+				entities : uiObj.getVisibleDataIds(),
+				contextid : contextId
+
+			}).then(function (response) {
+
+				_populateExpandResults(uiObj, response, renderCallback);
+
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -2366,6 +2491,12 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onCollapseEvent = function(eventChannel, data, renderCallback) {
+
+			if (eventChannel !== chan.COLLAPSE_EVENT ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
 
 			var uiObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 
@@ -2710,51 +2841,47 @@ define(
 						}
 
 						if (addedCards.length > 0) {
-							aperture.io.rest(
-								'/entities',
-								'POST',
-								function(response) {
-									var specs = _getPopulatedSpecsFromData(response.data, contextObj);
+							xfRest.request('/entities').inContext(contextObj.getDataId()).withData({
 
-									for (var i = 0; i < specs.length; i++) {
-										var childSpec = specs[i];
+								sessionId: _UIObjectState.sessionId,
+								queryId: (new Date()).getTime(),
+								entities: addedCards,
+								contextid: contextObj.getDataId()
 
-										// we don't want to set the parent on this update so we delete it
-										delete childSpec.parent;
+							}).then(function(response) {
 
-										var children = contextObj.getUIObjectsByDataId(childSpec.dataId);
-										if (_.isEmpty(children)) {
-											aperture.log.error('_populateExpandResults: Unable to find child for spec');
-										} else {
-											for (var j = 0; j < children.length; j++) {
-												children[j].update(childSpec);
-												children[j].highlightId(_UIObjectState.singleton.getFocus().xfId);
-											}
+								var specs = _getPopulatedSpecsFromData(response.data, contextObj);
+
+								for (var i = 0; i < specs.length; i++) {
+									var childSpec = specs[i];
+
+									// we don't want to set the parent on this update so we delete it
+									delete childSpec.parent;
+
+									var children = contextObj.getUIObjectsByDataId(childSpec.dataId);
+									if (_.isEmpty(children)) {
+										aperture.log.error('_populateExpandResults: Unable to find child for spec');
+									} else {
+										for (var j = 0; j < children.length; j++) {
+											children[j].update(childSpec);
+											children[j].highlightId(_UIObjectState.singleton.getFocus().xfId);
 										}
 									}
-
-									// if we are showing card details then we need to populate the card specs with chart data
-									if (_UIObjectState.showDetails) {
-										_UIObjectState.childModule.updateCardsWithCharts(specs);
-									}
-
-									// technically we only need to check when files are involved but this check is lightweight
-									_checkPatternSearchState();
-
-									if (renderCallback) {
-										renderCallback();
-									}
-								},
-								{
-									postData: {
-										sessionId: _UIObjectState.sessionId,
-										queryId: (new Date()).getTime(),
-										entities: addedCards,
-										contextid: contextObj.getDataId()
-									},
-									contentType: 'application/json'
 								}
-							);
+
+								// if we are showing card details then we need to populate the card specs with chart data
+								if (_UIObjectState.showDetails) {
+									_UIObjectState.childModule.updateCardsWithCharts(specs);
+								}
+
+								// technically we only need to check when files are involved but this check is lightweight
+								_checkPatternSearchState();
+
+								if (renderCallback) {
+									renderCallback();
+								}
+							});
+
 						} else {
 							// technically we only need to check when files are involved but this check is lightweight
 							_checkPatternSearchState();
@@ -2800,7 +2927,8 @@ define(
 
 
 			var xfId = objToRemove.getXfId();
-			if (_UIObjectState.focus.xfId === xfId) {
+			if (_UIObjectState.focus != null &&
+                _UIObjectState.focus.xfId === xfId) {
 				_UIObjectState.focus.xfId = null;
 			}
 
@@ -2817,51 +2945,39 @@ define(
 
 		var _onRemoveRequest = function(eventChannel, data, renderCallback) {
 
-			var counter = 0;
-			var numberOfRemovalRequests = data.xfIds.length;
-			var counterCallback = function() {
-				counter++;
-				if (counter >= numberOfRemovalRequests) {
-					renderCallback();
-				}
-			};
+			if (eventChannel !== chan.REMOVE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
 
 			for (var i=0; i < data.xfIds.length; i++){
 
 				// Temporarily hide the card before it is removed
-				_UIObjectState.singleton.setHidden(data.xfIds[i]);
+				_UIObjectState.singleton.setHidden(data.xfIds[i], true);
 
 				_removeObject(
 					_UIObjectState.singleton.getUIObjectByXfId(data.xfIds[i]),
 					eventChannel,
 					data.dispose,
-					counterCallback
+					renderCallback
 				);
 			}
+
+			renderCallback();
+
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
+		var _modifyContext = function (sourceContextId, targetContextId, editStr, entityIds, responseCallback) {
 
-		var _modifyContext = function(sourceContextId, targetContextId, editStr, entityIds, responseCallback) {
-			aperture.io.rest(
-				'/modifycontext',
-				'POST',
-				function(response){
-					if (responseCallback != null){
-						responseCallback(response);
-					}
-				},
-				{
-					postData : {
-						sessionId : _UIObjectState.sessionId,
-						sourceContextId : sourceContextId,
-						targetContextId : targetContextId,
-						edit : editStr,
-						entityIds : entityIds
-					},
-					contentType: 'application/json'
-				}
-			);
+			xfRest.request( '/modifycontext' ).inContext( targetContextId ).withData({
+				sessionId: _UIObjectState.sessionId,
+				sourceContextId: sourceContextId,
+				targetContextId: targetContextId,
+				edit: editStr,
+				entityIds: entityIds
+			}).then(responseCallback);
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -2888,6 +3004,15 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onPageSearch = function(eventChannel, data, renderCallback) {
+
+			if ((eventChannel !== chan.PREV_SEARCH_PAGE_REQUEST &&
+				eventChannel !== chan.NEXT_SEARCH_PAGE_REQUEST &&
+				eventChannel !== chan.SET_SEARCH_PAGE_REQUEST) ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
+
 			var matchObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 			if (eventChannel === chan.PREV_SEARCH_PAGE_REQUEST) {
 				matchObject.pageLeft();
@@ -2911,7 +3036,10 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onCleanColumnRequest = function(eventChannel, data, renderCallback) {
-			if (eventChannel !== chan.CLEAN_COLUMN_REQUEST) {
+
+			if (eventChannel !== chan.CLEAN_COLUMN_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -2928,7 +3056,10 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onSortColumnRequest = function(eventChannel, data, renderCallback) {
-			if (eventChannel !== chan.SORT_COLUMN_REQUEST) {
+
+			if (eventChannel !== chan.SORT_COLUMN_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -2941,6 +3072,13 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onCreateFileRequest = function(eventChannel, data, renderCallback) {
+
+			if (eventChannel !== chan.CREATE_FILE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
+
 			var sourceObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 			var	columnUIObj;
 
@@ -3016,7 +3154,14 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _onShowMatchRequest = function(eventChannel, data, renderCallback){
+		var _onShowMatchRequest = function(eventChannel, data, renderCallback) {
+
+			if (eventChannel !== chan.SHOW_MATCH_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
+
 			var fileObj = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 			fileObj.showSearchControl(true, '');       // show with default
 			aperture.pubsub.publish(
@@ -3045,6 +3190,13 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onSearchBoxChanged = function(eventChannel, data, renderCallback) {
+
+			if (eventChannel !== chan.SEARCH_BOX_CHANGED ||
+				_UIObjectState.singleton == null
+			) {
+				return;
+			}
+
 			var xfId = data.xfId;
 			var newVal = data.val;
 			var matchCard = _UIObjectState.singleton.getUIObjectByXfId(xfId);
@@ -3089,31 +3241,28 @@ define(
 				async = true;
 			}
 
-			aperture.io.rest(
-				'/persist',
-				'POST',
-				function (response) {
-					if (callback != null) {
-						callback(response.persistenceState);
-					}
-				},
-				{
-					postData : {
-						sessionId : _UIObjectState.sessionId,
-						queryId: (new Date()).getTime(),
-						data : (currentState) ? JSON.stringify(currentState) : ''
-					},
-					contentType: 'application/json',
-					async : async
+			xfRest.request('/persist', 'POST', async).withData({
+
+				sessionId : _UIObjectState.sessionId,
+				queryId: (new Date()).getTime(),
+				data : (currentState) ? JSON.stringify(currentState) : ''
+
+			}).then(function (response) {
+
+				if (callback != null) {
+					callback(response.persistenceState);
 				}
-			);
+
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onExportCapture = function(eventChannel) {
 
-			if (eventChannel !== chan.EXPORT_CAPTURED_IMAGE_REQUEST) {
+			if (eventChannel !== chan.EXPORT_CAPTURED_IMAGE_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -3207,7 +3356,9 @@ define(
 
 		var _onExportGraph = function(eventChannel) {
 
-			if (eventChannel !== chan.EXPORT_GRAPH_REQUEST) {
+			if (eventChannel !== chan.EXPORT_GRAPH_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -3224,41 +3375,35 @@ define(
 
 					var exportState = _UIObjectState.singleton.saveState();
 
-					aperture.io.rest(
-						'/export',
-						'POST',
-						function (response) {
+					xfRest.request('/export').withData({
 
-							var a = document.createElement('a');
-							a.href = aperture.store.url(response, 'pop', 'influent-saved.infml');
+						sessionId: _UIObjectState.sessionId,
+						queryId: timestamp,
+						data: (exportState) ? JSON.stringify(exportState) : ''
 
-							document.body.appendChild(a);
+					}).then(function (response) {
 
-							setTimeout(
-								function() {
-									$(window).unbind('beforeunload');
-									a.click();
-									document.body.removeChild(a);
-									$.unblockUI();
-									setTimeout(
-										function() {
-											$(window).bind('beforeunload', _onUnload);
-										},
-										0
-									);
-								},
-								0
-							);
-						},
-						{
-							postData : {
-								sessionId : _UIObjectState.sessionId,
-								queryId: timestamp,
-								data : (exportState) ? JSON.stringify(exportState) : ''
+						var a = document.createElement('a');
+						a.href = aperture.store.url(response, 'pop', 'influent-saved.infml');
+
+						document.body.appendChild(a);
+
+						setTimeout(
+							function () {
+								$(window).unbind('beforeunload');
+								a.click();
+								document.body.removeChild(a);
+								$.unblockUI();
+								setTimeout(
+									function () {
+										$(window).bind('beforeunload', _onUnload);
+									},
+									0
+								);
 							},
-							contentType: 'application/json'
-						}
-					);
+							0
+						);
+					});
 				};
 
 				if (response === 'NONE' || response === 'ERROR') {
@@ -3283,7 +3428,9 @@ define(
 
 		var _onImportGraph = function(eventChannel) {
 
-			if (eventChannel !== chan.IMPORT_GRAPH_REQUEST) {
+			if (eventChannel !== chan.IMPORT_GRAPH_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -3334,12 +3481,72 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onNewWorkspace = function(eventChannel) {
+
+			if (eventChannel !== chan.NEW_WORKSPACE_REQUEST) {
+				return;
+			}
+
 			window.open(window.location.href, '_blank');
 		};
+
+        //--------------------------------------------------------------------------------------------------------------
+
+        var _onScrollView = function(eventChannel, data) {
+
+			if (eventChannel !== chan.SCROLL_VIEW_EVENT) {
+				return;
+			}
+
+            // Handle logging of scrolling events
+            var div = data.div;
+            var divId = div.id;
+
+            // Collate all scrolling events in a given time frame
+            var collateEvery = 500; // ms
+
+            var state = _UIObjectState.scrollStates[divId];
+            if (!state) {
+                state = {
+                    topCurrent: 0,
+                    leftCurrent: 0
+                };
+            }
+
+            if (!state.timer) {
+
+                state.timer = setTimeout(function () {
+
+                    logActivity({
+                        workflow : aperture.log.draperWorkflow.WF_EXPLORE,
+                        description : 'Scrolling view',
+                        data : {
+                            view : divId,
+                            topStart : state.topStart,
+                            leftStart : state.leftStart,
+                            topEnd : state.topCurrent,
+                            leftEnd : state.leftCurrent
+                        }
+                    }, eventChannel);
+
+                    state.timer = null;
+                }, collateEvery);
+
+                state.topStart = state.topCurrent;
+                state.leftStart = state.leftCurrent;
+                state.topCurrent = div.scrollTop;
+                state.leftCurrent = div.scrollLeft;
+            } else {
+                state.topCurrent = div.scrollTop;
+                state.leftCurrent = div.scrollLeft;
+            }
+
+            _UIObjectState.scrollStates[divId] = state;
+        };
 
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onHighlightSearchArguments = function(eventChannel, data) {
+
 			if (eventChannel !== chan.HIGHLIGHT_SEARCH_ARGUMENTS) {
 				return;
 			}
@@ -3379,7 +3586,10 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onUpdateCharts = function(eventChannel, data) {
-			if (eventChannel !== chan.UPDATE_CHART_REQUEST) {
+
+			if (eventChannel !== chan.UPDATE_CHART_REQUEST ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -3388,7 +3598,9 @@ define(
 				var card = _UIObjectState.singleton.getUIObjectByXfId(id);
 				if (card) {
 					var specs = card.getSpecs();
-					if (specs) {
+					if (specs &&
+						_UIObjectState.childModule != null
+					) {
 						_UIObjectState.childModule.updateCardsWithCharts(specs);
 					}
 				}
@@ -3398,6 +3610,7 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onCurrentStateRequest = function(eventChannel) {
+
 			if (eventChannel !== chan.REQUEST_CURRENT_STATE) {
 				return;
 			}
@@ -3431,7 +3644,9 @@ define(
 
 		var _onObjectRequest = function(eventChannel, data) {
 
-			if (eventChannel !== chan.REQUEST_OBJECT_BY_XFID) {
+			if (eventChannel !== chan.REQUEST_OBJECT_BY_XFID ||
+				_UIObjectState.singleton == null
+			) {
 				return;
 			}
 
@@ -3452,7 +3667,6 @@ define(
 		// Workspace Column Management Methods
 		//--------------------------------------------------------
 
-		// Returns the column that the UIObject belongs to.
 		var _getColumnByIndex = function(index) {
 			if (0 <= _UIObjectState.children.length && index < _UIObjectState.children.length) {
 				return _UIObjectState.children[index];
@@ -3463,6 +3677,7 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
+		// Returns the column that the UIObject belongs to.
 		var _getColumnByUIObject = function(uiObject){
 			var columnObj = xfUtil.getUITypeAncestor(uiObject, constants.MODULE_NAMES.COLUMN);
 			if (columnObj == null){
@@ -3813,9 +4028,9 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			module.setHidden = function(xfId) {
+			module.setHidden = function(xfId, state) {
 				for (var i = 0; i < _UIObjectState.children.length; i++) {
-					_UIObjectState.children[i].setHidden(xfId);
+					_UIObjectState.children[i].setHidden(xfId, state);
 				}
 			};
 
@@ -4138,25 +4353,28 @@ define(
 			subTokens[chan.LOGOUT_REQUEST] = aperture.pubsub.subscribe(chan.LOGOUT_REQUEST, _pubsubHandler);
 			subTokens[chan.SEARCH_REQUEST] = aperture.pubsub.subscribe(chan.SEARCH_REQUEST, _pubsubHandler);
 			subTokens[chan.PATTERN_SEARCH_REQUEST] = aperture.pubsub.subscribe(chan.PATTERN_SEARCH_REQUEST, _pubsubHandler);
+            subTokens[chan.ADVANCE_SEARCH_DIALOG_REQUEST] = aperture.pubsub.subscribe(chan.ADVANCE_SEARCH_DIALOG_REQUEST, _pubsubHandler);
+            subTokens[chan.ADVANCE_SEARCH_DIALOG_CLOSE_EVENT] = aperture.pubsub.subscribe(chan.ADVANCE_SEARCH_DIALOG_CLOSE_EVENT, _pubsubHandler);
 			subTokens[chan.DETAILS_CHANGE_REQUEST] = aperture.pubsub.subscribe(chan.DETAILS_CHANGE_REQUEST, _pubsubHandler);
 			subTokens[chan.FILTER_CHANGE_REQUEST] = aperture.pubsub.subscribe(chan.FILTER_CHANGE_REQUEST, _pubsubHandler);
+            subTokens[chan.FILTER_CHANGE_EVENT] = aperture.pubsub.subscribe(chan.FILTER_CHANGE_EVENT, _pubsubHandler);
 			subTokens[chan.DROP_EVENT] = aperture.pubsub.subscribe(chan.DROP_EVENT, _pubsubHandler);
 			subTokens[chan.FOCUS_CHANGE_REQUEST] = aperture.pubsub.subscribe(chan.FOCUS_CHANGE_REQUEST, _pubsubHandler);
 			subTokens[chan.FOCUS_CHANGE_EVENT] = aperture.pubsub.subscribe(chan.FOCUS_CHANGE_EVENT, _pubsubHandler);
 			subTokens[chan.SELECTION_CHANGE_REQUEST] = aperture.pubsub.subscribe(chan.SELECTION_CHANGE_REQUEST, _pubsubHandler);
-			subTokens[chan.HOVER_CHANGE_REQUEST] = aperture.pubsub.subscribe(chan.HOVER_CHANGE_REQUEST, _pubsubHandler);
+			subTokens[chan.UI_OBJECT_HOVER_CHANGE_REQUEST] = aperture.pubsub.subscribe(chan.UI_OBJECT_HOVER_CHANGE_REQUEST, _pubsubHandler);
 			subTokens[chan.CHANGE_FILE_TITLE] = aperture.pubsub.subscribe(chan.CHANGE_FILE_TITLE, _pubsubHandler);
 			subTokens[chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST] = aperture.pubsub.subscribe(chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST, _pubsubHandler);
 			subTokens[chan.SEARCH_BOX_CHANGED] = aperture.pubsub.subscribe(chan.SEARCH_BOX_CHANGED, _pubsubHandler);
-			subTokens[chan.APPLY_PATTERN_SEARCH_TERM] = aperture.pubsub.subscribe(chan.APPLY_PATTERN_SEARCH_TERM, _pubsubHandler);
-			subTokens[chan.BRANCH_LEFT_EVENT] = aperture.pubsub.subscribe(chan.BRANCH_LEFT_EVENT, _pubsubHandler);
-			subTokens[chan.BRANCH_RIGHT_EVENT] = aperture.pubsub.subscribe(chan.BRANCH_RIGHT_EVENT, _pubsubHandler);
+			subTokens[chan.BRANCH_REQUEST] = aperture.pubsub.subscribe(chan.BRANCH_REQUEST, _pubsubHandler);
+            subTokens[chan.BRANCH_RESULTS_RETURNED_EVENT] = aperture.pubsub.subscribe(chan.BRANCH_RESULTS_RETURNED_EVENT, _pubsubHandler);
 			subTokens[chan.EXPAND_EVENT] = aperture.pubsub.subscribe(chan.EXPAND_EVENT, _pubsubHandler);
 			subTokens[chan.COLLAPSE_EVENT] = aperture.pubsub.subscribe(chan.COLLAPSE_EVENT, _pubsubHandler);
 			subTokens[chan.REMOVE_REQUEST] = aperture.pubsub.subscribe(chan.REMOVE_REQUEST, _pubsubHandler);
 			subTokens[chan.CREATE_FILE_REQUEST] = aperture.pubsub.subscribe(chan.CREATE_FILE_REQUEST, _pubsubHandler);
 			subTokens[chan.ADD_TO_FILE_REQUEST] = aperture.pubsub.subscribe(chan.ADD_TO_FILE_REQUEST, _pubsubHandler);
 			subTokens[chan.SHOW_MATCH_REQUEST] = aperture.pubsub.subscribe(chan.SHOW_MATCH_REQUEST, _pubsubHandler);
+            subTokens[chan.SEARCH_RESULTS_RETURNED_EVENT] = aperture.pubsub.subscribe(chan.SEARCH_RESULTS_RETURNED_EVENT, _pubsubHandler);
 			subTokens[chan.PREV_SEARCH_PAGE_REQUEST] = aperture.pubsub.subscribe(chan.PREV_SEARCH_PAGE_REQUEST, _pubsubHandler);
 			subTokens[chan.NEXT_SEARCH_PAGE_REQUEST] = aperture.pubsub.subscribe(chan.NEXT_SEARCH_PAGE_REQUEST, _pubsubHandler);
 			subTokens[chan.SET_SEARCH_PAGE_REQUEST] = aperture.pubsub.subscribe(chan.SET_SEARCH_PAGE_REQUEST, _pubsubHandler);
@@ -4164,13 +4382,22 @@ define(
 			subTokens[chan.EXPORT_CAPTURED_IMAGE_REQUEST] = aperture.pubsub.subscribe(chan.EXPORT_CAPTURED_IMAGE_REQUEST, _pubsubHandler);
 			subTokens[chan.EXPORT_GRAPH_REQUEST] = aperture.pubsub.subscribe(chan.EXPORT_GRAPH_REQUEST, _pubsubHandler);
 			subTokens[chan.IMPORT_GRAPH_REQUEST] = aperture.pubsub.subscribe(chan.IMPORT_GRAPH_REQUEST, _pubsubHandler);
+            subTokens[chan.EXPORT_TRANSACTIONS_REQUEST] = aperture.pubsub.subscribe(chan.EXPORT_TRANSACTIONS_REQUEST, _pubsubHandler);
 			subTokens[chan.NEW_WORKSPACE_REQUEST] = aperture.pubsub.subscribe(chan.NEW_WORKSPACE_REQUEST, _pubsubHandler);
+            subTokens[chan.OPEN_EXTERNAL_LINK_REQUEST] = aperture.pubsub.subscribe(chan.OPEN_EXTERNAL_LINK_REQUEST, _pubsubHandler);
+            subTokens[chan.FOOTER_CHANGE_DATA_VIEW_EVENT] = aperture.pubsub.subscribe(chan.FOOTER_CHANGE_DATA_VIEW_EVENT, _pubsubHandler);
 			subTokens[chan.HIGHLIGHT_SEARCH_ARGUMENTS] = aperture.pubsub.subscribe(chan.HIGHLIGHT_SEARCH_ARGUMENTS, _pubsubHandler);
 			subTokens[chan.REQUEST_CURRENT_STATE] = aperture.pubsub.subscribe(chan.REQUEST_CURRENT_STATE, _pubsubHandler);
 			subTokens[chan.REQUEST_OBJECT_BY_XFID] = aperture.pubsub.subscribe(chan.REQUEST_OBJECT_BY_XFID, _pubsubHandler);
 			subTokens[chan.SORT_COLUMN_REQUEST] = aperture.pubsub.subscribe(chan.SORT_COLUMN_REQUEST, _pubsubHandler);
 			subTokens[chan.UPDATE_CHART_REQUEST] = aperture.pubsub.subscribe(chan.UPDATE_CHART_REQUEST, _pubsubHandler);
-			subTokens[chan.TOOLTIP] = aperture.pubsub.subscribe(chan.TOOLTIP, _pubsubHandler);
+			subTokens[chan.TOOLTIP_START_EVENT] = aperture.pubsub.subscribe(chan.TOOLTIP_START_EVENT, _pubsubHandler);
+            subTokens[chan.TOOLTIP_END_EVENT] = aperture.pubsub.subscribe(chan.TOOLTIP_END_EVENT, _pubsubHandler);
+            subTokens[chan.HOVER_START_EVENT] = aperture.pubsub.subscribe(chan.HOVER_START_EVENT, _pubsubHandler);
+            subTokens[chan.HOVER_END_EVENT] = aperture.pubsub.subscribe(chan.HOVER_END_EVENT, _pubsubHandler);
+			subTokens[chan.SCROLL_VIEW_EVENT] = aperture.pubsub.subscribe(chan.SCROLL_VIEW_EVENT, _pubsubHandler);
+            subTokens[chan.TRANSACTIONS_FILTER_EVENT] = aperture.pubsub.subscribe(chan.TRANSACTIONS_FILTER_EVENT, _pubsubHandler);
+			subTokens[chan.TRANSACTIONS_PAGE_CHANGE_EVENT] = aperture.pubsub.subscribe(chan.TRANSACTIONS_PAGE_CHANGE_EVENT, _pubsubHandler);
 
 			_UIObjectState.subscriberTokens = subTokens;
 		};

@@ -24,6 +24,24 @@
  */
 aperture.log = (function(ns) {
 
+    // Draper Activity Logger | Version 2.1.1
+
+    // Workflow codes
+    ns.draperWorkflow = {
+        WF_OTHER       : 'WF_OTHER',
+        WF_DEFINE      : 'WF_DEFINE',
+        WF_GETDATA     : 'WF_GETDATA',
+        WF_EXPLORE     : 'WF_EXPLORE',
+        WF_CREATE      : 'WF_CREATE',
+        WF_ENRICH      : 'WF_ENRICH',
+        WF_TRANSFORM   : 'WF_TRANSFORM'
+    };
+
+    ns.draperType = {
+        USER           : 'USERACTION',
+        SYSTEM         : 'SYSACTION'
+    };
+
 	var DraperAppender = aperture.log.Appender.extend(
 		{
 			init: function(spec) {
@@ -32,12 +50,14 @@ aperture.log = (function(ns) {
 
 				var logger = null;
 				if (spec.address != null) {
-					logger = new activityLogger();
-					logger.registerActivityLogger(
-						spec.address,
-						'Influent',
-						'1.3.2'
-					);
+					logger = new activityLogger(spec.webworker)
+                        .echo(spec.echo)             // Echo logs to the console
+                        .testing(spec.testing)       // Testing mode: don't send anything to spec.address
+                        .registerActivityLogger(
+                            spec.address,
+                            'Influent',
+                            '1.3.5'
+                        );
 				}
 				this.draperLogger = logger;
 			},
@@ -57,20 +77,25 @@ aperture.log = (function(ns) {
 						aperture.util.forEach(
 							objectArray,
 							function(object) {
-								if (object.description && object.activity && object.workflow) {
-									var description = object.description;
+                                    switch(object.type) {
 
-									var activity = object.activity;
-
-									var workflow = logger[object.workflow];
-
-									logger.logUserActivity(
-										description,
-										activity,
-										workflow,
-										object.data
-									);
-								}
+                                        case ns.draperType.USER :
+                                            logger.logUserActivity(
+                                                object.description,
+                                                object.activity,
+												logger[object.workflow],
+                                                object.data
+                                            );
+                                            break;
+                                        case ns.draperType.SYSTEM :
+                                            logger.logSystemActivity(
+                                                object.description,
+                                                object.data
+                                            );
+                                            break;
+                                        default:
+                                            break;
+                                    }
 							}
 						);
 					}

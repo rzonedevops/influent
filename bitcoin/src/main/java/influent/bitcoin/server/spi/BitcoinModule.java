@@ -24,16 +24,16 @@
  */
 package influent.bitcoin.server.spi;
 
-import influent.bitcoin.server.details.BitcoinAccountPropertiesView;
 import influent.server.spi.EntityPropertiesViewService;
 
 import com.google.inject.AbstractModule;
+import influent.server.spi.impl.GenericEntityPropertiesView;
 
 
 public class BitcoinModule extends AbstractModule {
 	
 	@Override
 	protected void configure() {
-		bind(EntityPropertiesViewService.class).to(BitcoinAccountPropertiesView.class);
+		bind(EntityPropertiesViewService.class).to(GenericEntityPropertiesView.class);
 	}
 }

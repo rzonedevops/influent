@@ -653,29 +653,36 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfClusterInstance.setHidden = function(xfId) {
+			xfClusterInstance.setHidden = function(xfId, state) {
 
-				if(!_UIObjectState.isExpanded) {
-					var stateChanged = false;
-					if (_UIObjectState.xfId === xfId) {
-						if (!_UIObjectState.isHidden) {
-							_UIObjectState.isHidden = true;
-							stateChanged = true;
-						}
-					} else {
-						if (_UIObjectState.isHidden) {
-							_UIObjectState.isHidden = false;
-							stateChanged = true;
-						}
-					}
+				var i;
+				if (_UIObjectState.xfId === xfId) {
+					if (_UIObjectState.isHidden != state ) {
 
-					if (stateChanged) {
-						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfClusterInstance});
+						_UIObjectState.isHidden = state;
+						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject: xfClusterInstance});
+
+						// Set parent cluster visibility
+						if (xfUtil.isClusterTypeFromObject(this.getParent())) {
+
+							var siblings = this.getParent().getChildren();
+							var anyVisible = false;
+							for (i = 0; i < siblings.length; i++) {
+								if (!siblings[i].getVisualInfo().isHidden) {
+									anyVisible = true;
+									break;
+								}
+							}
+
+							this.getParent().setHidden(this.getParent().getXfId(), !anyVisible);
+						}
+
 					}
 				}
-				else {
-					for (var i = 0; i < _UIObjectState.children.length; i++) {
-						_UIObjectState.children[i].setHidden(xfId);
+
+				if (_UIObjectState.isExpanded) {
+					for (i = 0; i < _UIObjectState.children.length; i++) {
+						_UIObjectState.children[i].setHidden(xfId, state);
 					}
 				}
 			};

@@ -539,22 +539,31 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfCardInstance.setHidden = function(xfId) {
-				var stateChanged = false;
-				if (_UIObjectState.xfId === xfId) {
-					if (!_UIObjectState.isHidden) {
-						_UIObjectState.isHidden = true;
-						stateChanged = true;
-					}
-				} else {
-					if (_UIObjectState.isHidden) {
-						_UIObjectState.isHidden = false;
-						stateChanged = true;
-					}
-				}
+			xfCardInstance.setHidden = function(xfId, state) {
 
-				if (stateChanged) {
-					aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfCardInstance});
+				if (_UIObjectState.xfId === xfId) {
+					if (_UIObjectState.isHidden != state ) {
+
+						_UIObjectState.isHidden = state;
+						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject: xfCardInstance});
+
+						var i;
+
+						// Set parent cluster visibility
+						if (xfUtil.isClusterTypeFromObject(this.getParent())) {
+
+							var siblings = this.getParent().getChildren();
+							var anyVisible = false;
+							for (i = 0; i < siblings.length; i++) {
+								if (!siblings[i].getVisualInfo().isHidden) {
+									anyVisible = true;
+									break;
+								}
+							}
+
+							this.getParent().setHidden(this.getParent().getXfId(), !anyVisible);
+						}
+					}
 				}
 			};
 

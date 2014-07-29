@@ -73,7 +73,8 @@ define(
 				container;
 
 			function showHeader() {
-				if ($('.columnHeader', canvas).css('display') === 'none') {
+				if ($('.columnHeader', canvas).css('display') === 'none' &&
+					$('.columnOverlay', canvas).css('display') === 'none') {
 
 					// hide all, just in case we didn't get a leave event
 					$('.columnHeader').css('display', 'none');
@@ -233,6 +234,26 @@ define(
 				canvas.mousemove(showHeader);
 				canvas.mouseleave(function() {
 					$('.columnHeader', canvas).css('display', 'none');
+				});
+
+				// Create the column overlay
+				var overlay = $('<div class="columnOverlay"></div>');
+				overlay.hide();
+				canvas.append(overlay);
+
+				var spinnerContainer = $('<div class="columnOverlaySpinner"></div>');
+				overlay.append(spinnerContainer);
+				spinnerContainer.css('background', constants.AJAX_SPINNER_LARGE_BG);
+				spinnerContainer.css('position', 'relative');
+				spinnerContainer.width('100%');
+				spinnerContainer.height($(window).height());
+
+				$('#workspace').scroll(function() {
+					spinnerContainer.css('top', $(this).scrollTop());
+				});
+
+				$(window).resize(function() {
+					spinnerContainer.height($(window).height());
 				});
 			}
 

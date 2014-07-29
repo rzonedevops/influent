@@ -153,7 +153,7 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 			aperture.log.error(unimpMethod + ': "setHovering" by module ' + implementingObjectModuleName);
 		};
 
-		implementingObject.setHidden = function(xfId) {
+		implementingObject.setHidden = function(xfId, state) {
 			aperture.log.error(unimpMethod + ': "setHidden" by module ' + implementingObjectModuleName);
 		};
 

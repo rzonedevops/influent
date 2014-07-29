@@ -161,7 +161,9 @@ public class KivaPropertyMaps {
 		borrowersGeoMap.put("lon", "lon");
 		
 		allMap.put("id", new KivaPropertyMapping("ID", FL_PropertyTag.ID,FL_PropertyTag.RAW));
-		allMap.putAll(borrowersMap);
+        allMap.put("timestamp", new KivaPropertyMapping("Timestamp", FL_PropertyTag.DATE,FL_PropertyTag.RAW));
+
+        allMap.putAll(borrowersMap);
 		allMap.putAll(lenderMap);
 		allMap.putAll(partnerMap);
 		allMap.putAll(teamMap);

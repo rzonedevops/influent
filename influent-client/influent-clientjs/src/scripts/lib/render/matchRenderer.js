@@ -110,8 +110,8 @@ define(
 
 			form.append(searchType);
 
-			removeButton.addClass('matchRemoveButton').attr('title', 'remove');
-			xfUtil.handleTooltipEvent(removeButton, 'remove');
+			removeButton.addClass('matchRemoveButton');
+			xfUtil.makeTooltip(removeButton, 'remove', 'remove matchcard');
 			globalSearchButton.addClass('searchButton globalSearchButton');
 
 			searchBox.keypress(
@@ -136,7 +136,9 @@ define(
 						chan.REMOVE_REQUEST,
 						{
 							xfIds : [parentId],
-							dispose : true
+							dispose : true,
+                            isMatchCard : true,
+                            userRequested : true
 						}
 					);
 					return false;
@@ -300,7 +302,11 @@ define(
 				searchingDiv.css('height', _renderDefaults.SEARCH_RESULT_HEIGHT);
 				searchingDiv.css('background', constants.AJAX_SPINNER_BG);
 				cardDiv.append(searchingDiv);
-				aperture.pubsub.publish(chan.SET_SEARCH_PAGE_REQUEST, {xfId: visualInfo.xfId, page: 0, noRender: true});
+				aperture.pubsub.publish(chan.SET_SEARCH_PAGE_REQUEST, {
+                    xfId: visualInfo.xfId,
+                    page: 0,
+                    noRender: true
+                });
 			} else {
 				var childUIObjects = visualInfo.children;
 				if ( childUIObjects.length > 0 ) {
@@ -317,12 +323,12 @@ define(
 					var prevButton = xfUtil.makeButton(null, 'ui-icon-carat-1-w', null, 'prevPageButton', null).click(function() {
 						aperture.pubsub.publish(chan.PREV_SEARCH_PAGE_REQUEST, {xfId : visualInfo.xfId});
 					});
-					xfUtil.handleTooltipEvent(prevButton, 'display previous page of search results');
+					xfUtil.makeTooltip(prevButton, 'display previous page of search results');
 
 					var nextButton = xfUtil.makeButton(null, 'ui-icon-carat-1-e', null, 'nextPageButton', null).click(function() {
 						aperture.pubsub.publish(chan.NEXT_SEARCH_PAGE_REQUEST, {xfId : visualInfo.xfId});
 					});
-					xfUtil.handleTooltipEvent(nextButton, 'display next page of search results');
+					xfUtil.makeTooltip(nextButton, 'display next page of search results');
 
 					searchPagingControlDiv.append(prevButton);
 					searchPagingControlDiv.append(searchPagingLabel);

@@ -38,14 +38,14 @@
 		var influentSpec = $.extend(true, {}, spec);
 
 		influentSpec.start = function(event,ui) {
-			aperture.pubsub.publish('suspend-rendering');
+			aperture.pubsub.publish('suspend-rendering-request');
 			if (spec.hasOwnProperty('start')) {
 				spec.start(event,ui);
 			}
 		};
 
 		influentSpec.stop = function(event,ui) {
-			aperture.pubsub.publish('resume-rendering');
+			aperture.pubsub.publish('resume-rendering-request');
 			if (spec.hasOwnProperty('stop')) {
 				spec.stop(event,ui);
 			}

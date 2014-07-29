@@ -16,12 +16,10 @@ Highlights of the version 1.3.* releases include the following features. Minor r
 
 + The details pane now expands and collapses in response to selections made in the workspace. Entity details have been changed to support multiple images per entity, with controls to browse and expand in the browser. Chart and table titles in the details pane have also been clarified.
 
-+ Filing larger numbers of accounts no longer presents a problem.
++ Working with larger numbers of accounts is now more robust.
  
-
 **Import and Export**
 + Import and export of filed workspace contents is now supported for saving and sharing work.
-
 
 **Logging Improvements**
 + Error logging has been made more detailed and comprehensive, including detailed reporting of server errors.
@@ -29,7 +27,9 @@ Highlights of the version 1.3.* releases include the following features. Minor r
 + User instrumentation has been added for optional analysis of usage.
 
 **Integration Features**
-+ A new toolbar extension API allows extra buttons to be added to data items that invoke custom defined actions. API Documentation to come.
++ Advanced search can be further configured with default search criteria and custom fuzzy likeness levels
+
++ New extension APIs allow custom defined actions for toolbar buttons, card selection and entity details. API Documentation to come.
  
 + Enhancements to the screen capture capability to support all conceivable authentication schemes.
 
@@ -37,6 +37,20 @@ Highlights of the version 1.3.* releases include the following features. Minor r
 
 + Added support for HyperSQL databases.
 
+**Documentation**
++ An online User Guide has been added covering Quick Start, the UI and the various search techniques.    
+ 
+### Release 1.3.5 - Resolved Issues
++ Resolved some visual issues when manipulating cards and files
++ Resolved a case where some operations time out
+
+### Release 1.3.4 - Resolved Issues
++ Pattern search was not returning results in some cases.
+
+### Release 1.3.3 - Resolved Issues
++ Multiple issues related to Import/Export.
++ Cross-browser fixes.
++ Numerous other bug fixes.
 
 ### Release 1.3.2 - Resolved Issues
 + Many issues related to large scale edge cases.

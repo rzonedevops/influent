@@ -499,10 +499,10 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfMatchInstance.setHidden = function(xfId) {
+			xfMatchInstance.setHidden = function(xfId, state) {
 
 				for (var i = _UIObjectState.minIdx; i < Math.min(_UIObjectState.maxIdx, _UIObjectState.children.length); i++) {
-					_UIObjectState.children[i].setHidden(xfId);
+					_UIObjectState.children[i].setHidden(xfId, state);
 				}
 			};
 			//----------------------------------------------------------------------------------------------------------
