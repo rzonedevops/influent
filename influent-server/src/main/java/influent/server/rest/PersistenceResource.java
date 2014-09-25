@@ -79,10 +79,6 @@ public class PersistenceResource extends ApertureServerResource{
 		try {
 			JSONObject jsonObj = new JSONObject(jsonData);
 			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
-			
 			// Get the session id.
 			String sessionId = jsonObj.getString("sessionId").trim();
 						
@@ -90,7 +86,6 @@ public class PersistenceResource extends ApertureServerResource{
 			String data = jsonObj.getString("data").trim();
 
 			JSONObject result = new JSONObject();
-			result.put("queryId", queryId);
 			
 			if (data == null ||
 				data.length() < 1 || 

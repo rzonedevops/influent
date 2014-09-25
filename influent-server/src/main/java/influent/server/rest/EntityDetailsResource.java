@@ -67,8 +67,7 @@ public class EntityDetailsResource extends ApertureServerResource {
 		Map<String, Object> props = new HashMap<String, Object> ();
 		
 		Form form = getRequest().getResourceRef().getQueryAsForm();
-		String queryId = form.getFirstValue("queryId").trim();
-		props.put("queryId", queryId);
+
 		String entityId = form.getFirstValue("entityId").trim();
 		int imageIdx = Integer.parseInt(form.getFirstValue("imageIdx").trim());
 

@@ -72,7 +72,7 @@ define(['modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/constants'],
 
 					// get details for entity here
 					aperture.io.rest(
-						'/entitydetails?queryId='+(new Date()).getTime() + '&entityId=' + data.dataId + '&imageIdx=' + data.imageIdx,
+						'/entitydetails?entityId=' + data.dataId + '&imageIdx=' + data.imageIdx,
 						'GET',
 						function(response){
 							$('#details').html(response.content);
@@ -115,7 +115,7 @@ define(['modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/constants'],
 
 					// get details for entity here
 					aperture.io.rest(
-						'/entitydetails?queryId='+(new Date()).getTime() + '&entityId=' + data.ownerId + '&imageIdx=' + data.imageIdx,
+						'/entitydetails?entityId=' + data.ownerId + '&imageIdx=' + data.imageIdx,
 						'GET',
 						function(response){
 							$('#details').html(response.content);

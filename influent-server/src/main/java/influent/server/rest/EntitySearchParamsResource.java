@@ -66,7 +66,6 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 				descriptions = new HashMap<String,List<FL_PropertyDescriptor>>();
 	
 			Form form = getRequest().getResourceRef().getQueryAsForm();
-			String queryId = form.getFirstValue("queryId").trim();
 			
 			JSONArray typearr = new JSONArray();
 			for (String key : descriptions.keySet()) {
@@ -81,7 +80,6 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 			}
 			
 			props.put("data", typearr);
-			props.put("queryId", queryId);
 			
 			return new StringRepresentation(props.toString(), MediaType.APPLICATION_JSON);
 		} catch (AvroRemoteException ae) {

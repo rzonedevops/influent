@@ -131,10 +131,6 @@ public class EntitySearchResource extends ApertureServerResource{
 			if (jsonObj.has("contextId")) {
 				contextId = jsonObj.getString("contextId").trim();
 			}
-			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
 
 			// Determine the number of results to return.
 			int resultLimit = DEFAULT_MAX_LIMIT;
@@ -278,7 +274,6 @@ public class EntitySearchResource extends ApertureServerResource{
 					
 					result.put("data",rArr);
 					result.put("totalResults",sResponse.getTotal());
-					result.put("queryId",queryId);
 					result.put("sessionId", sessionId);
 					
 					StringRepresentation responseSR = new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
@@ -367,7 +362,6 @@ public class EntitySearchResource extends ApertureServerResource{
 					result.put("data", ja);
 					result.put("scores", scores);
 					result.put("totalResults", sResponse.getTotal());
-					result.put("queryId", queryId);
 					result.put("sessionId", sessionId);
 	
 					return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);

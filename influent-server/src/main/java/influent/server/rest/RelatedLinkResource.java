@@ -92,8 +92,6 @@ public class RelatedLinkResource extends ApertureServerResource{
 		List<Object> targets = new ArrayList<Object>();
 		boolean fetchTargetEntities = true;
 		
-		String queryId = null;
-		
 		try {
 			JSONObject jsonObj = new JSONObject(jsonData);
 			
@@ -221,10 +219,6 @@ public class RelatedLinkResource extends ApertureServerResource{
 				s_logger.warn("Get Context : "+(dms-cms)+" ms");
 				s_logger.warn("Collapse Context : "+(ems-dms)+" ms");
 			}
-				
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			queryId = jsonObj.getString("queryId").trim();
 			
 			// if we have targets and targets were requested by the client then serialize them into the response
 			if (!targets.isEmpty() && fetchTargetEntities) {
@@ -264,7 +258,6 @@ public class RelatedLinkResource extends ApertureServerResource{
 				result.put("data",dmap);
 			}
 			
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 
 			return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);

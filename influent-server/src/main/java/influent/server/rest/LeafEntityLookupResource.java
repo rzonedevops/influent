@@ -109,10 +109,6 @@ public class LeafEntityLookupResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
-			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
 
 			// Details or no?
 			Boolean details = jsonObj.has("details")? jsonObj.getBoolean("details"):false;
@@ -178,7 +174,6 @@ public class LeafEntityLookupResource extends ApertureServerResource{
 			}
 			
 			result.put("data", resultSets);
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 			
 			return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);

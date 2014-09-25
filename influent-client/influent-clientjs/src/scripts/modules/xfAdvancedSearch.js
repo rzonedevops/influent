@@ -63,7 +63,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 		// Private Methods
 		//--------------------------------------------------------------------------------------------------------------
 		function onInit() {
-			aperture.io.rest('/searchparams?queryId='+(new Date()).getTime(),
+			aperture.io.rest('/searchparams',
 				'GET',
 				function(response) {
 
@@ -581,7 +581,6 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 				{
 					postData : {
 						sessionId : xfWorkspace.getSessionId(),
-						queryId: (new Date()).getTime(),
 						entitySets : [{
 							contextId : _UIObjectState.contextId,
 							entities : dataIds

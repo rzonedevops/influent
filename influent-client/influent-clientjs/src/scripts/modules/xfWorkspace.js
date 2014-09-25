@@ -911,7 +911,6 @@ define(
 					{
 						postData : {
 							sessionId : _UIObjectState.sessionId,
-							queryId: (new Date()).getTime(),
 							entitySets : fileSets,
 							details : false
 						},
@@ -938,7 +937,6 @@ define(
 					if (!restInfo.success) {
 						response = {
 							data: [],
-							queryId: '',
 							scores: {},
 							sessionId: '',
 							totalResults: 0
@@ -958,7 +956,6 @@ define(
 						sessionId : _UIObjectState.sessionId,
 						term : matchUIObject.getSearchTerm(),
 						operation : matchUIObject.getSearchOperation(),
-						queryId: (new Date()).getTime(),
 						cluster: false,                         // Feature #6467 - searches no longer clustered
 						limit : MAX_SEARCH_RESULTS,
 						contextId : contextObj.getXfId(),
@@ -1096,7 +1093,6 @@ define(
 						term: term,
 						startDate : _UIObjectState.dates.startDate,
 						endDate :  _UIObjectState.dates.endDate,
-						queryId: (new Date()).getTime(),
 						cluster: false,
 						limit : MAX_PATTERN_SEARCH_RESULTS,
 						useAptima : (_getAllMatchCards().length > 3)
@@ -1892,7 +1888,6 @@ define(
 				{
 					postData : {
 						sessionId :     _UIObjectState.sessionId,
-						queryId:        (new Date()).getTime(),
 						entity :        sourceEntity,
 						targets :       [],
 						linktype :      isBranchRight ? 'source' : 'destination',
@@ -1984,7 +1979,6 @@ define(
 						{
 							postData : {
 								sessionId:          _UIObjectState.sessionId,
-								queryId:            (new Date()).getTime(),
 								sourceIds:          srcContext,
 								targetIds:          tarContext,
 								linktype:           cascadeRight ? 'source' : 'destination',
@@ -2311,7 +2305,6 @@ define(
 				{
 					postData : {
 						sessionId : _UIObjectState.sessionId,
-						queryId: (new Date()).getTime(),
 						entities : uiObj.getVisibleDataIds(),
 						contextid : xfUtil.getContextByUIObject(uiObj).getXfId()
 					},
@@ -2748,7 +2741,6 @@ define(
 								{
 									postData: {
 										sessionId: _UIObjectState.sessionId,
-										queryId: (new Date()).getTime(),
 										entities: addedCards,
 										contextid: contextObj.getDataId()
 									},
@@ -3100,7 +3092,6 @@ define(
 				{
 					postData : {
 						sessionId : _UIObjectState.sessionId,
-						queryId: (new Date()).getTime(),
 						data : (currentState) ? JSON.stringify(currentState) : ''
 					},
 					contentType: 'application/json',
@@ -3220,8 +3211,6 @@ define(
 						message: '<img src="' + constants.AJAX_SPINNER_FILE + '" style="display:block;margin-left:auto;margin-right:auto"/>'
 					});
 
-					var timestamp = (new Date().getTime());
-
 					var exportState = _UIObjectState.singleton.saveState();
 
 					aperture.io.rest(
@@ -3253,7 +3242,6 @@ define(
 						{
 							postData : {
 								sessionId : _UIObjectState.sessionId,
-								queryId: timestamp,
 								data : (exportState) ? JSON.stringify(exportState) : ''
 							},
 							contentType: 'application/json'

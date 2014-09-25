@@ -105,7 +105,6 @@ public class ModifyContextResource extends ApertureServerResource{
 			result.put("targets", ja);
 		}
 		
-//		result.put("queryId", queryId);
 		result.put("contextId", targetContextId);
 		result.put("sessionId", sessionId);
 

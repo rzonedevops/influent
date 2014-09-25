@@ -72,10 +72,6 @@ public class EntityLookupResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
-			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
 
 			String contextid = jsonObj.getString("contextid").trim();
 			
@@ -126,7 +122,6 @@ public class EntityLookupResource extends ApertureServerResource{
 			}
 			
 			result.put("data", ja);
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 			
 			return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);

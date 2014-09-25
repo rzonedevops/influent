@@ -69,7 +69,7 @@ public class AggregatedLinkResource extends ApertureServerResource{
 		JSONObject result = new JSONObject();
 		Map<String, List<FL_Link>> links = new HashMap<String, List<FL_Link>>();
 		
-		String type = null, queryId = null/*, filterType = null*/;
+		String type = null;
 		FL_DirectionFilter direction = FL_DirectionFilter.DESTINATION;
 		FL_DateRange dateRange = null;
 		
@@ -109,10 +109,6 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			String dstContextId = jsonObj.getString("targetContextId").trim();
 						
 			links = clusterAccess.getFlowAggregation(srcEntities, dstEntities, direction, FL_LinkTag.FINANCIAL, dateRange, srcContextId, dstContextId);			
-			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			queryId = jsonObj.getString("queryId").trim();
 
 			if (links != null && !links.isEmpty()) {
 				JSONObject dmap = new JSONObject();
@@ -127,7 +123,6 @@ public class AggregatedLinkResource extends ApertureServerResource{
 				result.put("data",dmap);
 			}
 
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 
 			return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);

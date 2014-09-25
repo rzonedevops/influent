@@ -110,10 +110,6 @@ public class PatternSearchResource extends ApertureServerResource{
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
 
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
-
 			// Determine the number of results to return.
 			int resultLimit = DEFAULT_MAX_LIMIT;
 			if (jsonObj.has("limit")){
@@ -438,7 +434,6 @@ public class PatternSearchResource extends ApertureServerResource{
 			result.put("roleResults", jsonRoleResults);
 			result.put("graphResults", AvroUtils.encodeJSON(searchResults));
 			result.put("totalResults", searchResults.getTotal());
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 
 			return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
