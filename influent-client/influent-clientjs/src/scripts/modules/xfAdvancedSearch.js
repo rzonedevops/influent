@@ -64,7 +64,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 		//--------------------------------------------------------------------------------------------------------------
 		function onInit() {
 			aperture.io.rest('/searchparams',
-				'GET',
+				'POST',
 				function(response) {
 
 					// store the search parameter list
@@ -99,7 +99,11 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace'],
 					// build the static part of the UI
 					buildDialog();
 					
-				}, {}
+				},
+				{
+					postData : {},
+					contentType: 'application/json'
+				}
 			);
 		}
 

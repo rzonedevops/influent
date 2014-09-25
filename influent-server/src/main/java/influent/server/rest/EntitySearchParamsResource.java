@@ -38,10 +38,9 @@ import org.apache.avro.AvroRemoteException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.restlet.data.Form;
 import org.restlet.data.MediaType;
 import org.restlet.representation.StringRepresentation;
-import org.restlet.resource.Get;
+import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
 import com.google.inject.Inject;
@@ -55,7 +54,7 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 		this.searcher = searcher;	
 	}
 
-	@Get
+	@Post
 	public StringRepresentation propertyList () throws ResourceException{
 		
 		try {
@@ -64,8 +63,6 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 			
 			if (descriptions == null)
 				descriptions = new HashMap<String,List<FL_PropertyDescriptor>>();
-	
-			Form form = getRequest().getResourceRef().getQueryAsForm();
 			
 			JSONArray typearr = new JSONArray();
 			for (String key : descriptions.keySet()) {
