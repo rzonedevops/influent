@@ -36,6 +36,7 @@ import influent.server.data.ImageRepresentation;
 import influent.server.utilities.ChartBuilder;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
@@ -73,7 +74,9 @@ public class ChartResource extends ApertureServerResource {
 	private final int maxCacheAge;
 	private final ChartBuilder chartBuilder;
 	private final ClusterContextCache contextCache;
-
+	
+	
+	
 	@Inject
 	public ChartResource(
 		@Named("influent.charts.maxage") Integer maxCacheAge,
@@ -87,6 +90,9 @@ public class ChartResource extends ApertureServerResource {
 		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
 	}
 	
+	
+	
+	
 	@Get
 	public Representation getChartImage() {
 		try {
@@ -96,6 +102,9 @@ public class ChartResource extends ApertureServerResource {
 			ChartHash hashed = new ChartHash(hash);
 
 			String sessionId = hashed.getSessionId();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			String entityContextId = hashed.getContextId();
 			String focusContextId = hashed.getFocusContextId();
@@ -129,6 +138,9 @@ public class ChartResource extends ApertureServerResource {
 		}
 	}
 	
+	
+	
+	
 	@Post("json")
 	public Map<String, ChartData> getChartData(String jsonData) {
 
@@ -138,6 +150,9 @@ public class ChartResource extends ApertureServerResource {
 			String focusContextId = jsonObj.getString("focuscontextid");
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			DateTime startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
 			DateTime endDate = DateTimeParser.parse(jsonObj.getString("endDate"));

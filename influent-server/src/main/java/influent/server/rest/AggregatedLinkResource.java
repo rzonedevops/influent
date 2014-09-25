@@ -32,6 +32,7 @@ import influent.idl.FL_LinkTag;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.HashMap;
@@ -58,12 +59,17 @@ public class AggregatedLinkResource extends ApertureServerResource{
 
 	private final FL_ClusteringDataAccess clusterAccess;
 	
+	
+	
 	@Inject
 	public AggregatedLinkResource(FL_ClusteringDataAccess clusterAccess, ClusterContextCache contextCache) {
 		this.clusterAccess = clusterAccess;
 	}
-
-	@Post
+	
+	
+	
+	
+	@Post("json")
 	public StringRepresentation getLinks(String jsonData) throws ResourceException {
 		JSONObject jsonObj;
 		JSONObject result = new JSONObject();
@@ -77,6 +83,9 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			/*
 			 * Valid arguments are:

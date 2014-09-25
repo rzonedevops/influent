@@ -62,7 +62,9 @@ public class LeafEntityLookupResource extends ApertureServerResource{
 	
 	private final FL_DataAccess service;
 	private final ClusterContextCache contextCache;
-
+	
+	
+	
 	@Inject
 	public LeafEntityLookupResource(FL_DataAccess service, FL_ClusteringDataAccess clusterDataAccess, ClusterContextCache contextCache) {
 		this.service = service;

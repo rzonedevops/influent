@@ -35,6 +35,7 @@ import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityClusterFactory;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.Pair;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
@@ -121,6 +123,10 @@ public class ModifyContextResource extends ApertureServerResource{
 
 			String erroneousArgument = null;
 			String sessionId = jsonObj.getString("sessionId");
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
+			
 			String srcContextId = jsonObj.getString("sourceContextId").trim(); // source context to insert entities from
 			String targetContextId = jsonObj.getString("targetContextId").trim();  // the context to modify
 			String edit = jsonObj.getString("edit"); //Allowed values, 'insert', 'remove', 'create'
@@ -131,10 +137,7 @@ public class ModifyContextResource extends ApertureServerResource{
 				entityIds = UISerializationHelper.buildListFromJson(jsonObj, "entityIds"); //Must be non-null for insert and remove
 			}
 			
-			if (sessionId == null) {
-				erroneousArgument = "'sessionId'";
-			}
-			else if (srcContextId == null) {
+			if (srcContextId == null) {
 				erroneousArgument = "'srcContextId'";
 			}
 			else if (targetContextId == null) {
@@ -314,9 +317,15 @@ public class ModifyContextResource extends ApertureServerResource{
 		return rootObjects;
 	}
 	
+	
+	
+	
 	private boolean isFile(String id) {
 		return TypedId.hasType(id, TypedId.CLUSTER) && id.contains("file");
 	}
+	
+	
+	
 	
 	private List<String> childIdsToRemove(List<String> childIds, ContextReadWrite targetContext) {
 		List<String> ids = new LinkedList<String>();
@@ -332,6 +341,9 @@ public class ModifyContextResource extends ApertureServerResource{
 		}
 		return ids;
 	}
+	
+	
+	
 	
 	private List<Object> remove(
 		List<String> childIds, 

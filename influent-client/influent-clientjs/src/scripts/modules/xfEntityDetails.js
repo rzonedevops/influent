@@ -72,8 +72,8 @@ define(['modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/constants'],
 
 					// get details for entity here
 					aperture.io.rest(
-						'/entitydetails?entityId=' + data.dataId + '&imageIdx=' + data.imageIdx,
-						'GET',
+						'/entitydetails',
+						'POST',
 						function(response){
 							$('#details').html(response.content);
 
@@ -109,14 +109,21 @@ define(['modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/constants'],
 									);
 								}
 							}
+						},
+						{
+							postData : {
+								entityId : data.dataId,
+								imageIdx : data.imageIdx
+							},
+							contentType: 'application/json'
 						}
 					);
 				} else if (data.hasOwnProperty('ownerId') && data.ownerId !== '') {
 
 					// get details for entity here
 					aperture.io.rest(
-						'/entitydetails?entityId=' + data.ownerId + '&imageIdx=' + data.imageIdx,
-						'GET',
+						'/entitydetails',
+						'POST',
 						function(response){
 							$('#details').html(response.content);
 
@@ -130,6 +137,13 @@ define(['modules/xfWorkspace', 'lib/module', 'lib/channels', 'lib/constants'],
 							_addImageCarouselButtons(data);
 
 							_createClusterSummaryDetails(data.xfId);
+						},
+						{
+							postData : {
+								entityId : data.ownerId,
+								imageIdx : data.imageIdx
+							},
+							contentType: 'application/json'
 						}
 					);
 

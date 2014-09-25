@@ -49,13 +49,18 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 
 	private final FL_EntitySearch searcher;
 	
+	
+	
 	@Inject 
 	public EntitySearchParamsResource (FL_EntitySearch searcher) {
 		this.searcher = searcher;	
 	}
-
-	@Post
-	public StringRepresentation propertyList () throws ResourceException{
+	
+	
+	
+	
+	@Post("json")
+	public StringRepresentation propertyList (String jsonData) throws ResourceException{
 		
 		try {
 			JSONObject props = new JSONObject();
@@ -85,5 +90,4 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 			throw new ResourceException(e);
 		}
 	}
-	
 }

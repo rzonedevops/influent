@@ -38,6 +38,7 @@ import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.Pair;
 import influent.server.utilities.UISerializationHelper;
 
@@ -76,13 +77,18 @@ public class RelatedLinkResource extends ApertureServerResource{
 
 	private static final Logger s_logger = LoggerFactory.getLogger(RelatedLinkResource.class);
 	
+	
+	
 	@Inject
 	public RelatedLinkResource(FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
 		this.clusterAccess = clusterAccess;
 		this.entityAccess = entityAccess;
 		this.contextCache = contextCache;
 	}
-
+	
+	
+	
+	
 	@Post
 	public StringRepresentation getLinks(String jsonData) throws ResourceException {
 		JSONObject result = new JSONObject();
@@ -96,6 +102,9 @@ public class RelatedLinkResource extends ApertureServerResource{
 			JSONObject jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 
 			// determine the related link direction requested
 			FL_DirectionFilter direction = FL_DirectionFilter.BOTH;

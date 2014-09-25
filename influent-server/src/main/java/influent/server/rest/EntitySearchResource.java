@@ -44,6 +44,7 @@ import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.data.EntitySearchTerms;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.Pair;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
@@ -86,6 +87,8 @@ public class EntitySearchResource extends ApertureServerResource{
 	
 	private static final Logger s_logger = LoggerFactory.getLogger(EntitySearchResource.class);
 	
+	
+	
 	@Inject
 	public EntitySearchResource(FL_DataAccess entityAccess, 
 								FL_EntitySearch entitySearcher, 
@@ -101,6 +104,9 @@ public class EntitySearchResource extends ApertureServerResource{
 		this.contextCache = contextCache;
 	}
 	
+	
+	
+	
 	@Post("json")
 	public StringRepresentation search(String jsonData) throws ResourceException {
 		JSONObject jsonObj;
@@ -113,7 +119,10 @@ public class EntitySearchResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
-
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
+			
 			// Flag to indicate whether or not to cluster the results.
 			boolean doCluster = true;
 			
@@ -387,6 +396,9 @@ public class EntitySearchResource extends ApertureServerResource{
 		}
 	}
 	
+	
+	
+	
 	protected PropertyHelper getFirstProperty(FL_Entity entity, String tagOrName) {
 		PropertyHelper prop = null;
 		FL_PropertyTag tag = null;
@@ -404,7 +416,9 @@ public class EntitySearchResource extends ApertureServerResource{
 		}
 		return prop;
 	}
-
+	
+	
+	
 	
 	public static void normalizeScores (Map<String, Double> scores) {
 		double maxscore = 0;

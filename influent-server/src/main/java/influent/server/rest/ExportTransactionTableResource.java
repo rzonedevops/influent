@@ -46,11 +46,11 @@ import java.util.List;
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.joda.time.DateTime;
+import org.json.JSONObject;
 import org.restlet.data.Disposition;
-import org.restlet.data.Form;
 import org.restlet.data.MediaType;
 import org.restlet.representation.StringRepresentation;
-import org.restlet.resource.Get;
+import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
 import com.google.inject.Inject;
@@ -70,19 +70,18 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 	
 	
 	
-	@Get
-	public StringRepresentation getLedger() throws ResourceException {
+	@Post("json")
+	public StringRepresentation getLedger(String jsonData) throws ResourceException {
 		
-		Form form = getRequest().getResourceRef().getQueryAsForm();
-		
-		// get the root node ID from the form
-		String entityId = form.getFirstValue("entityId");
 		try {
+			JSONObject jsonObj = new JSONObject(jsonData);
+		
+			String entityId = jsonObj.getString("entityId").trim();
 			
 			List<String> entityIds = Collections.singletonList(entityId);
 			
-			String startDateStr = form.getFirstValue("startDate").trim();
-			String endDateStr = form.getFirstValue("endDate").trim();
+			String startDateStr = jsonObj.getString("startDate").trim();
+			String endDateStr = jsonObj.getString("endDate").trim();
 			DateTime startDate = DateTimeParser.parse(startDateStr);
 			DateTime endDate = DateTimeParser.parse(endDateStr);
 			String fileName = entityId;
@@ -148,6 +147,9 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 			return null;
 		}
 	}
+	
+	
+	
 	
 	private static String formatProperty(FL_Property prop) {
 		

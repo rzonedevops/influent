@@ -29,7 +29,10 @@ import influent.idl.FL_DataAccess;
 import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
 import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.utilities.GuidValidator;
+
 import java.util.Collections;
+
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
@@ -63,6 +66,8 @@ public class PersistenceResource extends ApertureServerResource{
 	@SuppressWarnings("unused")
 	private static final Logger s_logger = LoggerFactory.getLogger(PersistenceResource.class);
 	
+	
+	
 	@Inject
 	public PersistenceResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
 		this.persistence = persistence;
@@ -81,6 +86,9 @@ public class PersistenceResource extends ApertureServerResource{
 			
 			// Get the session id.
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 						
 			// Get the persistence data
 			String data = jsonObj.getString("data").trim();
@@ -124,6 +132,9 @@ public class PersistenceResource extends ApertureServerResource{
 			Form form = getRequest().getResourceRef().getQueryAsForm(true);
 			
 			String sessionId = form.getFirstValue("sessionId");
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			if (sessionId == null || sessionId.length() == 0) {
 				throw new ResourceException(

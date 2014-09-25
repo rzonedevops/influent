@@ -38,8 +38,11 @@ import java.util.Map;
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
-import org.restlet.data.Form;
-import org.restlet.resource.Get;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.restlet.data.Status;
+import org.restlet.resource.Post;
+import org.restlet.resource.ResourceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,16 +65,18 @@ public class EntityDetailsResource extends ApertureServerResource {
 	
 	
 	
-	@Get
-	public Map<String, Object> getContent()  {
+	@Post("json")
+	public Map<String, Object> getContent(String jsonData)  {
 		Map<String, Object> props = new HashMap<String, Object> ();
 		
-		Form form = getRequest().getResourceRef().getQueryAsForm();
-
-		String entityId = form.getFirstValue("entityId").trim();
-		int imageIdx = Integer.parseInt(form.getFirstValue("imageIdx").trim());
-
-		try {
+		String entityId = "";
+		
+		try {	
+			JSONObject jsonObj = new JSONObject(jsonData);
+		
+			entityId = jsonObj.getString("entityId").trim();
+			int imageIdx =  jsonObj.getInt("imageIdx");
+		
 			String html = "";
 			try {
 				List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId), FL_LevelOfDetail.FULL);
@@ -91,9 +96,15 @@ public class EntityDetailsResource extends ApertureServerResource {
 			//return new StringRepresentation(html, MediaType.TEXT_PLAIN);
 			return props;
 		} catch (DataAccessException e) {
-			String html="<html><body>Couldn't find entity for "+entityId+"</body></html>";
+			String html="<html><body>Could not find entity details for " + entityId + "</body></html>";
 			props.put("content", html);
 			return props;
+		} catch (JSONException je) {
+			throw new ResourceException(
+				Status.CLIENT_ERROR_BAD_REQUEST,
+				"JSON parse error.",
+				je
+			);
 		}
 	}
 }
