@@ -198,8 +198,8 @@ define(
 
 		var _initWorkspaceState = function(callback) {
 			aperture.io.rest(
-				'/persist',
-				'GET',
+				'/restorestate',
+				'POST',
 				function (response) {
 
 					var workspaceSpec = null;
@@ -273,7 +273,7 @@ define(
 					callback();
 				},
 				{
-					params : {
+					postData : {
 						sessionId : _UIObjectState.sessionId
 					},
 					contentType: 'application/json'
@@ -3082,7 +3082,7 @@ define(
 			}
 
 			aperture.io.rest(
-				'/persist',
+				'/savestate',
 				'POST',
 				function (response) {
 					if (callback != null) {

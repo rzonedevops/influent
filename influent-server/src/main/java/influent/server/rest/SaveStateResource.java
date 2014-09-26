@@ -53,7 +53,7 @@ import com.google.inject.Inject;
 
 
 
-public class PersistenceResource extends ApertureServerResource{
+public class SaveStateResource extends ApertureServerResource{
 
 	private final FL_Persistence persistence;
 	@SuppressWarnings("unused")
@@ -64,12 +64,12 @@ public class PersistenceResource extends ApertureServerResource{
 	private final ClusterContextCache contextCache;
 
 	@SuppressWarnings("unused")
-	private static final Logger s_logger = LoggerFactory.getLogger(PersistenceResource.class);
+	private static final Logger s_logger = LoggerFactory.getLogger(SaveStateResource.class);
 	
 	
 	
 	@Inject
-	public PersistenceResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
+	public SaveStateResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
 		this.persistence = persistence;
 		this.clusterAccess = clusterAccess;
 		this.entityAccess = entityAccess;
@@ -117,58 +117,6 @@ public class PersistenceResource extends ApertureServerResource{
 			throw new ResourceException(
 				Status.CLIENT_ERROR_BAD_REQUEST,
 				"Exception during AVRO processing",
-				e
-			);
-		}
-	}
-	
-	
-	
-	
-	@Get
-	public StringRepresentation getState() throws ResourceException {
-		try {
-			
-			Form form = getRequest().getResourceRef().getQueryAsForm(true);
-			
-			String sessionId = form.getFirstValue("sessionId");
-			if (!GuidValidator.validateGuidString(sessionId)) {
-				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
-			}
-			
-			if (sessionId == null || sessionId.length() == 0) {
-				throw new ResourceException(
-						Status.CLIENT_ERROR_BAD_REQUEST,
-						"No sessionId found in persistence request"
-					);
-			}
-			
-			sessionId = sessionId.trim();
-
-			String data = persistence.getData(sessionId);
-			
-			JSONObject result = new JSONObject();
-			result.put("sessionId", sessionId);
-			result.put("data", data);
-			
-			getResponse().setCacheDirectives(
-				Collections.singletonList(
-					CacheDirective.noCache()
-				)
-			);
-
-			return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);
-			
-		} catch (JSONException e) {
-			throw new ResourceException(
-				Status.SERVER_ERROR_INTERNAL,
-				"Unable to create JSON object from persistence data",
-				e
-			);
-		} catch (AvroRemoteException e) {
-			throw new ResourceException(
-				Status.SERVER_ERROR_INTERNAL,
-				"Exception during AVRO persistence state deserialization",
 				e
 			);
 		}
