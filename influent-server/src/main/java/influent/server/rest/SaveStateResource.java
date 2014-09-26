@@ -30,20 +30,14 @@ import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.utilities.GuidValidator;
-
-import java.util.Collections;
-
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.restlet.data.CacheDirective;
-import org.restlet.data.Form;
 import org.restlet.data.MediaType;
 import org.restlet.data.Status;
 import org.restlet.representation.StringRepresentation;
-import org.restlet.resource.Get;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 import org.slf4j.Logger;
