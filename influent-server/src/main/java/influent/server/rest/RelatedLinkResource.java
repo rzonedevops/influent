@@ -38,6 +38,7 @@ import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.Pair;
 import influent.server.utilities.UISerializationHelper;
 
@@ -76,13 +77,18 @@ public class RelatedLinkResource extends ApertureServerResource{
 
 	private static final Logger s_logger = LoggerFactory.getLogger(RelatedLinkResource.class);
 	
+	
+	
 	@Inject
 	public RelatedLinkResource(FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
 		this.clusterAccess = clusterAccess;
 		this.entityAccess = entityAccess;
 		this.contextCache = contextCache;
 	}
-
+	
+	
+	
+	
 	@Post
 	public StringRepresentation getLinks(String jsonData) throws ResourceException {
 		JSONObject result = new JSONObject();
@@ -92,12 +98,13 @@ public class RelatedLinkResource extends ApertureServerResource{
 		List<Object> targets = new ArrayList<Object>();
 		boolean fetchTargetEntities = true;
 		
-		String queryId = null;
-		
 		try {
 			JSONObject jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 
 			// determine the related link direction requested
 			FL_DirectionFilter direction = FL_DirectionFilter.BOTH;
@@ -221,10 +228,6 @@ public class RelatedLinkResource extends ApertureServerResource{
 				s_logger.warn("Get Context : "+(dms-cms)+" ms");
 				s_logger.warn("Collapse Context : "+(ems-dms)+" ms");
 			}
-				
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			queryId = jsonObj.getString("queryId").trim();
 			
 			// if we have targets and targets were requested by the client then serialize them into the response
 			if (!targets.isEmpty() && fetchTargetEntities) {
@@ -264,7 +267,6 @@ public class RelatedLinkResource extends ApertureServerResource{
 				result.put("data",dmap);
 			}
 			
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 
 			return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);

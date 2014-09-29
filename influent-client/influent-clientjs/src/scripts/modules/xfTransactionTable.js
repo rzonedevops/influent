@@ -100,7 +100,6 @@ define(
 			xfRest.request('/containedentities').inContext( data.contextId ).withData({
 
 				sessionId : data.sessionId,
-				queryId: (new Date()).getTime(),
 				entitySets : [{
 					contextId :  data.contextId,
 					entities: [data.dataId]

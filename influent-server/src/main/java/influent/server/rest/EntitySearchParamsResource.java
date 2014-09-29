@@ -38,10 +38,9 @@ import org.apache.avro.AvroRemoteException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.restlet.data.Form;
 import org.restlet.data.MediaType;
 import org.restlet.representation.StringRepresentation;
-import org.restlet.resource.Get;
+import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
 import com.google.inject.Inject;
@@ -50,13 +49,18 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 
 	private final FL_EntitySearch searcher;
 	
+	
+	
 	@Inject 
 	public EntitySearchParamsResource (FL_EntitySearch searcher) {
 		this.searcher = searcher;	
 	}
-
-	@Get
-	public StringRepresentation propertyList () throws ResourceException{
+	
+	
+	
+	
+	@Post("json")
+	public StringRepresentation propertyList (String jsonData) throws ResourceException{
 		
 		try {
 			JSONObject props = new JSONObject();
@@ -64,9 +68,6 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 			
 			if (descriptions == null)
 				descriptions = new HashMap<String,List<FL_PropertyDescriptor>>();
-	
-			Form form = getRequest().getResourceRef().getQueryAsForm();
-			String queryId = form.getFirstValue("queryId").trim();
 			
 			JSONArray typearr = new JSONArray();
 			for (String key : descriptions.keySet()) {
@@ -81,7 +82,6 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 			}
 			
 			props.put("data", typearr);
-			props.put("queryId", queryId);
 			
 			return new StringRepresentation(props.toString(), MediaType.APPLICATION_JSON);
 		} catch (AvroRemoteException ae) {
@@ -90,5 +90,4 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 			throw new ResourceException(e);
 		}
 	}
-	
 }

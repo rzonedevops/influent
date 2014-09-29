@@ -49,6 +49,7 @@ import influent.idlhelper.SerializationHelper;
 import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.utilities.AvroUtils;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
@@ -88,6 +89,8 @@ public class PatternSearchResource extends ApertureServerResource{
 	
 	private static final Logger s_logger = LoggerFactory.getLogger(EntitySearchResource.class);
 	
+	
+	
 	@Inject
 	public PatternSearchResource(
 		FL_PatternSearch patternSearcher, 
@@ -101,6 +104,9 @@ public class PatternSearchResource extends ApertureServerResource{
 		this.dataAccess = dataAccess;
 	}
 	
+	
+	
+	
 	@Post("json")
 	public StringRepresentation search(String jsonData) throws ResourceException {
 		JSONObject jsonObj;
@@ -109,10 +115,9 @@ public class PatternSearchResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
-
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 
 			// Determine the number of results to return.
 			int resultLimit = DEFAULT_MAX_LIMIT;
@@ -438,7 +443,6 @@ public class PatternSearchResource extends ApertureServerResource{
 			result.put("roleResults", jsonRoleResults);
 			result.put("graphResults", AvroUtils.encodeJSON(searchResults));
 			result.put("totalResults", searchResults.getTotal());
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 
 			return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
@@ -465,6 +469,9 @@ public class PatternSearchResource extends ApertureServerResource{
 		
 	}
 	
+	
+	
+	
 	public static void normalizeScores (Map<String, Double> scores) {
 		double maxscore = 0;
 		
@@ -476,7 +483,4 @@ public class PatternSearchResource extends ApertureServerResource{
 			for (String entity : scores.keySet()) 
 				scores.put(entity, scores.get(entity)/maxscore);
 	}
-	
-	
-	
 }

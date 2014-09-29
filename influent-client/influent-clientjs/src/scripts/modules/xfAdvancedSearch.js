@@ -63,7 +63,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 		// Private Methods
 		//--------------------------------------------------------------------------------------------------------------
 		function onInit() {
-			xfRest.request( '/searchparams?queryId='+(new Date()).getTime(), 'GET' )
+			xfRest.request('/searchparams')
 				.inContext( _UIObjectState.contextId )
 				.then(function(response) {
 
@@ -613,7 +613,6 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 			xfRest.request( '/containedentities' ).inContext( _UIObjectState.contextId ).withData({
 
 				sessionId : xfWorkspace.getSessionId(),
-				queryId: (new Date()).getTime(),
 				entitySets : [{
 					contextId : _UIObjectState.contextId,
 					entities : dataIds

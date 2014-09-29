@@ -52,6 +52,8 @@ public class ImportGraphResource extends ApertureServerResource {
 
 	private final ImportDataService service;
 	
+	
+	
 	@Inject
 	public ImportGraphResource(
 		ImportDataService service,
@@ -59,6 +61,9 @@ public class ImportGraphResource extends ApertureServerResource {
 	) {
 		this.service = service;
 	}
+	
+	
+	
 	
 	@Post
 	public StringRepresentation getCapturedImage(Representation entity) throws ResourceException {

@@ -32,6 +32,7 @@ import influent.server.data.ChartData;
 import influent.server.utilities.ChartBuilder;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
@@ -64,6 +65,8 @@ public class BigChartResource extends ApertureServerResource {
 	private final ChartBuilder chartBuilder;
 	private final ClusterContextCache contextCache;
 	
+	
+	
 	@Inject
 	public BigChartResource(
 		FL_DataAccess entityAccess,
@@ -75,6 +78,9 @@ public class BigChartResource extends ApertureServerResource {
 		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
 	}
 	
+	
+	
+	
 	@Post("json")
 	public Map<String, ChartData> getBigChartData(String jsonData) {
 
@@ -84,6 +90,9 @@ public class BigChartResource extends ApertureServerResource {
 			String focusContextId = jsonObj.getString("focuscontextid");
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			DateTime startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
 			DateTime endDate = DateTimeParser.parse(jsonObj.getString("endDate"));

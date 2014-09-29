@@ -190,7 +190,7 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _initWorkspaceState = function(callback) {
-			xfRest.request( '/persist' , 'GET').withData(
+			xfRest.request('/restorestate').withData(
 
 				{sessionId : _UIObjectState.sessionId}
 
@@ -1021,10 +1021,9 @@ define(
 					}					
 				};
 
-				xfRest.request('/containedentities', 'POST').withData({
+				xfRest.request('/containedentities').withData({
 
 						sessionId : _UIObjectState.sessionId,
-						queryId: (new Date()).getTime(),
 						entitySets : fileSets,
 						details : false
 
@@ -1050,7 +1049,6 @@ define(
 				sessionId : _UIObjectState.sessionId,
 				term : matchUIObject.getSearchTerm(),
 				operation : matchUIObject.getSearchOperation(),
-				queryId: (new Date()).getTime(),
 				cluster: false,                         // Feature #6467 - searches no longer clustered
 				limit : MAX_SEARCH_RESULTS,
 				contextId : contextObj.getXfId(),
@@ -1061,7 +1059,6 @@ define(
 				if (!restInfo.success) {
 					response = {
 						data: [],
-						queryId: '',
 						scores: {},
 						sessionId: '',
 						totalResults: 0
@@ -1171,7 +1168,6 @@ define(
 				term: term,
 				startDate : _UIObjectState.dates.startDate,
 				endDate :  _UIObjectState.dates.endDate,
-				queryId: (new Date()).getTime(),
 				cluster: false,
 				limit : MAX_PATTERN_SEARCH_RESULTS,
 				useAptima : (_getAllMatchCards().length > 3)
@@ -2001,7 +1997,6 @@ define(
 			xfRest.request('/relatedlinks').inContext( tarContextId ).withData({
 
 				sessionId: _UIObjectState.sessionId,
-				queryId: (new Date()).getTime(),
 				entity: sourceEntity,
 				targets: [],
 				linktype: isBranchRight ? 'source' : 'destination',
@@ -2102,7 +2097,6 @@ define(
 					xfRest.request('/aggregatedlinks').inContext( srcContextId ).withData({
 
 						sessionId: _UIObjectState.sessionId,
-						queryId: (new Date()).getTime(),
 						sourceIds: srcContext,
 						targetIds: tarContext,
 						linktype: cascadeRight ? 'source' : 'destination',
@@ -2434,7 +2428,6 @@ define(
 			xfRest.request('/entities').inContext( contextId ).withData({
 
 				sessionId : _UIObjectState.sessionId,
-				queryId: (new Date()).getTime(),
 				entities : uiObj.getVisibleDataIds(),
 				contextid : contextId
 
@@ -2844,7 +2837,6 @@ define(
 							xfRest.request('/entities').inContext(contextObj.getDataId()).withData({
 
 								sessionId: _UIObjectState.sessionId,
-								queryId: (new Date()).getTime(),
 								entities: addedCards,
 								contextid: contextObj.getDataId()
 
@@ -3244,7 +3236,6 @@ define(
 			xfRest.request('/persist', 'POST', async).withData({
 
 				sessionId : _UIObjectState.sessionId,
-				queryId: (new Date()).getTime(),
 				data : (currentState) ? JSON.stringify(currentState) : ''
 
 			}).then(function (response) {
@@ -3371,14 +3362,11 @@ define(
 						message: '<img src="' + constants.AJAX_SPINNER_FILE + '" style="display:block;margin-left:auto;margin-right:auto"/>'
 					});
 
-					var timestamp = (new Date().getTime());
-
 					var exportState = _UIObjectState.singleton.saveState();
 
 					xfRest.request('/export').withData({
 
 						sessionId: _UIObjectState.sessionId,
-						queryId: timestamp,
 						data: (exportState) ? JSON.stringify(exportState) : ''
 
 					}).then(function (response) {
