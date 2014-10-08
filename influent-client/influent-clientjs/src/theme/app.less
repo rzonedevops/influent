@@ -226,14 +226,14 @@ body {
 #applydates {
 	top:1px;
 	border-color: #cb300d;
-	background: #fe7f63 url(custom-theme/images/ui-bg_glass_75_red_1x400.png) 50% 50% repeat-x;
+	background: #fe7f63;
 	color: white;
 }
 
 #applydates:hover {
 	top:1px;
 	border-color: #a61c00;
-	background: #fd623f url(custom-theme/images/ui-bg_glass_75_redhover_1x400.png) 50% 50% repeat-x;
+	background: #fd623f;
 }
 
 #flow-cue {
@@ -414,6 +414,7 @@ body {
 	display: none;
 	font-family: Georgia !important;
 	font-size: 14px !important;
+    float: left;
 }
 .influent-menu-button {
 	float: right;
@@ -427,8 +428,16 @@ body {
 	padding-right: 1.6em;
 }
 
+.influent-menu-options * a {
+  text-decoration: initial;
+}
+
 #sort-options {
   display: none;
+}
+
+.ui-button .ui-button-text {
+  line-height: 1.4;
 }
 
 .ui-button .ui-icon.display-chart {
@@ -1273,6 +1282,9 @@ body {
 .advancedsearch-input {
 	width:100%;
 }
+input[name=advancedSearchbooleanOperation] {
+  margin-left: 3px !important;
+}
 .advancedsearch-boost {
 	top: 3px;
 	right: 25px;
@@ -1444,6 +1456,31 @@ body {
 	background-color: rgba(255,255,255,0.75);
 	border: 1px solid rgba(0,0,0,0.5);
 	padding: 5px 5px 5px 5px;
+}
+
+.selectpicker {
+  font-size:@influent-font-size !important;
+}
+
+.dropdown-menu {
+  font-size: @influent-font-size !important;
+}
+
+.dropdown-header {
+  color: #000 !important;
+  font-size: @influent-font-size !important;
+  font-weight: bold;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.dropdown-header:hover{
+  background-color: #f5f5f5;
 }
 
 .aperture-log-notify {

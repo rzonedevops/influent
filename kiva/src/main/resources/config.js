@@ -76,6 +76,7 @@
 		startingDateRange : 'P16M',
 		defaultEndDate: new Date(2013, 4, 1),
 		defaultShowDetails : true,
+		defaultGraphScale : 100,
 		doubleEncodeSourceUncertainty : true,
 		maxSearchResults : 50,
 		searchResultsPerPage : 12,
@@ -92,9 +93,13 @@
 			+ '<br>HINT: Clicking the match button (<img src="img/search-small.png" style="bottom: -3px; position: relative;"/>) '
 			+ 'on a populated role folder will populate its match card criteria with its accounts as models. ',
 		enableAdvancedSearchMatchType : true,
+		advancedSearchFuzzyLevels : {
+			'is very like' : 0.9,
+			'is like': 0.5,
+			'is vaguely like': 0.1
+		},
 		objectDegreeWarningCount : 1000,
 		objectDegreeLimitCount: 10000,
-		
 		iconOrder : ['TYPE', 'GEO', 'STATUS', 'WARNING'],
 		iconMap : {
 			TYPE : {

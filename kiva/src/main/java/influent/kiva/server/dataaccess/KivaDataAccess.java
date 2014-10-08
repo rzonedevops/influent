@@ -137,24 +137,25 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 		
 		int qCount = 0;			//How many entities to query at once
 		int maxFetch = 100;
-		List<String> idVals = new ArrayList<String>(maxFetch);
-		Iterator<String> idIter = entities.iterator();
+		List<String> uidVals = new ArrayList<String>(maxFetch);
+		Iterator<String> uidIter = entities.iterator();
 		
 		try {
 		
-			while (idIter.hasNext()) {
-				String id = idIter.next(); 
-				idVals.add(id);
+			while (uidIter.hasNext()) {
+				String uid = uidIter.next();
+				uidVals.add(uid);
 			
-				if (qCount == (maxFetch-1) || !idIter.hasNext()) {
-					FL_PropertyMatchDescriptor idMatch = FL_PropertyMatchDescriptor.newBuilder()
+				if (qCount == (maxFetch-1) || !uidIter.hasNext()) {
+					FL_PropertyMatchDescriptor uidMatch = FL_PropertyMatchDescriptor.newBuilder()
 						.setKey("uid")
-						.setRange(FL_ListRange.newBuilder().setType(FL_PropertyType.STRING).setValues(new ArrayList<Object>(idVals)).build())
+						.setRange(FL_ListRange.newBuilder().setType(FL_PropertyType.STRING).setValues(new ArrayList<Object>(uidVals)).build())
 						.setConstraint(FL_Constraint.REQUIRED_EQUALS)
 						.build();
-					FL_SearchResults searchResult = _search.search(null, Collections.singletonList(idMatch), 0, maxFetch, null);
+
+					FL_SearchResults searchResult = _search.search(Collections.singletonList(uidMatch), 0, maxFetch);
 				
-					s_logger.info("Searched for "+qCount+" ids, found "+searchResult.getTotal());
+					s_logger.info("Searched for "+qCount+" uids, found "+searchResult.getTotal());
 				
 					for (FL_SearchResult r : searchResult.getResults()) {
 						FL_Entity fle = (FL_Entity)r.getResult();
@@ -193,7 +194,7 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 					}
 				
 					qCount=0;
-					idVals.clear();
+					uidVals.clear();
 				} else {
 					qCount++;
 				}
@@ -426,7 +427,8 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 			if (stmt.execute(sql)) {
 				ResultSet rs = stmt.getResultSet();
 				while (rs.next()) {
-					String accountId = TypedId.fromNativeId(TypedId.ACCOUNT, rs.getString("entityId")).getTypedId();
+                    TypedId tId = TypedId.fromNativeId(TypedId.ACCOUNT, rs.getString("entityId"));
+                    String accountId = getNamespaceHandler().globalFromLocalEntityId(tId.getNamespace(), tId.getNativeId(), tId.getType());
 					accounts.add(accountId);
 				}
 			}
@@ -479,7 +481,8 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
-				String accountId = TypedId.fromNativeId(TypedId.ACCOUNT, rs.getString("entityId")).getTypedId();
+                TypedId tId = TypedId.fromNativeId(TypedId.ACCOUNT, rs.getString("entityId"));
+                String accountId = getNamespaceHandler().globalFromLocalEntityId(tId.getNamespace(), tId.getNativeId(), tId.getType());
 				accounts.add(accountId);
 			}
 
@@ -627,10 +630,12 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 						rs.getString(loanIdColumn)
 					)
 				);
-				
-				FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), 
-						TypedId.fromNativeId(TypedId.ACCOUNT, from).toString(), 
-						TypedId.fromNativeId(TypedId.ACCOUNT, to).toString(), 
+
+                TypedId fromId = TypedId.fromNativeId(TypedId.ACCOUNT, from);
+                TypedId toId = TypedId.fromNativeId(TypedId.ACCOUNT, to);
+                FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL),
+                        getNamespaceHandler().globalFromLocalEntityId(fromId.getNamespace(), fromId.getNativeId(), fromId.getType()),
+                        getNamespaceHandler().globalFromLocalEntityId(toId.getNamespace(), toId.getNativeId(), toId.getType()),
 						true, null, null, properties);
 				links.add(link);
 			}
@@ -736,11 +741,13 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 					rs.getString(loanIdColumn)
 				)
 			);
-			
-			FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), 
-					TypedId.fromNativeId(TypedId.ACCOUNT, from).toString(), 
-					TypedId.fromNativeId(TypedId.ACCOUNT, to).toString(), 
-					true, null, null, properties);
+
+            TypedId fromId = TypedId.fromNativeId(TypedId.ACCOUNT, from);
+            TypedId toId = TypedId.fromNativeId(TypedId.ACCOUNT, to);
+            FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL),
+                    getNamespaceHandler().globalFromLocalEntityId(fromId.getNamespace(), fromId.getNativeId(), fromId.getType()),
+                    getNamespaceHandler().globalFromLocalEntityId(toId.getNamespace(), toId.getNativeId(), toId.getType()),
+                    true, null, null, properties);
 			links.add(link);
 		}
 		rs.close();

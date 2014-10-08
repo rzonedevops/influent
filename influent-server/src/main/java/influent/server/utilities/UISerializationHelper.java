@@ -25,8 +25,8 @@
 package influent.server.utilities;
 
 import influent.idl.*;
-import influent.idlhelper.SingletonRangeHelper;
 import influent.idlhelper.PropertyHelper;
+import influent.idlhelper.SingletonRangeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +45,7 @@ import org.json.JSONObject;
 
 public class UISerializationHelper {
 
-    public static JSONObject toUIJson(FL_Cluster cluster) throws JSONException {
+	public static JSONObject toUIJson(FL_Cluster cluster) throws JSONException {
 		JSONObject fle = new JSONObject();
 		
 		fle.put("uid", cluster.getUid());
@@ -57,6 +57,7 @@ public class UISerializationHelper {
 			entityType = "account_owner";
 		}
 		
+		fle.put("isRoot", cluster.getParent() == null);
 		fle.put("entityType", entityType);
 		fle.put("members", cluster.getMembers());
 		fle.put("subclusters", cluster.getSubclusters());
@@ -82,7 +83,7 @@ public class UISerializationHelper {
 			if (count > 1) {
 				String labelStr = PropertyHelper.from(labelProp).getValue().toString();
 
-                if (!(labelStr.indexOf("(+") != -1 && labelStr.charAt(labelStr.length() - 1) == ')')) {
+				if (!(labelStr.contains("(+") && labelStr.charAt(labelStr.length() - 1) == ')')) {
 					// For summary clusters, show number of accounts, otherwise show cluster count
 					if (cluster.getTags().contains(FL_EntityTag.CLUSTER_SUMMARY)) {
 						labelStr += " (" + (count - 1) + " accounts)";
@@ -91,7 +92,7 @@ public class UISerializationHelper {
 						labelStr += " (+" + (count - 1) + ")";
 						labelProp.setRange( new SingletonRangeHelper( labelStr, FL_PropertyType.STRING ) );
 					}
-                }	
+				}
 			}
 		}
 		
@@ -123,14 +124,21 @@ public class UISerializationHelper {
 		JSONObject props = new JSONObject();
 		fle.put("properties", props);
 		
-		for (FL_Property prop : entity.getProperties()) {
+		for (int i = 0; i < entity.getProperties().size(); i++) {
+			FL_Property prop = entity.getProperties().get(i);
 			try {
-				props.put(prop.getKey(), toUIJson(prop));
+				props.put(prop.getKey(), toUIJson(prop, i));
 			} catch (JSONException e) {				
 			}
 		}
 		
 		return fle;
+	}
+	
+	public static JSONObject toUIJson(FL_Property prop, int displayIndex) throws JSONException {
+		JSONObject obj = toUIJson(prop);
+		obj.put("displayOrder", displayIndex);
+		return obj;
 	}
 	
 	public static JSONObject toUIJson(FL_Property prop) throws JSONException {
@@ -152,24 +160,44 @@ public class UISerializationHelper {
 			}
 		}
 
-        json.put("uncertainty", prop.getUncertainty());
+		json.put("displayOrder", 0);
+		json.put("uncertainty", prop.getUncertainty());
 		json.put("tags", prop.getTags());
 		
 		return json;
 	}
 	
 	public static JSONObject toUIJson(FL_PropertyDescriptor flpd) throws JSONException {
-		JSONObject oj = new JSONObject();
-		oj.put("key", flpd.getKey());
-		oj.put("friendlyText", flpd.getFriendlyText());
-		oj.put("type",flpd.getType());
-		oj.put("constraint",  flpd.getConstraint());
-		oj.put("range", flpd.getRange());
-		oj.put("defaultTerm", flpd.getDefaultTerm());
-		
-		return oj;
+		JSONObject jo = new JSONObject();
+		jo.put("key", flpd.getKey());
+		jo.put("friendlyText", flpd.getFriendlyText());
+		jo.put("constraint",  flpd.getConstraint());
+		jo.put("range", flpd.getRange());
+		jo.put("defaultTerm", flpd.getDefaultTerm());
+		jo.put("freeTextIndexed", flpd.getFreeTextIndexed());
+
+		JSONObject typeMappings = new JSONObject();
+		jo.put("typeMappings", typeMappings);
+
+		for (FL_TypeMapping desc : flpd.getMemberOf()) {
+			try {
+				typeMappings.put(desc.getType(), desc.getMemberKey());
+			} catch (JSONException e) {
+			}
+		}
+
+		return jo;
 	}
-	
+
+	public static JSONObject toUIJson(FL_TypeDescriptor td) throws JSONException {
+		JSONObject jo = new JSONObject();
+		jo.put("key", td.getKey());
+		jo.put("friendlyText", td.getFriendlyText());
+		jo.put("group", td.getGroup());
+		jo.put("exclusive", td.getExclusive());
+		return jo;
+	}
+
 	public static JSONObject toUIJson(FL_Link link) throws JSONException {
 		JSONObject fll = new JSONObject();
 		

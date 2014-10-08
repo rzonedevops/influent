@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.3.5</version>
+		<version>1.3.6</version>
 	</parent>
 
 	<artifactId>influent-client</artifactId>
@@ -50,7 +50,11 @@
 					<excludes>
 						<exclude>${baseProjectSrc}/scripts/lib/extern/</exclude>
 						<exclude>${baseProjectSrc}/scripts/lib/influent-jquery/</exclude>
-						<exclude>${baseProjectSrc}/scripts/jquery.js</exclude>
+						<exclude>${baseProjectSrc}/scripts/jquery-1.11.1.js</exclude>
+						<exclude>${baseProjectSrc}/scripts/jquery-migrate-1.2.1.js</exclude>
+						<exclude>${baseProjectSrc}/scripts/bootstrap.min.js</exclude>
+						<exclude>${baseProjectSrc}/scripts/bootstrap-select.min.js</exclude>
+						<exclude>${baseProjectSrc}/scripts/bootstrap-select.js</exclude>
 					</excludes>
 					<reporter>jslint</reporter>
 					<failOnError>true</failOnError>
@@ -122,6 +126,8 @@
 					<force>true</force>
 					<includes>
 						<include>app.less</include>
+                        <include>bootstrap/css/bootstrap.min.less</include>
+                        <include>bootstrap/css/bootstrap-select.min.less</include>
 					</includes>
 				</configuration>
 				<executions>

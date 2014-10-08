@@ -436,7 +436,7 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 		if (type.equals("partner")) {
 			 KivaPropertyMaps.INSTANCE.appendPartnerProperties(props);
 			 etags.add(FL_EntityTag.ACCOUNT_OWNER);  // partners are account owners
-			 entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT_OWNER, uid).getTypedId());
+			 entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT_OWNER, type, uid).getTypedId());
 			 
 			 // determine whether this a large account owner and if there is a cluster summary associated
 			 final FL_Property numLoans = PropertyHelper.getPropertyByKey(props, "partners_loansPosted");
@@ -445,14 +445,14 @@ public class KivaEntitySearchIterator implements Iterator<FL_SearchResult> {
 				 final Number number = (Number) PropertyHelper.from(numLoans).getValue();
 				
 				 if (number != null && number.intValue() >= 1000) {
-					 props.add(new PropertyHelper(FL_PropertyTag.CLUSTER_SUMMARY, TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, 's' + uid).getTypedId()));
-					 entityBuilder.setUid(TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, uid).getTypedId());
+					 props.add(new PropertyHelper(FL_PropertyTag.CLUSTER_SUMMARY, TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, type, 's' + uid).getTypedId()));
+					 entityBuilder.setUid(TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, type, uid).getTypedId());
 				 }
 			 }
 		}
 		else {
 			etags.add(FL_EntityTag.ACCOUNT);  // all others are raw accounts
-			entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT, uid).getTypedId());
+			entityBuilder.setUid(TypedId.fromNativeId(TypedId.ACCOUNT, type, uid).getTypedId());
 		}
 		
 		entityBuilder.setTags(etags);

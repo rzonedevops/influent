@@ -37,11 +37,13 @@ define(
 		var module = {};
 
 		var _state = {
+			capture: false,
 			requestQueue: [],
 			contextLock: [],
 			overlayTimers: [],
 			updatePump: null,
-			subscriberTokens : null
+			subscriberTokens : null,
+			handlers: []
 		};
 
 		var _initializeModule = function() {
@@ -100,6 +102,10 @@ define(
 			if (_state.contextLock[this.contextId] === this) {
 				delete _state.contextLock[this.contextId];
 			}
+
+			aperture.util.forEach(_state.handlers, function(handler) {
+				handler();
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -129,12 +135,12 @@ define(
 			for (var i = 0; i < _state.requestQueue.length; ++i) {
 
 				var request = _state.requestQueue[i];
-				if (!request)
+				if (!request) {
 					continue;
+				}
 
 				// Process all immediate requests, but only the first non-immediate request
 				if (!request.immediate) {
-
 					if (_state.contextLock[request.contextId]) {
 						continue;
 					} else {
@@ -147,7 +153,7 @@ define(
 					if (_sendRestRequest(request)) {
 
 						// Bind the callback to the appropriate queue
-						request.callback = _handleRestResponse.bind(request, request.callback);
+						request.callback = _.bind(_handleRestResponse, request, request.callback);
 
 						// If we might need to lock the column, then start a timer to fade in the overlay
 						if (!request.immediate &&
@@ -155,7 +161,7 @@ define(
 							request.contextId !== 'null' &&
 							!_state.overlayTimers[request.contextId]) {
 
-							_state.overlayTimers[request.contextId] = setTimeout(fadeInOverlay.bind(undefined, request.contextId), LOCK_COLUMN_AFTER);
+							_state.overlayTimers[request.contextId] = setTimeout(_.bind(fadeInOverlay, undefined, request.contextId), LOCK_COLUMN_AFTER);
 						}
 					}
 				}
@@ -167,7 +173,7 @@ define(
 					// Reset the column if it is unlocked
 					if (!_state.contextLock[context]) {
 						if (_state.overlayTimers[context]) {
-							setTimeout(fadeOutOverlay.bind(undefined, context), UNLOCK_COLUMN_AFTER);
+							setTimeout(_.bind(fadeOutOverlay, undefined, context), UNLOCK_COLUMN_AFTER);
 						}
 					}
 				}
@@ -194,20 +200,25 @@ define(
 		var _queueRestRequest = function(request) {
 
 			request.sent = false;
-			request.immediate = false;
 
-			switch (request.resource) {
-				// Queued resources
-				case '/aggregatedlinks' :
-				case '/relatedlinks' :
-				case '/modifycontext' :
-				case '/chart' :
-					break;
+			if (_state.capture) {
+				request.immediate = true;
+			} else {
+				request.immediate = false;
 
-				// Immediate resources
-				default :
-					request.immediate = true;
-					break;
+				switch (request.resource) {
+					// Queued resources
+					case '/aggregatedlinks' :
+					case '/relatedlinks' :
+					case '/modifycontext' :
+					case '/chart' :
+						break;
+
+					// Immediate resources
+					default :
+						request.immediate = true;
+						break;
+				}
 			}
 
 			// Optimization
@@ -248,18 +259,6 @@ define(
 							}
 						}
 						break;
-
-					case '/chart':
-
-						for (j = 0; j < request.data.entities.length; ++j) {
-
-							validIds = xfWorkspace.getUIObjectsByDataId(request.data.entities[j].dataId);
-							if (!validIds || validIds.length === 0) {
-								_state.requestQueue.splice(i, 1);
-								break;
-							}
-						}
-						break;
 				}
 			}
 		};
@@ -283,7 +282,10 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _moduleConstructor = function(){
+		var _moduleConstructor = function(sandbox){
+
+			_state.capture = sandbox.spec.capture;
+
 			return {
 				start : function(){
 					var subTokens = {};
@@ -309,6 +311,31 @@ define(
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
+
+		module.getPendingRequests = function() {
+			var count = 0;
+			for (var i = 0; i < _state.requestQueue.length; i++) {
+				count += _state.requestQueue[i].length;
+			}
+
+			return count;
+		};
+
+		module.addRestListener = function(listener) {
+			if( listener && typeof listener !== 'function') {
+				return;
+			}
+
+			_state.handlers.push(listener);
+		};
+
+		module.removeRestListener = function(listener) {
+			if( listener && typeof listener !== 'function') {
+				return;
+			}
+
+			_state.handlers.splice(aperture.util.indexOf(_state.handlers, listener), 1);
+		};
 
 		module.request = function(resource, method, async) {
 

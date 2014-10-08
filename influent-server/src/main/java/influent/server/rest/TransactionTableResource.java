@@ -99,11 +99,16 @@ public class TransactionTableResource extends ApertureServerResource {
 
 		NO_CLUSTER_FILTER_MESSAGE_PROPS = Collections.unmodifiableList(p);
 	}
-
+	
+	
+	
 	@Inject
 	public TransactionTableResource(FL_DataAccess dataAccess) {
 		this.dataAccess = dataAccess;
 	}
+	
+	
+	
 	
 	@Get
 	public StringRepresentation getLedger() throws ResourceException {
@@ -228,6 +233,9 @@ public class TransactionTableResource extends ApertureServerResource {
 		}
 	}
 	
+	
+	
+	
 	static private StringRepresentation emptyResult(String sEcho) throws JSONException {
 		JSONObject result = new JSONObject();
 		JSONArray dataArray = new JSONArray();
@@ -295,6 +303,9 @@ public class TransactionTableResource extends ApertureServerResource {
 
 		return ftime;
 	}
+	
+	
+	
 	
 	public static LedgerResult buildForClient(FL_TransactionResults results, int beginIndex, int endIndex) {
 		
@@ -389,5 +400,4 @@ public class TransactionTableResource extends ApertureServerResource {
 		
 		return new LedgerResult(cols, endIndex - beginIndex, columnUnits, tableData, results.getTotal());
 	}
-	
 }

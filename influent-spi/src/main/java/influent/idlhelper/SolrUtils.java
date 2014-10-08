@@ -28,13 +28,14 @@ import influent.idl.FL_Constraint;
 import influent.idl.FL_ListRange;
 import influent.idl.FL_PropertyMatchDescriptor;
 import influent.idl.FL_SingletonRange;
+import influent.idl.FL_TypeMapping;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  */
@@ -52,8 +53,7 @@ public class SolrUtils {
 	      // These characters are part of the query syntax and must be escaped
 	      if (c == '\\' || c == '+' || c == '-' || c == '!'  || c == '(' || c == ')' || c == ':'
 	        || c == '^' || c == '[' || c == ']' || c == '\"' || c == '{' || c == '}' || c == '~'
-	        || c == '*' || c == '?' || c == '|' || c == '&'  || c == ';' || c == '/'
-	        || Character.isWhitespace(c)) {
+	        || c == '*' || c == '?' || c == '|' || c == '&'  || c == ';' || c == '/') {
 	        sb.append('\\');
 	      }
 	      sb.append(c);
@@ -62,9 +62,6 @@ public class SolrUtils {
 	  }
 
 	  
-	private static Pattern NUMBER_PATTERN = Pattern.compile("[0-9]");
-	private static Pattern TERM_SEPARATOR = Pattern.compile("\\.\\s+|[,;:\\?\\s]+");
-
 	/**
 	 * Returns a Solr query clause to represent the descriptor supply.
 	 * 
@@ -75,7 +72,7 @@ public class SolrUtils {
 	 */
 	public static String toSolrClause(FL_PropertyMatchDescriptor descriptor) {
 		
-		String k = (String) descriptor.getKey();
+		String k = descriptor.getKey();
 		
 		Collection<Object> values;
 	
@@ -104,29 +101,16 @@ public class SolrUtils {
 		if (FL_Constraint.FUZZY_PARTIAL_OPTIONAL.equals(descriptor.getConstraint()) || FL_Constraint.FUZZY_REQUIRED.equals(descriptor.getConstraint())) {
 			s.append(":(");
 			
-			for (Object v : values) {
+			for (Object value : values) {
 				
-				// add each term separately
-				String wsTokens[] = TERM_SEPARATOR.split(v.toString());
-				
-				for (String token : wsTokens) {
-					if (token.indexOf('-') == -1 || NUMBER_PATTERN.matcher(token).find()) {
-						s.append(escapeQueryChars(token));
-						s.append("~");
-						if (descriptor.getSimilarity() != null && descriptor.getSimilarity() != 1.0)
-							s.append(descriptor.getSimilarity());
-						s.append(" ");
-					} else {
-						String hyphenTokens[] = token.split("-");
-						for (String seg : hyphenTokens) {
-							s.append(escapeQueryChars(seg));
-							s.append("~");
-							if (descriptor.getSimilarity() != null && descriptor.getSimilarity() != 1.0)
-								s.append(descriptor.getSimilarity());
-							s.append(" ");
-						}
-					}
-				}
+				String valueStr = (String)value;
+				s.append("\"");
+				s.append(escapeQueryChars(valueStr));
+				s.append("\"");
+				s.append("~");
+				if (descriptor.getSimilarity() != null && descriptor.getSimilarity() != 1.0)
+					s.append(descriptor.getSimilarity());
+				s.append(" ");
 			}
 			
 			s.setLength(s.length()-1);
@@ -135,9 +119,9 @@ public class SolrUtils {
 		} else { // not | required / equals
 			s.append(":(");
 			
-			for (Object v : values) {
+			for (Object value : values) {
 				s.append("\"");
-				s.append(v);
+				s.append(value);
 				s.append("\" ");
 			}
 			
@@ -155,82 +139,104 @@ public class SolrUtils {
 	}
 
 	/**
-	 * Returns an OR'd series of Solr clauses to represent the list of terms specified.
-	 * 
-	 * @param basicQuery
-	 * 		A search over default fields supplied by basicQueryFieldWeights
-	 * 
-	 * @param basicQueryFieldWeights
-	 * 		A map of default field names to weightings, where 1.0 is the default weight.
-	 * 
-	 * @param advancedTerms
+	 * Returns an OR'd series of Solr clauses to represent the map of terms specified.
+
+	 * @param terms
 	 * 		A list of explicitly defined terms
-	 * 
+	 *
 	 * @return
 	 * 		The solr query string or null if not a valid query.
 	 */
-	public static String toSolrQuery(String basicQuery, Map<String, Double> basicQueryFieldWeights, List<FL_PropertyMatchDescriptor> advancedTerms) {
-		
-		// copy terms to merge basic with advanced.
-		final List<FL_PropertyMatchDescriptor> orsAnds = 
-				new ArrayList<FL_PropertyMatchDescriptor>(advancedTerms.size());
-			final List<FL_PropertyMatchDescriptor> nots = 
-				new ArrayList<FL_PropertyMatchDescriptor>(advancedTerms.size());
-				
-		// first add basic query terms.
-		if (basicQuery != null && !basicQuery.isEmpty()) {
-			final Object values = PropertyMatchDescriptorHelper.rangeFromBasicTerms(basicQuery);
+	public static String toSolrQuery(List<FL_PropertyMatchDescriptor> terms) {
+
+		Map<String, List<FL_PropertyMatchDescriptor>> typePropMap = new HashMap<String, List<FL_PropertyMatchDescriptor>>();
+
+		// Create map of properties by type
+		for (FL_PropertyMatchDescriptor term : terms) {
+			for (FL_TypeMapping td : term.getTypeMappings()) {
+				List<FL_PropertyMatchDescriptor> typedTerms = typePropMap.get(td.getType());
+
+				if (typedTerms == null) {
+					typedTerms = new ArrayList<FL_PropertyMatchDescriptor>();
+				}
+
+				FL_PropertyMatchDescriptor.Builder termBuilder = FL_PropertyMatchDescriptor.newBuilder(term);
+
+				termBuilder.setKey(td.getMemberKey());
+
+				typedTerms.add(termBuilder.build());
+
+				typePropMap.put(td.getType(), typedTerms);
+			}
+		}
+
+		StringBuilder query = new StringBuilder();
+		boolean subsequentType = false;
+
+		// Build the query by type
+        for (Map.Entry<String, List<FL_PropertyMatchDescriptor>> entry : typePropMap.entrySet()) {
+
+	        // Create a query fragment for this type
+	        StringBuilder queryFragment = new StringBuilder();
+
+	        List<FL_PropertyMatchDescriptor> termsByType = entry.getValue();
+
+			final List<FL_PropertyMatchDescriptor> orsAnds = new ArrayList<FL_PropertyMatchDescriptor>(termsByType.size());
+			final List<FL_PropertyMatchDescriptor> nots = new ArrayList<FL_PropertyMatchDescriptor>(termsByType.size());
 			
-			if (values != null) {
-				for (String key : basicQueryFieldWeights.keySet()) {
-					orsAnds.add(
-						FL_PropertyMatchDescriptor.newBuilder()
-							.setConstraint(FL_Constraint.OPTIONAL_EQUALS)
-							.setKey(key)
-							.setRange(values)
-							.build()
-					);
+			// separate ors from nots
+			for (FL_PropertyMatchDescriptor term : termsByType) {
+				(PropertyMatchDescriptorHelper.isExclusion(term)? nots: orsAnds).add(term);
+			}
+		
+			// not valid
+			if (orsAnds.isEmpty()) {
+				return null;
+			}
+		
+			// orsAnds
+			for (FL_PropertyMatchDescriptor term : orsAnds) {
+				queryFragment.append(toSolrClause(term));
+				if (term.getConstraint().equals(FL_Constraint.OPTIONAL_EQUALS) || term.getConstraint().equals(FL_Constraint.FUZZY_PARTIAL_OPTIONAL)) {
+					queryFragment.append(" OR ");
+				} else {
+					queryFragment.append(" AND ");
+				}
+				
+			}
+			
+			// trim last OR/AND
+	        queryFragment.setLength(queryFragment.length() - 4);
+		
+			// nots
+			if (!nots.isEmpty()) {
+				queryFragment.insert(0, '(');
+				queryFragment.append(')');
+				
+				for (FL_PropertyMatchDescriptor term : nots) {
+					queryFragment.append(" AND ");
+					queryFragment.append(toSolrClause(term));
 				}
 			}
-		}
-		
-		
-		// now form it into a query
-		StringBuilder query = new StringBuilder();
-		
-		// separate ors from nots
-		for (FL_PropertyMatchDescriptor term : advancedTerms) {
-			(PropertyMatchDescriptorHelper.isExclusion(term)? nots: orsAnds).add(term);
-		}
-	
-		// not valid
-		if (orsAnds.isEmpty()) {
-			return null;
-		}
-	
-		// orsAnds
-		for (FL_PropertyMatchDescriptor term : orsAnds) {
-			query.append(toSolrClause(term));
-			if (term.getConstraint().equals(FL_Constraint.OPTIONAL_EQUALS) || term.getConstraint().equals(FL_Constraint.FUZZY_PARTIAL_OPTIONAL)) {
-				query.append(" OR ");	
-			} else {
-				query.append(" AND ");
-			}
-			
-		}
-		
-		// trim last OR
-		query.setLength(query.length() - 4);
-	
-		// nots
-		if (!nots.isEmpty()) {
-			query.insert(0, '(');
-			query.append(')');
-			
-			for (FL_PropertyMatchDescriptor term : nots) {
-				query.append(" AND ");
-				query.append(toSolrClause(term));
-			}
+
+
+	        // Check fragment is not already in the query
+	        if (query.indexOf(queryFragment.toString()) == -1) {
+
+		        // bracket the fragment
+		        if (subsequentType) {
+			        query.append(" OR (");
+		        } else {
+			        query.append(" (");
+			        subsequentType = true;
+		        }
+
+		        // Add fragment to query
+		        query.append(queryFragment);
+
+		        query.append(") ");
+
+	        }
 		}
 		
 		return query.toString();

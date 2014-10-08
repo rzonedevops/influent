@@ -69,7 +69,7 @@ public class ExportGraphResource extends ApertureServerResource {
 	
 	
 	
-	@Post
+	@Post("json")
 	public Representation getCapturedImage(String jsonData) throws ResourceException {
 	
 		try {

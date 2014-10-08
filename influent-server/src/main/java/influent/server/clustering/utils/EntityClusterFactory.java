@@ -219,7 +219,16 @@ public class EntityClusterFactory {
 			}
 			
 			FL_DistributionRange range = new FL_DistributionRange(freqs, FL_RangeType.DISTRIBUTION, type, false);
-			FL_Property dist = new FL_Property(fieldName, fieldName, range, null, null, new ArrayList<FL_PropertyTag>(distribution.tags));
+			
+			FL_Property dist = FL_Property.newBuilder()
+						.setKey(fieldName)
+						.setFriendlyText(fieldName)
+						.setRange(range)
+						.setTags(new ArrayList<FL_PropertyTag>(distribution.tags))
+						.setProvenance(null)
+						.setUncertainty(null)
+						.build();
+			
 			properties.add(dist);
 		}
 			

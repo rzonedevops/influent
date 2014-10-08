@@ -92,7 +92,8 @@ define(['modules/xfWorkspace', 'modules/xfRest', 'lib/module', 'lib/channels',
 				if (data.uiType === constants.MODULE_NAMES.ENTITY)
 				{
 					// get details for entity here
-					xfRest.request('/entitydetails?entityId=' + data.dataId, 'GET')
+					xfRest.request('/entitydetails', 'POST')
+						.withData({entityId : data.dataId})
 						.inContext( data.xfId)
 						.then( function (response) {
 
@@ -103,7 +104,8 @@ define(['modules/xfWorkspace', 'modules/xfRest', 'lib/module', 'lib/channels',
 				} else if (data.hasOwnProperty('ownerId') && data.ownerId !== '') {
 
 					// get details for entity here
-					xfRest.request('/entitydetails?entityId=' + data.ownerId, 'GET')
+					xfRest.request('/entitydetails', 'POST')
+						.withData({entityId : data.ownerId})
 						.inContext( data.xfId)
 						.then( function (response) {
 
@@ -177,10 +179,9 @@ define(['modules/xfWorkspace', 'modules/xfRest', 'lib/module', 'lib/channels',
 			var tbody = $('<tbody></table>').appendTo(table);
 
 			insertPropertyTableRow({friendlyText: 'uid', value: response.uid});
-			for (var prop in response.properties) {
-				if (response.properties.hasOwnProperty(prop)) {
-					insertPropertyTableRow(response.properties[prop]);
-				}
+			var propertyArray = xfUtil.propertyMapToDisplayOrderArray(response);
+			for (i = 0; i < propertyArray.length; i++) {
+				insertPropertyTableRow(propertyArray[i]);
 			}
 		};
 

@@ -27,20 +27,20 @@ package influent.server.rest;
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Persistence;
-import influent.idl.FL_PersistenceState;
 import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.utilities.GuidValidator;
+
 import java.util.Collections;
+
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.restlet.data.CacheDirective;
-import org.restlet.data.Form;
 import org.restlet.data.MediaType;
 import org.restlet.data.Status;
 import org.restlet.representation.StringRepresentation;
-import org.restlet.resource.Get;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 import org.slf4j.Logger;
@@ -50,7 +50,7 @@ import com.google.inject.Inject;
 
 
 
-public class PersistenceResource extends ApertureServerResource{
+public class RestoreStateResource extends ApertureServerResource{
 
 	private final FL_Persistence persistence;
 	@SuppressWarnings("unused")
@@ -61,10 +61,12 @@ public class PersistenceResource extends ApertureServerResource{
 	private final ClusterContextCache contextCache;
 
 	@SuppressWarnings("unused")
-	private static final Logger s_logger = LoggerFactory.getLogger(PersistenceResource.class);
+	private static final Logger s_logger = LoggerFactory.getLogger(RestoreStateResource.class);
+	
+	
 	
 	@Inject
-	public PersistenceResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
+	public RestoreStateResource(FL_Persistence persistence, FL_ClusteringDataAccess clusterAccess, FL_DataAccess entityAccess, ClusterContextCache contextCache) {
 		this.persistence = persistence;
 		this.clusterAccess = clusterAccess;
 		this.entityAccess = entityAccess;
@@ -75,60 +77,15 @@ public class PersistenceResource extends ApertureServerResource{
 	
 	
 	@Post("json")
-	public StringRepresentation saveState(String jsonData) throws ResourceException {
+	public StringRepresentation restoreState(String jsonData) throws ResourceException {
 		try {
+			
 			JSONObject jsonObj = new JSONObject(jsonData);
 			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
-			
-			// Get the session id.
 			String sessionId = jsonObj.getString("sessionId").trim();
-						
-			// Get the persistence data
-			String data = jsonObj.getString("data").trim();
-
-			JSONObject result = new JSONObject();
-			result.put("queryId", queryId);
-			
-			if (data == null ||
-				data.length() < 1 || 
-				data.equalsIgnoreCase("null")
-			) {
-				result.put("persistenceState", FL_PersistenceState.NONE.toString());
-			} else {
-				FL_PersistenceState state = persistence.persistData(sessionId, data);			
-				result.put("persistenceState", state.toString());
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
-
-			return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);		
-		
-		} catch (JSONException e) {
-			throw new ResourceException(
-				Status.CLIENT_ERROR_BAD_REQUEST,
-				"Unable to create JSON object from supplied options string",
-				e
-			);
-		} catch (AvroRemoteException e) {
-			throw new ResourceException(
-				Status.CLIENT_ERROR_BAD_REQUEST,
-				"Exception during AVRO processing",
-				e
-			);
-		}
-	}
-	
-	
-	
-	
-	@Get
-	public StringRepresentation getState() throws ResourceException {
-		try {
-			
-			Form form = getRequest().getResourceRef().getQueryAsForm(true);
-			
-			String sessionId = form.getFirstValue("sessionId");
 			
 			if (sessionId == null || sessionId.length() == 0) {
 				throw new ResourceException(

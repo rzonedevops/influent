@@ -24,10 +24,27 @@
  */
 
 define(
-	['lib/module', 'lib/channels', 'lib/util/xfUtil', 'lib/util/currency', 'lib/util/duration', 'lib/constants',
-		'modules/xfWorkspace', 'modules/xfRest'],
-	function(modules, chan, xfUtil, currency, duration, constants,
-				xfWorkspace, xfRest) {
+	[
+		'lib/module',
+		'lib/channels',
+		'lib/util/xfUtil',
+		'lib/util/currency',
+		'lib/util/duration',
+		'lib/constants',
+		'modules/xfWorkspace',
+		'modules/xfRest'
+	],
+	function(
+		modules,
+		chan,
+		xfUtil,
+		currency,
+		duration,
+		constants,
+		xfWorkspace,
+		xfRest
+	) {
+		var DEFAULT_GRAPH_SCALE = (aperture.config.get()['influent.config']['defaultGraphScale'] != null) ? aperture.config.get()['influent.config']['defaultGraphScale'] : 0;
 
 		var transactionGraphConstructor = function(sandbox) {
 
@@ -92,12 +109,7 @@ define(
                     var focusValue = event.data.data[index].focus;
                     var startDate = event.data.data[index].startDate;
                     var endDate = xfUtil.dayBefore(event.data.data[index].endDate);
-                    var focusType = SCREEN_TYPES[_state.focusData.entityType];
-                    var focusLabel = _state.focusData.entityLabel;
-                    var focusCount = _state.focusData.entityCount;
-                    var focusDataId = _state.focusData.entityType === constants.MODULE_NAMES.ENTITY ? _state.focusData.dataId.substr(2) : '';
                     var selectionXfId = _state.selectedEntity.xfId;
-                    var focusXfId = _state.focusData.xfId;
                     var label = _state.selectedEntity.label;
                     var count = _state.selectedEntity.count;
 
@@ -143,34 +155,43 @@ define(
                     html += _numberFormatter.format(baseValue);
                     html += '</B>';
 
-                    if (focusValue !== 0 && selectionXfId != focusXfId) {
+					if (_state.focusData) {
 
-                        // HACK: append cluster count to focus label
-                        if (focusCount && focusCount > 1 &&
-                            _state.focusData.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
+						var focusXfId = _state.focusData.xfId;
+						var focusType = SCREEN_TYPES[_state.focusData.entityType];
+						var focusLabel = _state.focusData.entityLabel;
+						var focusCount = _state.focusData.entityCount;
+						var focusDataId = _state.focusData.entityType === constants.MODULE_NAMES.ENTITY ? _state.focusData.dataId.substr(2) : '';
 
-                            // Some clusters may already have a count appended
-                            if (!(focusLabel.indexOf('(+') !== -1 && focusLabel.charAt(focusLabel.length - 1) == ')')) {
-                                focusLabel += ' (+' + (focusCount - 1) + ')';
-                            }
-                        }
+						if (focusValue !== 0 && selectionXfId != focusXfId) {
 
-                        html += '<br><br>';
-                        html += '<span class="tooltip-focus-entity">Subset Involving ';
-                        html += focusType + ': ';
-                        if (focusDataId) {
-                            html += focusDataId + ', ';
-                        }
-                        html += focusLabel + '</span><br>';
+							// HACK: append cluster count to focus label
+							if (focusCount && focusCount > 1 &&
+								_state.focusData.entityType == constants.MODULE_NAMES.MUTABLE_CLUSTER) {
 
-                        if (isInflowing) {
-                            html += 'Total Inflowing: <B>';
-                        } else {
-                            html += 'Total Outflowing: <B>';
-                        }
-                        html += _numberFormatter.format(focusValue);
-                        html += '</B>';
-                    }
+								// Some clusters may already have a count appended
+								if (!(focusLabel.indexOf('(+') !== -1 && focusLabel.charAt(focusLabel.length - 1) == ')')) {
+									focusLabel += ' (+' + (focusCount - 1) + ')';
+								}
+							}
+
+							html += '<br><br>';
+							html += '<span class="tooltip-focus-entity">Subset Involving ';
+							html += focusType + ': ';
+							if (focusDataId) {
+								html += focusDataId + ', ';
+							}
+							html += focusLabel + '</span><br>';
+
+							if (isInflowing) {
+								html += 'Total Inflowing: <B>';
+							} else {
+								html += 'Total Outflowing: <B>';
+							}
+							html += _numberFormatter.format(focusValue);
+							html += '</B>';
+						}
+					}
                     html += '</div>';
 
                     return html;
@@ -499,7 +520,7 @@ define(
 			function _getMaxDebitCredit(state, onReturn) {
 
 				if (state.focusData == null) {
-					aperture.log.warn('no focus account in chart request. bailing out of request!');
+					onReturn(DEFAULT_GRAPH_SCALE);
 					return;
 				}
 
@@ -550,9 +571,9 @@ define(
 					entities : [state.selectedEntity],
 					startDate : state.filterDates.startDate,
 					endDate :  state.filterDates.endDate,
-					focusId : [state.focusData.dataId],
+					focusId : (state.focusData == null) ? null : [state.focusData.dataId],
 					focusMaxDebitCredit : focusMDC.toString(),
-					focuscontextid : state.focusData.contextId
+					focuscontextid : (state.focusData == null) ? null : state.focusData.contextId
 
 				}).then(function (response) {
 

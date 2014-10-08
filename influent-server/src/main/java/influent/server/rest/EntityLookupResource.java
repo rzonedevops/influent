@@ -32,6 +32,7 @@ import influent.idl.FL_LevelOfDetail;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ContextRead;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
@@ -58,11 +59,16 @@ public class EntityLookupResource extends ApertureServerResource{
 	private final FL_DataAccess service;
 	private final ClusterContextCache contextCache;
 	
+	
+	
 	@Inject
 	public EntityLookupResource(FL_DataAccess service, FL_ClusteringDataAccess clusterDataAccess, ClusterContextCache contextCache) {
 		this.service = service;
 		this.contextCache = contextCache;
 	}
+	
+	
+	
 	
 	@Post("json")
 	public StringRepresentation lookup(String jsonData) throws ResourceException {
@@ -72,11 +78,10 @@ public class EntityLookupResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
-
 			String contextid = jsonObj.getString("contextid").trim();
 			
 			Boolean details = jsonObj.has("details")? jsonObj.getBoolean("details"):false;
@@ -126,7 +131,6 @@ public class EntityLookupResource extends ApertureServerResource{
 			}
 			
 			result.put("data", ja);
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 			
 			return new StringRepresentation(result.toString(), MediaType.APPLICATION_JSON);
@@ -144,8 +148,5 @@ public class EntityLookupResource extends ApertureServerResource{
 					e
 				);
 		}
-		
-		
 	}
-	
 }

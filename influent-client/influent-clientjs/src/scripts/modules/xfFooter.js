@@ -104,6 +104,9 @@ define(
 									e.stopImmediatePropagation();
 
 									visualInfo.spec.promptForDetails = false;
+
+									// Unselect, then reselect
+									aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, null);
 									aperture.pubsub.publish(chan.SELECTION_CHANGE_EVENT, data);
 								}
 							);
@@ -123,21 +126,23 @@ define(
 						}
 
 						if (_transactionsState.userSelectedTab === 'table' &&
-							transDiv.tabs('option', 'selected') === chartIndex
+							transDiv.tabs('option', 'active') === chartIndex
 						) {
 							_transactionsState.autoSelecting = true;
 							transDiv.tabs(
-								'select',
+								'option',
+								'active',
 								tableIndex
 							);
 						}
 					} else {
 						if (_transactionsState.userSelectedTab === 'table' &&
-							transDiv.tabs('option', 'selected') === tableIndex
+							transDiv.tabs('option', 'active') === tableIndex
 						) {
 							_transactionsState.autoSelecting = true;
 							transDiv.tabs(
-								'select',
+								'option',
+								'active',
 								chartIndex
 							);
 						}
@@ -289,20 +294,19 @@ define(
 				$(function() {
 					$('#transactions').tabs(
 						{
-							select: function(event, ui) {
+							beforeActivate: function(event, ui) {
+
+								if (ui.newPanel.attr('id') === 'chartTab') {
+									aperture.pubsub.publish(chan.REQUEST_CURRENT_STATE);
+								}
 
 								if (_transactionsState.autoSelecting) {
 									_transactionsState.autoSelecting = false;
 								} else {
-									_transactionsState.userSelectedTab = (ui.panel.id === 'chartTab') ? 'chart' : 'table';
-                                    aperture.pubsub.publish(chan.FOOTER_CHANGE_DATA_VIEW_EVENT, {
-                                        tab : _transactionsState.userSelectedTab
-                                    });
+									_transactionsState.userSelectedTab = (ui.newPanel.attr('id') === 'chartTab') ?
+										_transactionsState.userSelectedTab = 'chart' :
+										_transactionsState.userSelectedTab = 'table';
 								}
-
-                                if (ui.panel.id === 'chartTab') {
-                                    aperture.pubsub.publish(chan.REQUEST_CURRENT_STATE);
-                                }
 							}
 						}
 					);

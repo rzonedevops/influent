@@ -39,7 +39,7 @@ import org.restlet.data.CacheDirective;
 import org.restlet.data.MediaType;
 import org.restlet.data.Status;
 import org.restlet.representation.StringRepresentation;
-import org.restlet.resource.Get;
+import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
 import com.google.inject.Inject;
@@ -57,8 +57,10 @@ public class CacheStatsResource extends ApertureServerResource{
 	}
 	
 	
-	@Get
-	public StringRepresentation getCacheStats() throws ResourceException {
+	
+	
+	@Post("json")
+	public StringRepresentation getCacheStats(String jsonData) throws ResourceException {
 		try {
 				
 			JSONObject result = new JSONObject();

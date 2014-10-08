@@ -32,6 +32,7 @@ import influent.idl.FL_LinkTag;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.HashMap;
@@ -58,18 +59,23 @@ public class AggregatedLinkResource extends ApertureServerResource{
 
 	private final FL_ClusteringDataAccess clusterAccess;
 	
+	
+	
 	@Inject
 	public AggregatedLinkResource(FL_ClusteringDataAccess clusterAccess, ClusterContextCache contextCache) {
 		this.clusterAccess = clusterAccess;
 	}
-
-	@Post
+	
+	
+	
+	
+	@Post("json")
 	public StringRepresentation getLinks(String jsonData) throws ResourceException {
 		JSONObject jsonObj;
 		JSONObject result = new JSONObject();
 		Map<String, List<FL_Link>> links = new HashMap<String, List<FL_Link>>();
 		
-		String type = null, queryId = null/*, filterType = null*/;
+		String type = null;
 		FL_DirectionFilter direction = FL_DirectionFilter.DESTINATION;
 		FL_DateRange dateRange = null;
 		
@@ -77,6 +83,9 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			/*
 			 * Valid arguments are:
@@ -109,10 +118,6 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			String dstContextId = jsonObj.getString("targetContextId").trim();
 						
 			links = clusterAccess.getFlowAggregation(srcEntities, dstEntities, direction, FL_LinkTag.FINANCIAL, dateRange, srcContextId, dstContextId);			
-			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			queryId = jsonObj.getString("queryId").trim();
 
 			if (links != null && !links.isEmpty()) {
 				JSONObject dmap = new JSONObject();
@@ -127,7 +132,6 @@ public class AggregatedLinkResource extends ApertureServerResource{
 				result.put("data",dmap);
 			}
 
-			result.put("queryId", queryId);
 			result.put("sessionId", sessionId);
 
 			return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);

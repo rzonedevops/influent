@@ -26,25 +26,29 @@ package influent.midtier.solr.search;
 
 import influent.idl.FL_Constraint;
 import influent.idl.FL_PropertyDescriptor;
-import influent.idl.FL_PropertyDescriptor.Builder;
+import influent.idl.FL_PropertyDescriptors;
 import influent.idl.FL_PropertyType;
 import influent.idl.FL_RangeType;
+import influent.idl.FL_TypeDescriptor;
+import influent.idl.FL_TypeMapping;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.RandomAccess;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 
 /**
@@ -54,145 +58,149 @@ import org.slf4j.LoggerFactory;
  *
  */
 
-
 public class ConfigFileDescriptors {
 
 	private static final Logger s_logger = LoggerFactory.getLogger(ConfigFileDescriptors.class);
 
-	private Map<String, List<FL_PropertyDescriptor>> _descriptors;
+	private FL_PropertyDescriptors _descriptors;
 
-	
-	
 	public ConfigFileDescriptors() {
-		_descriptors = new LinkedHashMap<String, List<FL_PropertyDescriptor>>();
+		_descriptors = new FL_PropertyDescriptors();
 	}
 	
-	
-	
-	
-	public Map<String, List<FL_PropertyDescriptor>> getEntityDescriptors() {
+	public FL_PropertyDescriptors getEntityDescriptors() {
 		return _descriptors;
 	}
-	
-	
-	
-	
-	public void readDescriptorsFromFile(String fileName) throws IOException {		
-		File file = new File("./conf/" + fileName);
-		InputStream is = file.exists()? new FileInputStream(file) : 
-			getClass().getResourceAsStream("/"+fileName);
 
-		InputStreamReader isr = new InputStreamReader(is);
-		BufferedReader br = new BufferedReader(isr);
+	public void readDescriptorsFromFile(String filename) throws IOException {
 
-		int lx = 0;
+		try {
 
-		List<FL_PropertyDescriptor> curDesc = null;
-
-		while (true) {
-			lx++;
-			String line = br.readLine();
-			if (line == null) break;
-			line=line.trim();
-			if (line.startsWith("#")) continue;
-			if (line.isEmpty()) continue;
-
-			//Ok, first split on ' '
-			String split1[] = line.split(" ");
-
-			//Then get the type and the name
-			String typeAndName[] = split1[0].split(":");
-
-			if (typeAndName.length!=2) {
-				s_logger.warn("Error in "+file.getAbsolutePath()+" on line "+lx);
-				continue;
+			// Open xml file for parsing
+			File fXmlFile;
+			fXmlFile = new File("./conf/" + filename);
+			if (!fXmlFile.exists()) {
+				URL fileURL = getClass().getResource("/" + filename);
+				if (fileURL == null) {
+					throw new IOException("could not find file " + "./conf/" + filename + " or " + "/" + filename);
+				}
+				fXmlFile = new File(fileURL.getFile());
 			}
 
-			//Check and see if this is a new entity descriptor or not.
-			if (typeAndName[0].equalsIgnoreCase("type")) {
-				curDesc = new ArrayList<FL_PropertyDescriptor>();
-						
-				// new entity type.
-				_descriptors.put(typeAndName[1], curDesc);
+			DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+			Document doc = dBuilder.parse(fXmlFile);
 
-				s_logger.info("New descriptors for type "+ typeAndName[1]);
+			doc.getDocumentElement().normalize();
 
-				continue;
-			} else {
-				//New property descriptor
-				FL_PropertyType ptype = null;
-				
-				if (typeAndName[0].equalsIgnoreCase("string")) {
+			NodeList typeNodes = doc.getElementsByTagName("type");
+			NodeList groupNodes = doc.getElementsByTagName("group");
+			NodeList propertyNodes = doc.getElementsByTagName("property");
+
+			// -- Types ------------------------------------------------------------------------------------------------
+			List<FL_TypeDescriptor> typeList = new ArrayList<FL_TypeDescriptor>();
+			for (Element t : asList(typeNodes)) {
+
+				String groupId = t.getAttribute("group");
+				String groupName = "";
+				boolean isExclusive = false;
+
+				// Look up the group attribute
+				for (Element group : asList(groupNodes)) {
+
+					if (group.getAttribute("key").equals(groupId)) {
+						groupName = group.getAttribute("friendlyText");
+						if (groupName == null || groupName.isEmpty())
+							groupName = groupId;
+						isExclusive = group.getAttribute("exclusive").equals("true");
+						break;
+					}
+				}
+
+				FL_TypeDescriptor typeDesc = FL_TypeDescriptor.newBuilder()
+								.setKey(t.getAttribute("key"))
+								.setFriendlyText(t.getAttribute("friendlyText"))
+								.setGroup(groupName)
+								.setExclusive(isExclusive)
+								.build();
+
+				typeList.add(typeDesc);
+			}
+
+			// -- Properties -------------------------------------------------------------------------------------------
+			List<FL_PropertyDescriptor> propertyList = new ArrayList<FL_PropertyDescriptor>();
+			for (Element p : asList(propertyNodes)) {
+
+				String dataType = p.getAttribute("dataType");
+
+				FL_PropertyType ptype = FL_PropertyType.STRING;
+				if (dataType.equalsIgnoreCase("string")) {
 					ptype = FL_PropertyType.STRING;
-				} else if (typeAndName[0].equalsIgnoreCase("integer")) {
+				} else if (dataType.equalsIgnoreCase("long")) {
 					ptype = FL_PropertyType.LONG;
-				} else if (typeAndName[0].equalsIgnoreCase("real")) {
+				} else if (dataType.equalsIgnoreCase("double")) {
 					ptype = FL_PropertyType.DOUBLE;
-				} else if (typeAndName[0].equalsIgnoreCase("boolean")) {
+				} else if (dataType.equalsIgnoreCase("boolean")) {
 					ptype = FL_PropertyType.BOOLEAN;
-				} else if (typeAndName[0].equalsIgnoreCase("date")) {
+				} else if (dataType.equalsIgnoreCase("date")) {
 					ptype = FL_PropertyType.DATE;
+				} else if (dataType.equalsIgnoreCase("geo")) {
+					ptype = FL_PropertyType.GEO;
 				}
+				//else if (dataType.equalsIgnoreCase("other")) {
+				//    ptype = FL_PropertyType.OTHER;
+				//}
 
-				if (ptype == null) {
-					s_logger.warn("Error in "+file.getAbsolutePath()+" on line "+lx);
-					continue;
-				}
-
-				Builder pd = FL_PropertyDescriptor.newBuilder()
-						.setType(ptype)
+				List<FL_TypeMapping> typeMappings = new ArrayList<FL_TypeMapping>();
+				FL_PropertyDescriptor propDesc = FL_PropertyDescriptor.newBuilder()
+						.setKey(p.getAttribute("key"))
+						.setFriendlyText(p.getAttribute("friendlyText"))
+						.setDefaultTerm(p.getAttribute("defaultTerm").equals("true"))
+						.setFreeTextIndexed(p.getAttribute("freeTextIndexed").equals("true"))
+						.setPropertyType(ptype)
 						.setRange(FL_RangeType.SINGLETON)
 						.setConstraint(FL_Constraint.FUZZY_PARTIAL_OPTIONAL)
-						.setKey(typeAndName[1]);
-				
-				s_logger.info("Property Descriptor "+pd.getKey()+":"+pd.getType()+" added to type");
+						.setMemberOf(typeMappings)
+						.build();
 
-				// there is currently no provision for returning a restricted option type of search,
-				// or a list of suggestions. commenting out - DJ
-/*				
-				if (line.split("\\[").length > 1) {
-					final List<Object> values = new ArrayList<Object>();
-					
-					s_logger.info("Adding suggested terms for " + pd.getKey());
-					String suggestions = split1[1].trim();
-					suggestions = suggestions.replace("[", "");
-					suggestions = suggestions.replace("]", "");
-					String[] splitSuggestions = suggestions.split(",");
-					for (String suggest : splitSuggestions) {
-						s_logger.info("\"" + suggest + "\"");
-						values.add(suggest);
-					}
-					
-					pd.setConstraint(constraint);
-				}
-*/
-				//Now, check for friendly text
-				if (line.split("\\{").length > 1) {
-					Pattern p = Pattern.compile("\\{(.*?)\\}");
-					Matcher m = p.matcher(line);
+				// Parse the applicable types
+				NodeList appliesToNodes = p.getElementsByTagName("appliesTo");
+				for (Element a : asList(appliesToNodes)) {
 
-					if (m.find()) {
-						pd.setFriendlyText(m.group(1));
-						s_logger.info("Added " + m.group(1) + ": friendly text for " + pd.getKey());
-					}
+					FL_TypeMapping typeMapping = FL_TypeMapping.newBuilder()
+						.setType(a.getAttribute("typeKey"))
+						.setMemberKey(a.getAttribute("memberKey"))
+						.build();
+
+					typeMappings.add(typeMapping);
 				}
-				
-				if (line.trim().endsWith("<<")) {
-					pd.setDefaultTerm(true);
-				}
-				
-				if (curDesc == null) {
-					curDesc = new ArrayList<FL_PropertyDescriptor>();
-					_descriptors.put("default", curDesc);
-				}
-				
-				curDesc.add(pd.build());
+
+				propertyList.add(propDesc);
 			}
 
-		}
+			_descriptors.setTypes(typeList);
+			_descriptors.setProperties(propertyList);
 
-		is.close();
-		isr.close();
-		br.close();
+		} catch (Exception e) {
+			s_logger.error("Error parsing definition file", e);
+		}
+	}
+
+	public static List<Element> asList(NodeList n) {
+		return n.getLength()==0?
+				Collections.<Element>emptyList(): new NodeListWrapper(n);
+	}
+	static final class NodeListWrapper extends AbstractList<Element>
+			implements RandomAccess {
+		private final NodeList list;
+		NodeListWrapper(NodeList l) {
+			list=l;
+		}
+		public Element get(int index) {
+			return (Element)list.item(index);
+		}
+		public int size() {
+			return list.getLength();
+		}
 	}
 }

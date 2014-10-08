@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>oculus.influent</groupId>
 		<artifactId>influent</artifactId>
-		<version>1.3.5</version>
+		<version>1.3.6</version>
 	</parent>
 
 	<artifactId>kiva</artifactId>
@@ -38,12 +38,7 @@
 			<version>4.1.0</version>
 		</dependency>
 		
-		<!-- REQUIRED!!!: Client files are overlaid in WAR -->		
-		<dependency>
-			<groupId>oculus.aperture</groupId>
-			<artifactId>aperture-client</artifactId>
-			<version>${aperture.version}</version>
-		</dependency>		
+		<!-- REQUIRED!!!: Client files are overlaid in WAR -->				
 		<dependency>
 			<artifactId>influent-client</artifactId>
 			<groupId>${project.groupId}</groupId>
@@ -127,12 +122,6 @@
 					<webXml>src/main/webapp/WEB-INF/web.xml</webXml>
 					<packagingExcludes>${influent.war.exclusions}</packagingExcludes>
 					<overlays>
-						<overlay>
-							<artifactId>aperture-client</artifactId>
-							<groupId>oculus.aperture</groupId>
-							<type>jar</type>
-							<targetPath>aperture</targetPath>
-						</overlay>
 						<overlay>
 							<artifactId>influent-client</artifactId>
 							<groupId>${project.groupId}</groupId>

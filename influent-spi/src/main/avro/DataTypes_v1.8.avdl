@@ -160,10 +160,10 @@ protocol FL_DataTypes {
 		string url;
 		
 		/** MIME type of the resource */
-		union {string, null} mimeType = null;
+		union {null, string} mimeType = null;		// CHANGED IN 1.8
 		
 		/** description of the linked resource (suitable for display to the user in an hypertext link) */
-		union {string, null} title = null;
+		union {null, string} title = null;			// CHANGED IN 1.8
 	}
 	
 	/**
@@ -171,7 +171,7 @@ protocol FL_DataTypes {
 	 */
 	record FL_GeoData {
 		/** an address or other place reference; unstructured text field */
-		union {string, null} text = null;
+		union {null, string} text = null;			// CHANGED IN 1.8
 		
 		/** latitude */
 		union {double, null} lat = null;
@@ -180,7 +180,7 @@ protocol FL_DataTypes {
 		union {double, null} lon = null;
 		
 		/** ISO 3 digit country code */
-		union {string, null} cc = null;
+		union {null, string} cc = null;				// CHANGED IN 1.8
 	}
 
 	/**
@@ -356,7 +356,7 @@ protocol FL_DataTypes {
 		string key;
 		
 		/** user-friendly short-text for key (displayable) */
-		union {string, null} friendlyText = null;
+		union {null, string} friendlyText = null;			// CHANGED IN 1.8
 		
 		/** range of values */
 		union {FL_SingletonRange, FL_ListRange, FL_BoundedRange, FL_DistributionRange} range = null; // CHANGED IN 1.6
@@ -403,10 +403,10 @@ protocol FL_DataTypes {
 		array<FL_LinkTag> tags;
 		
 		/** source entity uid */
-		union {string, null} source = null;
+		union {null, string} source = null;				// CHANGED IN 1.8
 		
 		/** target entity uid */
-		union {string, null} target = null;
+		union {null, string} target = null;				// CHANGED IN 1.8
 		
 		/** true if directed, false if undirected */
 		boolean directed = true;
@@ -444,10 +444,10 @@ protocol FL_DataTypes {
 		array<string> subclusters;
 		
 		/** The id of the parent cluster if this is a cluster in a hierarchy - Can be null if this is a root cluster **/
-		union {string, null} parent = null;
+		union {null, string} parent = null;				// CHANGED IN 1.8
 		
 		/** The id of the root cluster (top level cluster) if this is a cluster in a hierarchy - Can be null if this is a root cluster **/
-		union {string, null} root = null;
+		union {null, string} root = null;				// CHANGED IN 1.8
 		
 		/** The degree from the root this cluster is in the hierarchy - level = 0 if this is a root cluster **/
 		int level = 0;
@@ -468,7 +468,7 @@ protocol FL_DataTypes {
 		string label;
 		
 		/** uid of the service task is running on */
-		union {string, null} service = null;
+		union {null, string} service = null;			// CHANGED IN 1.8
 		
 		/** date/time task was started */
 		long started;

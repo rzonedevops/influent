@@ -557,7 +557,12 @@ define(
 
 				var i;
 
-				if (_UIObjectState.xfId === xfId) {
+				if (xfId == null) {
+					_UIObjectState.isHighlighted = false;
+					for (i = 0; i < _UIObjectState.children.length; i++) {
+						_UIObjectState.children[i].highlightId(xfId);
+					}
+				} else if (_UIObjectState.xfId === xfId) {
 					// local and children are highlighted
 					if (_UIObjectState.isExpanded) {
 						_UIObjectState.isHighlighted = true;

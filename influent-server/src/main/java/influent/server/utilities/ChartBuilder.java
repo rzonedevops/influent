@@ -158,7 +158,7 @@ public class ChartBuilder {
 							boolean focusOverride = false;
 							String sourceId = financialLink.getSource();
 							String targetId = financialLink.getTarget();
-							if ((sourceId != null && focusEntities.contains(sourceId)) || (targetId != null && focusEntities.contains(targetId))) {
+							if ((sourceId != null && focusEntities != null && focusEntities.contains(sourceId)) || (targetId != null && focusEntities != null && focusEntities.contains(targetId))) {
 								focusOverride = true;
 							}
 							if (financialLink.getDirected()) {

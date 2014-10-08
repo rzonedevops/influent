@@ -36,6 +36,7 @@ import influent.server.data.ImageRepresentation;
 import influent.server.utilities.ChartBuilder;
 import influent.server.utilities.DateRangeBuilder;
 import influent.server.utilities.DateTimeParser;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.TypedId;
 
 import java.util.ArrayList;
@@ -73,7 +74,9 @@ public class ChartResource extends ApertureServerResource {
 	private final int maxCacheAge;
 	private final ChartBuilder chartBuilder;
 	private final ClusterContextCache contextCache;
-
+	
+	
+	
 	@Inject
 	public ChartResource(
 		@Named("influent.charts.maxage") Integer maxCacheAge,
@@ -87,6 +90,9 @@ public class ChartResource extends ApertureServerResource {
 		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
 	}
 	
+	
+	
+	
 	@Get
 	public Representation getChartImage() {
 		try {
@@ -96,6 +102,9 @@ public class ChartResource extends ApertureServerResource {
 			ChartHash hashed = new ChartHash(hash);
 
 			String sessionId = hashed.getSessionId();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			String entityContextId = hashed.getContextId();
 			String focusContextId = hashed.getFocusContextId();
@@ -129,53 +138,63 @@ public class ChartResource extends ApertureServerResource {
 		}
 	}
 	
+	
+	
+	
 	@Post("json")
 	public Map<String, ChartData> getChartData(String jsonData) {
 
 		try {
 			JSONObject jsonObj = new JSONObject(jsonData);
 			
-			String focusContextId = jsonObj.getString("focuscontextid");
+			String focusContextId = (jsonObj.isNull("focuscontextid")) ? null : jsonObj.getString("focuscontextid");
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 			
 			DateTime startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
 			DateTime endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
 			
-			List<String> focusIds = new LinkedList<String>();
-			JSONArray focusObj = jsonObj.getJSONArray("focusId");
 			
-			for (int i=0; i < focusObj.length(); i++) {
-				String entityId = focusObj.getString(i);
-				List<String> entities = new ArrayList<String>();
-				
-				TypedId id = TypedId.fromTypedId(entityId);
-				
-				// Point account owners and summaries to their owner account
-				if (id.getType() == TypedId.ACCOUNT_OWNER || 
-					id.getType() == TypedId.CLUSTER_SUMMARY) {
+			List<String> focusIds = null;
+			if (!jsonObj.isNull("focusId")) {
+				focusIds = new LinkedList<String>();
+				JSONArray focusObj = jsonObj.getJSONArray("focusId");
+			
+				for (int i=0; i < focusObj.length(); i++) {
+					String entityId = focusObj.getString(i);
+					List<String> entities = new ArrayList<String>();
 					
-					entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString());
+					TypedId id = TypedId.fromTypedId(entityId);
 					
-				} else if (id.getType() == TypedId.CLUSTER) {
-					
-					String nId = id.getNativeId();  
-					if (nId.startsWith("|")) {  // group cluster
-						for (String sId : nId.split("\\|")) {
-							if (!sId.isEmpty()) {
-								entities.add(sId);
+					// Point account owners and summaries to their owner account
+					if (id.getType() == TypedId.ACCOUNT_OWNER || 
+						id.getType() == TypedId.CLUSTER_SUMMARY) {
+						
+						entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString());
+						
+					} else if (id.getType() == TypedId.CLUSTER) {
+						
+						String nId = id.getNativeId();  
+						if (nId.startsWith("|")) {  // group cluster
+							for (String sId : nId.split("\\|")) {
+								if (!sId.isEmpty()) {
+									entities.add(sId);
+								}
 							}
+						} else {
+							entities.add(entityId);
 						}
 					} else {
 						entities.add(entityId);
 					}
-				} else {
-					entities.add(entityId);
-				}
-				
-				for (String fid : entities){
-					if (!focusIds.contains(fid)){
-						focusIds.add(fid);
+					
+					for (String fid : entities){
+						if (!focusIds.contains(fid)){
+							focusIds.add(fid);
+						}
 					}
 				}
 			}

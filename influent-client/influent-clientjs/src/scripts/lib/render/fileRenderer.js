@@ -257,7 +257,11 @@ define(
 						ui.draggable.animate({	top: 0, left: ui.draggable.data('origPosition').left}, // animate the card/cluster back to it's original position
 												'slow',
 												'swing',
-												function() { ui.draggable.draggable('enable'); }
+												function() {
+													if (ui.draggable.data('ui-draggable')) {
+														ui.draggable.draggable('enable');
+													}
+												}
 						);
 						return;
 					}

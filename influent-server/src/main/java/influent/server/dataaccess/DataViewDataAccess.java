@@ -40,8 +40,9 @@ import influent.idl.FL_PropertyTag;
 import influent.idl.FL_PropertyType;
 import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
+import influent.idl.FL_EntityTag;
 import influent.idlhelper.PropertyHelper;
-import influent.idlhelper.SingletonRangeHelper;
+import influent.idlhelper.EntityHelper;
 import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.TypedId;
 
@@ -108,70 +109,81 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		List<String> entities, 
 		FL_LevelOfDetail levelOfDetail
 	) throws AvroRemoteException {
-		
-		List<FL_Entity> results = new ArrayList<FL_Entity>();
-		
-		// Build a map of native Ids against searched-for entities, for comparison against results 
-		HashMap<String, String> entityNativeIdMap = new HashMap<String, String>();
-		for (String e : entities) {
-			TypedId tId = TypedId.fromTypedId(e);
-			entityNativeIdMap.put(tId.getNativeId(), e);
-		}				
-		
-		List<FL_PropertyMatchDescriptor> idList = new ArrayList<FL_PropertyMatchDescriptor>();
-		
-		int maxFetch = 100;
-		int qCount = 0;			//How many entities to query at once
-		Iterator<String> idIter = entities.iterator();
-		while (idIter.hasNext()) {
-			String entity = idIter.next();
-			
-			FL_PropertyMatchDescriptor idMatch = FL_PropertyMatchDescriptor.newBuilder()
-				.setKey("uid")
-				.setRange(new SingletonRangeHelper(entity, FL_PropertyType.STRING))
-				.setConstraint(FL_Constraint.REQUIRED_EQUALS)
-				.build();
-			idList.add(idMatch);
-			qCount++;
-			
-			if (qCount == (maxFetch-1) || !idIter.hasNext()) {
-				FL_SearchResults searchResult = _search.search(null, idList, 0, 100, null);
-				
-				s_logger.debug("Searched for " + qCount + " ids, found " + searchResult.getTotal());
-				
-				for (FL_SearchResult r : searchResult.getResults()) {
-					FL_Entity fle = (FL_Entity)r.getResult();
-					TypedId rTId = TypedId.fromTypedId(fle.getUid());
-					String rNId = rTId.getNativeId();
-					
-					if (entityNativeIdMap.containsKey(rNId)) {
-						String mEId = entityNativeIdMap.get(rNId);
-						TypedId mTId = TypedId.fromTypedId(mEId);
-						
-						// Check if the namespaces and types returned are what we were searching for
-						if (((rTId.getNamespace() == null && mTId.getNamespace() == null) ||
-							  rTId.getNamespace().equals(mTId.getNamespace())) &&
-							(rTId.getType() == mTId.getType() ||
-							 (rTId.getType() == TypedId.ACCOUNT_OWNER && mTId.getType() == TypedId.CLUSTER_SUMMARY) ||
-							 (rTId.getType() == TypedId.CLUSTER_SUMMARY && mTId.getType() == TypedId.ACCOUNT_OWNER)
-							)
-						) {
-							 results.add(fle);
-						} else {
-							s_logger.error("Got entity "+fle.getUid()+" that doesn't match the type/namespace of the search");
-						}
-	
-					} else {
-						s_logger.error("Got entity "+fle.getUid()+" that wasn't in search");
-					}
+		List<FL_Entity> results = new LinkedList<FL_Entity>();
+
+
+		if (entities == null || entities.isEmpty()) return results;
+
+		Map<String, List<String>> bySchema = _namespaceHandler.entitiesByNamespace(entities);
+
+		try {
+
+			Connection connection = _connectionPool.getConnection();
+
+			for (Map.Entry<String, List<String>> entry : bySchema.entrySet()) {
+				if (entry.getValue() == null || entry.getValue().isEmpty()) {
+					continue;
 				}
-				
-				qCount=0;
-				idList.clear();
+
+				// process entities in batches
+				List<String> idsCopy = new ArrayList<String>(entry.getValue()); // copy the ids as we will take 1000 at a time to process and the take method is destructive
+				while (idsCopy.size() > 0) {
+					List<String> tempSubList = (idsCopy.size() > 1000) ? idsCopy.subList(0, 999) : idsCopy; // get the next 1000
+					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
+					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy
+
+					String finEntityTable = _namespaceHandler.tableName(entry.getKey(), DataAccessHelper.ENTITY_TABLE);
+					String finEntityEntityIdColumn = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
+					String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
+					String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
+
+					StringBuilder sb = new StringBuilder();
+					sb.append("SELECT " + finEntityEntityIdColumn + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " ");
+					sb.append("FROM " + finEntityTable + " ");
+					sb.append("WHERE " + finEntityEntityIdColumn + " IN (");
+					for (int i = 1; i < subIds.size(); i++) {
+						sb.append("?, ");
+					}
+					sb.append("?) ");
+					PreparedStatement stmt = connection.prepareStatement(sb.toString());
+					int index = 1;
+
+					for (int i = 0; i < subIds.size(); i++) {
+						stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), entry.getKey()));
+					}
+
+					// Execute prepared statement and evaluate results
+					ResultSet rs = stmt.executeQuery();
+					while (rs.next()) {
+						String entityId = rs.getString(finEntityEntityIdColumn);
+						int uniqueInboundDegree = rs.getInt(finEntityUniqueInboundDegree);
+						int uniqueOutboundDegree = rs.getInt(finEntityUniqueOutboundDegree);
+
+						String uid = _namespaceHandler.globalFromLocalEntityId(entry.getKey(), entityId.toString(), TypedId.ACCOUNT);
+
+
+						List<FL_Property> props = new ArrayList<FL_Property>();
+						props.add(new PropertyHelper("UniqueInboundDegree", "Unique Inbound Links", uniqueInboundDegree, Collections.singletonList(FL_PropertyTag.INFLOWING)));
+						props.add(new PropertyHelper("UniqueOutboundDegree", "Unique Outbound Links", uniqueOutboundDegree, Collections.singletonList(FL_PropertyTag.OUTFLOWING)));
+
+						FL_Entity entity = new EntityHelper(uid, uid, FL_EntityTag.ACCOUNT.name(), FL_EntityTag.ACCOUNT, props);
+
+						results.add(entity);
+					}
+					rs.close();
+
+					// Close prepared statement
+					stmt.close();
+
+				}
 			}
+
+			connection.close();
+			return results;
+
+		} catch (Exception e) {
+			throw new AvroRemoteException(e);
 		}
-		
-		return results;
 	}
 	
 	
@@ -255,7 +267,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							} else {
 								Map<String, Double> toAmountMap = new HashMap<String, Double>();
 								toAmountMap.put(to, amount);
-								fromToAmountMap.put(from, toAmountMap);							
+								fromToAmountMap.put(from, toAmountMap);
 							}
 						}
 					}

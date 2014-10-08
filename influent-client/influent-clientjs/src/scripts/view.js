@@ -1,4 +1,4 @@
-/**
+ /**
  * Copyright (c) 2013-2014 Oculus Info Inc.
  * http://www.oculusinfo.com/
  *
@@ -120,7 +120,7 @@ define(
 					that.modules.start('xfSankey', {div:'sankey', capture: settings.capture});
 					that.modules.start('xfRenderer', {div:'cards', capture: settings.capture});
 					that.modules.start('xfFileUpload', {div:'fileUpload'});
-					that.modules.start('xfRest', {});
+					that.modules.start('xfRest', {capture: settings.capture});
 
 					// then call base implementation too
 					View.prototype.doView.call(that, validState, callback);

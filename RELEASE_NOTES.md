@@ -12,7 +12,7 @@ Highlights of the version 1.3.* releases include the following features. Minor r
 
 + The pattern search user experience has been greatly simplified to make it more intuitive to invoke. Model patterns can now be imported as a workspace and used in a search in two clicks.
  
-+ The advanced search user experience has been improved for more intuitive search expression and additional capabilities such as weighted terms. 
++ The advanced search user experience has been improved for more intuitive search expression and additional capabilities such as weighted terms. In Addition, it is now possible to search across multiple account types.
 
 + The details pane now expands and collapses in response to selections made in the workspace. Entity details have been changed to support multiple images per entity, with controls to browse and expand in the browser. Chart and table titles in the details pane have also been clarified.
 
@@ -37,12 +37,19 @@ Highlights of the version 1.3.* releases include the following features. Minor r
 
 + Added support for HyperSQL databases.
 
++ Entity properties can now be reordered.
+
 **Documentation**
 + An online User Guide has been added covering Quick Start, the UI and the various search techniques.    
  
+### Release 1.3.6 - Resolved Issues
++ The workspace no longer requires a card to be focused.
++ Resolved some issues with deleting clusters.
++ Security fixes.
+ 
 ### Release 1.3.5 - Resolved Issues
-+ Resolved some visual issues when manipulating cards and files
-+ Resolved a case where some operations time out
++ Resolved some visual issues when manipulating cards and files.
++ Resolved a case where some operations time out.
 
 ### Release 1.3.4 - Resolved Issues
 + Pattern search was not returning results in some cases.

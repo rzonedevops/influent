@@ -38,12 +38,13 @@ import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
-import influent.server.clustering.utils.ContextCollapser;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
+import influent.server.clustering.utils.ContextCollapser;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.data.EntitySearchTerms;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.Pair;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
@@ -86,6 +87,8 @@ public class EntitySearchResource extends ApertureServerResource{
 	
 	private static final Logger s_logger = LoggerFactory.getLogger(EntitySearchResource.class);
 	
+	
+	
 	@Inject
 	public EntitySearchResource(FL_DataAccess entityAccess, 
 								FL_EntitySearch entitySearcher, 
@@ -101,6 +104,9 @@ public class EntitySearchResource extends ApertureServerResource{
 		this.contextCache = contextCache;
 	}
 	
+	
+	
+	
 	@Post("json")
 	public StringRepresentation search(String jsonData) throws ResourceException {
 		JSONObject jsonObj;
@@ -113,7 +119,10 @@ public class EntitySearchResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
-
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
+			
 			// Flag to indicate whether or not to cluster the results.
 			boolean doCluster = true;
 			
@@ -131,10 +140,6 @@ public class EntitySearchResource extends ApertureServerResource{
 			if (jsonObj.has("contextId")) {
 				contextId = jsonObj.getString("contextId").trim();
 			}
-			
-			// Get the query id. This is used by the client to ensure
-			// it only processes the latest response.
-			String queryId = jsonObj.getString("queryId").trim();
 
 			// Determine the number of results to return.
 			int resultLimit = DEFAULT_MAX_LIMIT;
@@ -151,19 +156,12 @@ public class EntitySearchResource extends ApertureServerResource{
 			// get the search term
 			final String term = jsonObj.getString("term").trim();
 			
-			final EntitySearchTerms terms = new EntitySearchTerms(term);
+			final EntitySearchTerms terms = new EntitySearchTerms(term, entitySearcher.getDescriptors());
 			
-			// get the data type
-			final String type = terms.getType();
+				// Execute the search
+			FL_SearchResults sResponse = entitySearcher.search(terms.getTerms(), (long)startIndex, (long)resultLimit);
 			
-			if (terms.doCluster() != null) {
-				doCluster = terms.doCluster();
-			}
-			
-			FL_SearchResults sResponse = entitySearcher.search(terms.getExtraTerms(), terms.getTerms(), (long)startIndex, (long)resultLimit, type);
-			
-			// TODO modify below code to use Cluster data access getAccountOwners() API method 
-			
+			// TODO modify below code to use Cluster data access getAccountOwners() API method
 			Map<String, String> clusterSummaries = new HashMap<String, String>();
 			List<String> accountOwners = new ArrayList<String>();
 			
@@ -190,7 +188,7 @@ public class EntitySearchResource extends ApertureServerResource{
 			Map<String, List<FL_Entity>> groupedEntities = new HashMap<String, List<FL_Entity>>();
 			
 			// fetch all cluster summaries
-			summaries.addAll( clusterAccess.getClusterSummary(new ArrayList<String>(clusterSummaries.values())) );
+			summaries.addAll(clusterAccess.getClusterSummary(new ArrayList<String>(clusterSummaries.values())));
 			
 			PermitSet permits = new PermitSet();
 			
@@ -278,7 +276,6 @@ public class EntitySearchResource extends ApertureServerResource{
 					
 					result.put("data",rArr);
 					result.put("totalResults",sResponse.getTotal());
-					result.put("queryId",queryId);
 					result.put("sessionId", sessionId);
 					
 					StringRepresentation responseSR = new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
@@ -367,7 +364,6 @@ public class EntitySearchResource extends ApertureServerResource{
 					result.put("data", ja);
 					result.put("scores", scores);
 					result.put("totalResults", sResponse.getTotal());
-					result.put("queryId", queryId);
 					result.put("sessionId", sessionId);
 	
 					return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
@@ -393,6 +389,9 @@ public class EntitySearchResource extends ApertureServerResource{
 		}
 	}
 	
+	
+	
+	
 	protected PropertyHelper getFirstProperty(FL_Entity entity, String tagOrName) {
 		PropertyHelper prop = null;
 		FL_PropertyTag tag = null;
@@ -410,7 +409,9 @@ public class EntitySearchResource extends ApertureServerResource{
 		}
 		return prop;
 	}
-
+	
+	
+	
 	
 	public static void normalizeScores (Map<String, Double> scores) {
 		double maxscore = 0;

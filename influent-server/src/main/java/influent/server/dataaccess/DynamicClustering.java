@@ -428,18 +428,20 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		//Find leaf nodes for focii, and keep track of leaf id ->original cluster id
 		Map<String,String> fociiIdMap = new HashMap<String, String>();
 		List<String> fociiList = new ArrayList<String>();
-		for (String focusid : focusEntityIds) {
-			Set<String> flids = getLeafIds(Collections.singletonList(focusid), focusContextId);
-			fociiList.addAll(flids);
-			for (String fli : flids) {
-				
-				// Point account owners and summaries to their owner account
-				TypedId id = TypedId.fromTypedId(fli);
-				if (id.getType() == TypedId.ACCOUNT_OWNER || 
-					id.getType() == TypedId.CLUSTER_SUMMARY) {
-						fli = TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString();
-				} 				
-				fociiIdMap.put(fli, focusid);
+		if (focusEntityIds != null) {
+			for (String focusid : focusEntityIds) {
+				Set<String> flids = getLeafIds(Collections.singletonList(focusid), focusContextId);
+				fociiList.addAll(flids);
+				for (String fli : flids) {
+					
+					// Point account owners and summaries to their owner account
+					TypedId id = TypedId.fromTypedId(fli);
+					if (id.getType() == TypedId.ACCOUNT_OWNER || 
+						id.getType() == TypedId.CLUSTER_SUMMARY) {
+							fli = TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString();
+					} 				
+					fociiIdMap.put(fli, focusid);
+				}
 			}
 		}
 		

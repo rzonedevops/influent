@@ -32,6 +32,8 @@ define(
 		modules, chan, currency, xfWorkspace, xfRest,
 		xfClusterBase, xfCard, xfUtil, constants
 	) {
+		var DEFAULT_GRAPH_SCALE = (aperture.config.get()['influent.config']['defaultGraphScale'] != null) ? aperture.config.get()['influent.config']['defaultGraphScale'] : 0;
+
 		var module = {};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -289,32 +291,30 @@ define(
 			var updates = [];
 			var focus = xfWorkspace.getFocus();
 
-			if(focus != null) {
-				getMaxDebitCredit(
-					focus,
-					function(focusMDC) {
-						for (var i = 0; i < specs.length; i++) {
+			getMaxDebitCredit(
+				focus,
+				function(focusMDC) {
+					for (var i = 0; i < specs.length; i++) {
 
-							var objects = xfWorkspace.getUIObjectsByDataId(specs[i].dataId);
+						var objects = xfWorkspace.getUIObjectsByDataId(specs[i].dataId);
 
-							if (objects.length > 0) {
-								for (var j = 0; j < objects.length; j++) {
-									var specUIObj = objects[j];
+						if (objects.length > 0) {
+							for (var j = 0; j < objects.length; j++) {
+								var specUIObj = objects[j];
 
-									var contextObj = xfUtil.getContextByUIObject(specUIObj);
+								var contextObj = xfUtil.getContextByUIObject(specUIObj);
 
-									updates.push({
-										dataId : specs[i].dataId,
-										contextId : contextObj.getXfId()
-									});
-								}
+								updates.push({
+									dataId : specs[i].dataId,
+									contextId : contextObj.getXfId()
+								});
 							}
 						}
-
-						updateCardTypeWithCharts(focus, focusMDC, updates);
 					}
-				);
-			}
+
+					updateCardTypeWithCharts(focus, focusMDC, updates);
+				}
+			);
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -322,7 +322,7 @@ define(
 		function getMaxDebitCredit(focus, onReturn) {
 
 			if (focus == null) {
-				aperture.log.error('no focus account in chart request. bailing out of request!');
+				onReturn(DEFAULT_GRAPH_SCALE);
 				return;
 			}
 
@@ -334,7 +334,7 @@ define(
 			};
 
 			// Separate call for files?
-			xfRest.request('/chart').inContext( entity.contextId ).withData({
+			xfRest.request('/chart').inContext(entity.contextId).withData({
 
 				sessionId: xfWorkspace.getSessionId(),
 				entities: [entity],
@@ -386,10 +386,9 @@ define(
 								startDate: xfWorkspace.getFilterDates().startDate,
 								endDate: xfWorkspace.getFilterDates().endDate,
 								numBuckets: xfWorkspace.getFilterDates().numBuckets,
-								focusId: [focus.dataId],
+								focusId: (focus == null) ? null : [focus.dataId],
 								focusMaxDebitCredit: focusMDC,
-								focuscontextid: focus.contextId
-
+								focuscontextid: (focus == null) ? null : focus.contextId
 							}).then( _updateCard );
 						}
 					}
