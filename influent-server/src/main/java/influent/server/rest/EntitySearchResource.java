@@ -38,9 +38,9 @@ import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
-import influent.server.clustering.utils.ContextCollapser;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
+import influent.server.clustering.utils.ContextCollapser;
 import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.data.EntitySearchTerms;
@@ -156,19 +156,12 @@ public class EntitySearchResource extends ApertureServerResource{
 			// get the search term
 			final String term = jsonObj.getString("term").trim();
 			
-			final EntitySearchTerms terms = new EntitySearchTerms(term);
+			final EntitySearchTerms terms = new EntitySearchTerms(term, entitySearcher.getDescriptors());
 			
-			// get the data type
-			final String type = terms.getType();
+				// Execute the search
+			FL_SearchResults sResponse = entitySearcher.search(terms.getTerms(), (long)startIndex, (long)resultLimit);
 			
-			if (terms.doCluster() != null) {
-				doCluster = terms.doCluster();
-			}
-			
-			FL_SearchResults sResponse = entitySearcher.search(terms.getExtraTerms(), terms.getTerms(), (long)startIndex, (long)resultLimit, type);
-			
-			// TODO modify below code to use Cluster data access getAccountOwners() API method 
-			
+			// TODO modify below code to use Cluster data access getAccountOwners() API method
 			Map<String, String> clusterSummaries = new HashMap<String, String>();
 			List<String> accountOwners = new ArrayList<String>();
 			
@@ -195,7 +188,7 @@ public class EntitySearchResource extends ApertureServerResource{
 			Map<String, List<FL_Entity>> groupedEntities = new HashMap<String, List<FL_Entity>>();
 			
 			// fetch all cluster summaries
-			summaries.addAll( clusterAccess.getClusterSummary(new ArrayList<String>(clusterSummaries.values())) );
+			summaries.addAll(clusterAccess.getClusterSummary(new ArrayList<String>(clusterSummaries.values())));
 			
 			PermitSet permits = new PermitSet();
 			

@@ -27,9 +27,16 @@ package influent.server.data;
 import influent.idl.FL_Constraint;
 import influent.idl.FL_PropertyMatchDescriptor;
 import influent.idl.FL_PropertyType;
-import influent.idlhelper.SingletonRangeHelper;
+import influent.idl.FL_PropertyDescriptor;
+import influent.idl.FL_TypeDescriptor;
+import influent.idl.FL_TypeMapping;
+import influent.idl.FL_PropertyDescriptors;
+import influent.idl.FL_ListRange;
+import influent.idlhelper.PropertyMatchDescriptorHelper;
 
+import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -38,12 +45,13 @@ import java.util.regex.Pattern;
 
 public class EntitySearchTerms {
 
-	private String extraTerms = "";
-	private List<FL_PropertyMatchDescriptor> terms = new ArrayList<FL_PropertyMatchDescriptor>();
-	private Boolean doCluster = null;
-	private String matchType = null;
+	private List<FL_PropertyMatchDescriptor> _termsList = null;
+	private String _matchType = null;
 	
-	private String dataType = null;
+	private List<String> _dataTypes = null;
+	
+	
+	
 	
 	private Set<String> parseSpecialTags(Pattern regex, String term) {
 		Matcher specialTagsMatcher = regex.matcher(term.trim());
@@ -52,23 +60,18 @@ public class EntitySearchTerms {
 			
 			String tagName = specialTagsMatcher.group(1).toString().trim();
 			
-			if (tagName.equalsIgnoreCase("cluster")) {
-				String clusterBoolString = specialTagsMatcher.group(2).toString().trim();
-				if (clusterBoolString != null) {
-					doCluster = (clusterBoolString.equalsIgnoreCase("true") || clusterBoolString.equalsIgnoreCase("yes"));
-				}
-				specialTags.add("cluster");
-				continue;
-			}
-			
 			if (tagName.equalsIgnoreCase("datatype")) {
-				dataType = specialTagsMatcher.group(2).toString().trim();
+				String dataType = specialTagsMatcher.group(2).toString().trim();
 				if (dataType.indexOf('"') == 0) {
 					dataType = dataType.substring(1);
 				}
 				if (dataType.lastIndexOf('"') == dataType.length()-1) {
 					dataType = dataType.substring(0, dataType.length()-1);
 				}
+				if (this._dataTypes == null) {
+					this._dataTypes = new ArrayList<String>();
+				}
+				this._dataTypes.add(dataType);
 				specialTags.add("datatype");
 				continue;
 			}
@@ -76,13 +79,13 @@ public class EntitySearchTerms {
 			if (tagName.equalsIgnoreCase("matchtype")) {
 				String matchTypeString = specialTagsMatcher.group(2).toString().trim();
 				if (matchTypeString != null) {
-					matchType = matchTypeString;
+					_matchType = matchTypeString;
 				}
-				if (matchType.indexOf('"') == 0) {
-					matchType = matchType.substring(1);
+				if (_matchType.indexOf('"') == 0) {
+					_matchType = _matchType.substring(1);
 				}
-				if (matchType.lastIndexOf('"') == matchType.length()-1) {
-					matchType = matchType.substring(0, matchType.length()-1);
+				if (_matchType.lastIndexOf('"') == _matchType.length()-1) {
+					_matchType = _matchType.substring(0, _matchType.length()-1);
 				}
 				specialTags.add("matchtype");
 				continue;
@@ -90,118 +93,152 @@ public class EntitySearchTerms {
 		}
 		return specialTags;
 	}
-	
-	public EntitySearchTerms(String term) {
+
+	public EntitySearchTerms(String term, FL_PropertyDescriptors descriptors) {
 		Pattern extraTermRegEx = Pattern.compile("\\A([^:]*)(\\s*$| [^:\\s]+:.*)");
-		Pattern tagsRegEx = Pattern.compile("([^:\\s]+)(?<!\\\\):(.*?) (?=[^\\s\\\\]*?:)");
+		Pattern tagsRegEx = Pattern.compile("([^:\\s]+):(\"([^\"]*)\"|[^:]*)( |$)");
 		Pattern boostPattern = Pattern.compile("\\^([\\.0-9]+)$");
 		Pattern similarityPattern = Pattern.compile("\\~([\\.0-9]+)$");		
+		
 		Matcher extraTermMatcher = extraTermRegEx.matcher(term);
 		StringBuilder extraTermsBuilder = new StringBuilder();
 		while (extraTermMatcher.find()) {
 			extraTermsBuilder.append(extraTermMatcher.group(1).toString().trim());
 		}
-		
+		String extraTerms = extraTermsBuilder.toString().trim();
+
 		Set<String> specialTagSet = parseSpecialTags(tagsRegEx, term.trim());
-		
-		extraTerms = extraTermsBuilder.toString().trim();
-		
+
+		_termsList = new ArrayList<FL_PropertyMatchDescriptor>();
+
 		Matcher tagsMatcher = tagsRegEx.matcher(term.trim());
 		while (tagsMatcher.find()) {
-			
+
 			String tagName = tagsMatcher.group(1).toString().trim();
+
 			if (specialTagSet.contains(tagName)) {
 				continue;
 			}
-			
-			String[] values = tagsMatcher.group(2).toString().trim().split("(?<!\\\\),(?=(?:[^\"]*\"[^\"]*\")*(?![^\"]*\"))");
-			for (String val : values) {
-				val = val.trim();
-				
-				FL_PropertyMatchDescriptor.Builder termBuilder = FL_PropertyMatchDescriptor.newBuilder();
 
-				boolean quoted = false;
-				
-				Matcher boostMatch = boostPattern.matcher(val);
-				if (boostMatch.find()) {
-					String weightStr = boostMatch.group(1);
-
-					try {
-						Float weight= Float.valueOf(weightStr);
-						val = val.substring(0, val.length()-weightStr.length()-1);
-						
-						termBuilder.setWeight(weight);
-						
-					} catch (Exception e) {
-					}
-					
-				}
-				
-				Matcher similarityMatch = similarityPattern.matcher(val);
-				if (similarityMatch.find()) {
-					String similarityStr = similarityMatch.group(1);
-
-					try {
-						Float similarity = Float.valueOf(similarityStr);
-						val = val.substring(0, val.length()-similarityStr.length()-1);
-						
-						termBuilder.setSimilarity(similarity);
-						
-					} catch (Exception e) {
-					}
-					
-				}				
-				
-				if (val.startsWith("\"") && val.endsWith("\"")) {
-					val = val.substring(1, val.length() - 1);
-					quoted = true;
-				}
-				
-				if (tagName.startsWith("-")) {
-					tagName = tagName.substring(1);
-					termBuilder.setInclude(false);
-				} 
-				if (quoted) {
-					if (matchType == null || matchType.equalsIgnoreCase("all")) {
-						termBuilder.setConstraint(FL_Constraint.REQUIRED_EQUALS);
-					} else {
-						termBuilder.setConstraint(FL_Constraint.OPTIONAL_EQUALS);
-					}
-				} else {
-					if (matchType == null || matchType.equalsIgnoreCase("any")) {
-						termBuilder.setConstraint(FL_Constraint.FUZZY_PARTIAL_OPTIONAL);
-					} else {
-						termBuilder.setConstraint(FL_Constraint.FUZZY_REQUIRED);
-					}
-				}
-				
-				termBuilder.setKey(tagName);
-				termBuilder.setRange(new SingletonRangeHelper(val, FL_PropertyType.STRING));
-				
-				terms.add(termBuilder.build());	
+			boolean quoted = false;
+			String tagValue = tagsMatcher.group(2).toString().trim();
+			if (tagValue.startsWith("\"") && tagValue.endsWith("\"")) {
+				tagValue = tagValue.substring(1, tagValue.length() - 1);
+				quoted = true;
 			}
+
+			FL_PropertyMatchDescriptor.Builder termBuilder = FL_PropertyMatchDescriptor.newBuilder();
+
+			termBuilder.setKey(tagName);
+
+			if (tagName.startsWith("-")) {
+				tagName = tagName.substring(1);
+				termBuilder.setInclude(false);
+			}
+
+			if (quoted) {
+				if (_matchType == null || _matchType.equalsIgnoreCase("all")) {
+					termBuilder.setConstraint(FL_Constraint.REQUIRED_EQUALS);
+				} else {
+					termBuilder.setConstraint(FL_Constraint.OPTIONAL_EQUALS);
+				}
+			} else {
+				if (_matchType == null || _matchType.equalsIgnoreCase("any")) {
+					termBuilder.setConstraint(FL_Constraint.FUZZY_PARTIAL_OPTIONAL);
+				} else {
+					termBuilder.setConstraint(FL_Constraint.FUZZY_REQUIRED);
+				}
+			}
+
+			Matcher boostMatch = boostPattern.matcher(tagValue);
+			if (boostMatch.find()) {
+				String weightStr = boostMatch.group(1);
+
+				try {
+					Float weight= Float.valueOf(weightStr);
+					tagValue = tagValue.substring(0, tagValue.length()-weightStr.length()-1);
+
+					termBuilder.setWeight(weight);
+
+				} catch (Exception e) {
+				}
+
+			}
+
+			Matcher similarityMatch = similarityPattern.matcher(tagValue);
+			if (similarityMatch.find()) {
+				String similarityStr = similarityMatch.group(1);
+
+				try {
+					Float similarity = Float.valueOf(similarityStr);
+					tagValue = tagValue.substring(0, tagValue.length()-similarityStr.length()-1);
+
+					termBuilder.setSimilarity(similarity);
+
+				} catch (Exception e) {
+				}
+
+			}
+
+			// Match properties to Search Descriptors
+			List<FL_TypeMapping> typeMappings = new ArrayList<FL_TypeMapping>();
+			for (FL_PropertyDescriptor pd : descriptors.getProperties()) {
+				if (pd.getKey().equals(tagName)) {
+					if (_dataTypes != null) {
+						for (FL_TypeMapping td : pd.getMemberOf()) {
+							if (_dataTypes.contains(td.getType())) {
+								typeMappings.add(td);
+							}
+						}
+					}
+				}
+			}
+
+			termBuilder.setTypeMappings(typeMappings);
+
+			List<Object> values = new ArrayList<Object>(Arrays.asList(tagValue.split(",")));
+			termBuilder.setRange(FL_ListRange.newBuilder().setType(FL_PropertyType.STRING).setValues(new ArrayList<Object>(values)).build());
+
+			_termsList.add(termBuilder.build());
 		}
 
-	}	
-	
-	public String getExtraTerms() {
-		return extraTerms;
+
+		// Add extra terms against freeTextIndexed properties
+		if (extraTerms != null && !extraTerms.isEmpty()) {
+			final Object values = PropertyMatchDescriptorHelper.rangeFromBasicTerms(extraTerms);
+
+			if (values != null) {
+				for (FL_PropertyDescriptor pd : descriptors.getProperties()) {
+
+					if (pd.getFreeTextIndexed()) {
+						_termsList.add(FL_PropertyMatchDescriptor.newBuilder()
+							.setConstraint(FL_Constraint.OPTIONAL_EQUALS)
+							.setKey(pd.getKey())
+							.setRange(values)
+							.setTypeMappings(pd.getMemberOf())
+							.build()
+						);
+					}
+				}
+			}
+		}
 	}
+	
+	
+
 	
 	public List<FL_PropertyMatchDescriptor> getTerms() {
-		return terms;
+		return _termsList;
 	}
 	
 	
-	public String getType() {
-		return dataType;
-	}
 	
-	public Boolean doCluster() {
-		return doCluster;
-	}
 	
-	public String getBooleanOperator() { 
-		return matchType;
+	public List<String> getTypes() {
+		if (_dataTypes == null) {
+			return Collections.singletonList(null);
+		} else {
+			return _dataTypes;
+		}
 	}
 }

@@ -59,6 +59,7 @@ define([],
 					},
 					close: function(event, ui) {
 						$(this).dialog('destroy');
+						$(this).remove();
 					}
 				});
 			}

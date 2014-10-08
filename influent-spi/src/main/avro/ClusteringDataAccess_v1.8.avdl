@@ -28,7 +28,7 @@
  Data Access for clusters
 */
 protocol FL_ClusteringDataAccess {
-	import idl "DataTypes_v1.7.avdl";
+	import idl "DataTypes_v1.8.avdl";
 
 	/**
 	 Sort type for transactions
@@ -157,7 +157,7 @@ protocol FL_ClusteringDataAccess {
 		union {FL_LinkTag, null} tag,
 		union {FL_DateRange, null} date,
 		string entitiesContextId,
-		union {string, null} focusContextId);
+		union {null, string} focusContextId);		// CHANGED IN 1.8
 	
 	/**
 	 Returns links to other entities related to specify entities.  Each Link returned should
@@ -185,7 +185,7 @@ protocol FL_ClusteringDataAccess {
 		union {FL_LinkTag, null} tag,
 		FL_DateRange date,
 		string entitiesContextId,
-		union {string, null} focusContextId);
+		union {null, string} focusContextId);		// CHANGED IN 1.8
 	
 	/**
 	 Returns links to other entities related to specify entities. Each link returned should

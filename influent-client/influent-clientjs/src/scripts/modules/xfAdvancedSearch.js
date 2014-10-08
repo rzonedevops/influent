@@ -36,14 +36,14 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 			subscriberTokens : null
 		};
 
-		var _defaultAdvancedSearchCriteria = {};
-
 		var _enableAdvancedSearchMatchType =
 			aperture.config.get()['influent.config']['enableAdvancedSearchMatchType'];
 		var _patternsToo =
 			aperture.config.get()['influent.config']['usePatternSearch'];
 		var _weighted =
 			aperture.config.get()['influent.config']['enableAdvancedSearchWeightedTerms'];
+		var _advancedSearchFuzzyLevels =
+			aperture.config.get()['influent.config']['advancedSearchFuzzyLevels'];
 
 		if (_enableAdvancedSearchMatchType == null) {
 			_enableAdvancedSearchMatchType = true;
@@ -54,8 +54,21 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 		criteriaUI.weighted(_weighted);
 
-		var _searchParams = {};
-		var _defaultType = null;
+
+		// Find the defined fuzzy match level closest to 50%
+		var _fuzzyMatchPreference = 0.5;
+		var _fuzzyMatchWeight = null;
+
+		aperture.util.forEach(_advancedSearchFuzzyLevels, function (value) {
+			if (_fuzzyMatchWeight == null ||
+				Math.abs(value - _fuzzyMatchPreference) < Math.abs(_fuzzyMatchWeight - _fuzzyMatchPreference)) {
+
+				_fuzzyMatchWeight = value;
+			}
+		});
+
+		var _propertyMap = {};
+		var _typeList = [];
 
 		//--------------------------------------------------------------------------------------------------------------
 
@@ -68,32 +81,14 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 				.then(function(response) {
 
 					// store the search parameter list
-					aperture.util.forEach(response.data, function(searchable) {
-						var map = {};
-						var keys = searchable.propertyDescriptors.map(function(d) {
-							return d.key;
-						});
+					aperture.util.forEach(response.properties, function(property, idx) {
 
-						if (_defaultAdvancedSearchCriteria[searchable.type] === undefined) {
-							_defaultAdvancedSearchCriteria[searchable.type] = [];
-						}
+						property.order = idx;
+						_propertyMap[property.key] = property;
+					});
 
-						_searchParams[searchable.type] = {
-							list : searchable.propertyDescriptors,
-							keys : keys,
-							map : map
-						};
-
-						if (!_defaultType) {
-							_defaultType = searchable.type;
-						}
-
-						searchable.propertyDescriptors.forEach(function(pd) {
-							map[pd.key] = pd;
-							if (pd.defaultTerm) {
-								_defaultAdvancedSearchCriteria[searchable.type].push(pd.key);
-							}
-						});
+					aperture.util.forEach(response.types, function(type) {
+						_typeList.push(type);
 					});
 
 					// build the static part of the UI
@@ -137,7 +132,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 			// tab construction
 			advancedTabs.tabs({
-				heightStyle: 'auto'
+				heightStyle: 'content'
 			});
 
 			var dialog = $('#advancedDialog');
@@ -166,13 +161,14 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 			// ?
 			dialog.css('display', '');
+			dialog.addClass('bootstrap-wrapper');
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
 		function onAnyAll() {
 			var matchType = $('input[name=advancedSearchbooleanOperation]:checked').val();
 
-			criteriaUI.multival(matchType === 'any'? true:false);
+			criteriaUI.multival(matchType === 'any');
 
             aperture.log.log({
                 type: aperture.log.draperType.USER,
@@ -210,10 +206,19 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 				.html('Find: ')
 				.appendTo(typeLine);
 
-			var typeOptions = $('<select></select>')
+			var typeOptions = $('<select class="selectpicker" title="Please select a type" multiple></select>')
 				.attr('id', 'advancedsearch-entity-type')
 				.appendTo(typeLine)
 				.change(function() {
+					var selectPickerButton = $(typeOptions.next().children()[0]);
+					if (typeOptions.val() === null) {
+						selectPickerButton.removeClass('btn-default').addClass('btn-danger');
+					} else {
+						selectPickerButton.removeClass('btn-danger').addClass('btn-default');
+					}
+
+
+
 					var text = assembleSearchString();
 					setFieldsFromString(text);
 
@@ -230,12 +235,89 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 
 			// build type options.
-			aperture.util.forEach(_searchParams, function(set, type) {
-				$('<option></option>')
-				.attr('value', type)
-				.html(type)
-				.appendTo(typeOptions);
+			var firstVal = null;
+			var ungroupedTypes = [];
+			var hasUngroupedTypes = false;
+			var hasGroupedTypes = false;
+			var groupKeyMap = {};
+			aperture.util.forEach(_typeList, function(type) {
+				if (!firstVal) {
+					firstVal = type.key;
+				}
+
+				var optGroup = null;
+				if (type.group) {
+					optGroup = typeOptions.find('optgroup[label="' + type.group + '"]');
+					if (!optGroup || optGroup.length === 0) {
+						optGroup = $('<optgroup/>').attr('label',type.group);
+						if (type.exclusive) {
+							optGroup.attr('data-max-options','1');
+						}
+						optGroup.appendTo(typeOptions);
+					}
+					$('<option></option>')
+						.attr('value', type.key)
+						.html(type.friendlyText ? type.friendlyText : type.key)
+						.appendTo(optGroup);
+					hasGroupedTypes = true;
+
+					var groupKeys = groupKeyMap[type.group];
+					if (!groupKeys) {
+						groupKeys = [];
+					}
+					groupKeys.push(type.key);
+					groupKeyMap[type.group] = groupKeys;
+				} else {
+					ungroupedTypes.push(type);
+					hasUngroupedTypes = true;
+				}
 			});
+
+			if (hasUngroupedTypes) {
+				if (hasGroupedTypes) {
+					typeOptions.append('<option data-divider="true"></option>');
+				}
+				aperture.util.forEach(ungroupedTypes, function(type) {
+					$('<option></option>')
+						.attr('value', type.key)
+						.html(type.friendlyText ? type.friendlyText : type.key)
+						.appendTo(typeOptions);
+				});
+			}
+
+
+			typeOptions.selectpicker({
+				headerCallback : function(groupName) {
+					var i;
+					var currentValues = typeOptions.selectpicker('val') || [];
+					var groupKeys = groupKeyMap[groupName];
+
+
+					// If all group keys are currently selected, we want to deselect them
+					var bRemoveGroupKeys = true;
+					for (i = 0; i < groupKeys.length && bRemoveGroupKeys; i++) {
+						bRemoveGroupKeys &= (currentValues.indexOf(groupKeys[i]) != -1);
+					}
+
+					// Remove group keys from the current selection, otherwise, add them avoiding duplicates
+					if (bRemoveGroupKeys) {
+						for (i = 0; i < groupKeys.length; i++) {
+							currentValues.splice(currentValues.indexOf(groupKeys[i]),1);
+						}
+					} else {
+						for (i = 0; i < groupKeys.length; i++) {
+							if (currentValues.indexOf(groupKeys[i]) == -1) {
+								currentValues.push(groupKeys[i]);
+							}
+						}
+					}
+					typeOptions.selectpicker('val',currentValues);
+					typeOptions.change();
+				}
+			});
+			typeOptions.selectpicker('val', firstVal);
+
+
 
 			// ANY / ALL option, is optional
 			if (_enableAdvancedSearchMatchType) {
@@ -249,9 +331,8 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 				var andRadio = $('<input/>').attr({
 					type:'radio',
 					name:'advancedSearchbooleanOperation',
-					value:'all',
-					checked:true
-				}).change(onAnyAll);
+					value:'all'
+				}).prop('checked',true).change(onAnyAll);
 
 				anyAllLine.append(andRadio).append('<span class="advancedsearch-any-all-span">'
 						+ andRadio.attr('value') + '</span>');
@@ -347,61 +428,132 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
-		function addDefaultRows(type,parent) {
-			var targerCriteria = [];
-			var targetKeys = _defaultAdvancedSearchCriteria[type];
-			for (var i = 0; i < _searchParams[type].list.length; i++) {
-				if (targetKeys.indexOf(_searchParams[type].list[i].key) !== -1) {
-					targerCriteria.push(_searchParams[type].list[i]);
+		function hasAllProperties(object, stringArray) {
+			var bHasAllProperties = true;
+			if (stringArray && stringArray.length > 0) {
+				for (var i = 0; i < stringArray.length && bHasAllProperties; i++) {
+					bHasAllProperties &= object.hasOwnProperty(stringArray[i]);
+				}
+			}
+			return bHasAllProperties;
+		}
+
+		//--------------------------------------------------------------------------------------------------------------
+		function getIntersectingProperties(typeArray) {
+			var props = [];
+			for (var key in _propertyMap) {
+				if (_propertyMap.hasOwnProperty(key)) {
+					if (hasAllProperties(_propertyMap[key].typeMappings, typeArray)) {
+						props.push(_propertyMap[key]);
+					}
+				}
+			}
+			return props;
+		}
+
+		//--------------------------------------------------------------------------------------------------------------
+		function getIntersectingPropertiesMap(typeArray) {
+			var props = {};
+			for (var key in _propertyMap) {
+				if (_propertyMap.hasOwnProperty(key)) {
+					if (hasAllProperties(_propertyMap[key].typeMappings, typeArray)) {
+						props[key] = _propertyMap[key];
+					}
+				}
+			}
+			return props;
+		}
+
+		//--------------------------------------------------------------------------------------------------------------
+		function getTypesFromEntityList(entities) {
+			var types = {};
+
+			for (var i = 0; i < entities.length; i++) {
+				var tokens = entities[i].uid.split('.');
+				types[tokens[1]] = true;
+			}
+
+			var typeArray = [];
+			for (var typeKey in types) {
+				if (types.hasOwnProperty(typeKey)) {
+					typeArray.push(typeKey);
 				}
 			}
 
-			if (targerCriteria.length === 0) {
-				addCriteriaRow(type,undefined,parent);
-			} else {
-				for (i = 0; i < targerCriteria.length; i++) {
-					addCriteriaRow(type,targerCriteria[i],parent);
+			return typeArray;
+		}
+
+		//--------------------------------------------------------------------------------------------------------------
+		function addDefaultRows(typeArr, parent) {
+			if (!aperture.util.isArray(typeArr)) {
+				typeArr = [typeArr];
+			}
+			var intersectingProps = getIntersectingProperties(typeArr);
+
+			// Create an array of default criteria
+			var defaultCriteria = [];
+			intersectingProps.forEach(function(prop) {
+				if (prop.defaultTerm) {
+					defaultCriteria.push({
+						key: prop.key,
+						text: prop.key+':'+'""'
+					});
 				}
+			});
+
+			// If no default criteria are specified, pick the first property we find, otherwise add each criteria row
+			if (defaultCriteria.length === 0) {
+				if (intersectingProps.length > 0) {
+					addCriteriaRow(typeArr,undefined,parent);
+				}
+			} else {
+				defaultCriteria.forEach(function(c){
+					addCriteriaRow(typeArr,c,parent);
+				});
 			}
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
-		function addCriteriaRow(type, criteria, parent) {
-			var set = _searchParams[type];
-			var key = null;
+		function addCriteriaRow(typeArr, criteria, parent) {
+			if (!aperture.util.isArray(typeArr)) {
+				typeArr = [typeArr];
+			}
 
-			if (criteria===null && _defaultAdvancedSearchCriteria) {
-				addDefaultRows(type,parent);
+			if (criteria === null) {
+				addDefaultRows(typeArr, parent);
 				return;
 			}
 
-
-			if (set) {
-				if (criteria) {
-					key = criteria.key;
-				} else {
-					aperture.util.forEachUntil(set.list, function(c) {
-						var used = aperture.util.forEachUntil(criteriaUI.list(), function(row) {
-							return row.key();
-						}, c.key);
-
-						if (c.key !== used) {
-							key = c.key;
-							return true;
-						}
-					});
-				}
-
-				if (key) {
-					var descriptor = set.map[key];
-
-					if (descriptor) {
-						var row = criteriaUI.add(set, descriptor, parent);
-
-						if (criteria) {
-							row.value(criteria.text);
+			var property;
+			var intersectingProps = getIntersectingProperties(typeArr);
+			if (criteria === undefined) {
+				var usedProps = criteriaUI.list();
+				intersectingProps.forEach(function(prop) {
+					if (!property) {
+						var used = false;
+						usedProps.forEach(function (usedProp) {
+							if (prop.key === usedProp.key()) {
+								used = true;
+							}
+						});
+						if (!used) {
+							property = prop;
 						}
 					}
+				});
+			} else {
+				for (var i = 0; i < intersectingProps.length; i++) {
+					if (intersectingProps[i].key === criteria.key) {
+						property = intersectingProps[i];
+						break;
+					}
+				}
+			}
+
+			if (property) {
+				var row = criteriaUI.add(intersectingProps,property,parent);
+				if (criteria) {
+					row.value(criteria.text);
 				}
 			}
 		}
@@ -424,7 +576,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 			if (data.dataIds != null && !_.isEmpty(data.dataIds)) {
 				setFieldsFromDataIds(data.dataIds);
-				$('#advancedTabs').tabs('select', 0);
+				$('#advancedTabs').tabs('option', 'active', 0);
 			} else {
 				setFieldsFromString(data.terms);
 			}
@@ -438,21 +590,34 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 			var match = nameValuePattern.exec(searchString);
 			var criteria = {list:[], map:{}};
 			var key;
+			var matchlen;
 
 			while (match != null) {
 				key = match[1];
+
 				if (key.charAt(0) === '-') {
 					key = key.substr(1);
 				}
 
-				criteria.list.push({
-					key : key,
-					text : match[1] + ':' + match[2]
-				});
+				if (!criteria.map[key] || key === 'datatype') {
+					criteria.list.push({
+						key : key,
+						text : match[1] + ':' + match[2]
+					});
+				}
 
-				criteria.map[key] = match[2];
+				if (key === 'datatype') {
+					if (!criteria.map[key]) {
+						criteria.map[key] = [match[2]];
+					} else {
+						criteria.map[key].push(match[2]);
+					}
+				} else {
+					criteria.map[key] = match[2];
+				}
 
-				var matchlen = match[0].length - match[3].length;
+
+				matchlen = match[0].length - match[3].length;
 				if (matchlen >= searchString.length) {
 					break;
 				}
@@ -461,16 +626,16 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 				match = nameValuePattern.exec(searchString);
 			}
 
+
+
 			return criteria;
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
 		function seedFromEntities(entities) {
-			var entity;
 			var map = {matchtype : 'any'};
 			var list = [{key: 'uid', text: ''}];
 			var entitiesString = '';
-			var termList = _searchParams[_defaultType].keys;
 
 			if (!entities || entities.length === 0) {
 				aperture.log.warn('no entities found for population request');
@@ -479,66 +644,58 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 			entities = entities[0].entities;
 
-			for (var i = 0; i < entities.length; i++) {
-				entity = entities[i];
+			map.datatype = getTypesFromEntityList(entities);
 
+			var intersectingPropertiesMap = getIntersectingPropertiesMap(map.datatype);
+
+			aperture.util.forEach(entities, function (entity) {
 				entitiesString += entity.uid + ', ';
 
-				if (!map.datatype) {
-					var etype = xfWorkspace.getValueByTag(entity, 'TYPE');
-					if (etype && _searchParams[etype]) {
-						map.datatype = etype;
-						termList = _searchParams[etype].keys;
-					}
-				}
+				var type = getTypesFromEntityList([entity]);
+				aperture.util.forEach(intersectingPropertiesMap, function (p) {
 
-				for (var propKey in entity.properties ) {
-					if ( entity.properties.hasOwnProperty(propKey) ) {
-						var property = entity.properties[propKey];
+					var typedKey = p.typeMappings[type];
+					var property = entity.properties[typedKey];
 
-						if (property.value && property.value !== '') {
-							var useIt = true;
+					if (property && property.value && property.value !== '') {
+						var useIt = true;
 
-							if ( property.tags ) {
-								for (var j = 0; j < property.tags.length; j++ ) {
-									if (property.tags[j] === 'ID' ||
-										property.tags[j] === 'GEO'
-									) {
-										useIt = false;
-										break;
-									}
-								}
-							}
+						if (property.tags) {
+							for (var j = 0; j < property.tags.length; j++) {
 
-							// Don't seed any empty values
-							if (property.value === '') {
-								useIt = false;
-							}
-
-							if (useIt) {
-								if (map.hasOwnProperty(propKey)) {
-									if (map[propKey].indexOf(property.value) === -1) {
-										map[propKey] += ', ' + property.value;
-									}
-								} else {
-									map[propKey] = String(property.value);
-									list.push({
-										key: propKey,
-										text: '',
-										ordinal: termList.indexOf(propKey)
-									});
+								// Dont process anything with an ID or GEO tag for seeding
+								if (property.tags[j] === 'ID' ||
+									property.tags[j] === 'GEO') {
+									useIt = false;
+									break;
 								}
 							}
 						}
+
+
+						if (useIt) {
+							if (map.hasOwnProperty(p.key)) {
+								if (map[p.key].indexOf(property.value) === -1) {
+									map[p.key] += ', ' + property.value;
+								}
+							} else {
+								map[p.key] = String(property.value);
+								list.push({
+									key: p.key,
+									text: '',
+									ordinal: intersectingPropertiesMap[p.key].order
+								});
+							}
+						}
 					}
-				}
-			}
+				});
+			});
 
 			map.uid = entitiesString.substring(0, entitiesString.length - 2);
 
 			// copy final values into list as text
 			list.forEach(function(p) {
-				p.text = p.key+ ':'+ map[p.key];
+				p.text = p.key + ':' + map[p.key] + (_fuzzyMatchWeight ? '~' + _fuzzyMatchWeight : '');
 			});
 
 			list.sort(function(a,b) {
@@ -564,10 +721,10 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 			if (criteria.map.like) {
 				setFieldsFromDataIds(criteria.map.like.split(','));
-				$('#advancedTabs').tabs('select', 1);
+				$('#advancedTabs').tabs('option', 'active', 1);
 			} else {
 				setFieldsFromProperties(criteria);
-				$('#advancedTabs').tabs('select', 0);
+				$('#advancedTabs').tabs('option', 'active', 0);
 			}
 		}
 
@@ -576,7 +733,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 			var typeOpt = $('#advancedsearch-entity-type');
 
 			if (criteria.map.datatype) {
-				typeOpt.val(criteria.map.datatype);
+				typeOpt.selectpicker('val',criteria.map.datatype);
 			}
 			var matchtype = criteria.map.matchtype;
 
@@ -584,8 +741,8 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 				var matchtypeSel = '[value='+ matchtype + ']';
 
 				var pair = $('input[name=advancedSearchbooleanOperation]');
-				pair.not(matchtypeSel).attr('checked','');
-				pair.filter(matchtypeSel).attr('checked','checked');
+				pair.not(matchtypeSel).prop('checked',false);
+				pair.filter(matchtypeSel).prop('checked',true);
 			}
 
 			if (criteria.map.uid) {
@@ -594,11 +751,12 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 				$('#likeIdProperty').val('');
 			}
 
-			var type = typeOpt.val();
 			var parent = $('#advancedsearch-criteria-container');
-
+			var intersectingProperties = getIntersectingPropertiesMap(criteria.map.datatype);
 			criteria.list.forEach(function(c) {
-				addCriteriaRow(type, c, parent);
+				if (intersectingProperties[c.key]) {
+					addCriteriaRow(criteria.map.datatype, c, parent);
+				}
 			});
 
 			if (criteriaUI.list().length === 0) {
@@ -643,7 +801,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 		//--------------------------------------------------------------------------------------------------------------
 		function assembleSearchString() {
-			var isPattern = $('#advancedTabs').tabs( 'option', 'selected' );
+			var isPattern = $('#advancedTabs').tabs( 'option', 'active' );
 
 			if (isPattern) {
 				var id = $('#likeIdProperty').val();
@@ -651,19 +809,24 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 			}
 			
 			var searchString = '';
-
+			var selectedTypes = $('#advancedsearch-entity-type').val();
 			criteriaUI.list().forEach(function(ui) {
 				var val = ui.value();
-
 				if (val && val.length !== 0) {
-					searchString += val+ ' ';
+					searchString += val + ' ';
 				}
 			});
 
+			// Remove trailing space
+			searchString = searchString.substring(0, searchString.length - 1);
 
 			if(searchString.length > 0) {
-				searchString += 'datatype:'+ $('#advancedsearch-entity-type').val();
-				
+				if (selectedTypes) {
+					for (var valIdx = 0; valIdx < selectedTypes.length; valIdx++) {
+						searchString += ' datatype:' + selectedTypes[valIdx];
+					}
+				}
+
 				if (_enableAdvancedSearchMatchType) {
 					searchString += ' matchtype:"' + $('input[name=advancedSearchbooleanOperation]:checked').val() + '" ';
 				}

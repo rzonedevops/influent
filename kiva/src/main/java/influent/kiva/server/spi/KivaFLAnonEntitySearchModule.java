@@ -65,6 +65,7 @@ public class KivaFLAnonEntitySearchModule extends AbstractModule {
 		try {
 			return new KivaAnonEntitySearch(solrUrl, solrDescriptor, config, geocoding, connectionPool, namespaceHandler);
 		} catch (Exception e) {
+			System.err.println(e.getMessage());
 			addError("Failed to EntitySearch", e);
 			return null;
 		}

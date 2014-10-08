@@ -26,11 +26,11 @@ package influent.server.rest;
 
 import influent.idl.FL_EntitySearch;
 import influent.idl.FL_PropertyDescriptor;
+import influent.idl.FL_TypeDescriptor;
 import influent.server.utilities.UISerializationHelper;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import oculus.aperture.common.rest.ApertureServerResource;
 
@@ -63,27 +63,30 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 	public StringRepresentation propertyList (String jsonData) throws ResourceException{
 		
 		try {
-			JSONObject props = new JSONObject();
-			Map<String, List<FL_PropertyDescriptor>> descriptions = searcher.getDescriptors();
-			
-			if (descriptions == null)
-				descriptions = new HashMap<String,List<FL_PropertyDescriptor>>();
-			
-			JSONArray typearr = new JSONArray();
-			for (String key : descriptions.keySet()) {
-				JSONArray ja = new JSONArray();
-				for (FL_PropertyDescriptor flpd : descriptions.get(key)) {
-					ja.put(UISerializationHelper.toUIJson(flpd));
-				}
-				JSONObject jo = new JSONObject();
-				jo.put("type",key);
-				jo.put("propertyDescriptors",ja);
-				typearr.put(jo);
+			JSONObject jo = new JSONObject();
+
+			List<FL_PropertyDescriptor> properties = searcher.getDescriptors().getProperties();
+			List<FL_TypeDescriptor> types = searcher.getDescriptors().getTypes();
+
+			if (properties == null)
+				properties = new ArrayList<FL_PropertyDescriptor>();
+			if (types == null)
+				types = new ArrayList<FL_TypeDescriptor>();
+
+            JSONArray propertyJSON = new JSONArray();
+            for (FL_PropertyDescriptor pd : properties) {
+	            propertyJSON.put(UISerializationHelper.toUIJson(pd));
+            }
+
+			JSONArray typeJSON = new JSONArray();
+			for (FL_TypeDescriptor td : types) {
+				typeJSON.put(UISerializationHelper.toUIJson(td));
 			}
-			
-			props.put("data", typearr);
-			
-			return new StringRepresentation(props.toString(), MediaType.APPLICATION_JSON);
+
+			jo.put("properties", propertyJSON);
+			jo.put("types", typeJSON);
+
+			return new StringRepresentation(jo.toString(), MediaType.APPLICATION_JSON);
 		} catch (AvroRemoteException ae) {
 			throw new ResourceException(ae);
 		} catch (JSONException e) {

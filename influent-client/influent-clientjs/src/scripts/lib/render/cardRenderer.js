@@ -485,7 +485,9 @@ define(
 				visualInfo.UIType !== constants.MODULE_NAMES.MUTABLE_CLUSTER &&
 				visualInfo.UIType !== constants.MODULE_NAMES.SUMMARY_CLUSTER
 			) {
-				canvas.draggable('destroy');
+				if (canvas.hasClass('influentDraggable')) {
+					canvas.draggable('destroy');
+				}
 				canvas.influentDraggable({
 					revert: 'invalid',
 					opacity: 0.7,

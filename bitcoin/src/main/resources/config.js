@@ -71,6 +71,7 @@
         startingDateRange : 'P4Y',
         defaultEndDate: new Date(2013, 6, 1),
 		defaultShowDetails : true,
+		defaultGraphScale : 1000,
 		doubleEncodeSourceUncertainty : true,
 		maxSearchResults : 50,
 		searchResultsPerPage : 12,

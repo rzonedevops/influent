@@ -92,48 +92,61 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
+		var _drawHighlighting = function(focusList) {
+			if (_transactionsState.table) {
+				if(_transactionsState.bFilterFocused) {
+					_transactionsState.table.fnDraw();
+				}
+				else {
+					// avoid using fnDraw where possible, as it will reset the page/scroll location on the table view
+					$('tr', _transactionsState.table).each(function(i, e){
+						var rowData = _transactionsState.table.fnGetData( this );
+						if(rowData != null && (focusList.indexOf(rowData[5]) != -1 || focusList.indexOf(rowData[6]) != -1)) {
+							$(e).addClass('transactionsHighlight-'+ ((i+1) % 2));
+						}
+						else {
+							$(e).removeClass('transactionsHighlight-'+ ((i+1) % 2));
+						}
+					});
+				}
+			}
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
 		var onFocusChange = function(channel, data) {
+
 			_transactionsState.focus = [];
 
-            // We need to get a list of entities that are focused if this is a file cluster.   Ask the server
-            // so they are all treated as 'focused' according to the transaction table
-			xfRest.request('/containedentities').inContext( data.contextId ).withData({
+			if (data == null || data.focus == null) {
+				_drawHighlighting(_transactionsState.focus);
+			} else {
+				// We need to get a list of entities that are focused if this is a file cluster.   Ask the server
+				// so they are all treated as 'focused' according to the transaction table
+				xfRest.request('/containedentities').inContext(data.focus.contextId).withData({
 
-				sessionId : data.sessionId,
-				entitySets : [{
-					contextId :  data.contextId,
-					entities: [data.dataId]
-				}],
-				details : false
+					sessionId: data.focus.sessionId,
+					entitySets: [
+						{
+							contextId: data.focus.contextId,
+							entities: [data.focus.dataId]
+						}
+					],
+					details: false
 
-			}).then(function (response) {
+				}).then(function (response) {
 
-				// Parse response
-				for (var i = 0; i < response.data.length; i++) {
-					var entities = response.data[i].entities;
-					for (var j = 0; j < entities.length; j++) {
-						_transactionsState.focus.push(entities[j]);
+					// Parse response
+					for (var i = 0; i < response.data.length; i++) {
+						var entities = response.data[i].entities;
+						for (var j = 0; j < entities.length; j++) {
+							_transactionsState.focus.push(entities[j]);
+						}
 					}
-				}
 
-				if (_transactionsState.table) {
-					if(_transactionsState.bFilterFocused) {
-						_transactionsState.table.fnDraw();
-					}
-					else {
-						// avoid using fnDraw where possible, as it will reset the page/scroll location on the table view
-						$('tr', _transactionsState.table).each(function(i, e){
-							var rowData = _transactionsState.table.fnGetData( this );
-							if(rowData != null && data != null && (_transactionsState.focus.indexOf(rowData[5]) != -1 || _transactionsState.focus.indexOf(rowData[6]) != -1)) {
-								$(e).addClass('transactionsHighlight-'+ ((i+1) % 2));
-							}
-							else {
-								$(e).removeClass('transactionsHighlight-'+ ((i+1) % 2));
-							}
-						});
-					}
-				}
-			});
+					_drawHighlighting(_transactionsState.focus);
+				});
+			}
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -271,7 +284,7 @@ define(
 				return;
 			}
 
-			var beforeUnloadEvents = $(window).data('events').beforeunload;
+			var beforeUnloadEvents = $._data($(window).get(0), 'events').beforeunload;
 			var handlers = [];
 			beforeUnloadEvents.forEach(function(event) {
 				handlers.push(event.handler);

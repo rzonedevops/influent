@@ -27,9 +27,9 @@ package influent.kiva.server.spi;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_EntitySearch;
 import influent.kiva.server.dataaccess.KivaDataAccess;
+import influent.kiva.server.dataaccess.KivaDataNamespaceHandler;
 import influent.midtier.spi.KivaDataAccessModule;
 import influent.server.dataaccess.DataNamespaceHandler;
-import influent.server.dataaccess.MSSQLDataNamespaceHandler;
 import influent.server.utilities.SQLConnectionPool;
 import oculus.aperture.spi.common.Properties;
 
@@ -60,12 +60,12 @@ public class KivaFLDataAccessModule extends AbstractModule {
 	@Provides @Singleton
 	public DataNamespaceHandler namespaceHandler(@Named("aperture.server.config") Properties config) {
 		try {
-			return new MSSQLDataNamespaceHandler(config);
+			return new KivaDataNamespaceHandler(config);
 		} catch (JSONException e) {
 			s_logger.warn("Failed to load tables from json. ", e);
 		}
 		
-		return new MSSQLDataNamespaceHandler();
+		return new KivaDataNamespaceHandler();
 	}
 	
 	/*

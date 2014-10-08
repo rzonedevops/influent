@@ -165,14 +165,15 @@ define( [ 'lib/util/xfUtil' ],
 				value : function(text) {
 					var weight = 0;
 					var fuzzySimilarity = 0;
+					var key;
 					
 					if (arguments.length !== 0) {
 						var match = /([^:\s]+):(.+?)\s*$/.exec(text||'');
 						var value = '';
 						var not= false, fuzzy= false;
-		
+
 						if (match != null) {
-							var key = match[1];
+							key = match[1];
 		
 							if ((not = (key.charAt(0) === '-'))) {
 								key = key.substr(1);
@@ -192,22 +193,24 @@ define( [ 'lib/util/xfUtil' ],
 									}
 								}
 
-								var fmatch = /\~([\.0-9]+)$/.exec(value);
-								if (fmatch != null) {
-									fuzzySimilarity = Number(fmatch[1]);
+								if (value.charAt(0) === '"') {
+									value = value.substring(1, value.length-1);
+								} else {
+									if (!_advancedSearchFuzzyLevels)
+										fuzzy = true;
+								}
 
-									if (!isNaN(fuzzySimilarity) && fuzzySimilarity > 0) {
-										value = value.substring(0, value.length - fmatch[1].length - 1);
+								if (_advancedSearchFuzzyLevels != null) {
+
+									var fmatch = /\~([\.0-9]+)$/.exec(value);
+									if (fmatch != null) {
+										fuzzySimilarity = Number(fmatch[1]);
+
+										if (!isNaN(fuzzySimilarity) && fuzzySimilarity > 0) {
+											value = value.substring(0, value.length - fmatch[1].length - 1);
+										}
 									}
 								}
-
-								if (!(fuzzy = (value.charAt(0) !== '"'))) {
-									value = value.substring(1, value.length-1);
-								}
-
-								// Escape lucene characters
-								value = value.replace(/([\\]?)([*+?&^!:{}()|\[\]\/\\])/g, '\\$2');
-
 							} else {
 								aperture.log.error('key does not match descriptor in advanced search term');
 							}
@@ -226,27 +229,26 @@ define( [ 'lib/util/xfUtil' ],
 						val.val(value);
 	
 					} else {
-						text = val.val();
+						var inputValue = val.val();
 
-						// Escape lucene characters
-						text = text.replace(/([\\]?)([*+?&^!:{}()|\[\]\/\\])/g, '\\$2');
-
-						if (text !== '') {
+						text = '';
+						if (inputValue !== '') {
+							key = descriptor.key;
 							if (operator.value() === 'not') {
-								text = '-' + descriptor.key + ':' + text;
+								text += '-' + key + ':' + inputValue;
 							} else if (operator.value() === 'fuzzy') {
-								text= descriptor.key + ':' + text;
+								text += key + ':' + inputValue;
 							} else if (operator.value().indexOf('fuzzy_') !== -1) {
 								var fuzz = Number(operator.value().substring('fuzzy_'.length, operator.value().length));
-								text = descriptor.key + ':' + text + '~' + fuzz;
+								text += key + ':' + inputValue  + '~' + fuzz;
 							} else {
-								text= descriptor.key + ':"' + text+ '"';
+								text += key + ':"' + inputValue + '"';
 							}
-							
+
 							weight = boost.value();
-							
+
 							if (weight !== 1) {
-								text+= '^' + weight;
+								text += '^' + weight;
 							}
 						}
 						
@@ -382,10 +384,10 @@ define( [ 'lib/util/xfUtil' ],
 				$('<select class="advancedsearch-paramchoice"></select>');
 			
 			// build type options.
-			descriptors.list.forEach(function(searchable) {
+			descriptors.forEach(function(searchable) {
 				$('<option class="advancedsearch-param"></option>')
 					.attr('value', searchable.key)
-					.html(searchable.friendlyText)
+					.html(searchable.friendlyText ? searchable.friendlyText : searchable.key)
 					.appendTo(paramchoice);
 			});
 
@@ -518,10 +520,12 @@ define( [ 'lib/util/xfUtil' ],
 				_fieldSelector(descriptors, descriptor)
 					.appendTo(_left)
 					.change(function() {
-						var descriptor = descriptors.map[$(this).val()];
-
-//						var val = _privates.editor.value();
-
+						var descriptor = null;
+						for (var i = 0; i < descriptors.length && descriptor === null; i++) {
+							if (descriptors[i].key === $(this).val()) {
+								descriptor = descriptors[i];
+							}
+						}
 						_privates.key = descriptor.key;
 						_privates.operator.clear();
 						_privates.editor.remove();
@@ -535,7 +539,7 @@ define( [ 'lib/util/xfUtil' ],
                             activity: 'select_filter_menu_option',
                             description: 'Criteria field changed',
                             data: {
-                                field: descriptor.friendlyText
+                                field: descriptor.friendlyText ? descriptor.friendlyText : descriptor.key
                             }
                         });
 					});

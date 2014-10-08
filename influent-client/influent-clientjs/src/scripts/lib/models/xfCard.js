@@ -478,7 +478,9 @@ define(
 			//----------------------------------------------------------------------------------------------------------
 
 			xfCardInstance.highlightId = function(xfId) {
-				if (_UIObjectState.xfId === xfId) {
+				if (xfId == null) {
+					_UIObjectState.isHighlighted = false;
+				} else if (_UIObjectState.xfId === xfId) {
 					if (!_UIObjectState.isHighlighted) {
 						_UIObjectState.isHighlighted = true;
 					}

@@ -87,7 +87,7 @@ public class BigChartResource extends ApertureServerResource {
 		try {
 			JSONObject jsonObj = new JSONObject(jsonData);
 			
-			String focusContextId = jsonObj.getString("focuscontextid");
+			String focusContextId = (jsonObj.isNull("focuscontextid")) ? null : jsonObj.getString("focuscontextid");
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
 			if (!GuidValidator.validateGuidString(sessionId)) {
@@ -97,40 +97,43 @@ public class BigChartResource extends ApertureServerResource {
 			DateTime startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
 			DateTime endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
 			
-			List<String> focusIds = new LinkedList<String>();
-			JSONArray focusObj = jsonObj.getJSONArray("focusId");
-			
-			for (int i=0; i < focusObj.length(); i++) {
-				String entityId = focusObj.getString(i);
-				List<String> entities = new ArrayList<String>();
-
-				TypedId id = TypedId.fromTypedId(entityId);
+			List<String> focusIds = null;
+			if (!jsonObj.isNull("focusId")) {
+				focusIds = new LinkedList<String>();
+				JSONArray focusObj = jsonObj.getJSONArray("focusId");
 				
-				// Point account owners and summaries to their owner account
-				if (id.getType() == TypedId.ACCOUNT_OWNER || 
-					id.getType() == TypedId.CLUSTER_SUMMARY) {
-						
-					entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString());
-						
-				} else if (id.getType() == TypedId.CLUSTER) {
+				for (int i=0; i < focusObj.length(); i++) {
+					String entityId = focusObj.getString(i);
+					List<String> entities = new ArrayList<String>();
+	
+					TypedId id = TypedId.fromTypedId(entityId);
 					
-					String nId = id.getNativeId();  
-					if (nId.startsWith("|")) { // group cluster
-						for (String sId : nId.split("\\|")) {
-							if (!sId.isEmpty()) {
-								entities.add(sId);
+					// Point account owners and summaries to their owner account
+					if (id.getType() == TypedId.ACCOUNT_OWNER || 
+						id.getType() == TypedId.CLUSTER_SUMMARY) {
+							
+						entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString());
+							
+					} else if (id.getType() == TypedId.CLUSTER) {
+						
+						String nId = id.getNativeId();  
+						if (nId.startsWith("|")) { // group cluster
+							for (String sId : nId.split("\\|")) {
+								if (!sId.isEmpty()) {
+									entities.add(sId);
+								}
 							}
+						} else {
+							entities.add(entityId);
 						}
 					} else {
 						entities.add(entityId);
 					}
-				} else {
-					entities.add(entityId);
-				}
-				
-				for (String fid : entities){
-					if (!focusIds.contains(fid)){
-						focusIds.add(fid);
+					
+					for (String fid : entities){
+						if (!focusIds.contains(fid)){
+							focusIds.add(fid);
+						}
 					}
 				}
 			}

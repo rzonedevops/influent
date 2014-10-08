@@ -120,136 +120,145 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 		List<FL_Cluster> summaryClusters = new LinkedList<FL_Cluster>();
 		
 		if (clusterIds == null || clusterIds.isEmpty()) return summaryClusters;
-		
-		final List<String> ns_entities = TypedId.nativeFromTypedIds(clusterIds);
-		
-		try {
-			Map<String, Map<String, PropertyHelper>> entityPropMap = new HashMap<String, Map<String, PropertyHelper>>();
-			
-			Connection connection = _connectionPool.getConnection();
-		
-			String summaryTable = getNamespaceHandler().tableName(null, DataAccessHelper.CLUSTER_SUMMARY_TABLE);
-			String summaryPropertyColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_PROPERTY);
-			String summaryTagColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_TAG);
-			String summaryTypeColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_TYPE);
-			String summaryValueColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_VALUE);
-			String summaryStatColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_STAT);
-		
-			// process src nodes in batches 
-			List<String> idsCopy = new ArrayList<String>(ns_entities); // copy the ids as we will take 1000 at a time to process and the take method is destructive
-			while (idsCopy.size() > 0) {
-				List<String> tempSubList = (idsCopy.size() > 1000) ? tempSubList = idsCopy.subList(0, 999) : idsCopy; // get the next 1000
-				List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
-				tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
-			
-				String finEntityTable = _namespaceHandler.tableName(null, DataAccessHelper.ENTITY_TABLE);
-				String finEntityEntityIdColumn = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
-				String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
-				String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
-				
-				Map<String, int[]> entityStats = new HashMap<String, int[]>();
 
-				// Create prepared statement
-				String preparedStatementString = buildPreparedStatementForInboundOutboundDegree(
-					subIds.size(),
-					finEntityEntityIdColumn, 
-					finEntityUniqueInboundDegree,
-					finEntityUniqueOutboundDegree, 
-					finEntityTable
-				);
-				PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
-				
-				int index = 1;
-				
-				for (int i = 0; i < subIds.size(); i++) {
-					stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), null));
-				}
+        Map<String, List<String>> bySchema = _namespaceHandler.entitiesByNamespace(clusterIds);
 
-				// Execute prepared statement and evaluate results
-				ResultSet rs = stmt.executeQuery();
-				while (rs.next()) {
-					String entityId = rs.getString(finEntityEntityIdColumn);
-					int inDegree = rs.getInt(finEntityUniqueInboundDegree);
-					int outDegree = rs.getInt(finEntityUniqueOutboundDegree);
-				
-					entityStats.put(entityId, new int[]{inDegree, outDegree});
-				}
-				rs.close();
-				
-				// Close prepared statement
-				stmt.close();
+        try {
 
-				// Create prepared statement
-				preparedStatementString = buildPreparedStatementForClusterSummary(
-					subIds.size(),
-					finEntityEntityIdColumn, 
-					summaryPropertyColumn,
-					summaryTagColumn, 
-					summaryTypeColumn,
-					summaryValueColumn,
-					summaryStatColumn,
-					summaryTable
-				);
-				stmt = connection.prepareStatement(preparedStatementString);
-				
-				index = 1;
-				
-				for (int i = 0; i < subIds.size(); i++) {
-					stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), null));
-				}
-				
-				// Execute prepared statement and evaluate results
-				rs = stmt.executeQuery();
-				while (rs.next()) {
-					String id = rs.getString(finEntityEntityIdColumn);
-					String property = rs.getString(summaryPropertyColumn);
-					String tag = rs.getString(summaryTagColumn);
-					String type = rs.getString(summaryTypeColumn);
-					String value = rs.getString(summaryValueColumn);
-					float stat = rs.getFloat(summaryStatColumn);
-					
-					Map<String, PropertyHelper> propMap = entityPropMap.get(id);
-					if (propMap == null) {
-						propMap = new HashMap<String, PropertyHelper>();
-						entityPropMap.put(id, propMap);
-					}
-					
-					PropertyHelper prop = propMap.get(property);
-					if (prop == null) {
-						prop = createProperty(property, tag, type, value, stat);
-						if (prop != null) {
-							propMap.put(property, prop);
-						}
-					}
-					else {
-						updateProperty(prop, tag, type, value, stat);
-					}
-				}
-				rs.close();
-				
-				// Close prepared statement
-				stmt.close();
-				
-				for (String id : entityPropMap.keySet()) {
-					int[] stats = entityStats.get( id );
-					
-					if (stats != null) {
-						// add degree stats
-						Map<String, PropertyHelper> propMap = entityPropMap.get(id);
-						propMap.put("inboundDegree", new PropertyHelper("inboundDegree", stats[0], FL_PropertyTag.INFLOWING) );
-						propMap.put("outboundDegree", new PropertyHelper("outboundDegree", stats[1], FL_PropertyTag.OUTFLOWING) );
-					}
-				}
-				
-				summaryClusters.addAll( createSummaryClusters(entityPropMap) );
-			}
+            Connection connection = _connectionPool.getConnection();
 
-			connection.close();
-			
-			return summaryClusters;
-		} catch (Exception e) {
-			throw new AvroRemoteException(e);
-		}
+            for (Map.Entry<String, List<String>> entry : bySchema.entrySet()) {
+
+                if (entry.getValue() == null || entry.getValue().isEmpty()) {
+                    continue;
+                }
+
+                Map<String, Map<String, PropertyHelper>> entityPropMap = new HashMap<String, Map<String, PropertyHelper>>();
+
+                String summaryTable = getNamespaceHandler().tableName(entry.getKey(), DataAccessHelper.CLUSTER_SUMMARY_TABLE);
+                String summaryPropertyColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_PROPERTY);
+                String summaryTagColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_TAG);
+                String summaryTypeColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_TYPE);
+                String summaryValueColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_VALUE);
+                String summaryStatColumn = _namespaceHandler.columnName(DataAccessHelper.CLUSTER_SUMMARY_COLUMN_STAT);
+
+                // process src nodes in batches
+                List<String> idsCopy = new ArrayList<String>(entry.getValue()); // copy the ids as we will take 1000 at a time to process and the take method is destructive
+                while (idsCopy.size() > 0) {
+                    List<String> tempSubList = (idsCopy.size() > 1000) ? idsCopy.subList(0, 999) : idsCopy; // get the next 1000
+                    List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
+                    tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy
+
+                    String finEntityTable = _namespaceHandler.tableName(entry.getKey(), DataAccessHelper.ENTITY_TABLE);
+                    String finEntityEntityIdColumn = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
+                    String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
+                    String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
+
+                    Map<String, int[]> entityStats = new HashMap<String, int[]>();
+
+                    // Create prepared statement
+                    String preparedStatementString = buildPreparedStatementForInboundOutboundDegree(
+                            subIds.size(),
+                            finEntityEntityIdColumn,
+                            finEntityUniqueInboundDegree,
+                            finEntityUniqueOutboundDegree,
+                            finEntityTable
+                    );
+                    PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
+
+                    int index = 1;
+
+                    for (int i = 0; i < subIds.size(); i++) {
+                        stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), entry.getKey()));
+                    }
+
+                    // Execute prepared statement and evaluate results
+                    ResultSet rs = stmt.executeQuery();
+                    while (rs.next()) {
+                        String entityId = rs.getString(finEntityEntityIdColumn);
+                        int inDegree = rs.getInt(finEntityUniqueInboundDegree);
+                        int outDegree = rs.getInt(finEntityUniqueOutboundDegree);
+
+                        entityStats.put(entityId, new int[]{inDegree, outDegree});
+                    }
+                    rs.close();
+
+                    // Close prepared statement
+                    stmt.close();
+
+                    // Create prepared statement
+                    preparedStatementString = buildPreparedStatementForClusterSummary(
+                            subIds.size(),
+                            finEntityEntityIdColumn,
+                            summaryPropertyColumn,
+                            summaryTagColumn,
+                            summaryTypeColumn,
+                            summaryValueColumn,
+                            summaryStatColumn,
+                            summaryTable
+                    );
+                    stmt = connection.prepareStatement(preparedStatementString);
+
+                    index = 1;
+
+                    for (int i = 0; i < subIds.size(); i++) {
+                        stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), entry.getKey()));
+                    }
+
+                    // Execute prepared statement and evaluate results
+                    rs = stmt.executeQuery();
+                    while (rs.next()) {
+                        String id = rs.getString(finEntityEntityIdColumn);
+                        String property = rs.getString(summaryPropertyColumn);
+                        String tag = rs.getString(summaryTagColumn);
+                        String type = rs.getString(summaryTypeColumn);
+                        String value = rs.getString(summaryValueColumn);
+                        float stat = rs.getFloat(summaryStatColumn);
+
+                        Map<String, PropertyHelper> propMap = entityPropMap.get(id);
+                        if (propMap == null) {
+                            propMap = new HashMap<String, PropertyHelper>();
+                            entityPropMap.put(id, propMap);
+                        }
+
+                        PropertyHelper prop = propMap.get(property);
+                        if (prop == null) {
+                            prop = createProperty(property, tag, type, value, stat);
+                            if (prop != null) {
+                                propMap.put(property, prop);
+                            }
+                        } else {
+                            updateProperty(prop, tag, type, value, stat);
+                        }
+                    }
+                    rs.close();
+
+                    // Close prepared statement
+                    stmt.close();
+
+                    for (String id : entityPropMap.keySet()) {
+                        int[] stats = entityStats.get(id);
+
+                        if (stats != null) {
+                            // add degree stats
+                            Map<String, PropertyHelper> propMap = entityPropMap.get(id);
+                            propMap.put("inboundDegree", new PropertyHelper("inboundDegree", stats[0], FL_PropertyTag.INFLOWING));
+                            propMap.put("outboundDegree", new PropertyHelper("outboundDegree", stats[1], FL_PropertyTag.OUTFLOWING));
+                        }
+                    }
+
+                    summaryClusters.addAll(createSummaryClusters(entityPropMap, entry.getKey()));
+                }
+
+            }
+
+            connection.close();
+            return summaryClusters;
+
+        } catch (Exception e) {
+            throw new AvroRemoteException(e);
+        }
+
 	}
 
 
@@ -292,6 +301,10 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 		
 		
 		FL_PropertyTag propTag = FL_PropertyTag.valueOf(tag);
+		
+		// Backward compatible fix - v2.0 added Integer property types - convert them to Longs - remove in v2.0
+		if (type.equalsIgnoreCase("INTEGER")) type = "LONG";
+		
 		FL_PropertyType propType = FL_PropertyType.valueOf(type);
 		
 		PropertyHelper prop = null;
@@ -363,34 +376,35 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 	
 	
 	@SuppressWarnings("unchecked")
-	private List<FL_Cluster> createSummaryClusters(Map<String, Map<String, PropertyHelper>> entityPropMap) {
+	private List<FL_Cluster> createSummaryClusters(Map<String, Map<String, PropertyHelper>> entityPropMap, String namespace) {
 		List<FL_Cluster> summaries = new ArrayList<FL_Cluster>(entityPropMap.size());
 		
 		for (String id : entityPropMap.keySet()) {
 			String label = "";
-			
+
 			Map<String, PropertyHelper> propMap = entityPropMap.get(id);
 			
 			List<FL_Property> props = new ArrayList<FL_Property>(propMap.size());
-			
+
 			for (String prop : propMap.keySet()) {
-				PropertyHelper p = propMap.get(prop);
-				if (p.hasTag(FL_PropertyTag.LABEL)) {
-					Object val = p.getValue();
-					if (val instanceof String) {
-						label = (String)p.getValue();
-					} else {
-						List<FL_Frequency> freqs = (List<FL_Frequency>)val;
-						label = (freqs.isEmpty()) ? "Unknown" : (String)freqs.get(0).getRange();
-					}
-				} else {
-					props.add(p);
-				}
-			}
-			
+                PropertyHelper p = propMap.get(prop);
+
+                if (p.hasTag(FL_PropertyTag.LABEL)) {
+                    Object val = p.getValue();
+                    if (val instanceof String) {
+                        label = (String) p.getValue();
+                    } else {
+                        List<FL_Frequency> freqs = (List<FL_Frequency>) val;
+                        label = (freqs.isEmpty()) ? "Unknown" : (String) freqs.get(0).getRange();
+                    }
+                } else {
+                    props.add(p);
+                }
+            }
+
 			summaries.add(
 				new ClusterHelper(
-					TypedId.fromNativeId(TypedId.CLUSTER_SUMMARY, id).getTypedId(), 
+                    getNamespaceHandler().globalFromLocalEntityId(namespace, id, TypedId.CLUSTER_SUMMARY),
 					label,
 					FL_EntityTag.CLUSTER_SUMMARY,
 					props,

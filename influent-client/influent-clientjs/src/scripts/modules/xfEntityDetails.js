@@ -179,10 +179,9 @@ define(['modules/xfWorkspace', 'modules/xfRest', 'lib/module', 'lib/channels',
 			var tbody = $('<tbody></table>').appendTo(table);
 
 			insertPropertyTableRow({friendlyText: 'uid', value: response.uid});
-			for (var prop in response.properties) {
-				if (response.properties.hasOwnProperty(prop)) {
-					insertPropertyTableRow(response.properties[prop]);
-				}
+			var propertyArray = xfUtil.propertyMapToDisplayOrderArray(response);
+			for (i = 0; i < propertyArray.length; i++) {
+				insertPropertyTableRow(propertyArray[i]);
 			}
 		};
 

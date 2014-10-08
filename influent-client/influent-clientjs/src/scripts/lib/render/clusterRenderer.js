@@ -173,7 +173,9 @@ define(
 
 		var _initElement = function(visualInfo, canvas){
 			// Initialize the drag/drop logic.
-			canvas.draggable('destroy');
+			if (canvas.hasClass('influentDraggable')) {
+				canvas.draggable('destroy');
+			}
 			canvas.influentDraggable({
 				revert: 'invalid',
 				opacity: 0.7,
@@ -251,7 +253,9 @@ define(
 				_createFaceElement(visualInfo, _instanceState);
 			}
 
-			canvas.draggable('destroy');
+			if (canvas.hasClass('influentDraggable')) {
+				canvas.draggable('destroy');
+			}
 			canvas.influentDraggable({
 				revert: 'invalid',
 				opacity: 0.7,

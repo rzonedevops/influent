@@ -60,7 +60,7 @@ define(
 			sessionId: '',
 			children: [], // This should only ever contain xfColumn objects.
 			childModule: undefined,
-			focus: undefined,
+			focus: null,
 			showDetails: true,
 			footerDisplay: 'none',
 			dates: {startDate: '', endDate: '', numBuckets: 0, duration: ''},
@@ -100,13 +100,11 @@ define(
 			if(window.callPhantom) {
 				$(window).bind( 'load',
 					function() {
-						if (aperture.io.getPendingRequests() !== 0) {
-							aperture.io.addRestListener({
-								onRequestComplete : function(pendingRequests) {
-									if(pendingRequests === 0) {
-										window.callPhantom();
-										aperture.io.removeRestListener(this);
-									}
+						if (xfRest.getPendingRequests() !== 0) {
+							xfRest.addRestListener(function () {
+								if(xfRest.getPendingRequests() === 0) {
+									window.callPhantom();
+									xfRest.removeRestListener(this);
 								}
 							});
 						} else {
@@ -116,8 +114,6 @@ define(
 				);
 			}
 
-			// aperture.capture.initialize();
-
 			// Create a workspace object.
 			_initWorkspaceState(_loadWorkspaceCallback);
 		};
@@ -126,17 +122,27 @@ define(
 
 			_pruneColumns();
 
-			if (_UIObjectState.focus != null) {
+			if (_UIObjectState.focus == null) {
 				aperture.pubsub.publish(
 					chan.FOCUS_CHANGE_EVENT,
 					{
-						xfId: _UIObjectState.focus.xfId,
-						dataId: _UIObjectState.focus.dataId,
-						entityType: _UIObjectState.focus.entityType,
-						entityLabel: _UIObjectState.focus.entityLabel,
-						entityCount: _UIObjectState.focus.entityCount,
-						contextId: _UIObjectState.focus.contextId,
-						sessionId : _UIObjectState.singleton.getSessionId(),
+						focus: null,
+						noRender: true
+					}
+				);
+			} else {
+				aperture.pubsub.publish(
+					chan.FOCUS_CHANGE_EVENT,
+					{
+						focus: {
+							xfId: _UIObjectState.focus.xfId,
+							dataId: _UIObjectState.focus.dataId,
+							entityType: _UIObjectState.focus.entityType,
+							entityLabel: _UIObjectState.focus.entityLabel,
+							entityCount: _UIObjectState.focus.entityCount,
+							contextId: _UIObjectState.focus.contextId,
+							sessionId: _UIObjectState.singleton.getSessionId()
+						},
 						noRender: true
 					}
 				);
@@ -190,82 +196,80 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _initWorkspaceState = function(callback) {
-			xfRest.request('/restorestate').withData(
 
-				{sessionId : _UIObjectState.sessionId}
+			xfRest.request('/restorestate')
+				.withData({sessionId : _UIObjectState.sessionId})
+				.then(function (response) {
+					var workspaceSpec = null;
+					var workspaceUIObj = null;
 
-			).then(function (response) {
+					if (response.data == null || response.data.length < 1) {
 
-				var workspaceSpec = null;
-				var workspaceUIObj = null;
+						// Set the flag for displaying/hiding charts.
+						var show = aperture.config.get()['influent.config']['defaultShowDetails'];
 
-				if (response.data == null || response.data.length < 1) {
+						_UIObjectState.showDetails = show != null? show : true;
 
-					// Set the flag for displaying/hiding charts.
-					var show = aperture.config.get()['influent.config']['defaultShowDetails'];
+						aperture.pubsub.publish(chan.DETAILS_CHANGE_EVENT, {showDetails : _UIObjectState.showDetails});
 
-					_UIObjectState.showDetails = show != null? show : true;
+						var initDuration = aperture.config.get()['influent.config']['startingDateRange'];
+						var initEndDate = aperture.config.get()['influent.config']['defaultEndDate'] || new Date();
 
-					aperture.pubsub.publish(chan.DETAILS_CHANGE_EVENT, {showDetails : _UIObjectState.showDetails});
+						initEndDate = duration.roundDateByDuration(initEndDate, initDuration);
+						var initStartDate = duration.roundDateByDuration(duration.subtractFromDate(initDuration, initEndDate), initDuration);
+						_UIObjectState.dates = {
+							startDate: xfUtil.utcShiftedDate(initStartDate),
+							endDate: xfUtil.utcShiftedDate(initEndDate),
+							numBuckets: 16, duration: initDuration
+						};
 
-					var initDuration = aperture.config.get()['influent.config']['startingDateRange'];
-					var initEndDate = aperture.config.get()['influent.config']['defaultEndDate'] || new Date();
+						workspaceSpec = xfWorkspaceModule.getSpecTemplate();
+						workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
+						_UIObjectState.singleton = workspaceUIObj;
 
-					initEndDate = duration.roundDateByDuration(initEndDate, initDuration);
-					var initStartDate = duration.roundDateByDuration(duration.subtractFromDate(initDuration, initEndDate), initDuration);
-					_UIObjectState.dates = {
-						startDate: xfUtil.utcShiftedDate(initStartDate),
-						endDate: xfUtil.utcShiftedDate(initEndDate),
-						numBuckets: 16, duration: initDuration
-					};
+						// Create an empty column container and add to the workspace
+						var columnSpec = xfColumn.getSpecTemplate();
+						var columnUIObj = _createColumn(columnSpec);
+						workspaceUIObj.insert(columnUIObj, null);
 
-					workspaceSpec = xfWorkspaceModule.getSpecTemplate();
-					workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
-					_UIObjectState.singleton = workspaceUIObj;
+						// Create an initial file and add to the above column
+						var fileSpec = xfFile.getSpecTemplate();
+						var fileUIObj = xfFile.createInstance(fileSpec);
+						columnUIObj.insert(fileUIObj, null);
 
-					// Create an empty column container and add to the workspace
-					var columnSpec = xfColumn.getSpecTemplate();
-					var columnUIObj = _createColumn(columnSpec);
-					workspaceUIObj.insert(columnUIObj, null);
+						_modifyContext(
+							fileUIObj.getXfId(),
+							columnUIObj.getXfId(),
+							'create'
+						);
 
-					// Create an initial file and add to the above column
-					var fileSpec = xfFile.getSpecTemplate();
-					var fileUIObj = xfFile.createInstance(fileSpec);
-					columnUIObj.insert(fileUIObj, null);
+						fileUIObj.showSearchControl(true, '');
+						aperture.pubsub.publish(
+							chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST,
+							{
+								xfId: fileUIObj.getMatchUIObject().getXfId(),
+								noRender: true
+							}
+						);
 
-					_modifyContext(
-						fileUIObj.getXfId(),
-						columnUIObj.getXfId(),
-						'create'
-					);
+					} else {
 
-					fileUIObj.showSearchControl(true, '');
-					aperture.pubsub.publish(
-						chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST,
-						{
-							xfId: fileUIObj.getMatchUIObject().getXfId(),
-							noRender: true
-						}
-					);
+						var restoreState = JSON.parse(response.data);
 
-				} else {
+						workspaceSpec = xfWorkspaceModule.getSpecTemplate();
+						workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
+						_UIObjectState.singleton = workspaceUIObj;
 
-					var restoreState = JSON.parse(response.data);
+						_UIObjectState.singleton.cleanState();
+						_UIObjectState.singleton.restoreVisualState(restoreState);
+						_UIObjectState.singleton.restoreHierarchy(restoreState, _UIObjectState.singleton);
+					}
 
-					workspaceSpec = xfWorkspaceModule.getSpecTemplate();
-					workspaceUIObj = xfWorkspaceModule.createSingleton(workspaceSpec);
-					_UIObjectState.singleton = workspaceUIObj;
+					_pruneColumns();
+					_checkPatternSearchState();
 
-					_UIObjectState.singleton.cleanState();
-					_UIObjectState.singleton.restoreVisualState(restoreState);
-					_UIObjectState.singleton.restoreHierarchy(restoreState, _UIObjectState.singleton);
-				}
-
-				_pruneColumns();
-				_checkPatternSearchState();
-
-				callback();
-			});
+					callback();
+				});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -854,21 +858,21 @@ define(
 
 			return columnFiles;
 		};
-		
+
 		//--------------------------------------------------------------------------------------------------------------
-		
+
 		function _checkPatternSearchState() {
 			var active = aperture.util.forEachUntil(_getAllFiles(), function(file) {
 				return file.getChildren().length !== 0;
 			}, true);
-			
+
 			if (_UIObjectState.graphSearchActive !== active) {
 				_UIObjectState.graphSearchActive = active;
 				aperture.pubsub.publish(chan.GRAPH_SEARCH_STATE_CHANGE,
 						{graphSearchActive : active});
 			}
 		}
-		
+
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _onSearchRequest = function(eventChannel, data, renderCallback) {
@@ -904,17 +908,17 @@ define(
 			else {
 				matchUIObject = _UIObjectState.singleton.getUIObjectByXfId(data.xfId);
 			}
-			
+
 			if (_isPartialQBESearch(matchUIObject.getSearchTerm())) {
 				_searchByExample(_gatherPatternSearchTerm([matchUIObject]), renderCallback);
-				
+
 			} else {
 				_basicSearchOnMatchcard(matchUIObject, renderCallback, eventChannel);
 			}
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
-		
+
 		var _onPatternSearchRequest = function(eventChannel, data, renderCallback) {
 
 			if (eventChannel !== chan.PATTERN_SEARCH_REQUEST) {
@@ -924,7 +928,7 @@ define(
 			// get files.
 			var files = _getAllFiles();
 			var fileSets = [];
-			
+
 			// open and populate match cards for any file with valid examples in it.
 			aperture.util.forEach(files, function(file) {
 				var dataIds = xfUtil.getContainedCardDataIds(file.getVisualInfo());
@@ -935,26 +939,26 @@ define(
 					});
 				}
 			});
-			
+
 			if (fileSets.length > 0) {
 				var onEntityResolution = function(data) {
 					var matchCardObjs = [];
 					var closeTheseFiles = [];
-					
+
 					aperture.util.forEach(data, function(fileData) {
 						var file = _UIObjectState.singleton.getUIObjectByXfId(fileData.contextId);
 
 						if (file) {
-							if (fileData.entities.length !== 0) {				
+							if (fileData.entities.length !== 0) {
 								file.showSearchControl(true, 'like:'+fileData.entities.toString());
 								matchCardObjs.push(file.getMatchUIObject());
-								
+
 							} else {
 								closeTheseFiles.push(file);
 							}
 						}
 					});
-					
+
 					// to do: prompt to proceed if there are any closures?
 
 					// if nothing to query, have to exit out.
@@ -964,32 +968,32 @@ define(
 						return;
 					}
 
-					
+
 					// close anything not involved in the search.
 					aperture.util.forEach(closeTheseFiles, function(file) {
 						file.showSearchControl(false);
 					});
-					
+
 					// set involved matchcards in a search state
 					aperture.util.forEach(_getAllMatchCards(), function(mcard) {
 						mcard.removeAllChildren();
 						mcard.setSearchState('searching');
 						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : mcard});
 					});
-					
+
 
 					// issue queries.
-					
-					
+
+
 					// Create groups of pattern searches and basic searches
 					var columnExtents = _getMinMaxColumnIndex();
 					var columnFiles = '';
-					
+
 					// to do: there is only the possibility of one pattern group using this logic.
 					var patternGroups = [];
 					var currentPatternGroup = [];
 					var i, j;
-					
+
 					for (i = columnExtents.min; i <= columnExtents.max; i++) {
 						columnFiles = xfUtil.getChildrenByType(_getColumnByIndex(i), constants.MODULE_NAMES.FILE);
 						var columnMatchcards = [];
@@ -1011,14 +1015,14 @@ define(
 							currentPatternGroup = [];
 						}
 					}
-					
+
 					if (currentPatternGroup.length > 0) {
 						patternGroups.push(currentPatternGroup);
 					}
 
 					for (i = 0; i < patternGroups.length; i++) {
 						_searchByExample(_gatherPatternSearchTerm(patternGroups[i]), renderCallback);
-					}					
+					}
 				};
 
 				xfRest.request('/containedentities').withData({
@@ -1273,11 +1277,6 @@ define(
 
 			var createdUIObjects = [];
 
-			if (parent.getUIType() === constants.MODULE_NAMES.MATCH) {
-				parent.setSearchState('results');
-				aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : parent});
-			}
-
 			var entities = serverResponse.data;
 			var firstSearchObject = null;
 			var specs = _getPopulatedSpecsFromData(entities, parent);
@@ -1337,30 +1336,16 @@ define(
                 totalMatches : totalMatches
             });
 
-			// if there is no currently focused object, then we set the first search object as the
-			// focused object
-			if(firstSearchObject != null) {
-				if (_UIObjectState.focus == null) {
-					var contextObj = xfUtil.getContextByUIObject(firstSearchObject);
-
-					// note this will trigger card chart updates as well, which is why we have an else below
-					aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, {
-						xfId: firstSearchObject.getXfId(),
-						dataId: firstSearchObject.getDataId(),
-						entityType: firstSearchObject.getUIType(),
-						entityLabel: firstSearchObject.getLabel(),
-						entityCount: firstSearchObject.getVisualInfo().spec.count,
-						contextId: contextObj ? contextObj.getXfId() : null,
-                        sessionId : _UIObjectState.singleton.getSessionId()
-					});
-
-				// else if we are showing card details then we need to populate the card specs with chart data
-				} else if (_UIObjectState.showDetails) {
-					_UIObjectState.childModule.updateCardsWithCharts(specs);
-				}
+			if (_UIObjectState.showDetails) {
+				_UIObjectState.childModule.updateCardsWithCharts(specs);
 			}
 
 			renderCallback(dataIds);
+
+			if (parent.getUIType() === constants.MODULE_NAMES.MATCH) {
+				parent.setSearchState('results');
+				aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : parent});
+			}
 
 			return createdUIObjects;
 		};
@@ -1617,9 +1602,12 @@ define(
 			targetContextObj.showSpinner(true);
 
 			// If this card is the current focus, set the focus after it is moved on the server
-			var requiresFocusChange = (_UIObjectState.singleton.getFocus().xfId === insertedCard.getXfId()) ||								// if we're moving the focused card, OR
-									(_UIObjectState.singleton.getUIObjectByXfId(_UIObjectState.singleton.getFocus().xfId) === null) ||		// the focused card no longer exists, OR
-									(_UIObjectState.singleton.getFocus().contextId === targetContainer.getXfId());							// we're moving a card into a context that is focused
+			var requiresFocusChange = false;
+			if (_UIObjectState.singleton.getFocus() != null) {
+				if (_UIObjectState.singleton.getFocus().xfId === insertedCard.getXfId()) {
+					requiresFocusChange = true;
+				}
+			}
 
 			// Temporarily hide the original card before it is removed.
 			_UIObjectState.singleton.setHidden(data.cardId, true);
@@ -1711,12 +1699,7 @@ define(
 
 						if(requiresFocusChange) {
 							aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {
-								xfId: uiObject.getXfId(),
-								dataId: uiObject.getDataId(),
-								entityType: uiObject.getUIType(),
-								entityLabel: uiObject.getLabel(),
-								entityCount: uiObject.getVisualInfo().spec.count,
-								contextId: targetContextObj ? targetContextObj.getXfId() : null
+								xfId: uiObject.getXfId()
 							});
 						}
 
@@ -1733,7 +1716,7 @@ define(
 
 						// pattern search may now be valid if files had no content before.
 						_checkPatternSearchState();
-						
+
 					};
 
 					// remove old card
@@ -1754,6 +1737,11 @@ define(
 			if (eventChannel !== chan.FOCUS_CHANGE_REQUEST ||
 				_UIObjectState.singleton == null
 			) {
+				return;
+			}
+
+			if (data == null || data.xfId == null) {
+				aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, {focus: null});
 				return;
 			}
 
@@ -1778,7 +1766,7 @@ define(
 				};
 			}
 
-			aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, focusData);
+			aperture.pubsub.publish(chan.FOCUS_CHANGE_EVENT, {focus: focusData});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -1791,7 +1779,7 @@ define(
 				return;
 			}
 
-			_UIObjectState.singleton.setFocus(data);
+			_UIObjectState.singleton.setFocus(data.focus);
 
 			if (_UIObjectState.showDetails) {
 				// If we are showing details then we need to update all the charts
@@ -2324,7 +2312,7 @@ define(
 		var _verifyBranchRequest = function(uiObject, direction, onOk, onCancel) {
 			var degree = direction === 'left' ? uiObject.getInDegree() : uiObject.getOutDegree();
 			var sdegree = _numberFormatter.format(degree);
-			
+
 			if (uiObject.getUIType() !== constants.MODULE_NAMES.SUMMARY_CLUSTER &&
 				OBJECT_DEGREE_LIMIT_COUNT > 0 && degree > OBJECT_DEGREE_LIMIT_COUNT) {
 				xfModalDialog.createInstance({
@@ -2339,7 +2327,7 @@ define(
 						}
 					}
 				});
-				
+
 			} else if (uiObject.getUIType() !== constants.MODULE_NAMES.SUMMARY_CLUSTER &&
 						OBJECT_DEGREE_WARNING_COUNT > 0 && degree > OBJECT_DEGREE_WARNING_COUNT) {
 				xfModalDialog.createInstance({
@@ -2359,7 +2347,7 @@ define(
 						}
 					}
 				});
-				
+
 			} else {
 				if (onOk) {
 					onOk();
@@ -2454,7 +2442,7 @@ define(
 					for (var j = 0; j < children.length; j++) {
 						children[j].update(childSpec);
 						// Update the highlight state of any children.
-						children[j].highlightId(_UIObjectState.singleton.getFocus().xfId);
+						children[j].highlightId((_UIObjectState.singleton.getFocus() == null) ? null : _UIObjectState.singleton.getFocus().xfId);
 					}
 				}
 
@@ -2518,6 +2506,14 @@ define(
 			}
 
 			uiObj.collapse();
+
+			aperture.pubsub.publish(
+				chan.RENDER_UPDATE_REQUEST,
+				{
+					UIObject :  uiObj,
+					layoutRequest : _getLayoutUpdateRequestMsg()
+				}
+			);
 
 			if (_UIObjectState.showDetails) {
 				_UIObjectState.childModule.updateCardsWithCharts(uiObj.getSpecs(false));
@@ -2658,7 +2654,7 @@ define(
 
 					// technically we only need to check when files are involved but this check is lightweight
 					_checkPatternSearchState();
-					
+
 					if (renderCallback) {
 						renderCallback();
 					}
@@ -2742,7 +2738,7 @@ define(
 
 					// technically we only need to check when files are involved but this check is lightweight
 					_checkPatternSearchState();
-					
+
 					if (renderCallback) {
 						renderCallback();
 					}
@@ -2806,6 +2802,16 @@ define(
 						}
 
 						if (rootNode != null) {
+							// If the root was the focus, unset the focus
+							if (_UIObjectState.focus != null &&
+								_UIObjectState.focus.xfId === rootNode.getXfId()) {
+
+								aperture.pubsub.publish(
+									chan.FOCUS_CHANGE_REQUEST,
+									{xfId: null}
+								);
+							}
+
 							rootNode.getParent().removeChild(rootNode.getXfId(), true, false, false);
 						}
 
@@ -2817,11 +2823,22 @@ define(
 
 					} else {
 
-						var specs = _getPopulatedSpecsFromData(response.targets, contextObj);
+						var i;
+						var specs = [];
+						for (i = 0; i < response.targets.length; i++) {
+							var target = response.targets[i];
+							if (contextObj.getUIType() === constants.MODULE_NAMES.FILE &&
+								!target.isRoot
+							) {
+								specs = specs.concat(_getPopulatedSpecsFromData([target], contextObj.getClusterUIObject()));
+							} else {
+								specs = specs.concat(_getPopulatedSpecsFromData([target], contextObj));
+							}
+						}
 
 						var addedCards = [];
 
-						for (var i = 0; i < specs.length; i++) {
+						for (i = 0; i < specs.length; i++) {
 							var uiObjects = contextObj.getUIObjectsByDataId(specs[i].dataId);
 							for (var j = 0; j < uiObjects.length; j++) {
 								var updateResult = uiObjects[j].update(specs[i]);
@@ -2829,6 +2846,14 @@ define(
 									for (var k = 0; k < updateResult.length; k++) {
 										addedCards.push(updateResult[k]);
 									}
+								}
+
+								// Check to see if the spec update caused us to invalidate our focus.
+								// This probably means we just had it deleted by the server. Unset it now.
+								if (_UIObjectState.focus != null && _UIObjectState.singleton.getUIObjectByXfId(_UIObjectState.focus.xfId) == null) {
+									aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {
+										xfId: null
+									});
 								}
 							}
 						}
@@ -2856,7 +2881,7 @@ define(
 									} else {
 										for (var j = 0; j < children.length; j++) {
 											children[j].update(childSpec);
-											children[j].highlightId(_UIObjectState.singleton.getFocus().xfId);
+											children[j].highlightId((_UIObjectState.singleton.getFocus() == null) ? null : _UIObjectState.singleton.getFocus().xfId);
 										}
 									}
 								}
@@ -2917,13 +2942,6 @@ define(
 			// Remove this object from the position map before it's disposed.
 			xfLayoutProvider.removeUIObject(objToRemove);
 
-
-			var xfId = objToRemove.getXfId();
-			if (_UIObjectState.focus != null &&
-                _UIObjectState.focus.xfId === xfId) {
-				_UIObjectState.focus.xfId = null;
-			}
-
 			// remove the object using the removal function
 			removalFunction();
 
@@ -2943,7 +2961,34 @@ define(
 				return;
 			}
 
-			for (var i=0; i < data.xfIds.length; i++){
+			var numberOfIds = data.xfIds.length;
+			var counter = 0;
+			var deletedFocusedObject = false;
+
+			var counterCallback = function() {
+				counter++;
+				if (counter === numberOfIds) {
+
+					if (deletedFocusedObject) {
+						aperture.pubsub.publish(
+							chan.FOCUS_CHANGE_REQUEST,
+							{xfId: null}
+						);
+					}
+
+					if (renderCallback){
+						renderCallback();
+					}
+				}
+			};
+
+			for (var i=0; i < data.xfIds.length; i++) {
+
+				if (_UIObjectState.focus != null &&
+					_UIObjectState.focus.xfId === data.xfIds[i]
+				) {
+					deletedFocusedObject = true;
+				}
 
 				// Temporarily hide the card before it is removed
 				_UIObjectState.singleton.setHidden(data.xfIds[i], true);
@@ -2952,12 +2997,9 @@ define(
 					_UIObjectState.singleton.getUIObjectByXfId(data.xfIds[i]),
 					eventChannel,
 					data.dispose,
-					renderCallback
+					counterCallback
 				);
 			}
-
-			renderCallback();
-
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -3233,7 +3275,7 @@ define(
 				async = true;
 			}
 
-			xfRest.request('/persist', 'POST', async).withData({
+			xfRest.request('/savestate', 'POST', async).withData({
 
 				sessionId : _UIObjectState.sessionId,
 				data : (currentState) ? JSON.stringify(currentState) : ''
@@ -3277,7 +3319,6 @@ define(
 						renderDelay : 4000,
 						reload : true,
 						downloadToken : timestamp,
-						jsessionId: cookieUtil.readCookie('JSESSIONID')
 					};
 
 
@@ -3288,7 +3329,7 @@ define(
 							settings.password = auth.password;
 						}
 					}
-					
+
 					var sessionUrl = window.location.href;
 
 					if (sessionUrl.indexOf('?sessionId=') === -1) {
@@ -3442,7 +3483,7 @@ define(
 						0
 					);
 
-				var restoreState = JSON.parse(data);
+					var restoreState = JSON.parse(data);
 
 					if(restoreState.message && !restoreState.ok) {
 						aperture.log.error('Server Error' + (restoreState? (' : ' + JSON.stringify(restoreState)): ''));
@@ -3544,22 +3585,22 @@ define(
 			// highlight files
 			aperture.util.forEach(files, function(file) {
 				var hi = data.isHighlighted && file.getChildren().length !== 0;
-				
+
 				file.setMatchHighlighted(hi);
 				aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : file});
 			});
-			
+
 			// highlight file links
 			aperture.util.forEach(_UIObjectState.singleton.getLinks(), function(link) {
 				if(link.getType() === xfLinkType.FILE) {
-					var hi = data.isHighlighted 
-						&& link.getSource().getChildren().length !== 0 
+					var hi = data.isHighlighted
+						&& link.getSource().getChildren().length !== 0
 						&& link.getDestination().getChildren().length !== 0;
-					
+
 					link.setSelected(hi);
 				}
 			});
-			
+
 			// hmmm. heavyweight
 			var layoutUpdateRequestMsg = _getLayoutUpdateRequestMsg();		// rerender the sankeys
 			aperture.pubsub.publish(
@@ -4065,7 +4106,7 @@ define(
 				_UIObjectState.xfId = '';
 				_UIObjectState.UIType = MODULE_NAME;
 				_UIObjectState.children = [];
-				_UIObjectState.focus = undefined;
+				_UIObjectState.focus = null;
 				_UIObjectState.showDetails = false;
 				_UIObjectState.dates = {startDate: '', endDate: '', numBuckets: 0, duration: ''};
 			};

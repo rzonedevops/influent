@@ -5,6 +5,26 @@ runtime-injected modules for search, data access, clustering and other services.
 language independent form.
 The following is a log of changes to the avro service provider interfaces (SPIs) made with each version. 
 
+## Version 1.8 Change Log
+
+### Search
+Changes to `FL_Search` protocol:
++ added `FL_TypeDescriptor` for defining types that properties belong to, replacing a simple string type name.
++ moved 'FL_PropertyDescriptor' from FL_EntitySearch to FL_Search.
++ added `FL_TypeMapping` for defining how FL_PropertyDescriptors map to types.
++ each `FL_PropertyDescriptor` can now list one or more FL_TypeMappings for each type that it belongs to and what field it represents.
++ the data `type` field of `FL_PropertyDescriptor` was renamed to `propertyType` for clarity.
++ FL_PropertyMatchDescriptor now accepts an array of FL_TypeMappings as types and fields to match against.
+
+Changes to 'FL_EntitySearch' protocol:
++ added FL_PropertyDescriptors to contain arrays of Property and Type descriptors
++ `getDescriptors()` now returns an instance of FL_PropertyDescriptors rather than a map of type to list.
++ FL_PropertyDescriptor was moved to FL_Search. See above.
+ 
+### Bug Fixes
+When defining an Avro union with a `null` default value it must be defined as `union{null,string}=null`
+and not `union{string,null}=null` or Avro throws a wobbly when the value is null.
+
 ## Version 1.7 Change Log
 
 ### Data Types

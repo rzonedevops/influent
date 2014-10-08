@@ -55,6 +55,8 @@ public class ChartHash {
 	private static final String SEPARATOR 			= "|";
 	private static final String FOCUS_SECTION		= SEPARATOR + "f";
 	private static final String VERSION_SEPARATOR	= ":";
+
+	
 	
 	ChartHash(List<String> ids, 
 			  DateTime startDate, 
@@ -85,6 +87,9 @@ public class ChartHash {
 		this._hash = _makeHash();
 	}
 	
+	
+	
+	
 	ChartHash(String hash) {
 		
 		this._hash = hash;
@@ -98,10 +103,10 @@ public class ChartHash {
 		}
 		_sessionId = hashParts[0];
 		_contextId = hashParts[1];
-		_focusContextId = hashParts[2];
+		_focusContextId = (hashParts[2].compareToIgnoreCase("null") == 0 || hashParts[2].isEmpty()) ? null : (hashParts[2]);
 		_startDate = DateTimeParser.parse(hashParts[3]);
 		_endDate = DateTimeParser.parse(hashParts[4]);
-		_focusMaxDebitCredit = (hashParts[5].compareToIgnoreCase("null") == 0) ? null : Double.parseDouble(hashParts[5]);
+		_focusMaxDebitCredit = (hashParts[5].compareToIgnoreCase("null") == 0 || hashParts[5].isEmpty()) ? null : Double.parseDouble(hashParts[5]);
 		_numBuckets = Integer.parseInt(hashParts[6]);
 		_width = Integer.parseInt(hashParts[7]);
 		_height = Integer.parseInt(hashParts[8]);
@@ -110,7 +115,12 @@ public class ChartHash {
 		final int fidSectionIdx = hashParts[9].indexOf(FOCUS_SECTION);						
 		
 		// Split everything in the id sections
-		String[] idParts = hashParts[9].substring(0, fidSectionIdx).split("\\" + SEPARATOR);
+		String[] idParts;
+		if (fidSectionIdx < -1) {
+			idParts = hashParts[9].substring(0, fidSectionIdx).split("\\" + SEPARATOR);
+		} else {
+			idParts = hashParts[9].split("\\" + SEPARATOR);
+		}
 		_ids = new ArrayList<String>();
 		for (int i = 0; i < idParts.length; i++) {
 			String idPart = idParts[i].replaceAll("%20", " ");
@@ -120,16 +130,24 @@ public class ChartHash {
 			
 			_ids.add(idPart);
 		}
+
+		if (fidSectionIdx < -1) {
+			String[] fidParts = hashParts[9].substring(fidSectionIdx + FOCUS_SECTION.length() + SEPARATOR.length()).split("\\" + SEPARATOR);
+			if (fidParts.length <= 0) {
+				_focusIds = null;
+			} else {
+				_focusIds = new ArrayList<String>();
+				for (int i = 0; i < fidParts.length; i++) {
+					String fidPart = fidParts[i].replaceAll("%20", " ");
 		
-		String[] fidParts = hashParts[9].substring(fidSectionIdx + FOCUS_SECTION.length() + SEPARATOR.length()).split("\\" + SEPARATOR);
-		_focusIds = new ArrayList<String>();
-		for (int i = 0; i < fidParts.length; i++) {
-			String fidPart = fidParts[i].replaceAll("%20", " ");
-
-			// Strip any versions
-			fidPart = fidPart.indexOf(VERSION_SEPARATOR) != -1 ? fidPart.substring(0, fidPart.indexOf(VERSION_SEPARATOR)) : fidPart;
-
-			_focusIds.add(fidPart);
+					// Strip any versions
+					fidPart = fidPart.indexOf(VERSION_SEPARATOR) != -1 ? fidPart.substring(0, fidPart.indexOf(VERSION_SEPARATOR)) : fidPart;
+		
+					_focusIds.add(fidPart);
+				}
+			}
+		} else {
+			_focusIds = null;
 		}
 	}
 
@@ -160,7 +178,7 @@ public class ChartHash {
 		
 		buffer.append(_sessionId + SEPARATOR);
 		buffer.append(_contextId + SEPARATOR);
-		buffer.append(_focusContextId + SEPARATOR);
+		buffer.append(((_focusContextId == null) ? "" : _focusContextId) + SEPARATOR);
 		buffer.append(_startDate.toString() + SEPARATOR);
 		buffer.append(_endDate.toString() + SEPARATOR);
 		buffer.append(_focusMaxDebitCredit + SEPARATOR);
@@ -179,17 +197,20 @@ public class ChartHash {
 			permits.revoke();
 		}
 		
-		try {
-			ContextRead contextRO = _contextCache.getReadOnly(_focusContextId, permits);
-		
-			// Focus section
-			buffer.append(FOCUS_SECTION); 								 
-			for (String fid : getFocusIds()) {
-				buffer.append(SEPARATOR + fid.replaceAll(" ", "%20") + _getVersion(fid, contextRO));
+		if (_focusIds != null) {
+			try {
+				ContextRead contextRO = _contextCache.getReadOnly(_focusContextId, permits);
+			
+				// Focus section
+				buffer.append(FOCUS_SECTION); 								 
+				for (String fid : getFocusIds()) {
+					buffer.append(SEPARATOR + fid.replaceAll(" ", "%20") + _getVersion(fid, contextRO));
+				}
+			} finally {
+				permits.revoke();
 			}
-		} finally {
-			permits.revoke();
 		}
+		
 		_hash = buffer.toString();
 		
 		return _hash;

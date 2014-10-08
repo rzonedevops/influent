@@ -647,6 +647,23 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
+		var _propertyMapToDisplayOrderArray = function( obj ) {
+			var propertyArray = [];
+
+			for (var key in obj.properties) {
+				if (obj.properties.hasOwnProperty(key) && obj.properties[key].displayOrder >= 0) {
+					propertyArray.push(obj.properties[key]);
+				}
+			}
+			propertyArray.sort(function(ob1,ob2) {
+				return (ob1.displayOrder || 0) - (ob2.displayOrder || 0);
+			});
+
+			return propertyArray;
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
 		function _makeButton(title, icon, text, classType, id) {
 
 			var button = $('<button></button>');
@@ -764,7 +781,8 @@ define(
 			getContainedCardDataIds : _getContainedCardDataIds,
 			getAccountTypeFromDataId : _getAccountTypeFromDataId,
 			makeButton : _makeButton,
-            makeTooltip : _makeTooltip
+            makeTooltip : _makeTooltip,
+			propertyMapToDisplayOrderArray : _propertyMapToDisplayOrderArray
 		};
 	}
 );
