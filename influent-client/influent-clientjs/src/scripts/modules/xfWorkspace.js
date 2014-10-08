@@ -197,7 +197,7 @@ define(
 
 		var _initWorkspaceState = function(callback) {
 
-			xfRest.request( '/restorestate' , 'POST')
+			xfRest.request('/restorestate')
 				.withData({sessionId : _UIObjectState.sessionId})
 				.then(function (response) {
 					var workspaceSpec = null;
@@ -1025,7 +1025,7 @@ define(
 					}
 				};
 
-				xfRest.request('/containedentities', 'POST').withData({
+				xfRest.request('/containedentities').withData({
 
 						sessionId : _UIObjectState.sessionId,
 						entitySets : fileSets,

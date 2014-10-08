@@ -76,7 +76,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 		// Private Methods
 		//--------------------------------------------------------------------------------------------------------------
 		function onInit() {
-			xfRest.request( '/searchparams', 'POST' )
+			xfRest.request('/searchparams')
 				.inContext( _UIObjectState.contextId )
 				.then(function(response) {
 

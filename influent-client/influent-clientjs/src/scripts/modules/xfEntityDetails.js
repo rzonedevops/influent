@@ -92,7 +92,7 @@ define(['modules/xfWorkspace', 'modules/xfRest', 'lib/module', 'lib/channels',
 				if (data.uiType === constants.MODULE_NAMES.ENTITY)
 				{
 					// get details for entity here
-					xfRest.request('/entitydetails', 'POST')
+					xfRest.request('/entitydetails')
 						.withData({entityId : data.dataId})
 						.inContext( data.xfId)
 						.then( function (response) {
@@ -104,7 +104,7 @@ define(['modules/xfWorkspace', 'modules/xfRest', 'lib/module', 'lib/channels',
 				} else if (data.hasOwnProperty('ownerId') && data.ownerId !== '') {
 
 					// get details for entity here
-					xfRest.request('/entitydetails', 'POST')
+					xfRest.request('/entitydetails')
 						.withData({entityId : data.ownerId})
 						.inContext( data.xfId)
 						.then( function (response) {

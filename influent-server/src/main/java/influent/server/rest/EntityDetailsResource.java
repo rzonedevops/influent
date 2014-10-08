@@ -50,31 +50,28 @@ import com.google.inject.Inject;
 
 public class EntityDetailsResource extends ApertureServerResource {
 
-    private static final Logger s_logger = LoggerFactory.getLogger(EntityDetailsResource.class);
+	private static final Logger s_logger = LoggerFactory.getLogger(EntityDetailsResource.class);
 
-    private FL_DataAccess service;
-    private EntityPropertiesViewService propView;
+	private FL_DataAccess service;
+	private EntityPropertiesViewService propView;
 
-
-    
-    @Inject
-    public EntityDetailsResource(FL_DataAccess service, EntityPropertiesViewService propView) {
-        this.service = service;
-        this.propView = propView;
-    }
-
-
-
-    
-    @Post("json")
-    public StringRepresentation getContent(String jsonData) {
-
-        String entityId = "";
+	
+	@Inject 
+	public EntityDetailsResource (FL_DataAccess service, EntityPropertiesViewService propView) {
+		this.service = service;
+		this.propView = propView;
+	}
+	
+	
+	
+	
+	@Post("json")
+	public StringRepresentation getContent(String jsonData)  {
 		
 		try {	
 			JSONObject jsonObj = new JSONObject(jsonData);
 		
-			entityId = jsonObj.getString("entityId").trim();
+			String entityId = jsonObj.getString("entityId").trim();
 
             List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId), FL_LevelOfDetail.FULL);
             if (entities != null && !entities.isEmpty()) {
@@ -88,22 +85,22 @@ public class EntityDetailsResource extends ApertureServerResource {
             }
         } catch (DataAccessException e) {
             throw new ResourceException(
-                    Status.CLIENT_ERROR_BAD_REQUEST,
-                    "Unable to create JSON object from supplied options string",
-                    e
+            	Status.CLIENT_ERROR_BAD_REQUEST,
+                "Unable to create JSON object from supplied options string",
+                e
             );
         } catch (AvroRemoteException e) {
             throw new ResourceException(
-                    Status.CLIENT_ERROR_BAD_REQUEST,
-                    "Unable to create JSON object from supplied options string",
-                    e
+                Status.CLIENT_ERROR_BAD_REQUEST,
+                "Unable to create JSON object from supplied options string",
+                e
             );
-        } catch (JSONException je) {
-			throw new ResourceException(
-				Status.CLIENT_ERROR_BAD_REQUEST,
-				"JSON parse error.",
-				je
-			);
+        } catch (JSONException e) {
+        	throw new ResourceException(
+        		Status.CLIENT_ERROR_BAD_REQUEST,
+                "Unable to create JSON object from supplied options string",
+                e
+            );
 		}
     }
 }
