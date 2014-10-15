@@ -214,11 +214,19 @@ define(
 					//Column 6: Reserved for target entity ID
 				],
 				'fnServerData': function ( sSource, aoData, fnCallback, oSettings ) {
+					var jsonData = {};
+					for (var i = 0; i < aoData.length; i++) {
+						var key = aoData[i].name;
+						var value = aoData[i].value;
+						jsonData[key] = value;
+					}
+
 					oSettings.jqXHR = $.ajax( {
 						dataType: 'json',
-						type: 'GET',
+						contentType: 'application/json',
+						type: 'POST',
 						url: sSource,
-						data: aoData,
+						data: JSON.stringify(jsonData),
 						success: function ( data ) {
 							if (data.aoColumnUnits) {
 								if (data.aoColumnUnits[2].sUnits) {

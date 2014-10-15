@@ -66,11 +66,10 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.restlet.data.Form;
 import org.restlet.data.MediaType;
 import org.restlet.data.Status;
 import org.restlet.representation.StringRepresentation;
-import org.restlet.resource.Get;
+import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
 import com.google.inject.Inject;
@@ -110,125 +109,155 @@ public class TransactionTableResource extends ApertureServerResource {
 	
 	
 	
-	@Get
-	public StringRepresentation getLedger() throws ResourceException {
+	@Post("json")
+	public StringRepresentation getLedger(String jsonData) throws ResourceException {
 		
 		try {
-			Form form = getRequest().getResourceRef().getQueryAsForm();
+			JSONObject jsonObj = new JSONObject(jsonData);
 			
-			String sEcho = form.getFirstValue("sEcho");
+			String sEcho = jsonObj.getString("sEcho");
 			
 			// get the root node ID from the form
-			String entityId = form.getFirstValue("entityId");
-			try {
-				if (entityId == null || entityId.trim().isEmpty()) {
-					return emptyResult(sEcho);
-				}
-				entityId = entityId.trim();
-				
-				List<String> entities = new ArrayList<String>();
-				if (!entityId.isEmpty()) entities.add(entityId);
-				
-				String startDateStr = form.getFirstValue("startDate").trim();
-				String endDateStr = form.getFirstValue("endDate").trim();
-				DateTime startDate = DateTimeParser.parse(startDateStr);
-				DateTime endDate = DateTimeParser.parse(endDateStr);
-				
-				Integer startRow = Integer.parseInt(form.getFirstValue("iDisplayStart").trim());
-				Integer totalRows = Integer.parseInt(form.getFirstValue("iDisplayLength").trim());
-				
-				FL_SortBy sortBy = FL_SortBy.DATE;
-				String sort = form.getFirstValue("iSortCol_0");
-				//String direction = form.getFirstValue("iSortDir_0");
-				// TODO : use direction based on FL_SortBy 1.6 (current 1.5)
-				if (sort != null) {
-					if (sort.equals("3") || sort.equals("4")) {
-						sortBy = FL_SortBy.AMOUNT;
-					}
-				}
-
-				String focusIds = form.getFirstValue("focusIds");
-				List<String> focusIdList = null;
-				LedgerResult ledgerResult = null;
-				if (focusIds != null && focusIds.length() > 0) {
-					String[] parsedIds = focusIds.split(",");
-					focusIdList = new ArrayList<String>();
-					for (String id : parsedIds) {
-						List<Object> response = new ArrayList<Object>();
-						
-						// transaction filtering does not yet work on clusters - see #6090
-						if (TypedId.hasType(id, TypedId.ACCOUNT)) {
-							response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
-							focusIdList.addAll(ChartResource.getLeafNodes(response));
-						}
-					}
-
-					// TODO: see #6090
-					if (focusIdList.isEmpty()) {
-						final FL_Link message = new LinkHelper(
-							FL_LinkTag.OTHER, "", "",
-							NO_CLUSTER_FILTER_MESSAGE_PROPS
-							);
-
-						ledgerResult = buildForClient(FL_TransactionResults.newBuilder()
-							.setTotal(1)
-							.setResults(Collections.singletonList(message))
-							.build(), 0,1);
-
-						List<String> cols = ledgerResult.getTableData().get(0);
-						cols.set(cols.size()-1, focusIds);
-						cols.set(cols.size()-2, focusIds);
-					}
-				}
-
-				if (ledgerResult == null) {
-					FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
-					long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
-					FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
-					ledgerResult = buildForClient(results, startRow, startRow+totalRows);
-				}
-
-				List<String> colNames = ledgerResult.getColumnUnits();
-				List<List<String>> data = ledgerResult.getTableData();
-				
-				JSONArray dataArray = new JSONArray();
-				
-				int rowNumber = startRow+1;
-				for (List<String> row : data) {
-					JSONArray rowArr = new JSONArray();
-					rowArr.put(rowNumber);
-					for (String d : row) {
-						rowArr.put(d);
-					}
-					dataArray.put(rowArr);
-					rowNumber++;
-				}
-				
-				JSONArray columnArray = new JSONArray();
-				for (String column : colNames) {
-					JSONObject colObj = new JSONObject();
-					colObj.put("sUnits", column);
-					columnArray.put(colObj);
-				}
-				
-				JSONObject result = new JSONObject();
-				
-				result.put("sEcho",sEcho);
-				result.put("aoColumnUnits", columnArray);
-				result.put("iTotalDisplayRecords",ledgerResult.getTotalRows());
-				result.put("iTotalRecords",ledgerResult.getTotalRows());
-				result.put("aaData", dataArray);
-				
-				return new StringRepresentation(result.toString(), MediaType.TEXT_PLAIN);
-			} catch (JSONException je) {
-				return null;
+			String entityId = jsonObj.getString("entityId");
+			
+			if (entityId == null || entityId.trim().isEmpty()) {
+				return emptyResult(sEcho);
 			}
+			entityId = entityId.trim();
+			
+			List<String> entities = new ArrayList<String>();
+			if (!entityId.isEmpty()) entities.add(entityId);
+			
+			DateTime startDate = null;
+			try {
+				startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"TransactionTableResource: An illegal argument was passed into the 'startDate' parameter."
+				);
+			}
+			
+			DateTime endDate = null;
+			try {
+				endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"TransactionTableResource: An illegal argument was passed into the 'endDate' parameter."
+				);
+			}
+			
+			Integer startRow = jsonObj.getInt("iDisplayStart");
+			Integer totalRows = jsonObj.getInt("iDisplayLength");
+			
+			FL_SortBy sortBy = FL_SortBy.DATE;
+			String sort = null;
+			if (jsonObj.has("iSortCol_0")) {
+				sort = jsonObj.getString("iSortCol_0");
+			}
+			//String direction = form.getFirstValue("iSortDir_0");
+			// TODO : use direction based on FL_SortBy 1.6 (current 1.5)
+			if (sort != null) {
+				if (sort.equals("3") || sort.equals("4")) {
+					sortBy = FL_SortBy.AMOUNT;
+				}
+			}
+
+			JSONArray focusIdArray = null;
+			if (jsonObj.has("focusIds")) {
+				focusIdArray = jsonObj.getJSONArray("focusIds");
+			}
+
+			List<String> focusIdList = null;
+			LedgerResult ledgerResult = null;
+			if (focusIdArray != null && focusIdArray.length() > 0) {
+				
+				focusIdList = new ArrayList<String>();
+				
+				for (int i = 0;  i < focusIdArray.length(); i++) {
+					
+					String id = focusIdArray.getString(i);
+					
+					List<Object> response = new ArrayList<Object>();
+					
+					// transaction filtering does not yet work on clusters - see #6090
+					if (TypedId.hasType(id, TypedId.ACCOUNT)) {
+						response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
+						focusIdList.addAll(ChartResource.getLeafNodes(response));
+					}
+				}
+
+				// TODO: see #6090
+				if (focusIdList.isEmpty()) {
+					final FL_Link message = new LinkHelper(
+						FL_LinkTag.OTHER, "", "",
+						NO_CLUSTER_FILTER_MESSAGE_PROPS
+						);
+
+					ledgerResult = buildForClient(FL_TransactionResults.newBuilder()
+						.setTotal(1)
+						.setResults(Collections.singletonList(message))
+						.build(), 0,1);
+
+					List<String> cols = ledgerResult.getTableData().get(0);
+					cols.set(cols.size()-1, "");
+					cols.set(cols.size()-2, "");
+				}
+			}
+
+			if (ledgerResult == null) {
+				FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
+				long transactionRequestMax = REQUEST_CAP;//Math.min(REQUEST_CAP, startRow+totalRows);
+				FL_TransactionResults results = dataAccess.getAllTransactions(entities, FL_LinkTag.FINANCIAL, dateRange, sortBy, focusIdList, 0, transactionRequestMax);
+				ledgerResult = buildForClient(results, startRow, startRow+totalRows);
+			}
+
+			List<String> colNames = ledgerResult.getColumnUnits();
+			List<List<String>> data = ledgerResult.getTableData();
+			
+			JSONArray dataArray = new JSONArray();
+			
+			int rowNumber = startRow+1;
+			for (List<String> row : data) {
+				JSONArray rowArr = new JSONArray();
+				rowArr.put(rowNumber);
+				for (String d : row) {
+					rowArr.put(d);
+				}
+				dataArray.put(rowArr);
+				rowNumber++;
+			}
+			
+			JSONArray columnArray = new JSONArray();
+			for (String column : colNames) {
+				JSONObject colObj = new JSONObject();
+				colObj.put("sUnits", column);
+				columnArray.put(colObj);
+			}
+			
+			JSONObject result = new JSONObject();
+			
+			result.put("sEcho",sEcho);
+			result.put("aoColumnUnits", columnArray);
+			result.put("iTotalDisplayRecords",ledgerResult.getTotalRows());
+			result.put("iTotalRecords",ledgerResult.getTotalRows());
+			result.put("aaData", dataArray);
+			
+			return new StringRepresentation(result.toString(), MediaType.TEXT_PLAIN);
+
 		
 		} catch (AvroRemoteException dae) {
 			throw new ResourceException(
 				Status.CLIENT_ERROR_BAD_REQUEST,
 				"Data access error.",
 				dae
+			);
+		} catch (JSONException je) {
+			throw new ResourceException(
+				Status.CLIENT_ERROR_BAD_REQUEST,
+				"JSON parse error.",
+				je
 			);
 		}
 	}

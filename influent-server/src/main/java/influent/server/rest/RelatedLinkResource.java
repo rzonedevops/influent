@@ -141,9 +141,26 @@ public class RelatedLinkResource extends ApertureServerResource{
 				}
 			}
 
-			// determine the date filter to use
-			DateTime startDate = (jsonObj.has("startdate")) ? DateTimeParser.parse(jsonObj.getString("startdate")) : null;
-			DateTime endDate = (jsonObj.has("enddate")) ? DateTimeParser.parse(jsonObj.getString("enddate")) : null;
+			DateTime startDate = null;
+			try {
+				startDate = (jsonObj.has("startdate")) ? DateTimeParser.parse(jsonObj.getString("startdate")) : null;
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"RelatedLinkResource: An illegal argument was passed into the 'startdate' parameter."
+				);
+			}
+			
+			DateTime endDate = null;
+			try {
+				endDate = (jsonObj.has("enddate")) ? DateTimeParser.parse(jsonObj.getString("enddate")) : null;
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"RelatedLinkResource: An illegal argument was passed into the 'enddate' parameter."
+				);
+			}
+
 			FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
 			
 			long ams = System.currentTimeMillis();

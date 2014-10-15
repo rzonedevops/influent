@@ -128,7 +128,15 @@ public class ModifyContextResource extends ApertureServerResource{
 			}
 			
 			String srcContextId = jsonObj.getString("sourceContextId").trim(); // source context to insert entities from
+			if (srcContextId != null && !GuidValidator.validateContextString(srcContextId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "srcContextId is not a valid context id");
+			}
+			
 			String targetContextId = jsonObj.getString("targetContextId").trim();  // the context to modify
+			if (targetContextId != null && !GuidValidator.validateContextString(targetContextId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "targetContextId is not a valid context id");
+			}
+			
 			String edit = jsonObj.getString("edit"); //Allowed values, 'insert', 'remove', 'create'
 			// The "entities" to operate on
 			

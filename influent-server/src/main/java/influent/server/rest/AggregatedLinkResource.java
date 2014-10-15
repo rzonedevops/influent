@@ -107,9 +107,26 @@ public class AggregatedLinkResource extends ApertureServerResource{
 			List<String> srcEntities = UISerializationHelper.buildListFromJson(jsonObj, "sourceIds");
 			List<String> dstEntities = UISerializationHelper.buildListFromJson(jsonObj, "targetIds");
 
+			DateTime startDate = null;
+			try {
+				startDate = (jsonObj.has("startdate")) ? DateTimeParser.parse(jsonObj.getString("startdate")) : null;
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"AggregatedLinkResource: An illegal argument was passed into the 'startdate' parameter."
+				);
+			}
 			
-			DateTime startDate = (jsonObj.has("startdate")) ? DateTimeParser.parse(jsonObj.getString("startdate")) : null;
-			DateTime endDate = (jsonObj.has("enddate")) ? DateTimeParser.parse(jsonObj.getString("enddate")) : null;
+			DateTime endDate = null;
+			try {
+				endDate = (jsonObj.has("enddate")) ? DateTimeParser.parse(jsonObj.getString("enddate")) : null;
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"AggregatedLinkResource: An illegal argument was passed into the 'enddate' parameter."
+				);
+			}
+
 			if (startDate != null && endDate != null) {
 				dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
 			}
