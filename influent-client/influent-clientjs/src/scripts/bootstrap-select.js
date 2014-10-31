@@ -506,6 +506,12 @@
         menu.css({'max-height': menuHeight + headerHeight + searchHeight + actionsHeight + 'px', 'overflow': 'hidden'});
         menuInner.css({'max-height': menuHeight - menuPadding + 'px', 'overflow-y': 'auto'});
       }
+		// OCULUS CHANGE: scale menu height to 65% of what it thinks it should be so it plays well with jqueryUI's
+		// dialog header/footer
+		var menuInnerMaxHeight = parseFloat(menuInner.css('max-height').replace('px',''));
+		menuInnerMaxHeight *=0.65;
+		menu.css('max-height','');
+		menuInner.css('max-height',menuInnerMaxHeight+'px');
     },
 
     setWidth: function () {
@@ -752,6 +758,7 @@
 		e.preventDefault();
 		e.stopPropagation();
 
+		//OCULUS CHANGE: provide a callback when we click on headers
         if (!that.options.liveSearch) {
           	if ($(e.currentTarget).hasClass('dropdown-header') && that.options.headerCallback) {
 				if (e.target.nodeName === 'SPAN') {
