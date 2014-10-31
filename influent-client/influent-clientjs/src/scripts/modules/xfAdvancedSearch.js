@@ -287,6 +287,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 
 			typeOptions.selectpicker({
+				actionsBox : true,
 				headerCallback : function(groupName) {
 					var i;
 					var currentValues = typeOptions.selectpicker('val') || [];
