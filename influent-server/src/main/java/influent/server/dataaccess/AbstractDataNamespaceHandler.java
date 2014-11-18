@@ -217,7 +217,7 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 * @see influent.server.dataaccess.DataNamespaceHandler#getSQLIdType(java.lang.String, java.lang.String)
 	 */
 
-	public ID_TYPE getIdType(String id, String namespace) {
+	public ID_TYPE getIdType(String namespace) {
 		ID_TYPE type = _idType;
 		if(namespace != null) {
 			String idConfig = "influent.data.view." + namespace + ".idType";
@@ -240,17 +240,16 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 */
 	@Override
 	public String toSQLId(String id, String namespace) {
-		ID_TYPE type = getIdType(id, namespace);
+		ID_TYPE type = getIdType(namespace);
 
 		if (type == ID_TYPE.HEX) {
-			return toBinaryFromHex(id);
+			return idToBinaryFromHex(id);
 		} else {
 			return id;
 		}
 	}
 	
-	
-	
+
 	
 	/**
 	 * Returns binary id sql from a hexadecimal string id. Called by toSQLId.
@@ -258,10 +257,8 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	 * @param id
 	 * @return
 	 */
-	protected abstract String toBinaryFromHex(String id);
-	
-	
-	
+	protected abstract String idToBinaryFromHex(String id);
+
 	
 	
 	/* (non-Javadoc)
@@ -273,6 +270,28 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 	}
 
 
+
+    /* (non-Javadoc)
+     * @see influent.server.dataaccess.DataNamespaceHandler#toSQLIdColumn(java.lang.String, java.lang.String)
+     */
+    @Override
+    public String toSQLIdColumn(String columnName, String namespace) {
+        ID_TYPE type = getIdType(namespace);
+
+        if (type == ID_TYPE.HEX) {
+            return columnToHex(columnName);
+        } else {
+            return columnName;
+        }
+    }
+
+    /**
+     * Returns binary-converted column sql. Called by toSQLIdColumn.
+     *
+     * @param columnName
+     * @return
+     */
+    protected abstract String columnToHex(String columnName);
 
 
 	/**

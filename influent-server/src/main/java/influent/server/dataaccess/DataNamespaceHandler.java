@@ -160,16 +160,14 @@ public interface DataNamespaceHandler {
 	public String rowLimit(String selectBody, long limit);
 
 	/**
-	 * Gets the type of an id. SQL type is specified in app.properties.
-	 * 
-	 * @param id 
-	 * 		the id to be typed
+	 * Gets the SQL type for use with Ids, as specified in app.properties.
+	 *
 	 * @param namespace
 	 * 		the optional namespace to use for conversion
 	 * @return
 	 * 		the id type
 	 */
-	public ID_TYPE getIdType(String id, String namespace);	
+	public ID_TYPE getIdType(String namespace);
 	
 	/**
 	 * Converts an influent string id to a SQL id. SQL type is specified
@@ -194,7 +192,21 @@ public interface DataNamespaceHandler {
 	 * 		the converted id
 	 */
 	public String fromSQLId(String id);
-	
+
+    /**
+     * Returns a SQL statement fragment to handle Id columns of the SQL
+     * type specified in app.properties.
+     *
+     * @param columnName
+     * 		the column name	to be converted
+     * @param namespace
+     * 		the optional namespace to use for conversion
+     * @return
+     * 		the converted column
+     */
+    public String toSQLIdColumn(String columnName, String namespace);
+
+
 	/**
 	 * Converts a joda DateTime to a date string appropriate for queries
 	 * in the context of a particular db. Note that this IS NOT synonymous
