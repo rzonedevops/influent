@@ -115,8 +115,8 @@ public class TransactionTableResource extends ApertureServerResource {
 		
 		try {
 			Form form = getRequest().getResourceRef().getQueryAsForm();
-			
-			String sEcho = form.getFirstValue("sEcho");
+
+			Integer sEcho = Integer.parseInt(form.getFirstValue("sEcho"));
 			
 			// get the root node ID from the form
 			String entityId = form.getFirstValue("entityId");
@@ -236,7 +236,7 @@ public class TransactionTableResource extends ApertureServerResource {
 	
 	
 	
-	static private StringRepresentation emptyResult(String sEcho) throws JSONException {
+	static private StringRepresentation emptyResult(Integer sEcho) throws JSONException {
 		JSONObject result = new JSONObject();
 		JSONArray dataArray = new JSONArray();
 		result.put("aaData", dataArray);
