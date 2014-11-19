@@ -31,9 +31,9 @@ import influent.idl.FL_SingletonRange;
 import influent.idl.FL_TypeMapping;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -104,16 +104,19 @@ public class SolrUtils {
 			for (Object value : values) {
 				
 				String valueStr = (String)value;
-				s.append("\"");
-				s.append(escapeQueryChars(valueStr));
-				s.append("\"");
-				s.append("~");
-				if (descriptor.getSimilarity() != null && descriptor.getSimilarity() != 1.0)
-					s.append(descriptor.getSimilarity());
-				s.append(" ");
+				String[] tokens = escapeQueryChars(valueStr).split("\\s");
+				for (int i = 0; i < tokens.length; i++) {
+					s.append(tokens[i]);
+					s.append("~");
+					if (descriptor.getSimilarity() != null)
+						s.append(descriptor.getSimilarity());
+
+					if (i < tokens.length - 1) {
+						s.append(" AND ");
+					}
+				}
 			}
 			
-			s.setLength(s.length()-1);
 			s.append(")");
 			
 		} else { // not | required / equals
