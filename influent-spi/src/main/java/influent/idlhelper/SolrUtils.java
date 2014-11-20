@@ -100,12 +100,15 @@ public class SolrUtils {
 		
 		if (FL_Constraint.FUZZY_PARTIAL_OPTIONAL.equals(descriptor.getConstraint()) || FL_Constraint.FUZZY_REQUIRED.equals(descriptor.getConstraint())) {
 			s.append(":(");
-			
+
 			for (Object value : values) {
-				
+				s.append("(");
 				String valueStr = (String)value;
 				String[] tokens = escapeQueryChars(valueStr).split("\\s");
 				for (int i = 0; i < tokens.length; i++) {
+					if (tokens[i].length() == 0)
+						continue;
+
 					s.append(tokens[i]);
 					s.append("~");
 					if (descriptor.getSimilarity() != null)
@@ -115,6 +118,7 @@ public class SolrUtils {
 						s.append(" AND ");
 					}
 				}
+				s.append(") ");
 			}
 			
 			s.append(")");
