@@ -129,4 +129,3 @@ One of the major goals of the latest version was to greatly simplify application
 
 **Maven Changes for Applications**
 + The maven configuration requirements for Influent applications have been simplified significantly, and it is also now much easier to build Influent apps without maven. Build instructions have been added to the [README.md](README.md) file. The `bitcoin` application's [pom.xml](bitcoin/pom.xml) file can be used as an example.
-
