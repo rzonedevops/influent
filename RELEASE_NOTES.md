@@ -47,6 +47,7 @@ Highlights of the version 1.3.* releases include the following features. Minor r
 + Resolved some issues with deleting clusters.
 + Security fixes.
 + Searching fixes.
++ Fixed Transaction Table export.
  
 ### Release 1.3.5 - Resolved Issues
 + Resolved some visual issues when manipulating cards and files.
