@@ -49,6 +49,7 @@ import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.restlet.data.Disposition;
 import org.restlet.data.MediaType;
+import org.restlet.data.Status;
 import org.restlet.representation.StringRepresentation;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
@@ -80,10 +81,26 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 			
 			List<String> entityIds = Collections.singletonList(entityId);
 			
-			String startDateStr = jsonObj.getString("startDate").trim();
-			String endDateStr = jsonObj.getString("endDate").trim();
-			DateTime startDate = DateTimeParser.parse(startDateStr);
-			DateTime endDate = DateTimeParser.parse(endDateStr);
+			DateTime startDate = null;
+			try {
+				startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"ExportTransactionTableResource: An illegal argument was passed into the 'startDate' parameter."
+				);
+			}
+			
+			DateTime endDate = null;
+			try {
+				endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"ExportTransactionTableResource: An illegal argument was passed into the 'endDate' parameter."
+				);
+			}
+			
 			String fileName = entityId;
 			List<FL_Entity> entityList = dataAccess.getEntities(entityIds, FL_LevelOfDetail.SUMMARY);
 			if(entityList.size() > 0) {

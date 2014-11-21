@@ -36,6 +36,7 @@ import influent.idlhelper.PropertyHelper;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextRead;
+import influent.server.utilities.GuidValidator;
 import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
 
@@ -111,6 +112,9 @@ public class LeafEntityLookupResource extends ApertureServerResource{
 			jsonObj = new JSONObject(jsonData);
 			
 			String sessionId = jsonObj.getString("sessionId").trim();
+			if (!GuidValidator.validateGuidString(sessionId)) {
+				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
+			}
 
 			// Details or no?
 			Boolean details = jsonObj.has("details")? jsonObj.getBoolean("details"):false;

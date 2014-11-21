@@ -144,10 +144,20 @@ public class PatternSearchResource extends ApertureServerResource{
 			try {
 				startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
 			} catch (JSONException e) {
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"PatternSearchResource: An illegal argument was passed into the 'startDate' parameter."
+				);
 			}
 			try {
 				endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
 			} catch (JSONException e) {
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"PatternSearchResource: An illegal argument was passed into the 'startDate' parameter."
+				);
 			}
 			
 			if (startDate != null || endDate != null) {
@@ -159,7 +169,6 @@ public class PatternSearchResource extends ApertureServerResource{
 				dateRange = builder.build();
 			}
 
-			
 			// get the search term
 			String term = jsonObj.getString("term").trim();
 			FL_PatternDescriptor example = (FL_PatternDescriptor)AvroUtils.decodeJSON(FL_PatternDescriptor.getClassSchema(), term);

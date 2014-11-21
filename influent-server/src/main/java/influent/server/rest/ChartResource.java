@@ -154,9 +154,25 @@ public class ChartResource extends ApertureServerResource {
 				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
 			
-			DateTime startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
-			DateTime endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
+			DateTime startDate = null;
+			try {
+				startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"ChartResource: An illegal argument was passed into the 'startDate' parameter."
+				);
+			}
 			
+			DateTime endDate = null;
+			try {
+				endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"ChartResource: An illegal argument was passed into the 'endDate' parameter."
+				);
+			}
 			
 			List<String> focusIds = null;
 			if (!jsonObj.isNull("focusId")) {
