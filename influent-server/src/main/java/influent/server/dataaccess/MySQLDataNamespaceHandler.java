@@ -131,12 +131,19 @@ public class MySQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 
 
 	/* (non-Javadoc)
-	 * @see influent.server.dataaccess.AbstractDataNamespaceHandler#toBinaryId(java.lang.String)
+	 * @see influent.server.dataaccess.AbstractDataNamespaceHandler#idToBinaryFromHex(java.lang.String)
 	 */
 	@Override
-	protected String toBinaryFromHex(String id) {
-		return "UNHEX('" +id+ "')";
+	protected String idToBinaryFromHex(String id) {
+		return "UNHEX('" + id + "')";
 	}
-	
-	
+
+
+    /* (non-Javadoc)
+     * @see influent.server.dataaccess.AbstractDataNamespaceHandler#columnToHex(java.lang.String)
+     */
+    @Override
+    protected String columnToHex(String columnName) {
+        return "HEX('" + columnName + "') as " + columnName;
+    }
 }

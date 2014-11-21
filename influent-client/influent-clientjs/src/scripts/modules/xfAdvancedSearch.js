@@ -137,7 +137,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 			var dialog = $('#advancedDialog');
 			dialog.dialog({
-				height: 465,
+				height: 730,
 				autoOpen: false,
 				modal: true,
 				buttons: buttons,
@@ -287,6 +287,7 @@ define(['lib/module', 'lib/channels', 'lib/ui/criteria', 'modules/xfWorkspace', 
 
 
 			typeOptions.selectpicker({
+				actionsBox : true,
 				headerCallback : function(groupName) {
 					var i;
 					var currentValues = typeOptions.selectpicker('val') || [];

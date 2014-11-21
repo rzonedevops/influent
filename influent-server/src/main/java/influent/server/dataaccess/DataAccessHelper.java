@@ -364,7 +364,7 @@ public class DataAccessHelper {
 			if(nameSpaceHandler == null) {
 				resultString.append("'" + id + "', ");
 			} else {
-                if (nameSpaceHandler.getIdType(id, namespace) == ID_TYPE.HEX) {
+                if (nameSpaceHandler.getIdType(namespace) == ID_TYPE.HEX) {
                     resultString.append(nameSpaceHandler.toSQLId(id, namespace) + ", ");
                 } else {
                     resultString.append("'" + id + "', ");
@@ -404,7 +404,7 @@ public class DataAccessHelper {
 				resultString.append("'" + item + "',");
 			} else {
 				
-				if (nameSpaceHandler.getIdType(item, namespace) == ID_TYPE.HEX) {
+				if (nameSpaceHandler.getIdType(namespace) == ID_TYPE.HEX) {
 					resultString.append(nameSpaceHandler.toSQLId(item, namespace) + ",");
 				} else {
 					resultString.append("'" + item + "',");

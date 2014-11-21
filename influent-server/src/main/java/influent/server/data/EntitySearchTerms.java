@@ -98,6 +98,7 @@ public class EntitySearchTerms {
 		Pattern extraTermRegEx = Pattern.compile("\\A([^:]*)(\\s*$| [^:\\s]+:.*)");
 		Pattern tagsRegEx = Pattern.compile("([^:\\s]+):(\"([^\"]*)\"|[^:]*)( |$)");
 		Pattern boostPattern = Pattern.compile("\\^([\\.0-9]+)$");
+        Pattern quotePattern = Pattern.compile("((?<![\\\\])\")((?:.(?!(?<![\\\\])\\1))*.?)\\1");
 		Pattern similarityPattern = Pattern.compile("\\~([\\.0-9]+)$");		
 		
 		Matcher extraTermMatcher = extraTermRegEx.matcher(term);
@@ -120,20 +121,53 @@ public class EntitySearchTerms {
 				continue;
 			}
 
-			boolean quoted = false;
-			String tagValue = tagsMatcher.group(2).toString().trim();
-			if (tagValue.startsWith("\"") && tagValue.endsWith("\"")) {
-				tagValue = tagValue.substring(1, tagValue.length() - 1);
+
+            FL_PropertyMatchDescriptor.Builder termBuilder = FL_PropertyMatchDescriptor.newBuilder();
+
+            termBuilder.setKey(tagName);
+            if (tagName.startsWith("-")) {
+                tagName = tagName.substring(1);
+                termBuilder.setInclude(false);
+            }
+
+            String tagValue = tagsMatcher.group(2).toString().trim();
+
+            Matcher boostMatch = boostPattern.matcher(tagValue);
+            if (boostMatch.find()) {
+                String weightStr = boostMatch.group(1);
+
+                try {
+                    Float weight= Float.valueOf(weightStr);
+                    tagValue = tagValue.substring(0, tagValue.length()-weightStr.length()-1);
+
+                    termBuilder.setWeight(weight);
+
+                } catch (Exception e) {
+                }
+
+            }
+
+            Matcher similarityMatch = similarityPattern.matcher(tagValue);
+            if (similarityMatch.find()) {
+                String similarityStr = similarityMatch.group(1);
+
+                try {
+                    Float similarity = Float.valueOf(similarityStr);
+                    tagValue = tagValue.substring(0, tagValue.length()-similarityStr.length()-1);
+
+                    termBuilder.setSimilarity(similarity);
+
+                } catch (Exception e) {
+                }
+
+            }
+
+
+            boolean quoted = false;
+            Matcher quoteMatch = quotePattern.matcher(tagValue);
+            if (quoteMatch.find()) {
+                tagValue = quoteMatch.group(2);
 				quoted = true;
-			}
-
-			FL_PropertyMatchDescriptor.Builder termBuilder = FL_PropertyMatchDescriptor.newBuilder();
-
-			termBuilder.setKey(tagName);
-
-			if (tagName.startsWith("-")) {
-				tagName = tagName.substring(1);
-				termBuilder.setInclude(false);
 			}
 
 			if (quoted) {
@@ -148,36 +182,6 @@ public class EntitySearchTerms {
 				} else {
 					termBuilder.setConstraint(FL_Constraint.FUZZY_REQUIRED);
 				}
-			}
-
-			Matcher boostMatch = boostPattern.matcher(tagValue);
-			if (boostMatch.find()) {
-				String weightStr = boostMatch.group(1);
-
-				try {
-					Float weight= Float.valueOf(weightStr);
-					tagValue = tagValue.substring(0, tagValue.length()-weightStr.length()-1);
-
-					termBuilder.setWeight(weight);
-
-				} catch (Exception e) {
-				}
-
-			}
-
-			Matcher similarityMatch = similarityPattern.matcher(tagValue);
-			if (similarityMatch.find()) {
-				String similarityStr = similarityMatch.group(1);
-
-				try {
-					Float similarity = Float.valueOf(similarityStr);
-					tagValue = tagValue.substring(0, tagValue.length()-similarityStr.length()-1);
-
-					termBuilder.setSimilarity(similarity);
-
-				} catch (Exception e) {
-				}
-
 			}
 
 			// Match properties to Search Descriptors

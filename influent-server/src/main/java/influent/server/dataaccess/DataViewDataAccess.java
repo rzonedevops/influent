@@ -138,7 +138,9 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
 
 					StringBuilder sb = new StringBuilder();
-					sb.append("SELECT " + finEntityEntityIdColumn + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " ");
+					sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finEntityEntityIdColumn, entry.getKey()) + ", " +
+                                          finEntityUniqueInboundDegree + ", " +
+                                          finEntityUniqueOutboundDegree + " ");
 					sb.append("FROM " + finEntityTable + " ");
 					sb.append("WHERE " + finEntityEntityIdColumn + " IN (");
 					for (int i = 1; i < subIds.size(); i++) {
@@ -148,8 +150,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					PreparedStatement stmt = connection.prepareStatement(sb.toString());
 					int index = 1;
 
-					for (int i = 0; i < subIds.size(); i++) {
-						stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), entry.getKey()));
+					for (String id : subIds) {
+						stmt.setString(index++, getNamespaceHandler().toSQLId(id, entry.getKey()));
 					}
 
 					// Execute prepared statement and evaluate results
@@ -245,8 +247,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					String directionClause = (direction == FL_DirectionFilter.BOTH ) ? sourceDirectionClause+" and "+destDirectionClause : (direction == FL_DirectionFilter.DESTINATION ) ? destDirectionClause : (direction == FL_DirectionFilter.SOURCE ) ? sourceDirectionClause : "1=1";
 					String entityTypeClause = linkEntityTypeClause(direction, entityType);
 					
-					String dateRespectingFlowSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", sum(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+ getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+directionClause+" and "+entityTypeClause+" group by " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn;
-					String flowSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowFromEntityTypeColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowToEntityTypeColumn + " from " + finFlowTable + " where "+directionClause+" and "+entityTypeClause;
+					String dateRespectingFlowSQL = "select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", sum(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+ getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+directionClause+" and "+entityTypeClause+" group by " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn;
+					String flowSQL = "select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + finFlowFromEntityTypeColumn + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowToEntityTypeColumn + " from " + finFlowTable + " where "+directionClause+" and "+entityTypeClause;
 						
 					Map<String, Map<String, Double>> fromToAmountMap = new HashMap<String, Map<String, Double>>();
 					
@@ -412,7 +414,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							finFlowToEntityIdColumn,
 							finFlowDateColumn,
 							finFlowFromEntityTypeColumn,
-							finFlowToEntityTypeColumn
+							finFlowToEntityTypeColumn,
+                            namespace
 						);
 						PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
 						
@@ -505,7 +508,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							finFlowFromEntityTypeColumn,
 							finFlowToEntityIdColumn,
 							finFlowToEntityTypeColumn,
-							finFlowTable
+							finFlowTable,
+                            namespace
 						);
 						stmt = connection.prepareStatement(preparedStatementString);
 						
@@ -716,11 +720,12 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 						String preparedStatementString = buildPreparedStatementForSkippingFoci(
 							subIds.size(),
 							(localFocusEntities == null) ? 0 : localFocusEntities.size(),
-							finFlowFromEntityIdColumn, 
+							finFlowFromEntityIdColumn,
 							finFlowToEntityIdColumn,
 							finFlowDateColumn, 
 							finFlowAmountColumn,
-							finFlowIntervalTable
+							finFlowIntervalTable,
+                            namespace
 						);
 						PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
 
@@ -792,11 +797,12 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					// Create prepared statement
 					String preparedStatementString = buildPreparedStatementForTimeSeriesAggregation(
 						subIds.size(),
-						finEntityEntityIdColumn, 
+						finEntityEntityIdColumn,
 						finEntityDateColumn,
 						finEntityInboundAmountColumn, 
 						finEntityOutboundAmountColumn,
-						finEntityIntervalTable
+						finEntityIntervalTable,
+                        namespace
 					);
 					PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
 					
@@ -915,14 +921,14 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
 		
 					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, getNamespaceHandler(), namespace);
-					String tsSQL = "select " + finEntityEntityIdColumn + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " from "+finEntityIntervalTable+" where " + finEntityDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and " + finEntityEntityIdColumn + " in ("+ids+")" ;
+					String tsSQL = "select " + _namespaceHandler.toSQLIdColumn(finEntityEntityIdColumn, namespace) + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " from "+finEntityIntervalTable+" where " + finEntityDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and " + finEntityEntityIdColumn + " in ("+ids+")" ;
 	
 					if (!skipFoci) {
 						String sourceDirectionClause = finFlowFromEntityIdColumn + " in ("+ids+") and " + finFlowToEntityIdColumn + " in ("+focusIds+")";
 						String destDirectionClause = finFlowToEntityIdColumn + " in ("+ids+") and " + finFlowFromEntityIdColumn + " in ("+focusIds+")";
-						String focusedSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+sourceDirectionClause +
+						String focusedSQL = "select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+sourceDirectionClause +
 											" union " +
-											"select " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+destDirectionClause;
+											"select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+destDirectionClause;
 					
 						s_logger.trace(focusedSQL);
 		
@@ -1154,7 +1160,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		String finFlowFromEntityTypeColumn,
 		String finFlowToEntityIdColumn,
 		String finFlowToEntityTypeColumn,
-		String finFlowTable
+		String finFlowTable,
+        String namespace
 	) {
 		if (direction == null ||
 			entityType == null ||
@@ -1171,7 +1178,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		boolean addedWhereClause = false;
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowFromEntityTypeColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowToEntityTypeColumn + " ");
+		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + finFlowFromEntityTypeColumn + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowToEntityTypeColumn + " ");
 		sb.append("FROM " + finFlowTable + " ");
 		
 		if (numIds > 0) {
@@ -1263,7 +1270,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		String finFlowToEntityIdColumn, 
 		String finFlowDateColumn,
 		String finFlowFromEntityTypeColumn,
-		String finFlowToEntityTypeColumn
+		String finFlowToEntityTypeColumn,
+        String namespace
 	) {
 		if (direction == null ||
 			entityType == null ||
@@ -1275,7 +1283,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		}
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", SUM(" + finFlowAmountColumn + ") AS " + finFlowAmountColumn + " ");
+		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", SUM(" + finFlowAmountColumn + ") AS " + finFlowAmountColumn + " ");
 		sb.append("FROM " + finFlowIntervalTable + " ");
 		sb.append("WHERE " + finFlowDateColumn + " BETWEEN ? AND ? ");
 		if (numIds > 0) {
@@ -1346,7 +1354,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		String finEntityDateColumn,
 		String finEntityInboundAmountColumn,
 		String finEntityOutboundAmountColumn, 
-		String finEntityIntervalTable
+		String finEntityIntervalTable,
+        String namespace
 	) {
 		if (finEntityEntityIdColumn == null ||
 			finEntityDateColumn == null ||
@@ -1360,7 +1369,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("SELECT " + finEntityEntityIdColumn + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " ");
+		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finEntityEntityIdColumn, namespace) + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " ");
 		sb.append("FROM " + finEntityIntervalTable + " ");
 		sb.append("WHERE " + finEntityDateColumn + " BETWEEN ? AND ? ");
 		if (numIds > 0) {
@@ -1384,7 +1393,8 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		String finFlowToEntityIdColumn,
 		String finFlowDateColumn, 
 		String finFlowAmountColumn,
-		String finFlowIntervalTable
+		String finFlowIntervalTable,
+        String namespace
 	) {
 		if (finFlowFromEntityIdColumn == null ||
 			finFlowToEntityIdColumn == null ||
@@ -1398,7 +1408,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " ");
+		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " ");
 		sb.append("FROM " + finFlowIntervalTable + " ");
 		sb.append("WHERE " + finFlowDateColumn + " BETWEEN ? AND ? ");
 		if (numIds > 0) {
@@ -1416,7 +1426,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			sb.append("?) ");
 		}
 		sb.append("UNION ");
-		sb.append("SELECT " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " ");
+		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " ");
 		sb.append("FROM " + finFlowIntervalTable + " ");
 		sb.append("WHERE " + finFlowDateColumn + " BETWEEN ? AND ? ");
 		if (numIds > 0) {

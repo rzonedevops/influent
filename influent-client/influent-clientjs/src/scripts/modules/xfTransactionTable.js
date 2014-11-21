@@ -23,8 +23,10 @@
  * SOFTWARE.
  */
 define(
-	['lib/module', 'lib/channels', 'modules/xfWorkspace', 'modules/xfRest'],
-	function(modules, chan, xfWorkspace, xfRest) {
+	['lib/module', 'lib/channels', 'modules/xfWorkspace',
+		'modules/xfRest', 'lib/constants', 'lib/ui/xfModalDialog'],
+	function(modules, chan, xfWorkspace,
+	         xfRest, constants, xfModalDialog) {
 
 	var transactionsConstructor = function(sandbox) {
 
@@ -285,43 +287,61 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		/*global alert*/
-		var _onExportTransactions = function() {
-			var numRows = _transactionsState.table.fnGetData().length;
-			if(numRows === 0) {
+		var _onExportTransactions = function () {
+			var numRows = _transactionsState.table.length;
+			if (numRows === 0) {
 				alert('No transaction data to export!');
 				return;
 			}
 
+			$.blockUI({
+				theme: true,
+				title: 'Export In Progress',
+				message: '<img src="' + constants.AJAX_SPINNER_FILE + '" style="display:block;margin-left:auto;margin-right:auto"/>'
+			});
 			var beforeUnloadEvents = $._data($(window).get(0), 'events').beforeunload;
 			var handlers = [];
-			beforeUnloadEvents.forEach(function(event) {
-				handlers.push(event.handler);
-			});
+			if (beforeUnloadEvents !== undefined) {
+				beforeUnloadEvents.forEach(function (event) {
+					handlers.push(event.handler);
+				});
+			}
 
+			//TODO do we need this befreunload??
 			$(window).unbind('beforeunload');
 
-			var a = document.createElement('a');
-			a.href = aperture.io.restUrl(
-				'/exporttransactions?entityId=' +
-				_transactionsState.curEntity +
-				'&startDate=' +
-				_transactionsState.startDate +
-				'&endDate=' +
-				_transactionsState.endDate
-			);
-			a.download = 'transactions_' + _transactionsState.curEntity + '.csv';
-			document.body.appendChild(a);
-			setTimeout(
-				function() {
-					a.click();
-					document.body.removeChild(a);
+			xfRest.request('/exporttransactions').withData({
+				entityId: _transactionsState.curEntity,
+				contextId: _transactionsState.curContext,
+				startDate: _transactionsState.startDate,
+				endDate: _transactionsState.endDate
+			}).then(function (response) {
 
-					handlers.forEach(function(handler) {
-						$(window).bind('beforeunload', handler);
-					});
-				},
-				0
-			);
+				var a = document.createElement('a');
+				a.href = aperture.store.url(response, 'pop', 'transactions_' + _transactionsState.curEntity + '.csv');
+
+				document.body.appendChild(a);
+
+				setTimeout(
+					function() {
+						$(window).unbind('beforeunload');
+						a.click();
+						document.body.removeChild(a);
+						$.unblockUI();
+						xfModalDialog.createInstance({
+							title : 'Success',
+							contents : 'Export successful!',
+							buttons : {
+								'Ok' : function() {}
+							}
+						});
+						handlers.forEach(function (handler) {
+							$(window).bind('beforeunload', handler);
+						});
+					},
+					0
+				);
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------

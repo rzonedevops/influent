@@ -132,12 +132,16 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 
 
 	/* (non-Javadoc)
-	 * @see influent.server.dataaccess.AbstractDataNamespaceHandler#toBinaryId(java.lang.String)
+	 * @see influent.server.dataaccess.AbstractDataNamespaceHandler#idToBinaryFromHex(java.lang.String)
 	 */
 	@Override
-	protected String toBinaryFromHex(String id) {
+	protected String idToBinaryFromHex(String id) {
 		return "HEXTORAW('" +id+ "')";
 	}
-	
-	
+
+
+    @Override
+    protected String columnToHex(String columnName) {
+        return "RAWTOHEX('" + columnName + "') as " + columnName;
+    }
 }

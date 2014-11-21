@@ -162,7 +162,8 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
                             finEntityEntityIdColumn,
                             finEntityUniqueInboundDegree,
                             finEntityUniqueOutboundDegree,
-                            finEntityTable
+                            finEntityTable,
+                            entry.getKey()
                     );
                     PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
 
@@ -189,13 +190,14 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
                     // Create prepared statement
                     preparedStatementString = buildPreparedStatementForClusterSummary(
                             subIds.size(),
-                            finEntityEntityIdColumn,
+                            getNamespaceHandler().toSQLIdColumn(finEntityEntityIdColumn, entry.getKey()),
                             summaryPropertyColumn,
                             summaryTagColumn,
                             summaryTypeColumn,
                             summaryValueColumn,
                             summaryStatColumn,
-                            summaryTable
+                            summaryTable,
+                            entry.getKey()
                     );
                     stmt = connection.prepareStatement(preparedStatementString);
 
@@ -427,7 +429,8 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 		String finEntityEntityIdColumn,
 		String finEntityUniqueInboundDegree,
 		String finEntityUniqueOutboundDegree, 
-		String finEntityTable
+		String finEntityTable,
+        String namespace
 	) {
 		if (numIds < 1 || 
 			finEntityEntityIdColumn == null ||
@@ -441,7 +444,7 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("SELECT " + finEntityEntityIdColumn + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " ");
+		sb.append("SELECT " + getNamespaceHandler().toSQLIdColumn(finEntityEntityIdColumn, namespace) + ", " + finEntityUniqueInboundDegree + ", " + finEntityUniqueOutboundDegree + " ");
 		sb.append("FROM " + finEntityTable + " ");
 		sb.append("WHERE " + finEntityEntityIdColumn + " IN (");
 		for (int i = 1; i < numIds; i++) {
@@ -463,7 +466,8 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 		String summaryTypeColumn,
 		String summaryValueColumn, 
 		String summaryStatColumn,
-		String summaryTable
+		String summaryTable,
+        String namespace
 	) {
 		if (numIds < 1 || 
 			finEntityEntityIdColumn == null ||
@@ -480,7 +484,7 @@ public abstract class AbstractClusteringDataAccess implements FL_ClusteringDataA
 		
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("SELECT " + finEntityEntityIdColumn + ", " + summaryPropertyColumn + ", " + summaryTagColumn + ", " + summaryTypeColumn + ", " + summaryValueColumn + ", " + summaryStatColumn + " ");
+		sb.append("SELECT " + getNamespaceHandler().toSQLIdColumn(finEntityEntityIdColumn, namespace) + ", " + summaryPropertyColumn + ", " + summaryTagColumn + ", " + summaryTypeColumn + ", " + summaryValueColumn + ", " + summaryStatColumn + " ");
 		sb.append("FROM " + summaryTable + " ");
 		sb.append("WHERE " + finEntityEntityIdColumn + " IN (");
 		for (int i = 1; i < numIds; i++) {
