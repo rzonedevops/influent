@@ -326,11 +326,11 @@ define(
 
 					// xfFile objects require different positioning due to the asymmetrical shape of the file tabs.
 					if (visualInfo.UIType === constants.MODULE_NAMES.FILE){
-						_toolbarState.toolbarDiv.css('top', -0.5*_renderDefaults.CARD_BUTTON_HEIGHT - 7);
+						_toolbarState.toolbarDiv.css('top', -0.5*_renderDefaults.CARD_BUTTON_HEIGHT - 6);
 						_toolbarState.toolbarDiv.css('right', 10);
 					}
 					else {
-						_toolbarState.toolbarDiv.css('top', -_renderDefaults.CARD_BUTTON_HEIGHT - 6);
+						_toolbarState.toolbarDiv.css('top', -_renderDefaults.CARD_BUTTON_HEIGHT - 5);
 						_toolbarState.toolbarDiv.css('right', 0);
 					}
 				}

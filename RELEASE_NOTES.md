@@ -46,6 +46,7 @@ Highlights of the version 1.3.* releases include the following features. Minor r
 + The workspace no longer requires a card to be focused.
 + Resolved some issues with deleting clusters.
 + Security fixes.
++ Searching fixes.
  
 ### Release 1.3.5 - Resolved Issues
 + Resolved some visual issues when manipulating cards and files.
