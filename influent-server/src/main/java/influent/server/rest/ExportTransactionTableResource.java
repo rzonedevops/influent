@@ -26,8 +26,6 @@ package influent.server.rest;
 
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_DateRange;
-import influent.idl.FL_Entity;
-import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_Link;
 import influent.idl.FL_LinkTag;
 import influent.idl.FL_Property;
@@ -42,18 +40,30 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import javax.xml.bind.JAXBException;
+
+import oculus.aperture.capture.phantom.data.ProcessedTaskInfo;
 import oculus.aperture.common.rest.ApertureServerResource;
+import oculus.aperture.spi.store.ConflictException;
+import oculus.aperture.spi.store.ContentService;
+import oculus.aperture.spi.store.ContentService.Document;
+import oculus.aperture.spi.store.ContentService.DocumentDescriptor;
 
 import org.joda.time.DateTime;
+import org.json.JSONException;
 import org.json.JSONObject;
-import org.restlet.data.Disposition;
-import org.restlet.data.MediaType;
-import org.restlet.representation.StringRepresentation;
+import org.restlet.data.CacheDirective;
+import org.restlet.data.Status;
+import org.restlet.ext.json.JsonRepresentation;
+import org.restlet.representation.Representation;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 
 public class ExportTransactionTableResource extends ApertureServerResource {
@@ -62,16 +72,25 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 	
 	private final FL_DataAccess dataAccess;
 	
+	private final ContentService service;
+	
+	private final int maxCacheAge;
+	
+	// The name of the CMS store we'll use for data captures
+	private final static String DEFAULT_STORE = "aperture.data";
+	
 	@Inject
-	public ExportTransactionTableResource(FL_DataAccess dataAccess) {
+	public ExportTransactionTableResource(
+			ContentService service,
+			FL_DataAccess dataAccess,
+			@Named("influent.charts.maxage") Integer maxCacheAge) {
 		this.dataAccess = dataAccess;
+		this.service = service;
+		this.maxCacheAge = maxCacheAge;
 	}
 	
-	
-	
-	
 	@Post("json")
-	public StringRepresentation getLedger(String jsonData) throws ResourceException {
+	public Representation getLedger(String jsonData) throws ResourceException {
 		
 		try {
 			JSONObject jsonObj = new JSONObject(jsonData);
@@ -80,22 +99,26 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 			
 			List<String> entityIds = Collections.singletonList(entityId);
 			
-			String startDateStr = jsonObj.getString("startDate").trim();
-			String endDateStr = jsonObj.getString("endDate").trim();
-			DateTime startDate = DateTimeParser.parse(startDateStr);
-			DateTime endDate = DateTimeParser.parse(endDateStr);
-			String fileName = entityId;
-			List<FL_Entity> entityList = dataAccess.getEntities(entityIds, FL_LevelOfDetail.SUMMARY);
-			if(entityList.size() > 0) {
-				for(FL_Property p : entityList.get(0).getProperties()) {
-					PropertyHelper prop = PropertyHelper.from(p);
-					if(prop.hasValue() && prop.hasTag(FL_PropertyTag.LABEL)) {
-						fileName = prop.getValue().toString();
-						break;
-					}
-				}
+			DateTime startDate = null;
+			try {
+				startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"ExportTransactionTableResource: An illegal argument was passed into the 'startDate' parameter."
+				);
 			}
 			
+			DateTime endDate = null;
+			try {
+				endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"ExportTransactionTableResource: An illegal argument was passed into the 'endDate' parameter."
+				);
+			}
+
 			FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
 			FL_TransactionResults results = dataAccess.getAllTransactions(
 					entityIds, FL_LinkTag.FINANCIAL, dateRange, FL_SortBy.DATE, null, 0, 1000000);
@@ -133,14 +156,23 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 					csvBuilder.append("\n");
 				}
 			}
-						
-			Disposition attatchment = new Disposition(Disposition.TYPE_ATTACHMENT);
-			attatchment.setFilename("transactions_"+fileName+".csv");
 			
-			StringRepresentation result = new StringRepresentation(csvBuilder, MediaType.APPLICATION_OCTET_STREAM);
-			result.setDisposition(attatchment);
+			Representation rep = getRepresentaion(csvBuilder.toString());
 			
-			return result;
+			getResponse().setCacheDirectives(
+				Collections.singletonList(
+					CacheDirective.maxAge(maxCacheAge)
+				)
+			);
+
+			if (rep == null) {
+				throw new ResourceException(
+					Status.SERVER_ERROR_INTERNAL,
+					"Data table processing failed to complete for an unknown reason."
+				);
+			}
+			
+			return rep;
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -148,7 +180,45 @@ public class ExportTransactionTableResource extends ApertureServerResource {
 		}
 	}
 	
-	
+	private Representation getRepresentaion(String data) throws ConflictException, JSONException, JAXBException {
+		
+		byte[] csvData = data.getBytes();		
+		final String csvType = "text/csv";
+		
+		// Store to the content service, return a URL to the image
+		Document doc = service.createDocument();
+		doc.setContentType(csvType);
+		doc.setDocument(csvData);
+		
+		// Store and let the content service pick the id
+		DocumentDescriptor descriptor = service.storeDocument(
+			doc, 
+			DEFAULT_STORE, 
+			null, 
+			null
+		);
+
+		Map<String,Object> response = Maps.newHashMap();
+		
+		// process result.
+		if (descriptor != ProcessedTaskInfo.NONE) {
+			
+			// Return a response containing a JSON block with the id/rev
+			response.put("id", descriptor.getId());
+			response.put("store", descriptor.getStore());
+			
+			// if have a revision append it.
+			if (descriptor.getRevision() != null) {
+				response.put("rev", descriptor.getRevision());
+			}
+			
+		} else {
+			return null;
+		}
+
+		// Return a JSON response
+		return new JsonRepresentation(response);
+	}
 	
 	
 	private static String formatProperty(FL_Property prop) {
