@@ -320,6 +320,7 @@ define(
 				var matchChild;
 				for (var i = 0; i < _UIObjectState.children.length; i++) {
 					matchChild = _UIObjectState.children[i];
+
 					if (matchChild.isSelected()) {
 						aperture.pubsub.publish(
 							chan.SELECTION_CHANGE_REQUEST,
@@ -329,6 +330,21 @@ define(
 								noRender: true
 							}
 						);
+					} else {
+
+						// Check if any children of the matchChild are selected
+						for (var j = 0; j < matchChild.getChildren().length; j++) {
+							if (matchChild.getChildren()[j].isSelected()) {
+								aperture.pubsub.publish(
+									chan.SELECTION_CHANGE_REQUEST,
+									{
+										xfId: null,
+										selected : true,
+										noRender: true
+									}
+								);
+							}
+						}
 					}
 				}
 
