@@ -3446,10 +3446,14 @@ define(
 						}
 					}
 
-					var sessionUrl = window.location.origin + window.location.pathname + '?sessionId=' + _UIObjectState.sessionId + '&capture=true';
+					var sessionUrl = window.location.href;
+
+					if (sessionUrl.indexOf('?sessionId=') === -1) {
+						sessionUrl += '?sessionId=' + _UIObjectState.sessionId;
+					}
 
 					aperture.capture.store(
-						sessionUrl,
+						sessionUrl + '&capture=true',
 						settings,
 						null,
 						function(response){
