@@ -256,10 +256,20 @@ define(
 							_checkPatternSearchState();
 
 							// remove the entity id from the url after it has been loaded
+
+							var newPath;
+							if (!window.location.origin) {
+								newPath = window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port: '');
+
+							} else {
+								newPath = window.location.origin;
+							}
+							newPath += window.location.pathname;
+
 							window.history.replaceState(
 								{},
 								aperture.config.get()['influent.config']['title'],
-								window.location.origin + window.location.pathname
+								newPath
 							);
 
 							callback();
