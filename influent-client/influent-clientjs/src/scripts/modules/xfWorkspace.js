@@ -255,6 +255,13 @@ define(
 							_pruneColumns();
 							_checkPatternSearchState();
 
+							// remove the entity id from the url after it has been loaded
+							window.history.replaceState(
+								{},
+								aperture.config.get()['influent.config']['title'],
+								window.location.origin + window.location.pathname
+							);
+
 							callback();
 						};
 
