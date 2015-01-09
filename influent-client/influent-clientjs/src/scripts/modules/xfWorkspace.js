@@ -327,16 +327,16 @@ define(
 			var fileObj = _UIObjectState.singleton.getUIObjectByXfId(response.contextId);
 			if (fileObj == null || fileObj.getUIType() !== constants.MODULE_NAMES.FILE) {
 				aperture.log.error(
-					'_populateFileFromResponse: ' +
-					'Invalid file object returned from server.'
+					'Server Error: ' +
+					'Empty or invalid file object was returned from the server. Please contact your system administrator.'
 				);
 				return;
 			}
 
 			if (response.targets.length !== 1) {
 				aperture.log.error(
-					'_populateFileFromResponse: ' +
-					'Invalid number of entity specs returned from server: expected 1, received ' +
+					'Request Error: ' +
+					'Invalid number of entities returned from server: expected 1, received ' +
 					response.targets.length
 				);
 				if (renderCallback) {
@@ -348,9 +348,9 @@ define(
 			if (response.targets[0].members.length === 0 &&
 				response.targets[0].subclusters.length === 0
 			) {
-				aperture.log.warn(
-					'_populateFileFromResponse: ' +
-					'Empty spec returned from server'
+				aperture.log.error(
+					'Request Error: ' +
+					'An entity with the supplied Id could not be found.'
 				);
 				if (renderCallback) {
 					renderCallback();
