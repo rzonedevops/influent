@@ -68,7 +68,8 @@ define(
 			selectedUIObject: null,                 // this assumes one selected object, could make this an [] if needed
 			subscriberTokens: null,
 			graphSearchActive: null,
-			scrollStates: []
+			scrollStates: [],
+			initialEntityId: null
 		};
 
 		var xfWorkspaceSpecTemplate = {};
@@ -237,19 +238,65 @@ define(
 						var fileUIObj = xfFile.createInstance(fileSpec);
 						columnUIObj.insert(fileUIObj, null);
 
+						var onCardsAddedCallback = function() {
+							fileUIObj.showSearchControl(
+								true,
+								''
+							);
+
+							aperture.pubsub.publish(
+								chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST,
+								{
+									xfId: fileUIObj.getMatchUIObject().getXfId(),
+									noRender: true
+								}
+							);
+
+							_pruneColumns();
+							_checkPatternSearchState();
+
+							// remove the entity id from the url after it has been loaded
+
+							var newPath;
+							if (!window.location.origin) {
+								newPath = window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port: '');
+
+							} else {
+								newPath = window.location.origin;
+							}
+							newPath += window.location.pathname;
+
+							window.history.replaceState(
+								{},
+								aperture.config.get()['influent.config']['title'],
+								newPath
+							);
+
+							callback();
+						};
+
+						var onFileAddedCallback = function() {
+							if (_UIObjectState.initialEntityId != null && _UIObjectState.initialEntityId.length > 0) {
+								_modifyContext(
+									null,
+									fileUIObj.getXfId(),
+									'insert',
+									[_UIObjectState.initialEntityId],
+									function (response) {
+										_populateFileFromResponse(response, onCardsAddedCallback);
+									}
+								);
+							} else {
+								onCardsAddedCallback();
+							}
+						};
+
 						_modifyContext(
 							fileUIObj.getXfId(),
 							columnUIObj.getXfId(),
-							'create'
-						);
-
-						fileUIObj.showSearchControl(true, '');
-						aperture.pubsub.publish(
-							chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST,
-							{
-								xfId: fileUIObj.getMatchUIObject().getXfId(),
-								noRender: true
-							}
+							'create',
+							null,
+							onFileAddedCallback
 						);
 
 					} else {
@@ -263,13 +310,82 @@ define(
 						_UIObjectState.singleton.cleanState();
 						_UIObjectState.singleton.restoreVisualState(restoreState);
 						_UIObjectState.singleton.restoreHierarchy(restoreState, _UIObjectState.singleton);
+
+						_pruneColumns();
+						_checkPatternSearchState();
+
+						callback();
 					}
+				}
+			);
+		};
 
-					_pruneColumns();
-					_checkPatternSearchState();
+		//--------------------------------------------------------------------------------------------------------------
 
-					callback();
-				});
+		var _populateFileFromResponse = function(response, renderCallback) {
+
+			var fileObj = _UIObjectState.singleton.getUIObjectByXfId(response.contextId);
+			if (fileObj == null || fileObj.getUIType() !== constants.MODULE_NAMES.FILE) {
+				aperture.log.error(
+					'Server Error: ' +
+					'Empty or invalid file object was returned from the server. Please contact your system administrator.'
+				);
+				return;
+			}
+
+			if (response.targets.length !== 1) {
+				aperture.log.error(
+					'Request Error: ' +
+					'Invalid number of entities returned from server: expected 1, received ' +
+					response.targets.length
+				);
+				if (renderCallback) {
+					renderCallback();
+					return;
+				}
+			}
+
+			if (response.targets[0].members.length === 0 &&
+				response.targets[0].subclusters.length === 0
+			) {
+				aperture.log.error(
+					'Request Error: ' +
+					'An entity with the supplied Id could not be found.'
+				);
+				if (renderCallback) {
+					renderCallback();
+					return;
+				}
+			}
+
+			var specs = _getPopulatedSpecsFromData(response.targets, fileObj);
+
+			var clusterObj = xfImmutableCluster.createInstance(specs[0]);
+
+			clusterObj.updateToolbar(
+				{
+					'allowFile': false,
+					'allowClose': true,
+					'allowFocus': true,
+					'allowSearch': true
+				},
+				true
+			);
+
+			clusterObj.showDetails(_UIObjectState.showDetails);
+			clusterObj.showToolbar(true);
+
+			fileObj.setClusterUIObject(clusterObj);
+
+			aperture.pubsub.publish(chan.EXPAND_EVENT, { xfId: clusterObj.getXfId() });
+
+			if (_UIObjectState.showDetails) {
+				_UIObjectState.childModule.updateCardsWithCharts(specs);
+			}
+
+			if (renderCallback) {
+				renderCallback();
+			}
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -913,7 +1029,7 @@ define(
 				_searchByExample(_gatherPatternSearchTerm([matchUIObject]), renderCallback);
 
 			} else {
-				_basicSearchOnMatchcard(matchUIObject, renderCallback, eventChannel);
+				_basicSearchOnMatchcard(matchUIObject, renderCallback);
 			}
 		};
 
@@ -1040,7 +1156,7 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _basicSearchOnMatchcard = function(matchUIObject, renderCallback, eventChannel) {
+		var _basicSearchOnMatchcard = function(matchUIObject, renderCallback) {
 			var contextObj = xfUtil.getContextByUIObject(matchUIObject);
 
 			matchUIObject.removeAllChildren();
@@ -4370,9 +4486,10 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		xfWorkspaceModule.start = function(sessionId) {
+		xfWorkspaceModule.start = function(sessionId, entityId) {
 
 			_UIObjectState.sessionId = sessionId;
+			_UIObjectState.initialEntityId = entityId;
 
 			var subTokens = {};
 
