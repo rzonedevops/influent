@@ -47,7 +47,8 @@ define(
 
 			return {
 				sessionId : getQueryParam('sessionId') || '',
-				capture : getQueryParam('capture') || false
+				capture : getQueryParam('capture') || false,
+				entityId : getQueryParam('entityId') || null
 			};
 
 		}());
@@ -106,11 +107,11 @@ define(
 
 				function startView(settings) {
 					// trace it out for now
-					aperture.log.info('session: ' + settings.sessionId + ', capture: ' + settings.capture);
+					aperture.log.info('session: ' + settings.sessionId + ', capture: ' + settings.capture + ', entityId: ' + settings.entityId);
 
 					// make sure these modules are started. could do module switches here
 					that.modules.start('xfHeader', {div:'header'});
-					that.modules.start('xfCards', {div:'cards', sessionId: settings.sessionId});
+					that.modules.start('xfCards', {div:'cards', sessionId: settings.sessionId, entityId: settings.entityId});
 					that.modules.start('xfFooter', {div:'footer', capture: settings.capture});
 					that.modules.start('xfAdvancedSearch', {div:'search'});
 					that.modules.start('xfEntityDetails', {div:'popup'});
@@ -150,17 +151,17 @@ define(
 
 					// handle loads and new sessions
 					if (!cookie || !sessionRestorationEnabled) {
-						startView({sessionId: GUID.generateGuid(), capture: urlFlags.capture});
+						startView({sessionId: GUID.generateGuid(), capture: urlFlags.capture, entityId: urlFlags.entityId});
 					} else {
 						dialog.createInstance({
 							title : 'Session Found',
 							contents : 'A previous session of Influent was found. Attempt to reload it? Or start a new session?',
 							buttons : {
 								'Reload' : function() {
-									startView({sessionId: cookie, capture: urlFlags.capture});
+									startView({sessionId: cookie, capture: urlFlags.capture, entityId: urlFlags.entityId});
 								},
 								'New Session' : function() {
-									startView({sessionId: GUID.generateGuid(), capture: urlFlags.capture});
+									startView({sessionId: GUID.generateGuid(), capture: urlFlags.capture, entityId: urlFlags.entityId});
 								}
 							}
 						});

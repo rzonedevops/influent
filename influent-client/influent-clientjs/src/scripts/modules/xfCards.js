@@ -438,7 +438,7 @@ define(
 
 			return {
 				start: function() {
-					xfWorkspace.start(sandbox.spec.sessionId);
+					xfWorkspace.start(sandbox.spec.sessionId, sandbox.spec.entityId);
 				},
 				end : function() {
 					xfWorkspace.end();
