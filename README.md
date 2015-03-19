@@ -17,7 +17,7 @@ The Influent web app is a servlet, with server side Java and client side JavaScr
 
 Once installed, you will then need to build the following dependencies:
 
- + [ApertureJS](https://github.com/oculusinfo/aperturejs)
+ + [ApertureJS 1.0.9](https://github.com/unchartedsoftware/aperturejs/tree/master)
  + [Oculus Ensemble Clustering](https://github.com/oculusinfo/ensemble-clustering)
 
 To build Influent, execute the following command in the root influent directory:
