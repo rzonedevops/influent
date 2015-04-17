@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,6 +24,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package influent.server.clustering;
 
 import influent.idl.FL_Cluster;
@@ -29,7 +32,7 @@ import influent.idl.FL_Entity;
 import influent.idl.FL_Geocoding;
 import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.clustering.utils.ClustererProperties;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.InfluentId;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -63,73 +66,96 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 		}
 	}
 	
-	private List<EntityClusterer> createClusterStages(Properties pMgr){
+	private List<EntityClusterer> createClusterStages(Properties pMgr) throws Exception{
 		List<EntityClusterer> clusterStages = new ArrayList<EntityClusterer>();
 		
-		String[] clusterFields = pMgr.getString(ClustererProperties.CLUSTER_FIELDS, "GEO:geo,TYPE:categorical,LABEL:label").split(",");
+		try {
+			String[] clusterFields = pMgr.getString(ClustererProperties.CLUSTER_FIELDS, "GEO:geo,TYPE:categorical,LABEL:label").split(",");
 		
-		for (String field : clusterFields) {
-			String[] tokens = field.split(":");  // TagOrFieldName, Type, Fuzzy (if label feature)
-			if (tokens.length > 1) {
-				String tagOrFieldName = tokens[0];
-				String type = tokens[1];
+			for (String field : clusterFields) {
+				String[] tokens = field.split(":");  // TagOrFieldName, Type, Fuzzy (if label feature)
+				if (tokens.length > 1) {
+					String tagOrFieldName = tokens[0];
+					String type = tokens[1];
 				
-				if (type.equalsIgnoreCase("categorical")) {
-					CategoricalEntityClusterer clusterer = new CategoricalEntityClusterer();
-					Object[] params = {clusterFactory, tagOrFieldName}; 
-					clusterer.init(params);
-					clusterStages.add(clusterer);
-				}
-				else if (type.equalsIgnoreCase("label")) {
-					String clusterType = tokens.length == 3 ? tokens[2] : "fingerprint";  // default to fingerprint if none
+					if (type.equalsIgnoreCase("categorical")) {
+						CategoricalEntityClusterer clusterer = new CategoricalEntityClusterer();
+						Object[] params = {clusterFactory, tagOrFieldName}; 
+						clusterer.init(params);
+						clusterStages.add(clusterer);
+					}
+					else if (type.equalsIgnoreCase("label")) {
+						// first group alphabetically - adjust alpha bucket size based upon max cluster size property
+						LabelEntityClusterer clusterer = new LabelEntityClusterer();
+						int bucketSize = Math.max((int)Math.ceil(26.0 / MAX_CLUSTER_SIZE), 1);
+						Object[] params = {clusterFactory, tagOrFieldName, true, pMgr, bucketSize}; 
+						clusterer.init(params);
+						clusterStages.add(clusterer);
+							
+						// cluster again by alpha only if bucket size above was greater than 1
+						if (bucketSize > 1) {
+							clusterer = new LabelEntityClusterer();
+							Object[] params2 = {clusterFactory, tagOrFieldName, true, pMgr, 1}; 
+							clusterer.init(params2);
+							clusterStages.add(clusterer);
+						} 
+						
+						// next cluster by edit distance or finger print
+						clusterer = new LabelEntityClusterer();
+						Object[] params3 = {clusterFactory, tagOrFieldName, false, pMgr, MAX_CLUSTER_SIZE}; 
+						clusterer.init(params3);
+						clusterStages.add(clusterer);
+					}
+					else if (type.equalsIgnoreCase("geo")) {
+						GeoEntityClusterer clusterer = new GeoEntityClusterer();
+						Object[] params = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Continent}; 
+						clusterer.init(params);
+						clusterStages.add(clusterer);
 					
-					// first group alphabetically
-					LabelEntityClusterer clusterer = new LabelEntityClusterer();
-					Object[] params = {clusterFactory, tagOrFieldName, "alpha", pMgr}; 
-					clusterer.init(params);
-					clusterStages.add(clusterer);
+						clusterer = new GeoEntityClusterer();
+						Object[] params2 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Region}; 
+						clusterer.init(params2);
+						clusterStages.add(clusterer);
 					
-					// next edit distance or finger print cluster
-					clusterer = new LabelEntityClusterer();
-					Object[] params2 = {clusterFactory, tagOrFieldName, clusterType, pMgr}; 
-					clusterer.init(params2);
-					clusterStages.add(clusterer);
-				}
-				else if (type.equalsIgnoreCase("geo")) {
-					GeoEntityClusterer clusterer = new GeoEntityClusterer();
-					Object[] params = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Continent}; 
-					clusterer.init(params);
-					clusterStages.add(clusterer);
+						clusterer = new GeoEntityClusterer();
+						Object[] params3 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Country}; 
+						clusterer.init(params3);
+						clusterStages.add(clusterer);
 					
-					clusterer = new GeoEntityClusterer();
-					Object[] params2 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Region}; 
-					clusterer.init(params2);
-					clusterStages.add(clusterer);
-					
-					clusterer = new GeoEntityClusterer();
-					Object[] params3 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.Country}; 
-					clusterer.init(params3);
-					clusterStages.add(clusterer);
-					
-					clusterer = new GeoEntityClusterer();
-					Object[] params4 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.LatLon}; 
-					clusterer.init(params4);
-					clusterStages.add(clusterer);
-				}
-				else if (type.equalsIgnoreCase("numeric")) {
-					Double k = tokens.length == 3 ? Double.parseDouble(tokens[2]) : 100;  
-					NumericEntityClusterer clusterer = new NumericEntityClusterer();
-					Object[] params = {clusterFactory, tagOrFieldName, k}; 
-					clusterer.init(params);
-					clusterStages.add(clusterer);
+						clusterer = new GeoEntityClusterer();
+						Object[] params4 = {clusterFactory, tagOrFieldName, geoCoder, GeoEntityClusterer.GEO_LEVEL.LatLon}; 
+						clusterer.init(params4);
+						clusterStages.add(clusterer);
+					}
+					else if (type.equalsIgnoreCase("topic")) {
+						Double k = tokens.length == 3 ? Double.parseDouble(tokens[2]) : 0.5;  
+						TopicEntityClusterer clusterer = new TopicEntityClusterer();
+						Object[] params = {clusterFactory, tagOrFieldName, k}; 
+						clusterer.init(params);
+						clusterStages.add(clusterer);
+					}
+					else if (type.equalsIgnoreCase("numeric")) {
+						Double k = tokens.length == 3 ? Double.parseDouble(tokens[2]) : 100;  
+						NumericEntityClusterer clusterer = new NumericEntityClusterer();
+						Object[] params = {clusterFactory, tagOrFieldName, k, MAX_CLUSTER_SIZE}; 
+						clusterer.init(params);
+						clusterStages.add(clusterer);
+					}
+					else {
+						log.error("Invalid cluster field type specified for '{}' in clusterer.properties - verify the value of entity.clusterer.clusterfields", tagOrFieldName);
+					}
 				}
 				else {
-					log.warn("Invalid cluster field type specified in clusterer.properties - verify the value of entity.clusterer.clusterfields");
+					log.error("Invalid cluster field '{}' specified in clusterer.properties - verify the value of entity.clusterer.clusterfields", field);
 				}
 			}
-			else {
-				log.warn("Invalid cluster field specified in clusterer.properties - verify the value of entity.clusterer.clusterfields");
-			}
+		} catch (Exception e) {
+			log.error("Invalid cluster field specified in clusterer.properties - verify the value of entity.clusterer.clusterfields");
+		}
+		
+		if (clusterStages.isEmpty()) {
+			log.error("No valid cluster fields have been specified in clusterer.properties");
+			throw new Exception("No valid cluster fields have been specified in clusterer.properties");
 		}
 		
 		// last stage ensures no leaf cluster contains more than max cluster size
@@ -187,6 +213,9 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 		// add the roots to the allClusters map in context
 		context.clusters.putAll(results.roots);
 		
+		// keep track of a repeatable stages results to determine when it no longer is successful at clustering entities
+		int prevResultCount = 0;
+		
 		//
 		// Top down Divisive hierarchical clustering using binning and k-means clustering - each stage clusters by a distinct feature
 		//
@@ -202,7 +231,7 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 				
 				// update the cluster children to be the sub-clustering results
 				// and update the root and parent of the children
-				updateClusterReferences(cluster, results.roots);	
+				updateClusterReferences(cluster, results.roots);
 
 				// store the new/modified clusters in the context
 				context.clusters.putAll(results.roots);
@@ -213,7 +242,12 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 			// update the clusters to split for next stage
 			clustersToSplit.clear();
 			findClustersToSplit(stageResults, clustersToSplit);
-			currentStage = Math.min(clusterStages.size()-1, ++currentStage); // iterate through stages and stay on last stage until done
+			if ( isCompletedStage(currentStage, prevResultCount, stageResults.size()) ) {
+				currentStage = Math.min(clusterStages.size()-1, ++currentStage); // iterate through stages and stay on last stage until done
+				prevResultCount = 0; // reset prev result count since we are in a new stage
+			} else {
+				prevResultCount = stageResults.size(); // still in the current stage so update the results produced this iteration
+			}
 		}
 		
 		// lastly update the modified clusters summaries
@@ -223,9 +257,24 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 		return context;
 	}
 	
+	private boolean isRepeatableStage(int currentStage) {
+		EntityClusterer clusterer = clusterStages.get(currentStage);
+		return (clusterer instanceof NumericEntityClusterer || clusterer instanceof LabelEntityClusterer);
+	}
+	
+	private boolean isCompletedStage(int currentStage, int prevResultCount, int curResultCount) {
+		boolean completed = true;
+		
+		// if the stage is repeatable and we are still producing more clusters than it's not complete
+		if ( isRepeatableStage(currentStage) && prevResultCount != curResultCount ) {
+			completed = false;
+		}
+		return completed;
+	}
+	
 	private boolean isCandidate(FL_Cluster cluster) {
 		int numEntityMembers = cluster.getMembers().size();
-		int numMutables = TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.CLUSTER).size();
+		int numMutables = InfluentId.filterInfluentIds(cluster.getSubclusters(), InfluentId.CLUSTER).size();
 		int numImmutables = numEntityMembers + cluster.getSubclusters().size() - numMutables;
 		boolean tooLarge = numImmutables > MAX_CLUSTER_SIZE;
 		boolean nonLeaf = (numImmutables > 0 && numMutables > 0);
@@ -255,7 +304,7 @@ public class GeneralEntityClusterer extends BaseEntityClusterer {
 			childClusterIds.add(c.getUid());
 		}
 		cluster.getMembers().clear();
-		List<String> mutableSubClusters = TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.CLUSTER);
+		List<String> mutableSubClusters = InfluentId.filterInfluentIds(cluster.getSubclusters(), InfluentId.CLUSTER);
 		Set<String> uniqueIds = new HashSet<String>(mutableSubClusters);
 		uniqueIds.addAll(childClusterIds);
 		cluster.setSubclusters(new LinkedList<String>(uniqueIds));

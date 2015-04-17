@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -23,7 +25,7 @@
  * SOFTWARE.
  */
 
-define(['lib/channels'], function(chan) {
+define(['lib/communication/applicationChannels'], function(appChannel) {
 
 	/*
 	 * TODO Make hard-coded stuff configurable
@@ -36,7 +38,6 @@ define(['lib/channels'], function(chan) {
 
 			// these all link back to singletons in app. parent pre-empts local
 			state  = parentSandbox? parentSandbox.spec.state  : spec.state,
-			broker = parentSandbox? parentSandbox.spec.broker : spec.broker,
 
 			listeners = [ /* {
 								callback: function(changeEvent),
@@ -98,13 +99,6 @@ define(['lib/channels'], function(chan) {
 			},
 
 			/**
-			 * Gets the current application ajax broker
-			 */
-			ajax = function() {
-				return broker;
-			},
-
-			/**
 			 * Unsubscribe method will unsubscribe the provided callback function listener
 			 * from change notifications
 			 */
@@ -132,7 +126,7 @@ define(['lib/channels'], function(chan) {
 			 */
 			publish = function( stateChanges ) {
 				// Publish event
-				aperture.pubsub.publish( chan.STATE_REQUEST, stateChanges );
+				aperture.pubsub.publish( appChannel.STATE_REQUEST, stateChanges );
 			},
 
 			/**
@@ -175,7 +169,7 @@ define(['lib/channels'], function(chan) {
 			/*
 			 * Subscribe to state changes locally
 			 */
-			myToken = aperture.pubsub.subscribe( chan.STATE, onStateChange ),
+			myToken = aperture.pubsub.subscribe( appChannel.STATE, onStateChange ),
 
 
 			/**
@@ -194,7 +188,6 @@ define(['lib/channels'], function(chan) {
 		this.unsubscribe = unsubscribe;
 		this.publishState = publish;
 		this.state = getState;
-		this.ajax = ajax;
 		this.$ = local$;
 
 		// Expose access to the div that the module can exist in

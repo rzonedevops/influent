@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,9 +24,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
-	['lib/constants', 'lib/channels'],
-	function(constants, chan) {
+	['lib/constants', 'lib/communication/applicationChannels'],
+	function(constants, appChannel) {
 
 		// Note that the use of ((http|ftp|https)://)* means that this also includes valid hash keys for charts, not just general URIs
 		var VALID_URI_REGEX = new RegExp('((http|ftp|https)://)*[a-z0-9\\-_]+(\\.[a-z0-9\\-_]+)+([a-z0-9\\-\\.,@\\?^=%&;:/~\\+#]*[a-z0-9\\-@\\?^=%&;/~\\+#])?', 'i');
@@ -228,6 +231,26 @@ define(
 			}
 		};
 
+		/**
+		 * Returns a url for the view represented by the given view id
+		 *
+		 * @param viewId the id of the view
+		 * @returns {*} url for the given viewID
+		 * @private
+		 */
+		var _getViewURL = function(viewId) {
+			var url = window.location.pathname + '#/';
+			if (viewId === constants.VIEWS.TRANSACTIONS.NAME) {
+				return url + 'transactions';
+			} else if (viewId === constants.VIEWS.ACCOUNTS.NAME) {
+				return url + 'accounts';
+			} else if (viewId === constants.VIEWS.FLOW.NAME) {
+				return url + 'flow';
+			} else {
+				return '';
+			}
+		};
+
 		//--------------------------------------------------------------------------------------------------------------
 
 		/**
@@ -262,28 +285,6 @@ define(
 			}
 
 			return contextObj;
-		};
-
-		//--------------------------------------------------------------------------------------------------------------
-
-		// Returns a list of contextIds from a given object. If the supplied object is a FILE type, then the function will
-		// return the supplied object. If the supplied object is a workspace or a column, then the function will return
-		// all contained context ids. Otherwise, the function will return all
-		var _getContextIds = function(uiObject){
-
-			var contexts = [];
-
-			if (uiObject.getUIType() === constants.MODULE_NAMES.WORKSPACE ||
-				uiObject.getUIType() === constants.MODULE_NAMES.COLUMN
-			) {
-				contexts = uiObject.getContextIds();
-			} else  if (uiObject.getUIType() === constants.MODULE_NAMES.FILE) {
-				contexts.push(uiObject.getXfId());
-			} else {
-				contexts.push(_getContextByUIObject(uiObject).getXfId());
-			}
-
-			return contexts;
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -647,12 +648,20 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _propertyMapToDisplayOrderArray = function( obj ) {
+		var _propertyMapToDisplayOrderArray = function( properties ) {
 			var propertyArray = [];
-
-			for (var key in obj.properties) {
-				if (obj.properties.hasOwnProperty(key) && obj.properties[key].displayOrder >= 0) {
-					propertyArray.push(obj.properties[key]);
+			var prop= null;
+			
+			for (var key in properties) {
+				if (properties.hasOwnProperty(key)) {
+					prop = properties[key];
+					if (prop.key == null) {
+						prop.key = key;
+					}
+					
+					if (prop.displayOrder >= 0) {
+						propertyArray.push(prop);
+					}
 				}
 			}
 			propertyArray.sort(function(ob1,ob2) {
@@ -691,7 +700,7 @@ define(
 			}
 
 			if (title != null) {
-                _makeTooltip(button, title);
+				_makeTooltip(button, title);
 			}
 
 			return button;
@@ -701,57 +710,86 @@ define(
 
 		function _makeTooltip(element, tooltipText, elementFriendlyDesc) {
 
-            if (!element) {
-                return;
-            }
+			if (!element) {
+				return;
+			}
 
-            // Assign text to the tooltip
-            if (tooltipText) {
-                element.attr('title', tooltipText);
-            }
+			// Assign text to the tooltip
+			if (tooltipText) {
+				element.attr('title', tooltipText);
+			}
 
-            // Find a friendly way to describe the element
-            var elementDesc = elementFriendlyDesc ?
-                elementFriendlyDesc : tooltipText;
+			// Find a friendly way to describe the element
+			var elementDesc = elementFriendlyDesc ?
+				elementFriendlyDesc : tooltipText;
 
-            var timer = null;
+			var timer = null;
 
-            element.hover(
+			element.hover(
 				function() {
-                    aperture.pubsub.publish(chan.HOVER_START_EVENT, {
-                        element : elementDesc
-                    });
+					aperture.pubsub.publish(appChannel.HOVER_START_EVENT, {
+						element : elementDesc
+					});
 
 					timer = setTimeout(
 						function() {
-							aperture.pubsub.publish(chan.TOOLTIP_START_EVENT, {
-                                element : elementDesc
-                            });
+							aperture.pubsub.publish(appChannel.TOOLTIP_START_EVENT, {
+								element : elementDesc
+							});
 							timer = null;
 						},
 						1000
 					);
 				},
 				function() {
-                    if (timer) {
-                        clearTimeout(timer);
-                        timer = null;
-                    } else {
-						aperture.pubsub.publish(chan.TOOLTIP_END_EVENT, {
+					if (timer) {
+						clearTimeout(timer);
+						timer = null;
+					} else {
+						aperture.pubsub.publish(appChannel.TOOLTIP_END_EVENT, {
 							element : elementDesc
 						});
 					}
 
 
-                    aperture.pubsub.publish(chan.HOVER_END_EVENT, {
-                        element : elementDesc
-                    });
+					aperture.pubsub.publish(appChannel.HOVER_END_EVENT, {
+						element : elementDesc
+					});
 				}
 			);
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
+		function _resizeIcon(url, width, height) {
+			// ick.
+			return url.replace(/iconWidth=[0-9]+/, 'iconWidth='+ width)
+					.replace(/iconHeight=[0-9]+/, 'iconHeight=' + height);
+		}
+		
+		//--------------------------------------------------------------------------------------------------------------
 
+		var _stripHtml = function(textIn) {
+			textIn = textIn.replace(/<br>/gm, ' ').trim();
+			var tmp = document.createElement('div');
+			tmp.innerHTML = textIn;
+			return tmp.textContent || tmp.innerText || '';
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		var _removeSpecialCharacters = function(str, html) {
+
+			if (!str) {
+				return str;
+			}
+
+			if (html) {
+				return _stripHtml(str).replace(/(\\r\\n|\\n|\\r|\\t|\r\n|\r|\n|\t|\s+)/gm, ' ');
+			} else {
+				return str.replace(/(\\r\\n|\\n|\\r|\\t|\r\n|\r|\n|\t|\s+)/gm, ' ');
+			}
+		};
+		
 		return {
 			isUITypeDescendant : _isUITypeDescendant,
 			getUITypeAncestor : _getUITypeAncestor,
@@ -777,12 +815,15 @@ define(
 			bothAscendingSort : _bothAscendingSort,
 			isWorkspaceWhitespace : _isWorkspaceWhitespace,
 			getContextByUIObject : _getContextByUIObject,
-			getContextIds : _getContextIds,
 			getContainedCardDataIds : _getContainedCardDataIds,
 			getAccountTypeFromDataId : _getAccountTypeFromDataId,
 			makeButton : _makeButton,
-            makeTooltip : _makeTooltip,
-			propertyMapToDisplayOrderArray : _propertyMapToDisplayOrderArray
+			makeTooltip : _makeTooltip,
+			resizeIcon : _resizeIcon,
+			propertyMapToDisplayOrderArray : _propertyMapToDisplayOrderArray,
+			removeSpecialCharacters : _removeSpecialCharacters,
+			stripHtml : _stripHtml,
+			getViewURL : _getViewURL
 		};
 	}
 );

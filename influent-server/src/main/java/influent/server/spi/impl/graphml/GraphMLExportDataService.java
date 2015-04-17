@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -146,109 +148,109 @@ public class GraphMLExportDataService implements ExportDataService {
 		xmlData.setvalue(XML.toString(miscData));
 		graphML.getGraph().getdata().add(xmlData);
 		
-    	columns = jsonData.getJSONArray("children");			// go through columns and add all files
-    	for (int i = 0; i < columns.length(); i++) {
-    		columnObject = columns.getJSONObject(i);
-    		
-    		columnData = new JSONObject();									// add column data
-    		for(String dataKey : JSONObject.getNames(columnObject)) {
-    			if(!dataKey.equals("children")) {
-    				columnData.put(dataKey, columnObject.get(dataKey));
-    			}
-    		}
-    		xmlData = new GraphDataXML();
-    		xmlData.setkey("column"+i);
-    		xmlData.setvalue(XML.toString(columnData));
-    		graphML.getGraph().getdata().add(xmlData);
-    		
-            files = columnObject.getJSONArray("children");					// add child data (only files)
-        	for (int j = 0; j < files.length(); j++) {
-        		if (files.get(j) instanceof JSONObject) {
-                	file = files.getJSONObject(j);
-                	
-                	if(file.get("UIType").equals("xfFile")) {
-                		file.remove("matchUIObject");
-                		
-                       	GraphNode node = new GraphNode();					// create file node
-                    	node.setid((file.getString("xfId")));
-                    	node.setdata(new ArrayList<GraphData>());
-                    	
-                    	data = new GraphData();								// set file column and row
-                		data.setkey("column");
-                		data.setvalue(String.valueOf(i));
-                		node.getdata().add(data);
-                    	data = new GraphData();
-                		data.setkey("row");
-                		data.setvalue(String.valueOf(j));
-                		node.getdata().add(data);
-                    	
-                		xmlData = new GraphDataXML();						// set raw json data
-                		xmlData.setkey("fileJSON");
-                		xmlData.setvalue(XML.toString(file));
-                    	node.setnodedata(new ArrayList<GraphDataXML>());
-                		node.getnodedata().add(xmlData);
-                    	
-                		PermitSet permits = new PermitSet();
-                		JSONArray clusterObject = null;
-                		try {
-               				final ContextReadWrite contextRW = contextCache.getReadWrite(file.getString("xfId"), permits);
-               				for(FL_Cluster cluster : contextRW.getClusters()) {
-               					for(FL_Property property : cluster.getProperties()) {
-               						if(!(property.getRange() instanceof FL_SingletonRange)) continue;
-               						FL_SingletonRange range = (FL_SingletonRange) property.getRange();
-               						if(!range.getType().equals(FL_PropertyType.STRING)) continue;
-               						property.setRange(new SingletonRangeHelper(XML.escape((String)range.getValue())));
-               					}
-               				}
-               				clusterObject = new JSONArray(ClusterHelper.toJson(contextRW.getClusters()));
-                		} catch (IOException e) {
-        					throw new ResourceException(
-        							Status.CLIENT_ERROR_BAD_REQUEST,
-        							"Exception during cluster cache processing.",
-        							e
-        						);
+		columns = jsonData.getJSONArray("children");			// go through columns and add all files
+		for (int i = 0; i < columns.length(); i++) {
+			columnObject = columns.getJSONObject(i);
+			
+			columnData = new JSONObject();									// add column data
+			for(String dataKey : JSONObject.getNames(columnObject)) {
+				if(!dataKey.equals("children")) {
+					columnData.put(dataKey, columnObject.get(dataKey));
+				}
+			}
+			xmlData = new GraphDataXML();
+			xmlData.setkey("column"+i);
+			xmlData.setvalue(XML.toString(columnData));
+			graphML.getGraph().getdata().add(xmlData);
+			
+			files = columnObject.getJSONArray("children");					// add child data (only files)
+			for (int j = 0; j < files.length(); j++) {
+				if (files.get(j) instanceof JSONObject) {
+					file = files.getJSONObject(j);
+					
+					if(file.get("UIType").equals("xfFile")) {
+						file.remove("matchUIObject");
+						
+						   GraphNode node = new GraphNode();					// create file node
+						node.setid((file.getString("xfId")));
+						node.setdata(new ArrayList<GraphData>());
+						
+						data = new GraphData();								// set file column and row
+						data.setkey("column");
+						data.setvalue(String.valueOf(i));
+						node.getdata().add(data);
+						data = new GraphData();
+						data.setkey("row");
+						data.setvalue(String.valueOf(j));
+						node.getdata().add(data);
+						
+						xmlData = new GraphDataXML();						// set raw json data
+						xmlData.setkey("fileJSON");
+						xmlData.setvalue(XML.toString(file));
+						node.setnodedata(new ArrayList<GraphDataXML>());
+						node.getnodedata().add(xmlData);
+						
+						PermitSet permits = new PermitSet();
+						JSONArray clusterObject = null;
+						try {
+							   final ContextReadWrite contextRW = contextCache.getReadWrite(file.getString("xfId"), permits);
+							   for(FL_Cluster cluster : contextRW.getClusters()) {
+								   for(FL_Property property : cluster.getProperties()) {
+									   if(!(property.getRange() instanceof FL_SingletonRange)) continue;
+									   FL_SingletonRange range = (FL_SingletonRange) property.getRange();
+									   if(!range.getType().equals(FL_PropertyType.STRING)) continue;
+									   property.setRange(SingletonRangeHelper.from(XML.escape((String)range.getValue())));
+								   }
+							   }
+							   clusterObject = new JSONArray(ClusterHelper.toJson(contextRW.getClusters()));
+						} catch (IOException e) {
+							throw new ResourceException(
+									Status.CLIENT_ERROR_BAD_REQUEST,
+									"Exception during cluster cache processing.",
+									e
+								);
 						} finally {
-                			permits.revoke();
-                		}
+							permits.revoke();
+						}
 
-                		if(clusterObject != null) {
-                    		xmlData = new GraphDataXML();						// set raw json data
-                    		xmlData.setkey("clusterJSON");
-                    		xmlData.setvalue(clusterObject.toString());
-                    		node.getnodedata().add(xmlData);
-                		}
+						if(clusterObject != null) {
+							xmlData = new GraphDataXML();						// set raw json data
+							xmlData.setkey("clusterJSON");
+							xmlData.setvalue(clusterObject.toString());
+							node.getnodedata().add(xmlData);
+						}
 
-                    	graphML.getGraph().getnode().add(node);
-                    	
-                        links = file.getJSONArray("links");
-                        for (int k = 0; k < links.length(); k++) {							// add file links
-                        	if (links.get(k) instanceof JSONObject) {
-                        		GraphEdge linkItem = new GraphEdge();
-                        		link = links.getJSONObject(k);
-                        		
-                        		if(link.getString("destination").contains(file.getString("xfId"))) {
-                            		linkItem.setsource((link.getString("source")));
-                            		linkItem.settarget((link.getString("destination")));
-                            		graphML.getGraph().getedge().add(linkItem);
-                        		}
+						graphML.getGraph().getnode().add(node);
+						
+						links = file.getJSONArray("links");
+						for (int k = 0; k < links.length(); k++) {							// add file links
+							if (links.get(k) instanceof JSONObject) {
+								GraphEdge linkItem = new GraphEdge();
+								link = links.getJSONObject(k);
+								
+								if(link.getString("destination").contains(file.getString("xfId"))) {
+									linkItem.setsource((link.getString("source")));
+									linkItem.settarget((link.getString("destination")));
+									graphML.getGraph().getedge().add(linkItem);
+								}
 
-                        		// TODO add edge width/type?  (linkType = link.getString("type"))
-                        	}
-                        }
-                	}
-        		}
-        	}
-    	}
-        
-    	JAXBContext jc = JAXBContext.newInstance(GraphMLUtil.GRAPHML_CLASSES);
-        Marshaller marshaller = jc.createMarshaller();
-        marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, GraphMLUtil.SCHEMA_LOCATION);
-        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        
-        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-        marshaller.marshal(graphML, baoStream);
-        
-    	return baoStream;
+								// TODO add edge width/type?  (linkType = link.getString("type"))
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		JAXBContext jc = JAXBContext.newInstance(GraphMLUtil.GRAPHML_CLASSES);
+		Marshaller marshaller = jc.createMarshaller();
+		marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, GraphMLUtil.SCHEMA_LOCATION);
+		marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+		
+		ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+		marshaller.marshal(graphML, baoStream);
+		
+		return baoStream;
 	}
 	
 	/**

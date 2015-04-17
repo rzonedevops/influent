@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,13 +24,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil', 'lib/constants',
-		'lib/extern/underscore'
-    ],
+		'lib/interfaces/xfUIObject', 'lib/communication/applicationChannels', 'lib/util/GUID', 'lib/util/xfUtil', 'lib/constants', 'underscore'
+	],
 	function(
-		xfUIObject, chan, guid, xfUtil, constants
+		xfUIObject, appChannel, guid, xfUtil, constants
 	) {
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -70,6 +72,7 @@ define(
 			label               : '',
 			confidenceInSrc     : 1.0,
 			confidenceInAge     : 1.0,
+			unbranchable        : false,
 			inDegree			: 0,
 			outDegree			: 0,
 			leftOperation       : 'branch',
@@ -311,7 +314,7 @@ define(
 						// Check if this card is a descendant of a match card.
 						if (!xfUtil.isUITypeDescendant(this, constants.MODULE_NAMES.FILE)){
 							aperture.pubsub.publish(
-								chan.REMOVE_REQUEST,
+								appChannel.REMOVE_REQUEST,
 								{
 									xfIds : [this.getXfId()],
 									dispose : true
@@ -342,7 +345,7 @@ define(
 			// An event channel argument is required to help enforce that this method should
 			// ONLY ever be called from a pubsub type handler.
 			xfCardInstance.remove = function(eventChannel, dispose) {
-				if (chan.REMOVE_REQUEST === eventChannel){
+				if (appChannel.REMOVE_REQUEST === eventChannel){
 
 					for (var linkId in _UIObjectState.links) {
 						if (_UIObjectState.links.hasOwnProperty(linkId)) {
@@ -535,7 +538,7 @@ define(
 				}
 
 				if (stateChanged) {
-					aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfCardInstance});
+					aperture.pubsub.publish(appChannel.RENDER_UPDATE_REQUEST, {UIObject : xfCardInstance, updateOnly: true});
 				}
 			};
 
@@ -544,10 +547,10 @@ define(
 			xfCardInstance.setHidden = function(xfId, state) {
 
 				if (_UIObjectState.xfId === xfId) {
-					if (_UIObjectState.isHidden != state ) {
+					if (_UIObjectState.isHidden !== state ) {
 
 						_UIObjectState.isHidden = state;
-						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject: xfCardInstance});
+						aperture.pubsub.publish(appChannel.RENDER_UPDATE_REQUEST, {UIObject: xfCardInstance, updateOnly: true});
 
 						var i;
 
@@ -594,6 +597,13 @@ define(
 				}
 
 				_UIObjectState.spec.duplicateCount = count;
+
+				aperture.pubsub.publish(
+					appChannel.RENDER_UPDATE_REQUEST,
+					{
+						UIObject: this
+					}
+				);
 			};
 
 			//----------------------------------------------------------------------------------------------------------
@@ -656,6 +666,7 @@ define(
 				state['spec']['chartSpec'] = _UIObjectState.spec.chartSpec;
 				state['spec']['inDegree'] = _UIObjectState.spec.inDegree;
 				state['spec']['outDegree'] = _UIObjectState.spec.outDegree;
+				state['spec']['promptForDetails'] = _UIObjectState.spec.promptForDetails;
 
 				return state;
 			};
@@ -688,6 +699,7 @@ define(
 				_UIObjectState.spec.chartSpec = state.spec.chartSpec;
 				_UIObjectState.spec.inDegree = state.spec.inDegree;
 				_UIObjectState.spec.outDegree = state.spec.outDegree;
+				_UIObjectState.spec.promptForDetails = state.spec.promptForDetails;
 			};
 
 			//----------------------------------------------------------------------------------------------------------
@@ -702,7 +714,7 @@ define(
 
 				if (_UIObjectState.isSelected) {
 					aperture.pubsub.publish(
-						chan.SELECTION_CHANGE_REQUEST,
+						appChannel.SELECTION_CHANGE_REQUEST,
 						{
 							xfId: null,
 							selected : true,
@@ -763,6 +775,20 @@ define(
 				}
 
 				return amount;
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfCardInstance.updatePromptState = function(dataId, state) {
+				if (_UIObjectState.spec.dataId === dataId) {
+					_UIObjectState.spec.promptForDetails = state;
+				}
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfCardInstance.getPromptState = function(xfId) {
+				return _UIObjectState.spec.promptForDetails;
 			};
 
 			//--------------------------------

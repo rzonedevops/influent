@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,20 +27,20 @@
 package influent.server.rest;
 
 import influent.idl.FL_Cluster;
-import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
 import influent.idl.FL_LevelOfDetail;
 import influent.server.clustering.utils.ClusterContextCache;
-import influent.server.clustering.utils.ContextRead;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
+import influent.server.clustering.utils.ContextRead;
 import influent.server.utilities.GuidValidator;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.InfluentId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import oculus.aperture.common.JSONProperties;
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
@@ -51,6 +53,7 @@ import org.restlet.representation.StringRepresentation;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 
 
@@ -62,7 +65,7 @@ public class EntityLookupResource extends ApertureServerResource{
 	
 	
 	@Inject
-	public EntityLookupResource(FL_DataAccess service, FL_ClusteringDataAccess clusterDataAccess, ClusterContextCache contextCache) {
+	public EntityLookupResource(FL_DataAccess service, ClusterContextCache contextCache) {
 		this.service = service;
 		this.contextCache = contextCache;
 	}
@@ -72,38 +75,30 @@ public class EntityLookupResource extends ApertureServerResource{
 	
 	@Post("json")
 	public StringRepresentation lookup(String jsonData) throws ResourceException {
-		JSONObject jsonObj;
+
 		JSONObject result = new JSONObject();
 		try {
-			jsonObj = new JSONObject(jsonData);
+			JSONProperties request = new JSONProperties(jsonData);
 			
-			String sessionId = jsonObj.getString("sessionId").trim();
+			final String sessionId = request.getString("sessionId", null);
 			if (!GuidValidator.validateGuidString(sessionId)) {
 				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
 			
-			String contextid = jsonObj.getString("contextid").trim();
-			
-			Boolean details = jsonObj.has("details")? jsonObj.getBoolean("details"):false;
+			final String contextid = request.getString("contextid", null);
+			final Boolean details = request.getBoolean("details", false);
 			
 			// get the root node ID from the form
-			JSONArray entityNodes = jsonObj.getJSONArray("entities");
-			List<String> entityIds = new ArrayList<String>(entityNodes.length());
-		
-			for (int i=0; i < entityNodes.length(); i++){
-				String id = entityNodes.getString(i).trim();
-				entityIds.add(id);
-			}
-
-			List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
+			List<String> entityIds = Lists.newArrayList(request.getStrings("entities"));
 			
-			List<String> clusterSummaryIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER_SUMMARY);
+			List<String> clusterIds = InfluentId.filterInfluentIds(entityIds, InfluentId.CLUSTER);
+			List<String> clusterSummaryIds = InfluentId.filterInfluentIds(entityIds, InfluentId.CLUSTER_SUMMARY);
 			clusterIds.addAll(clusterSummaryIds);
 			
-			List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
+			List<String> accountIds = InfluentId.filterInfluentIds(entityIds, InfluentId.ACCOUNT);
 			
 			// If there are any owners, look those up as accounts:
-			List<String> ownerIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT_OWNER);
+			List<String> ownerIds = InfluentId.filterInfluentIds(entityIds, InfluentId.ACCOUNT_OWNER);
 			clusterIds.addAll(ownerIds);	
 			
 			PermitSet permits = new PermitSet();

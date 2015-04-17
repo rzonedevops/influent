@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -23,28 +25,35 @@
  * SOFTWARE.
  */
 
-/**
- * Defines the names of pub/sub channels used throughout the app
- */
 define(
 	{
 		MODULE_NAMES : {
-			WORKSPACE : 'xfWorkspace',
-			COLUMN : 'xfColumn',
-			FILE : 'xfFile',
-			ENTITY : 'xfEntity',
+			ACCOUNTS_SEARCH_RESULT : 'xfAccountsSearchResult',
 			CLUSTER_BASE : 'xfClusterBase',
+			COLUMN : 'xfColumn',
+			ENTITY : 'xfEntity',
+			ENTITY_RESULT : 'xfEntityResult',
+			ENTITY_RESULT_CLUSTER : 'xfEntityResultCluster',
+			FILE : 'xfFile',
 			IMMUTABLE_CLUSTER : 'xfImmutableCluster',
-			MUTABLE_CLUSTER : 'xfMutableCluster',
-			SUMMARY_CLUSTER : 'xfSummaryCluster',
+			LINK : 'xfLink',
 			MATCH : 'xfMatch',
-			LINK : 'xfLink'
+			MUTABLE_CLUSTER : 'xfMutableCluster',
+			RESULT_BASE : 'xfResultBase',
+			RESULT_CLUSTER_BASE : 'xfResultClusterBase',
+			SEARCH_RESULT_BASE : 'xfSearchResultBase',
+			SUMMARY_CLUSTER : 'xfSummaryCluster',
+			TRANSACTION_RESULT : 'xfTransactionResult',
+			TRANSACTION_RESULT_CLUSTER : 'xfTransactionResultCluster',
+			TRANSACTIONS_SEARCH_RESULT : 'xfTransactionsSearchResult',
+			WORKSPACE : 'xfWorkspace'
 		},
 		ACCOUNT_TYPES : {
+			ACCOUNT_OWNER : 'account_owner',
 			CLUSTER : 'cluster',
 			CLUSTER_SUMMARY : 'cluster_summary',
-			ACCOUNT_OWNER : 'account_owner',
 			ENTITY : 'entity',
+			ENTITY_CLUSTER : 'entity_cluster',
 			FILE : 'file'
 		},
 		AJAX_SPINNER_FILE : 'img/ajax-loader.gif',
@@ -54,6 +63,34 @@ define(
 			INCOMING : 'incoming',
 			OUTGOING : 'outgoing',
 			BOTH : 'both'
-		}
+		},
+		VIEWS : {
+			SUMMARY : {
+				NAME : 'Summary',
+				ICON : 'glyphicon glyphicon-info-sign'
+			},
+			ACCOUNTS : {
+				NAME : 'Accounts',
+				ICON : 'glyphicon glyphicon-user'
+			},
+			TRANSACTIONS : {
+				NAME : 'Transactions',
+				ICON : 'glyphicon glyphicon-list'
+			},
+			FLOW : {
+				NAME : 'Flow',
+				ICON : 'glyphicon glyphicon-random'
+			}
+		},
+		UNIT_TESTS_ENABLED : aperture.config.get()['influent.config']['unitTestsEnabled'] || false,
+		DATE_FORMAT: aperture.config.get()['influent.config'].dateFormat,
+		TIME_FORMAT: aperture.config.get()['influent.config'].timeFormat,
+		QUERY_DATE_FORMAT: 'YYYY-MM-DD',
+		BOOTSTRAP_DATE_FORMAT: aperture.config.get()['influent.config'].dateFormat
+			.replace('YYYY', 'yyyy')
+			.replace('YY', 'yy')
+			.replace('MMMM', 'MM')
+			.replace('MMM', 'M')
+			.replace('D', 'd')
 	}
 );

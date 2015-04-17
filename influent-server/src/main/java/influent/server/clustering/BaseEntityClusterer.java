@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,6 +24,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package influent.server.clustering;
 
 import java.util.ArrayList;
@@ -44,7 +47,7 @@ import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.InfluentId;
 
 public abstract class BaseEntityClusterer implements EntityClusterer {
 	protected static final Logger log = LoggerFactory.getLogger("influent");
@@ -117,7 +120,7 @@ public abstract class BaseEntityClusterer implements EntityClusterer {
 			cluster.getProperties().add(prop);
 		}
 		else {
-			prop.setRange( new SingletonRangeHelper(value) );
+			prop.setRange( SingletonRangeHelper.fromUnknown(value) );
 		}
 	}
 	
@@ -151,12 +154,12 @@ public abstract class BaseEntityClusterer implements EntityClusterer {
 	}
 	
 	public static boolean isImmutableCluster(String clusterId) {
-		return (TypedId.hasType(clusterId, TypedId.ACCOUNT_OWNER) || TypedId.hasType(clusterId, TypedId.CLUSTER_SUMMARY));
+		return (InfluentId.hasIdClass(clusterId, InfluentId.ACCOUNT_OWNER) || InfluentId.hasIdClass(clusterId, InfluentId.CLUSTER_SUMMARY));
 	}
 	
 	public static boolean isImmutableCluster(FL_Cluster cluster) {
 		String id = cluster.getUid();
-		return (TypedId.hasType(id, TypedId.ACCOUNT_OWNER) || TypedId.hasType(id, TypedId.CLUSTER_SUMMARY));
+		return (InfluentId.hasIdClass(id, InfluentId.ACCOUNT_OWNER) || InfluentId.hasIdClass(id, InfluentId.CLUSTER_SUMMARY));
 	}
 	
 	public static List<FL_Cluster> filterImmutableClusters(Collection<FL_Cluster> clusters) {
@@ -311,6 +314,15 @@ public abstract class BaseEntityClusterer implements EntityClusterer {
 		return modifiedClusters;
 	}
 	
+	protected Collection<FL_Cluster> findNewClusters(Map<String, FL_Cluster> modified, Collection<FL_Cluster> existing) {
+		Map<String, FL_Cluster> newClusters = new HashMap<String, FL_Cluster>(modified); 
+		
+		for (FL_Cluster cluster : existing) {
+			newClusters.remove(cluster.getUid());
+		}
+		return newClusters.values();
+	}
+	
 	protected Map<String, FL_Cluster> retrieveClusterBuckets(Collection<FL_Cluster> clusters, ClusterContext context) {
 		Map<String, FL_Cluster> buckets = new HashMap<String, FL_Cluster>();
 		
@@ -366,9 +378,9 @@ public abstract class BaseEntityClusterer implements EntityClusterer {
 	
 	@Override
 	public ClusterContext clusterEntities(Collection<FL_Entity> entities,
-										  Collection<FL_Cluster> immutableClusters,
-										  Collection<FL_Cluster> clusters, 
-										  ClusterContext context) {
+										Collection<FL_Cluster> immutableClusters,
+										Collection<FL_Cluster> clusters, 
+										ClusterContext context) {
 		Map<String, FL_Cluster> modifiedClusters = new HashMap<String, FL_Cluster>();
 		
 		// fetch previous buckets

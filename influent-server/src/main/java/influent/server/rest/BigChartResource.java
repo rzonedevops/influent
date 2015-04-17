@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,15 +27,11 @@
 package influent.server.rest;
 
 import influent.idl.FL_ClusteringDataAccess;
-import influent.idl.FL_DataAccess;
 import influent.idl.FL_DateRange;
+import influent.idl.FL_LinkSearch;
 import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.data.ChartData;
-import influent.server.utilities.ChartBuilder;
-import influent.server.utilities.DateRangeBuilder;
-import influent.server.utilities.DateTimeParser;
-import influent.server.utilities.GuidValidator;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,20 +39,21 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import oculus.aperture.common.JSONProperties;
 import oculus.aperture.common.rest.ApertureServerResource;
+import oculus.aperture.spi.common.Properties;
 
 import org.apache.avro.AvroRemoteException;
 import org.joda.time.DateTime;
 import org.joda.time.MutableDateTime;
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.restlet.data.Status;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
@@ -69,13 +68,13 @@ public class BigChartResource extends ApertureServerResource {
 	
 	@Inject
 	public BigChartResource(
-		FL_DataAccess entityAccess,
+		FL_LinkSearch transactionsSearcher,
 		FL_ClusteringDataAccess clusterAccess,
 		@Named("influent.midtier.ehcache.config") String ehCacheConfig,
 		ClusterContextCache contextCache
 	) {
 		this.contextCache = contextCache;
-		chartBuilder = new ChartBuilder(clusterAccess, ehCacheConfig);
+		chartBuilder = new ChartBuilder(transactionsSearcher, clusterAccess, ehCacheConfig);
 	}
 	
 	
@@ -85,18 +84,18 @@ public class BigChartResource extends ApertureServerResource {
 	public Map<String, ChartData> getBigChartData(String jsonData) {
 
 		try {
-			JSONObject jsonObj = new JSONObject(jsonData);
+			JSONProperties request = new JSONProperties(jsonData);
 			
-			String focusContextId = (jsonObj.isNull("focuscontextid")) ? null : jsonObj.getString("focuscontextid");
-			
-			String sessionId = jsonObj.getString("sessionId").trim();
+			final String focusContextId = request.getString("focuscontextid", null);
+
+			final String sessionId = request.getString("sessionId", null);
 			if (!GuidValidator.validateGuidString(sessionId)) {
 				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
-			
+
 			DateTime startDate = null;
 			try {
-				startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
+				startDate = DateTimeParser.parse(request.getString("startDate", null));
 			} catch (IllegalArgumentException iae) {
 				throw new ResourceException(
 					Status.CLIENT_ERROR_BAD_REQUEST,
@@ -106,7 +105,7 @@ public class BigChartResource extends ApertureServerResource {
 			
 			DateTime endDate = null;
 			try {
-				endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
+				endDate = DateTimeParser.parse(request.getString("endDate", null));
 			} catch (IllegalArgumentException iae) {
 				throw new ResourceException(
 					Status.CLIENT_ERROR_BAD_REQUEST,
@@ -114,59 +113,51 @@ public class BigChartResource extends ApertureServerResource {
 				);
 			}
 			
-			List<String> focusIds = null;
-			if (!jsonObj.isNull("focusId")) {
-				focusIds = new LinkedList<String>();
-				JSONArray focusObj = jsonObj.getJSONArray("focusId");
+
+			List<String> focusIds = new LinkedList<String>();
+			Iterable<String> focusIter = request.getStrings("focusId");
+			
+			for (String entityId : focusIter) {
+				List<String> entities = new ArrayList<String>();
+
+				InfluentId id = InfluentId.fromInfluentId(entityId);
 				
-				for (int i=0; i < focusObj.length(); i++) {
-					String entityId = focusObj.getString(i);
-					List<String> entities = new ArrayList<String>();
-	
-					TypedId id = TypedId.fromTypedId(entityId);
-					
-					// Point account owners and summaries to their owner account
-					if (id.getType() == TypedId.ACCOUNT_OWNER || 
-						id.getType() == TypedId.CLUSTER_SUMMARY) {
-							
-						entities.add(TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString());
-							
-					} else if (id.getType() == TypedId.CLUSTER) {
+				// Point account owners and summaries to their owner account
+				if (id.getIdClass() == InfluentId.ACCOUNT_OWNER ||
+					id.getIdClass() == InfluentId.CLUSTER_SUMMARY) {
 						
-						String nId = id.getNativeId();  
-						if (nId.startsWith("|")) { // group cluster
-							for (String sId : nId.split("\\|")) {
-								if (!sId.isEmpty()) {
-									entities.add(sId);
-								}
+					entities.add(InfluentId.fromNativeId(InfluentId.ACCOUNT, id.getIdType(), id.getNativeId()).toString());
+						
+				} else if (id.getIdClass() == InfluentId.CLUSTER) {
+					
+					String nId = id.getNativeId();  
+					if (nId.startsWith("|")) { // group cluster
+						for (String sId : nId.split("\\|")) {
+							if (!sId.isEmpty()) {
+								entities.add(sId);
 							}
-						} else {
-							entities.add(entityId);
 						}
 					} else {
 						entities.add(entityId);
 					}
-					
-					for (String fid : entities){
-						if (!focusIds.contains(fid)){
-							focusIds.add(fid);
-						}
+				} else {
+					entities.add(entityId);
+				}
+				
+				for (String fid : entities){
+					if (!focusIds.contains(fid)){
+						focusIds.add(fid);
 					}
 				}
 			}
 			
-			String tempFocusMaxDebitCredit = jsonObj.getString("focusMaxDebitCredit");
-			Double focusMaxDebitCredit = null;
-			try {
-				focusMaxDebitCredit = tempFocusMaxDebitCredit.trim().length()==0 ? null : Double.parseDouble(tempFocusMaxDebitCredit);
-			} catch(Exception ignore) {}
-			
-			Integer width = jsonObj.has("width")?Integer.parseInt(jsonObj.getString("width")):145;
-			Integer height = jsonObj.has("height")?Integer.parseInt(jsonObj.getString("height")):60;
+			final Double focusMaxDebitCredit = request.getDouble("focusMaxDebitCredit", null);
+			final Integer width = request.getInteger("width", 145);
+			final Integer height = request.getInteger("height", 60);
+					
+			List<Properties> entityArray = Lists.newArrayList(request.getPropertiesSets("entities"));
 
-			JSONArray entityArray = jsonObj.getJSONArray("entities");
-
-			Map<String, ChartData> infoList = new HashMap<String, ChartData>(entityArray.length());
+			Map<String, ChartData> infoList = new HashMap<String, ChartData>(entityArray.size());
 			
 			/// TODO : make this date range sanity check better
 			if (startDate.getYear()<1900 || startDate.getYear()>9999) {
@@ -184,17 +175,16 @@ public class BigChartResource extends ApertureServerResource {
 			FL_DateRange dateRange = DateRangeBuilder.getBigChartDateRange(startDate, endDate);
 			
 			// compute an individual chart for each entity received
-			for (int i = 0; i < entityArray.length(); i++) {
-				JSONObject entityRequest = entityArray.getJSONObject(i);
-				final String entityId = entityRequest.getString("dataId");
-				final String entityContextId = entityRequest.getString("contextId");
+			for (Properties entityRequest : entityArray) {
+				final String entityId = entityRequest.getString("dataId", null);
+				final String entityContextId = entityRequest.getString("contextId", null);
 				
 				List<String> entityIds = new ArrayList<String>();
 
 				// Check to see if this entityId belongs to a group cluster.
-				TypedId id = TypedId.fromTypedId(entityId);
+				InfluentId id = InfluentId.fromInfluentId(entityId);
 					
-				if (id.getType() == TypedId.CLUSTER) {
+				if (id.getIdClass() == InfluentId.CLUSTER) {
 					String nId = id.getNativeId();  
 					if (nId.startsWith("|")) {  // group cluster
 						for (String sId : nId.split("\\|")) {
@@ -209,27 +199,31 @@ public class BigChartResource extends ApertureServerResource {
 					entityIds.add(entityId);
 				}
 					
-				ChartHash hash = new ChartHash(entityIds, 
-											   startDate, 
-											   endDate, 
-											   focusIds, 
-											   focusMaxDebitCredit, 
-											   dateRange.getNumBins().intValue(), 
-											   width, 
-											   height, 
-											   entityContextId, 
-											   focusContextId, 
-											   sessionId,
-											   contextCache);
+				ChartHash hash = new ChartHash(
+					entityIds,
+					startDate,
+					endDate,
+					focusIds,
+					focusMaxDebitCredit,
+					dateRange.getNumBins().intValue(),
+					width,
+					height,
+					entityContextId,
+					focusContextId,
+					sessionId,
+					contextCache
+				);
 				
-				ChartData chartData = chartBuilder.computeChart(dateRange, 
-																entityIds, 
-																focusIds, 
-																entityContextId, 
-																focusContextId, 
-																sessionId, 
-																dateRange.getNumBins().intValue(), 
-																hash);
+				ChartData chartData = chartBuilder.computeChart(
+					dateRange,
+					entityIds,
+					focusIds,
+					entityContextId,
+					focusContextId,
+					sessionId,
+					dateRange.getNumBins().intValue(),
+					hash
+				);
 
 				infoList.put(
 						entityId, //memberIds.get(0), 

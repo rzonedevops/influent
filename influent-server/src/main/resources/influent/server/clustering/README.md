@@ -29,14 +29,17 @@ entity.clusterer.stopwords = a,able,about,above,across,after,again,against,all,a
 # Field types supported are:
 #  geo 			- bins entities first by continent, region, country and clusters by lat/lon if present 
 #  categorical 	- bins entities by categorical value (must be a string value for this field)
-#  label 		- clusters entities first by alpha then using fingerprint string clustering (append :fingerprint) 
-# 				  or edit distance clustering (append :edit) (default is fingerprint)
+#  label 		- clusters entities first by alpha then using fuzzy string clustering
 #  numeric		- bins entities by numeric value into X bins.  Specify the tolerance for binning by appending ":K" 
 #                 where K is a decimal [0, infinity) indicating roughly the radius of each bin (default is 100) 
 #				  This parameter should be tuned to the data for best results. 
+#  topic		- bins entities by topic distribution property into X bins.  Specify the tolerance for binning by 
+#                 appending ":K" where K is a decimal [0, 1] indicating roughly how similar entity topics need to be
+#                 in order for them to be clustered together, where 0 means exactly the same and 1 mean completely different (default is 0.5)
+#                 This parameter should be tuned to the data for best results.  
 #
 # For reference the valid FL_PROPERTYTAGS are: 
-#   ID, TYPE, NAME, LABEL, STAT, TEXT, STATUS, GEO, DATE, AMOUNT, COUNT, USD, DURATION
+#   ID, TYPE, NAME, LABEL, STAT, TEXT, STATUS, GEO, DATE, AMOUNT, COUNT, USD, DURATION, TOPIC
 #    
 # Default setting is
 # entity.clusterer.clusterfields = TYPE:categorical,GEO:geo,LABEL:label
@@ -49,9 +52,11 @@ entity.clusterer.clusterfields = TYPE:categorical,GEO:geo,LABEL:label
 #  * fields either specify an influent FL_PROPERTYTAG name or a field name
 #    fields will be matched in that order and first matched is used
 #  * multiple fields are delimited by commas
-#  * Format is <FL_PROPERTYTAG | FIELDNAME>:<CLUSTER FIELDNAME>
+#  * Format is <FL_PROPERTYTAG | FIELDNAME>:<CLUSTER FIELDNAME>:<true | false> 
+#    where the true or false component is optional and indicates whether to normalize the distribution to sum to 1.0 (default is false)
 #  * The resulting cluster property will be a distribution range with type and tag inherited from the entities
-#  * NOTE: This currently only supports SingleRange fields of type String or FL_GeoData - all others are ignored
+#  * NOTE: This currently only supports SingleRange fields of type String, FL_GeoData and DistributionRange fields 
+#          of type FL_TOPIC - all others are ignored
 # 
 # Default setting is
 # entity.clusterer.clusterfields = TYPE:type-dist,GEO:location-dist

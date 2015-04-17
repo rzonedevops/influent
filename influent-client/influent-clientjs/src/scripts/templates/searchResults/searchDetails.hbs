@@ -1,0 +1,8 @@
+<div class="simpleSearchResultText">
+	{{#each properties}}
+		<span class="infResultSnippetLabel">{{friendlyText}}:</span>
+		<span class="infResultSnippetValue">{{{markupTerms value matchTerms 'infResultTermMatch' 300}}} ▪ </span>
+	{{/each}}
+</div>
+<div class="detailedSearchResultText"></div>
+<div class="infSearchResultStateToggle" id="infSearchResultShowDetails">[more]</div>

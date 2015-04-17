@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,29 +24,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package influent.idlhelper;
 
-import influent.idl.FL_Entity;
-import influent.idl.FL_Link;
-import influent.idl.FL_LinkTag;
-import influent.idl.FL_Property;
-import influent.idl.FL_PropertyTag;
+import influent.idl.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class LinkHelper extends FL_Link {
 	
-	public LinkHelper(FL_LinkTag tag, String source, String target, List<FL_Property> props) {
-		setTags(Collections.singletonList(tag));
+	public LinkHelper(String uid, String source, String target, String type, List<FL_Property> props, List<String> linkTypes) {
+		setUid(uid);
+		setLinkTypes(linkTypes);
 		setDirected(true);
 		setProvenance(null);
 		setUncertainty(null);
 		setSource(source);
 		setTarget(target);
+		setType(type);
 		setProperties(new ArrayList<FL_Property>(props));
 	}
 
@@ -78,7 +78,7 @@ public class LinkHelper extends FL_Link {
 	
 	public static PropertyHelper getFirstProperty(FL_Link link, String key) {
 		for (FL_Property property : link.getProperties()) {
-			if (property.getKey() == key) return PropertyHelper.from(property);
+			if (key.equals(property.getKey())) return PropertyHelper.from(property);
 		}
 		return null;
 	}
@@ -97,5 +97,15 @@ public class LinkHelper extends FL_Link {
 		}
 		return matches;
 		
+	}
+	
+	public static Object getValueByUnmappedKey(FL_Link link, String key, List<FL_PropertyDescriptor> defns) {
+		return PropertyHelper.getValue(getPropertyByUnmappedKey(link, key, defns));
+	}
+	
+	public static FL_Property getPropertyByUnmappedKey(FL_Link link, String key, List<FL_PropertyDescriptor> defns) {
+		key = DataPropertyDescriptorHelper.mapKey(key, defns, link.getType());
+
+		return PropertyHelper.getPropertyByKey(link.getProperties(), key);
 	}
 }

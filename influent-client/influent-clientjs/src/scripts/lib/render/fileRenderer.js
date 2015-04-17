@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,21 +24,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/channels','lib/render/cardRenderer', 'lib/render/matchRenderer',
-		'lib/render/clusterRenderer', 'lib/render/toolbarRenderer', 'lib/ui/xfModalDialog', 'lib/constants'
+		'lib/communication/applicationChannels','lib/render/cardRenderer', 'lib/render/matchRenderer',
+		'lib/render/clusterRenderer', 'lib/render/toolbarRenderer', 'lib/ui/xfModalDialog', 'lib/constants',
+		'hbs!templates/flowView/file', 'hbs!templates/flowView/fileDropDialog'
 	],
 	function(
-		chan, cardRenderer, matchRenderer,
-		clusterRenderer, toolbarRenderer, xfModalDialog, constants
+		appChannel, cardRenderer, matchRenderer,
+		clusterRenderer, toolbarRenderer, xfModalDialog, constants,
+		fileTemplate, fileDropDialogTemplate
 	) {
 
 		var _cardDefaults = cardRenderer.getRenderDefaults();
 		var MARGIN_HOR = 10;
-		var _fileRendererState = {
-			maxClusterCount : 20 //TODO: Until this is loaded from a config, this value must be kept in sync with the value in toolbarRenderer.
-		};
+
 		var _renderDefaults = {
 			MARGIN_LEFT : 5,
 			MARGIN_TOP : 5,
@@ -48,7 +51,7 @@ define(
 			TITLE_MAX_CHAR_LENGTH : 20
 		};
 
-		// Start (Private Functions) --------------------------------------------------------------------------
+		// Private -----------------------------------------------------------------------------------------------------
 
 		var _insertIcons = function(iconList, canvas) {
 			var defaults = cardRenderer.getRenderDefaults();
@@ -84,16 +87,15 @@ define(
 			return defaults.ICON_HEIGHT + 2*defaults.ELEMENT_PADDING;
 		};
 
-		var _processChildren = function(visualInfo, parentCanvas){
+		var _processChildren = function(visualInfo, parentCanvas, updateOnly){
 			var childCluster = visualInfo.clusterUIObject;
 
 			if (childCluster != null) {
 				visualInfo = childCluster.getVisualInfo();
 
-				var element = clusterRenderer.createElement(visualInfo);
+				var element = clusterRenderer.renderElement(visualInfo, parentCanvas, updateOnly);
 				if (element){
 					element.css('left', _cardDefaults.CARD_LEFT);
-					parentCanvas.append(element);
 				}
 			}
 		};
@@ -107,95 +109,107 @@ define(
 					_renderDefaults.TITLE_HEIGHT;
 		};
 
-		var _constructFile = function(visualInfo, state) {
-			var fileHeader = $('<div></div>');
 
-			if(visualInfo.isHighlighted) {
-				fileHeader.addClass('fileHeaderHighlighted');
+
+		var _constructNewContentControls = function(visualInfo, canvas, popoverData) {
+
+			// Element that the popover is anchored to
+			var anchorElement = canvas.find('.fileFooter');
+
+			// Hide any other popovers on other anchors
+			$('#workspace-content').find('.popover').remove();
+
+			var isMultiple = popoverData.length > 1;
+
+			var templateData = {
+				isMultiple: isMultiple
+			};
+
+			// Attach the popover
+			anchorElement.popover({
+				animation: true,
+				trigger: 'manual',
+				placement: 'bottom',
+				html: true,
+				content: fileDropDialogTemplate(templateData)
+			});
+
+			// Initially show the popover
+			anchorElement.popover('show');
+
+			// Get the popover as a jquery element.
+			var $popover = $('#workspace-content').find('.popover'); //
+			$popover.addClass('influent-flow-drop-menu-popover');
+			if (isMultiple) {
+
+				// Position the left arrow
+				var leftArrow = $popover.find('.arrow');
+				leftArrow.css('left', '10%');
+
+				// Add a new right arrow and position it
+				var rightArrow = leftArrow.clone().appendTo($popover);
+				rightArrow.css('left', '90%');
+
+				// Offset the whole popover between the two files
+				var leftOffset = parseInt($popover.css('left'), 10);
+				$popover.css('left', leftOffset + 146);
 			}
-			else if(visualInfo.isSelected || visualInfo.isMatchHighlighted) {
-				fileHeader.addClass('fileHeaderSelected');
-			}
-			else {
-				fileHeader.addClass('fileHeader');
-			}
+
+			// Don't dismiss the popover if it is clicked
+			$popover.click(function(e) { e.stopPropagation(); });
+
+			var dismissPopover = function() {
+
+				// Remove the popover and publish a name change
+				anchorElement.popover('hide');
+
+				//$popover.remove();
+				$('#workspace').unbind('click', dismissPopover);
+
+				aperture.pubsub.publish(appChannel.CHANGE_FILE_TITLE, {
+					xfId: visualInfo.xfId,
+					newTitleText: visualInfo.title
+				});
+			};
+
+			// On click on popover close
+			$popover.find('#influent-flow-drop-menu-file-close').click(function () {
+				dismissPopover();
+			});
+
+			// On click on "remove all but this" button
+			$popover.find('#influent-flow-drop-menu-clear').click(function(e) {
+				var affectedXfIds = [];
+				aperture.util.forEach(popoverData, function(xfId) {
+					affectedXfIds.push(xfId);
+				});
+
+				aperture.pubsub.publish(appChannel.CLEAN_WORKSPACE_REQUEST, {exceptXfIds: affectedXfIds});
+
+				dismissPopover();
+			});
+
+			// Clicking outside of the popover dismisses it
+			$('#workspace').bind('click', dismissPopover);
+		};
+
+
+
+		var _constructFile = function(visualInfo, state) {
 
 			// Attach selection listener to the file header.
+			var fileHeader = $('.fileHeader', state.canvas);
 			fileHeader.click(state.onClick);
 
-			var fileTitle = $('<div></div>');
-			fileTitle.addClass('fileTitle');
-			fileTitle.height(_renderDefaults.TITLE_HEIGHT);
-			var fileTitleTextNode = $('<div></div>');
-			fileTitleTextNode.addClass('fileTitleTextNode');
-			fileTitle.append(fileTitleTextNode);
-			if (visualInfo['title']) {
-				fileTitleTextNode.text(visualInfo.title);
-				// Attach selection listener to the file title text.
-				fileTitleTextNode.click(state.onClick);
-			}
-			// Attach selection listener to the file title.
-			fileTitle.click(state.onClick);
-
-
-			var fileBody = $('<div></div>');
-
-			if(visualInfo.isHighlighted) {
-				fileBody.addClass('fileBodyHighlighted');
-			}
-			else if(visualInfo.isSelected || visualInfo.isMatchHighlighted) {
-				fileBody.addClass('fileBodySelected');
-			}
-			else {
-				fileBody.addClass('fileBody');
-			}
-
-			var showDetails = visualInfo.showDetails;
-			fileBody.width(state.canvas.width());
-			fileBody.css('position','relative');
-			fileBody.css('height', 'auto');
-
-			var fileEmpty = $('<div></div>');
-			fileEmpty.addClass('fileEmpty');
-			fileEmpty.width(state.canvas.width()-_renderDefaults.MARGIN_LEFT*2-2);
-			fileEmpty.height(cardRenderer.getCardHeight(showDetails) + _renderDefaults.MARGIN_TOP*2-3);
-			fileEmpty.css('display', '');
-			fileEmpty.css('position', 'relative');
-			fileEmpty.css('top', -_renderDefaults.MARGIN_TOP+'px');
-			fileEmpty.css('left', _renderDefaults.MARGIN_LEFT+'px');
-
-			// Determine if the top-level wait spinner is visible.
-			if (visualInfo.showSpinner){
-				var spinnerContainer = $('<div></div>');
-				spinnerContainer.attr('id', 'spinnerContainer_'+visualInfo.xfId);
-				fileEmpty.append(spinnerContainer);
-				spinnerContainer.css('background', constants.AJAX_SPINNER_BG);
-				spinnerContainer.width(_renderDefaults.FILE_WIDTH);
-				spinnerContainer.height(cardRenderer.getCardHeight(showDetails));
-				spinnerContainer.css('top', -_renderDefaults.MARGIN_TOP+'px');
-				spinnerContainer.css('left', _renderDefaults.MARGIN_LEFT+'px');
-			}
-
-			fileBody.append(fileEmpty);
 			// Attach selection listener to the empty file placeholder.
+			var fileEmpty = $('.fileEmpty', state.canvas);
 			fileEmpty.click(state.onClick);
 
-			var fileFooter = $('<div></div>');
-
-			if(visualInfo.isHighlighted) {
-				fileFooter.addClass('fileFooterHighlighted');
-			}
-			else if(visualInfo.isSelected || visualInfo.isMatchHighlighted) {
-				fileFooter.addClass('fileFooterSelected');
-			}
-			else {
-				fileFooter.addClass('fileFooter');
-			}
+			var fileBody = $('.fileBody', state.canvas);
 
 			// Attach selection listener to the file footer.
+			var fileFooter = $('.fileFooter', state.canvas);
 			fileFooter.click(state.onClick);
-
-
 
 			var top = _cardDefaults.MARGIN;
 			var iconList = state.spec['icons'];
@@ -203,40 +217,14 @@ define(
 				top += _insertIcons(iconList, fileBody);
 			}
 
-			// create all the cards for memberIds
-			if ( visualInfo.clusterUIObject != null &&
-				!visualInfo.clusterUIObject.getVisualInfo().isHidden) {
-				_processChildren(visualInfo, fileBody);
-				fileEmpty.hide();
-			}
-			else {
-				fileEmpty.show();
-			}
-
-			// prepend in reverse order to account for the fact that the match card is a child
-			// but it is not managed by this file renderer. match cards always sit below.
-			state.canvas.prepend(fileFooter);
-			state.canvas.prepend(fileBody);
-			state.canvas.prepend(fileTitle);
-			state.canvas.prepend(fileHeader);
-
 			// Create card controls.
-			if (visualInfo.isHovered){
-				toolbarRenderer.createControls(visualInfo, state.canvas, _renderDefaults.HEADER_HEIGHT + _renderDefaults.FOOTER_HEIGHT + fileBody.height());
-			}
-
-			// Determine if an xfMatch object needs to be renderered; if highlighted, the appropriate match will already exist
-			if (visualInfo.matchUIObject != null && !visualInfo.isMatchHighlighted){
-				var matchCanvas = matchRenderer.createElement(visualInfo.matchUIObject.getVisualInfo());
-				state.canvas.append(matchCanvas);
-			}
+			toolbarRenderer.createControls(visualInfo, state.canvas, _renderDefaults.HEADER_HEIGHT + _renderDefaults.FOOTER_HEIGHT + fileBody.height());
+			toolbarRenderer.hideControls(state.canvas);
 
 			var enterFunction = function() {
-				if(!visualInfo.isHovered) {         // Notify the UIObject that it's being hovered over.
-					aperture.pubsub.publish(chan.UI_OBJECT_HOVER_CHANGE_REQUEST, {
-						xfId : visualInfo.xfId
-					});
-				}
+				aperture.pubsub.publish(appChannel.UI_OBJECT_HOVER_CHANGE_REQUEST, {
+					xfId : visualInfo.xfId
+				});
 				return false;
 			};
 
@@ -267,18 +255,15 @@ define(
 					}
 				}
 
-				var clusterCount = ui.draggable.data('clusterCount');
-				var isLargeCluster = clusterCount && clusterCount > _fileRendererState.maxClusterCount;
-
 				var dropSpec = {
 						containerId : dropId,
 						cardId: dragId,
-						showSpinner: isLargeCluster
+						showSpinner: true
 					};
 
 				setTimeout(function() {
 					ui.draggable.detach();    // make the dropped card/cluster no longer draggable, at least until the drop goes through
-					aperture.pubsub.publish(chan.DROP_EVENT, dropSpec);
+					aperture.pubsub.publish(appChannel.DROP_EVENT, dropSpec);
 				}.bind(ui.draggable),50);
 			};
 
@@ -290,23 +275,21 @@ define(
 			fileBody.mouseenter(enterFunction);
 			fileFooter.mouseenter(enterFunction);
 
-			// Title editing methods
-			function startEditingTitle() {
-				var currentTitle = $(fileTitle).contents();
-				var oldTitleText = currentTitle.html();
+			var fileTitle = state.canvas.find('.fileTitle');
+			var fileTitleTextNode = state.canvas.find('.fileTitleTextNode');
 
+			function startEditingTitle() {
 				var editableTitle = $('<input />');
-				editableTitle.css({ 'font-family' : currentTitle.css('font-family'),
-									'font-size' : currentTitle.css('font-size'),
-									'width' : currentTitle.width(),
-									'background-color' : 'transparent',
-									'margin-top' : '2px'});                 // can't be the same as fileTitleTextNode in .less due to differences between <input> and <div>
-				editableTitle.attr('maxlength', _renderDefaults.TITLE_MAX_CHAR_LENGTH);
-				editableTitle.val(oldTitleText);
-				currentTitle.replaceWith(editableTitle);
+				if (visualInfo.title) {
+					editableTitle.val(visualInfo.title);
+				}
+
+				fileTitleTextNode.hide();
+				editableTitle.appendTo(fileTitle);
+
+				editableTitle.focus();
 
 				// clicking outside, double-clicking, or special keypresses end editing
-				editableTitle.focus();
 				editableTitle.blur(doneEditingTitle);
 				editableTitle.keypress(function(e) {
 					switch (e.keyCode){
@@ -320,62 +303,118 @@ define(
 			}
 
 			function doneEditingTitle() {
-				var currentTitle = $(fileTitle).contents();
-				var newTitleText = currentTitle.val();
+				var editableTitle = fileTitle.find('input');
 
-				if(newTitleText.length === 0) {
-					newTitleText = '(empty name)';
-				}
+				editableTitle.remove();
+				fileTitleTextNode.show();
 
-				var newTitle = $('<div></div>');
+				var editedText = editableTitle.val();
 
-				aperture.pubsub.publish(chan.CHANGE_FILE_TITLE, {
+				aperture.pubsub.publish(appChannel.CHANGE_FILE_TITLE, {
 					xfId: visualInfo.xfId,
-					newTitleText: newTitleText,
-					noRender: true
+					newTitleText: editedText
 				});
 
-				newTitle.addClass('fileTitleTextNode');
-				newTitle.text(newTitleText);
-				newTitle.click(state._onClick);
-
-				currentTitle.replaceWith(newTitle);
-				newTitle.mousedown(function(){ return false; });
-				newTitle.dblclick(startEditingTitle);
+				fileTitleTextNode.text(editedText);
 			}
 
-			fileTitleTextNode.mousedown(function(){ return false; });
 			fileTitleTextNode.dblclick(startEditingTitle);
 		};
 
 		// End (Private Functions) --------------------------------------------------------------------------
 
 		var fileRenderer = {};
-		fileRenderer.createElement = function(visualInfo) {
+
+		fileRenderer.renderElement = function(visualInfo, updateOnly, popoverData) {
 			var spec = visualInfo.spec;
 			var canvas = $('#' + visualInfo.xfId);
-			if (canvas.length > 0) {
-				// DO NOT remove the match card container, as it has it's own renderer and will be re-created if needed
-				canvas.children().not('.matchCardContainer').remove();
-			} else {
-				canvas = $('<div class="file"></div>');
-				canvas.attr('id', visualInfo.xfId);
+
+			if (!updateOnly) {
+
+				var renderedFile = $(fileTemplate({
+					id: visualInfo.xfId,
+					highlighted: visualInfo.isHighlighted,
+					selected: visualInfo.isSelected || visualInfo.isMatchHighlighted,
+					fileWidth: _renderDefaults.FILE_WIDTH,
+					titleHeight: _renderDefaults.TITLE_HEIGHT,
+					title: visualInfo.title,
+					bodyWidth: _renderDefaults.FILE_WIDTH,
+					bodyEmptyWidth: _renderDefaults.FILE_WIDTH - _renderDefaults.MARGIN_LEFT * 2 - 2,
+					bodyEmptyHeight: cardRenderer.getCardHeight(visualInfo.showDetails) + _renderDefaults.MARGIN_TOP * 2 - 3,
+					marginTop: _renderDefaults.MARGIN_TOP,
+					marginLeft: _renderDefaults.MARGIN_LEFT,
+					cardHeight: cardRenderer.getCardHeight(visualInfo.showDetails),
+					showspinner: visualInfo.showSpinner
+				}));
+
+				// If the title is empty
+				if (!visualInfo.title) {
+					var fileTitleTextNode = renderedFile.find('.fileTitleTextNode');
+					fileTitleTextNode.text('(empty title)');
+					fileTitleTextNode.addClass('fileTitleEmpty');
+				}
+
+				if (canvas.length > 0) {
+					// DO NOT remove the match card container, as it has it's own renderer and will be re-created if needed
+					canvas.children().not('.matchCardContainer').remove();
+					canvas.prepend(renderedFile.html());
+				} else {
+					canvas = renderedFile;
+				}
+
+				canvas.width(_renderDefaults.FILE_WIDTH);
+
+				var _onClick = function () {
+					return !visualInfo.isSelected;
+				};
+
+				var _instanceState = {
+					xfId: visualInfo.xfId,
+					canvas: canvas,
+					spec: _.clone(spec),
+					onClick: _onClick
+				};
+
+				_constructFile(visualInfo, _instanceState);
 			}
 
-			canvas.width(_renderDefaults.FILE_WIDTH);
 
-			var _onClick = function() {
-				return !visualInfo.isSelected;
-			};
+			// Update visibility
+			if (visualInfo.isHidden) {
+				canvas.hide();
+			} else {
+				canvas.show();
+			}
 
-			var _instanceState = {
-				xfId : visualInfo.xfId,
-				canvas : canvas,
-				spec : _.clone(spec),
-				onClick : _onClick
-			};
+			// Attach selection listener to the empty file placeholder.
+			var fileEmpty = $('.fileEmpty', canvas);
+			var fileBody = $('.fileBody', canvas);
 
-			_constructFile(visualInfo, _instanceState);
+			// create all the cards for memberIds
+			if ( visualInfo.clusterUIObject != null &&
+				!visualInfo.clusterUIObject.getVisualInfo().isHidden) {
+				fileEmpty.hide();
+				_processChildren(visualInfo, fileBody);
+			}else {
+				fileEmpty.show();
+			}
+
+			if (visualInfo.isHovered) {
+				toolbarRenderer.showControls(canvas);
+			} else {
+				toolbarRenderer.hideControls(canvas);
+			}
+
+			// Determine if an xfMatch object needs to be renderered; if highlighted, the appropriate match will already exist
+			if (visualInfo.matchUIObject != null && !visualInfo.isMatchHighlighted){
+				var matchCanvas = matchRenderer.renderElement(visualInfo.matchUIObject.getVisualInfo());
+				canvas.append(matchCanvas);
+			}
+
+			if (popoverData) {
+				// Create popover for files containing incoming content from other views
+				_constructNewContentControls(visualInfo, canvas, popoverData);
+			}
 
 			return canvas;
 		};

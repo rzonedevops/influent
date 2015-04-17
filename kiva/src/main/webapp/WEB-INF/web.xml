@@ -14,18 +14,23 @@
 		
 		<param-value>
 			influent.server.RestConfigModule:
-			oculus.aperture.icons.BaseIconModule: 
-			oculus.aperture.parchment.ParchmentModule:
-			oculus.aperture.cms.EhCacheCmsModule:
+
 			oculus.aperture.capture.PhantomCaptureModule:
-			influent.midtier.spi.KivaModule:
-			influent.server.spi.SQLConnectionPoolModule:
+			oculus.aperture.cms.EhCacheCmsModule:
+			oculus.aperture.icons.BaseIconModule:
+			oculus.aperture.parchment.ParchmentModule:
+
+			influent.server.spi.BasicCachedPersistenceModule:
 			influent.server.spi.BasicCountryGeocodingModule:
-			influent.kiva.server.spi.KivaFLDataAccessModule:
-			influent.kiva.server.spi.KivaFLAnonEntitySearchModule:
-			influent.kiva.server.spi.KivaFLDynamicClusteringModule:
-			influent.kiva.server.spi.KivaCachedPersistenceModule:
+			influent.server.spi.BasicFLDynamicClusteringModule:
+			influent.server.spi.SolrFLTransactionsSearchModule:
+			influent.server.spi.GenericEntityPropertiesViewModule:
+			influent.server.spi.StandardSQLBuilderModule:
 			influent.server.spi.RestPatternSearchModule:
+			influent.server.spi.SQLConnectionPoolModule:
+
+			influent.kiva.server.spi.KivaFLDataAccessModule:
+			influent.kiva.server.spi.KivaFLEntitySearchModule:
 		</param-value>
 	</context-param>
 
@@ -34,7 +39,7 @@
 		override the default values -->
 	<context-param>
 		<param-name>apertureConfigDefaults</param-name>
-		<param-value>res:///app.properties,res:///clusterer.properties</param-value>
+		<param-value>res:///server.config,res:///clusterer.config</param-value>
 	</context-param>
 
 	<context-param>

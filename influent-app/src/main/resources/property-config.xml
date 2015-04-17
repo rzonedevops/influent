@@ -1,0 +1,135 @@
+<?xml version="1.0"?>
+
+<specification>
+	<entities>
+		<group key="single"
+			   friendlyText="Individuals"
+			   exclusive="false"/>
+
+		<group key="multiple"
+			   friendlyText="Organizations"
+			   exclusive="false"/>
+
+		<type key="account" friendlyText="Account"/>
+
+		<property key="ID" dataType="long" friendlyText="ID" levelOfDetail="key" searchableBy="freeText" memberKey="EntityId"/>
+		<property key="NAME" dataType="string" friendlyText="Name" levelOfDetail="key" searchableBy="freeText" memberKey="Label">
+			<tags>
+				<tag>LABEL</tag>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+		<property key="CustomerType" dataType="string" friendlyText="Customer Type" levelOfDetail="key" searchableBy="freeText" memberKey="CustomerType">
+			<tags>
+				<tag>ENTITY_TYPE</tag>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+		<property key="AccountClass" dataType="string" friendlyText="Account Class" levelOfDetail="key" searchableBy="freeText" memberKey="AccountClass">
+			<tags>
+				<tag>STAT</tag>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+
+		<property key="AccountType" dataType="string" friendlyText="Account Type" levelOfDetail="summary" searchableBy="freeText" memberKey="AccountType">
+			<tags>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+		<property key="Status" dataType="string" friendlyText="Account Status" levelOfDetail="summary" searchableBy="freeText" memberKey="Status">
+			<tags>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+		<property key="CustomerStreet" dataType="string" friendlyText="Address" levelOfDetail="summary" searchableBy="freeText" memberKey="CustomerStreet"/>
+		<property key="CustomerCity" dataType="string" friendlyText="City" levelOfDetail="summary" searchableBy="freeText" memberKey="CustomerCity">
+			<tags>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+		<property key="CustomerState" dataType="string" friendlyText="State/Province" levelOfDetail="summary" searchableBy="freeText" memberKey="CustomerState">
+			<tags>
+				<tag>COUNTRY_CODE</tag>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+		<property key="CustomerCountry" dataType="string" friendlyText="Country" levelOfDetail="summary" searchableBy="freeText" memberKey="CustomerCountry">
+			<tags>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+
+		<property key="CustomerZip" dataType="string" friendlyText="Zip/Postal Code" levelOfDetail="full" searchableBy="freeText" memberKey="CustomerZip"/>
+		<property key="CustomerPhoneHome" dataType="string" friendlyText="Phone (Home)" levelOfDetail="full" searchableBy="freeText" memberKey="CustomerPhoneHome"/>
+		<property key="CustomerPhoneOffice" dataType="string" friendlyText="Phone (Other)" levelOfDetail="full" searchableBy="freeText" memberKey="CustomerPhoneOffice"/>
+		<property key="StartDate" dataType="date" friendlyText="Earliest Transaction" levelOfDetail="full" searchableBy="none" memberKey="StartDate"/>
+		<property key="EndDate" dataType="date" friendlyText="Latest Transaction" levelOfDetail="full" searchableBy="none" memberKey="EndDate"/>
+		<property key="NumTransactions" dataType="long" friendlyText="Transaction Count" levelOfDetail="full" searchableBy="none" memberKey="NumTransactions"/>
+		<property key="AvgTransaction" dataType="double" friendlyText="Average Transaction (USD)" levelOfDetail="full" searchableBy="none" memberKey="AvgTransaction">
+			<tags>
+				<tag>USD</tag>
+			</tags>
+		</property>
+		<property key="InboundDegree" dataType="integer" friendlyText="Inbound Degree" levelOfDetail="full" searchableBy="none" memberKey="InboundDegree"/>
+		<property key="UniqueInboundDegree" dataType="integer" friendlyText="Inbound Transfers" levelOfDetail="summary" searchableBy="none" memberKey="UniqueInboundDegree">
+			<tags>
+				<tag>INFLOWING</tag>
+			</tags>
+		</property>
+		<property key="OutboundDegree" dataType="integer" friendlyText="Outbound Degree" levelOfDetail="full" searchableBy="none" memberKey="OutboundDegree"/>
+		<property key="UniqueOutboundDegree" dataType="integer" friendlyText="Outbound Transfers" levelOfDetail="summary" searchableBy="none" memberKey="UniqueOutboundDegree">
+			<tags>
+				<tag>OUTFLOWING</tag>
+			</tags>
+		</property>
+		<property key="PowerOfAttorney" dataType="string" friendlyText="Power of Attorney" levelOfDetail="full" searchableBy="freeText" memberKey="PowerOfAttorney">
+			<tags>
+				<tag>SHARED_IDENTIFIER</tag>
+			</tags>
+		</property>
+
+		<searchHint>Try searching for "Jason Walker"</searchHint>
+	</entities>
+
+	<links>
+		<type key="financial" friendlyText="Financial"/>
+
+		<property key="ID" dataType="string" friendlyText="ID" levelOfDetail="key" searchableBy="freeText" memberKey="TransactionId"/>
+		<property key="TransactionType" dataType="string" friendlyText="Transaction Type" levelOfDetail="key" searchableBy="freeText" memberKey="TransactionType"/>
+		<property key="FROM" dataType="string" friendlyText="Debit Account" levelOfDetail="key" searchableBy="freeText" memberKey="DebitAccount"/>
+		<property key="TO" dataType="string" friendlyText="Beneficiary Account" levelOfDetail="key" searchableBy="freeText" memberKey="BeneficiaryAccount"/>
+		<property key="DATE" dataType="date" friendlyText="Date" levelOfDetail="key" searchableBy="freeText" memberKey="PeriodDate"/>
+		<property key="AMOUNT" dataType="double" friendlyText="Amount (USD)" levelOfDetail="key" searchableBy="freeText" memberKey="Amount">
+			<tags>
+				<tag>USD</tag>
+			</tags>
+		</property>
+		<property key="Comment" dataType="string" friendlyText="Comment" levelOfDetail="key" searchableBy="freeText" memberKey="Comment">
+			<tags>
+				<tag>ANNOTATION</tag>
+			</tags>
+		</property>
+
+		<property key="DebitPartyName" dataType="string" friendlyText="Debit Party Name" levelOfDetail="summary" searchableBy="freeText" memberKey="DebitPartyName"/>
+		<property key="DebitPartyCity" dataType="string" friendlyText="Debit Party City" levelOfDetail="summary" searchableBy="freeText" memberKey="DebitPartyCity"/>
+		<property key="DebitPartyState" dataType="string" friendlyText="Debit Party State" levelOfDetail="summary" searchableBy="freeText" memberKey="DebitPartyState"/>
+		<property key="DebitBankName" dataType="string" friendlyText="Debit Bank Name" levelOfDetail="summary" searchableBy="freeText" memberKey="DebitBankName"/>
+		<property key="BeneficiaryName" dataType="string" friendlyText="Beneficiary Name" levelOfDetail="summary" searchableBy="freeText" memberKey="BeneficiaryName"/>
+		<property key="BeneficiaryCity" dataType="string" friendlyText="Beneficiary City" levelOfDetail="summary" searchableBy="freeText" memberKey="BeneficiaryCity"/>
+		<property key="BeneficiaryState" dataType="string" friendlyText="Beneficiary State" levelOfDetail="summary" searchableBy="freeText" memberKey="BeneficiaryState"/>
+		<property key="BeneficiaryBankName" dataType="string" friendlyText="Beneficiary Bank Name" levelOfDetail="summary" searchableBy="freeText" memberKey="BeneficiaryBankName"/>
+
+		<property key="TransactionCity" dataType="string" friendlyText="Transaction City" levelOfDetail="full" searchableBy="freeText" memberKey="TransactionCity"/>
+		<property key="TransactionState" dataType="string" friendlyText="Transaction State" levelOfDetail="full" searchableBy="freeText" memberKey="TransactionState"/>
+		<property key="TransactionCountry" dataType="string" friendlyText="Transaction Country" levelOfDetail="full" searchableBy="freeText" memberKey="TransactionCountry"/>
+		<property key="DebitPartyCountry" dataType="string" friendlyText="Debit Party Country" levelOfDetail="full" searchableBy="freeText" memberKey="DebitPartyCountry"/>
+		<property key="DebitBankCity" dataType="string" friendlyText="Debit Bank City" levelOfDetail="full" searchableBy="freeText" memberKey="DebitBankCity"/>
+		<property key="DebitBankState" dataType="string" friendlyText="Debit Bank State" levelOfDetail="full" searchableBy="freeText" memberKey="DebitBankState"/>
+		<property key="DebitBankCountry" dataType="string" friendlyText="Debit Bank Country" levelOfDetail="full" searchableBy="freeText" memberKey="DebitBankCountry"/>
+		<property key="BeneficiaryCountry" dataType="string" friendlyText="Beneficiary Country" levelOfDetail="full" searchableBy="freeText" memberKey="BeneficiaryCountry"/>
+		<property key="BeneficiaryBankCity" dataType="string" friendlyText="Beneficiary Bank City" levelOfDetail="full" searchableBy="freeText" memberKey="BeneficiaryBankCity"/>
+		<property key="BeneficiaryBankState" dataType="string" friendlyText="Beneficiary Bank State" levelOfDetail="full" searchableBy="freeText" memberKey="BeneficiaryBankState"/>
+		<property key="BeneficiaryBankCountry" dataType="string" friendlyText="Beneficiary Bank Country" levelOfDetail="full" searchableBy="freeText" memberKey="BeneficiaryBankCountry"/>
+	</links>
+</specification>

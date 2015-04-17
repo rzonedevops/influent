@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,47 +26,22 @@
  */
 package influent.server.dataaccess;
 
-import influent.idl.FL_Cluster;
-import influent.idl.FL_Clustering;
-import influent.idl.FL_DataAccess;
-import influent.idl.FL_DateRange;
-import influent.idl.FL_DirectionFilter;
-import influent.idl.FL_Entity;
-import influent.idl.FL_Geocoding;
-import influent.idl.FL_LevelOfDetail;
-import influent.idl.FL_Link;
-import influent.idl.FL_LinkTag;
-import influent.idl.FL_PropertyTag;
-import influent.idl.FL_SortBy;
+import com.google.inject.Singleton;
+import influent.idl.*;
 import influent.idlhelper.ClusterHelper;
-import influent.idlhelper.EntityHelper;
 import influent.server.clustering.BaseEntityClusterer;
 import influent.server.clustering.ClusterContext;
 import influent.server.clustering.EntityClusterer;
-import influent.server.clustering.utils.ClusterContextCache;
+import influent.server.clustering.utils.*;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
-import influent.server.clustering.utils.ContextRead;
-import influent.server.clustering.utils.ContextReadWrite;
-import influent.server.clustering.utils.EntityAggregatedLinks;
-import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.utilities.Pair;
 import influent.server.utilities.SQLConnectionPool;
-import influent.server.utilities.TypedId;
-
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import influent.server.utilities.InfluentId;
 import oculus.aperture.spi.common.Properties;
-
 import org.apache.avro.AvroRemoteException;
 
-import com.google.inject.Singleton;
+import java.sql.SQLException;
+import java.util.*;
 
 /**
  * Dynamic clustering impl.
@@ -101,10 +78,10 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		String targetContextId
 	) throws AvroRemoteException {
 				
-		List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
-		List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
-		clusterIds.addAll( TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT_OWNER) );
-		clusterIds.addAll( TypedId.filterTypedIds(entityIds, TypedId.CLUSTER_SUMMARY) );
+		List<String> accountIds = InfluentId.filterInfluentIds(entityIds, InfluentId.ACCOUNT);
+		List<String> clusterIds = InfluentId.filterInfluentIds(entityIds, InfluentId.CLUSTER);
+		clusterIds.addAll( InfluentId.filterInfluentIds(entityIds, InfluentId.ACCOUNT_OWNER) );
+		clusterIds.addAll( InfluentId.filterInfluentIds(entityIds, InfluentId.CLUSTER_SUMMARY) );
 		
 		List<FL_Entity> entities = _entityAccess.getEntities(accountIds, FL_LevelOfDetail.SUMMARY);
 		List<FL_Cluster> clusters = getClusters(clusterIds, sourceContextId);
@@ -219,7 +196,7 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 
 	private void removeFromAncestor(FL_Entity entity, ClusterContext context) {
 		if (entity != null) {
-			String parentId = (String)EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.CLUSTER).getValue();
+			String parentId = ClusterHelper.getEntityParent(entity);
 			FL_Cluster parent = context.clusters.get(parentId);
 			if (parent != null) {
 				ClusterHelper.removeMember(parent, entity);
@@ -295,7 +272,7 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 	
 		if (context != null) {			
 			for (String id : removeMembers) {
-				if (TypedId.hasType(id, TypedId.ACCOUNT)) {  // remove account
+				if (InfluentId.hasIdClass(id, InfluentId.ACCOUNT)) {  // remove account
 					// remove the entity from the context
 					FL_Entity entity = context.entities.remove(id);
 					if (entity != null) {
@@ -388,7 +365,6 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		List<String> entityIds,
 		List<String> focusEntityIds, 
 		FL_DirectionFilter direction,
-		FL_LinkTag tag, 
 		FL_DateRange date, 
 		String entitiesContextId,
 		String focusContextId
@@ -401,11 +377,11 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 			
 			if (focusEntityIds == null || focusEntityIds.isEmpty()) {
 				final ContextReadWrite focusContextRW = _cache.getReadWrite(focusContextId, permits);
-				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getRelatedAggregatedLinks(entityIds, direction, tag, date, _entityAccess, true, this, this, contextRO, focusContextRW, _cache);
+				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getRelatedAggregatedLinks(entityIds, direction, date, _entityAccess, true, this, this, contextRO, focusContextRW, _cache);
 				return relatedLinks;
 			} else {
 				final ContextRead focusContextRO = _cache.getReadOnly(focusContextId, permits);
-				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getAggregatedLinks(entityIds, focusEntityIds, direction, tag, date, _entityAccess, this, contextRO, focusContextRO);
+				Map<String, List<FL_Link>> relatedLinks = EntityAggregatedLinks.getAggregatedLinks(entityIds, focusEntityIds, direction, date, _entityAccess, this, contextRO, focusContextRO);
 				return relatedLinks;
 			}
 		} catch (DataAccessException e) {
@@ -418,8 +394,7 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 	@Override
 	public Map<String, List<FL_Link>> getTimeSeriesAggregation(
 		List<String> entityIds, 
-		List<String> focusEntityIds, 
-		FL_LinkTag tag,
+		List<String> focusEntityIds,
 		FL_DateRange date, 
 		String entitiesContextId, 
 		String focusContextId
@@ -428,17 +403,17 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		//Find leaf nodes for focii, and keep track of leaf id ->original cluster id
 		Map<String,String> fociiIdMap = new HashMap<String, String>();
 		List<String> fociiList = new ArrayList<String>();
-		if (focusEntityIds != null) {
+		if (focusEntityIds != null) {			
 			for (String focusid : focusEntityIds) {
-				Set<String> flids = getLeafIds(Collections.singletonList(focusid), focusContextId);
+				List<String> flids = getLeafIds(Collections.singletonList(focusid), focusContextId, false);
 				fociiList.addAll(flids);
 				for (String fli : flids) {
 					
 					// Point account owners and summaries to their owner account
-					TypedId id = TypedId.fromTypedId(fli);
-					if (id.getType() == TypedId.ACCOUNT_OWNER || 
-						id.getType() == TypedId.CLUSTER_SUMMARY) {
-							fli = TypedId.fromNativeId(TypedId.ACCOUNT, id.getNamespace(), id.getNativeId()).toString();
+					InfluentId id = InfluentId.fromInfluentId(fli);
+					if (id.getIdClass() == InfluentId.ACCOUNT_OWNER ||
+						id.getIdClass() == InfluentId.CLUSTER_SUMMARY) {
+							fli = InfluentId.fromNativeId(InfluentId.ACCOUNT, id.getIdType(), id.getNativeId()).toString();
 					} 				
 					fociiIdMap.put(fli, focusid);
 				}
@@ -449,43 +424,40 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		Map<String,String> entIdMap = new HashMap<String, String>();
 		List<String> leafList = new ArrayList<String>();
 		for (String entid : entityIds) {
-			Set<String> elids = getLeafIds(Collections.singletonList(entid), entitiesContextId);
+			List<String> elids = getLeafIds(Collections.singletonList(entid), entitiesContextId, false);
 			leafList.addAll(elids);
 			for (String eli : elids) {
 				entIdMap.put(eli, entid);
 			}
 		}
 		
-		Map<String, List<FL_Link>> links = _entityAccess.getTimeSeriesAggregation(leafList, fociiList, tag, date);	
+		Map<String, List<FL_Link>> links = _entityAccess.getTimeSeriesAggregation(leafList, fociiList, date);
 		
-		//Change the ids on the links, so the map to the original clusters passed in, not the underlying leaf nodes.
+		//Change the ids on the links, so they map to the original clusters passed in, not the underlying leaf nodes.
 		for (List<FL_Link> linklist : links.values()) {
 			for (FL_Link link : linklist) {
-				if (link.getSource()!=null && fociiIdMap.containsKey(link.getSource())) {
-					link.setSource(fociiIdMap.get(link.getSource()));
-				}
-				if (link.getTarget()!=null && fociiIdMap.containsKey(link.getTarget())) {
-					link.setTarget(fociiIdMap.get(link.getTarget()));
+				String source = link.getSource();
+				String target = link.getTarget();
+				// check if both sides of transaction in our focus
+				if (fociiIdMap.containsKey(source) && fociiIdMap.containsKey(target)) {
+					// only update one end point of transaction to parent focus entity (if applicable)
+					if (entIdMap.containsKey(source)) {
+						link.setTarget(fociiIdMap.get(target));
+					} else {
+						link.setSource(fociiIdMap.get(source));
+					}
+				} else {
+					// update end point of transaction to parent focus entity (if applicable)
+					if (source!=null && fociiIdMap.containsKey(source)) {
+						link.setSource(fociiIdMap.get(source));
+					}
+					if (target!=null && fociiIdMap.containsKey(target)) {
+						link.setTarget(fociiIdMap.get(target));
+					}
 				}
 			}
 		}
 		return links;
-	}
-	
-	@Override
-	public Map<String, List<FL_Link>> getAllTransactions(
-		List<String> entityIds,
-		FL_LinkTag tag, 
-		FL_DateRange date, 
-		FL_SortBy sort,
-		List<String> linkFilter, 
-		long max, 
-		String contextId, 
-		String sessionId
-	) throws AvroRemoteException {
-		
-		// Currently not supported
-		return null;
 	}
 	
 	private List<FL_Entity> filterExistingEntities(List<FL_Entity> entities, ClusterContext context) {
@@ -534,9 +506,9 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 				for (FL_Cluster cluster : clusters) {
 					children.first.addAll( contextRO.getEntities(cluster.getMembers()) );
 					
-					List<String> subClusterIds = TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.CLUSTER);
-					List<String> immutableClusterIds = TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.ACCOUNT_OWNER);
-					immutableClusterIds.addAll( TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.CLUSTER_SUMMARY) );
+					List<String> subClusterIds = InfluentId.filterInfluentIds(cluster.getSubclusters(), InfluentId.CLUSTER);
+					List<String> immutableClusterIds = InfluentId.filterInfluentIds(cluster.getSubclusters(), InfluentId.ACCOUNT_OWNER);
+					immutableClusterIds.addAll( InfluentId.filterInfluentIds(cluster.getSubclusters(), InfluentId.CLUSTER_SUMMARY) );
 					
 					children.second.addAll( contextRO.getClusters(immutableClusterIds) );
 					
@@ -553,26 +525,54 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		return children;
 	}
 	
-	private Set<String> getLeafIds(
+	@Override
+	public List<String> getLeafIds(
 		List<String> ids, 
-		String context
+		String context,
+		boolean searchImmutableClusters
 	) throws AvroRemoteException {
-		
-		if (ids == null || ids.isEmpty()) return Collections.emptySet();
+		if (ids == null || ids.isEmpty()) return Collections.emptyList();
 		
 		Set<String> lids = new HashSet<String>();
 
-		lids.addAll(TypedId.filterTypedIds(ids, TypedId.ACCOUNT));
-		lids.addAll(TypedId.filterTypedIds(ids, TypedId.ACCOUNT_OWNER));
-		lids.addAll(TypedId.filterTypedIds(ids, TypedId.CLUSTER_SUMMARY));
-		lids.addAll(getClusterLeafIds(TypedId.filterTypedIds(ids, TypedId.CLUSTER), context));
+		lids.addAll(InfluentId.filterInfluentIds(ids, InfluentId.ACCOUNT));
 		
-		return lids;
+		if (searchImmutableClusters) {
+			// fetch cluster summary members
+			Map<String, Set<String>> summaryMemberIds = this.getClusterSummaryMembers(InfluentId.filterInfluentIds(ids, InfluentId.CLUSTER_SUMMARY));
+			for (String summaryId : summaryMemberIds.keySet()) {
+				lids.addAll(summaryMemberIds.get(summaryId));
+			}
+		
+			// fetch account owner members
+			List<String> ownerIds = InfluentId.filterInfluentIds(ids, InfluentId.ACCOUNT_OWNER);
+			if (context == null || context.isEmpty()) {
+				// no valid context id - retrieve owner leaves from db
+				Map<String, List<FL_Entity>> ownerAccounts = _entityAccess.getAccounts(ownerIds);
+				for (String ownerId : ownerAccounts.keySet()) {
+					for (FL_Entity account : ownerAccounts.get(ownerId)) {
+						lids.add(account.getUid());
+					}
+				}
+			} else {
+				// context id was passed in - fetch the owner leaves from the context
+				lids.addAll(getClusterLeafIds(ownerIds, context, searchImmutableClusters));
+			}
+			
+		} else {
+			lids.addAll(InfluentId.filterInfluentIds(ids, InfluentId.ACCOUNT_OWNER));
+			lids.addAll(InfluentId.filterInfluentIds(ids, InfluentId.CLUSTER_SUMMARY));
+		}
+		
+		lids.addAll(getClusterLeafIds(InfluentId.filterInfluentIds(ids, InfluentId.CLUSTER), context, searchImmutableClusters));
+		
+		return new ArrayList<String>(lids);
 	}
 	
 	private Set<String> getClusterLeafIds(
 		List<String> clusterIds, 
-		String context
+		String context,
+		boolean searchImmutableClusters
 	) throws AvroRemoteException {
 		
 		if (clusterIds == null || clusterIds.isEmpty()) return Collections.emptySet();
@@ -584,7 +584,7 @@ public class DynamicClustering extends AbstractClusteringDataAccess implements F
 		for (FL_Cluster flc : toSearch) {
 			lids.addAll(flc.getMembers());
 			if (flc.getSubclusters()!= null && !flc.getSubclusters().isEmpty()) {
-				lids.addAll(getLeafIds(flc.getSubclusters(), context));
+				lids.addAll(getLeafIds(flc.getSubclusters(), context, searchImmutableClusters));
 			}
 		}
 		return lids;

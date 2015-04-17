@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,14 +24,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
+		'lib/interfaces/xfUIObject', 'lib/communication/applicationChannels', 'lib/util/GUID',
 		'lib/models/xfCard', 'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster',
-		'lib/models/xfSummaryCluster', 'lib/constants', 'lib/extern/underscore'
+		'lib/models/xfSummaryCluster', 'lib/constants', 'underscore'
 	],
 	function(
-		xfUIObject, chan, guid,
+		xfUIObject, appChannel, guid,
 		xfCard, xfImmutableCluster, xfMutableCluster, xfSummaryCluster, constants
 	) {
 
@@ -259,7 +262,7 @@ define(
 			xfMatchInstance.remove = function(eventChannel, dispose) {
 				// An event channel argument is required to help enforce that this method should
 				// ONLY ever be called from a pubsub type handler.
-				if (chan.REMOVE_REQUEST === eventChannel){
+				if (appChannel.REMOVE_REQUEST === eventChannel){
 					_UIObjectState.spec.parent.removeChild(
 						_UIObjectState.xfId,
 						(dispose != null) ? dispose : true,
@@ -299,7 +302,7 @@ define(
 				if (xfMatchInstance.getChildren().length !== 0) {
 					var newCard = xfMatchInstance.getChildren()[xfMatchInstance.getChildren().length-1];
 					if (newCard) {
-						aperture.pubsub.publish(chan.UPDATE_CHART_REQUEST,
+						aperture.pubsub.publish(appChannel.UPDATE_CHART_REQUEST,
 							{
 								xfId: newCard.getXfId()
 							}
@@ -323,7 +326,7 @@ define(
 
 					if (matchChild.isSelected()) {
 						aperture.pubsub.publish(
-							chan.SELECTION_CHANGE_REQUEST,
+							appChannel.SELECTION_CHANGE_REQUEST,
 							{
 								xfId: null,
 								selected : true,
@@ -336,7 +339,7 @@ define(
 						for (var j = 0; j < matchChild.getChildren().length; j++) {
 							if (matchChild.getChildren()[j].isSelected()) {
 								aperture.pubsub.publish(
-									chan.SELECTION_CHANGE_REQUEST,
+									appChannel.SELECTION_CHANGE_REQUEST,
 									{
 										xfId: null,
 										selected : true,
@@ -420,6 +423,28 @@ define(
 			// This only returns VISIBLE children.   For all children use _UIObjectState.children
 			xfMatchInstance.getChildren = function() {
 				return _.clone(_UIObjectState.children).slice(_UIObjectState.minIdx, _UIObjectState.maxIdx);
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+			// Returns an array of all data ids contained in this match card.   Does NOT return just visible ones
+			// splitMutableClusters (true) will split out the data ids of any mutable (stacked) cluster into its
+			// contained data ids
+			xfMatchInstance.getAllDataIds = function(splitMutableClusters) {
+				var ids = [];
+				if (_UIObjectState.children) {
+					for (var i = 0; i < _UIObjectState.children.length; i++) {
+						var id = _UIObjectState.children[i].getDataId();
+						var pieces = id.split('|');
+						if (pieces.length > 1 && splitMutableClusters) {
+							for (var j = 1; j < pieces.length; j++) {
+								ids.push(pieces[j]);
+							}
+						} else {
+							ids.push(id);
+						}
+					}
+					return ids;
+				}
 			};
 
 			//----------------------------------------------------------------------------------------------------------
@@ -525,30 +550,6 @@ define(
 
 			xfMatchInstance.isSearchControlFocused = function() {
 				return _UIObjectState.isSearchControlFocused;
-			};
-
-			//----------------------------------------------------------------------------------------------------------
-
-			xfMatchInstance.setSearchControlFocused = function(xfId) {
-				if(_UIObjectState.isSearchControlFocused !== (_UIObjectState.xfId === xfId)) {
-					_UIObjectState.isSearchControlFocused = (_UIObjectState.xfId === xfId);
-				}
-
-				// Show/hide the search button if the control has focus.
-				var searchButton = $('#' + _UIObjectState.xfId)
-					.children('.searchControls')
-					.children('.matchCardForm')
-					.children('.globalSearchButton');
-
-				if(searchButton.length > 0) {
-					if(_UIObjectState.isSearchControlFocused) {
-						searchButton.show();
-					}
-					else {
-						searchButton.hide();
-					}
-				}
-
 			};
 
 			//----------------------------------------------------------------------------------------------------------
@@ -729,6 +730,14 @@ define(
 
 			xfMatchInstance.getUIType = function() {
 				return _UIObjectState.UIType;
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfMatchInstance.updatePromptState = function(dataId, state) {
+				for (var i = 0; i < _UIObjectState.children.length; i++) {
+					_UIObjectState.children[i].updatePromptState(dataId, state);
+				}
 			};
 
 			//------------------------------

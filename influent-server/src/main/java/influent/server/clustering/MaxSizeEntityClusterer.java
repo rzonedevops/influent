@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,13 +24,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package influent.server.clustering;
 
 import influent.idl.FL_Cluster;
 import influent.idl.FL_Entity;
 import influent.idlhelper.ClusterHelper;
 import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.InfluentId;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,15 +49,15 @@ public class MaxSizeEntityClusterer extends BaseEntityClusterer {
 		try {
 			clusterFactory = (EntityClusterFactory)args[0];
 			maxClusterSize = (Integer)args[1];
-		 }
-		 catch (Exception e) {
-			 throw new IllegalArgumentException("Invalid initialization parameters.", e);
-		 }
+		}
+		catch (Exception e) {
+			throw new IllegalArgumentException("Invalid initialization parameters.", e);
+		}
 	}
 
 	private boolean isFull(FL_Cluster cluster) {
 		int numEntityMembers = cluster.getMembers().size();
-		int numMutables = TypedId.filterTypedIds(cluster.getSubclusters(), TypedId.CLUSTER).size();
+		int numMutables = InfluentId.filterInfluentIds(cluster.getSubclusters(), InfluentId.CLUSTER).size();
 		int numImmutables = numEntityMembers + cluster.getSubclusters().size() - numMutables;
 		return numImmutables >= maxClusterSize;
 	}
@@ -85,9 +88,9 @@ public class MaxSizeEntityClusterer extends BaseEntityClusterer {
 	
 	@Override
 	public ClusterContext clusterEntities(Collection<FL_Entity> entities, 
-										  Collection<FL_Cluster> immutableClusters,
-										  Collection<FL_Cluster> clusters, 
-										  ClusterContext context) {
+										Collection<FL_Cluster> immutableClusters,
+										Collection<FL_Cluster> clusters, 
+										ClusterContext context) {
 		
 		Map<String, FL_Cluster> modifiedClusters = new HashMap<String, FL_Cluster>();
 		List<FL_Cluster> fullClusters = new ArrayList<FL_Cluster>(maxClusterSize);

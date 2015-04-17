@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -23,10 +25,7 @@
  * SOFTWARE.
  */
 
-/**
- * Defines the module registration and management
- */
-define(['lib/sandbox', 'lib/extern/underscore'], function(Sandbox) {
+define(['lib/sandbox', 'underscore'], function(Sandbox) {
 
 	var modules = {};
 
@@ -138,6 +137,22 @@ define(['lib/sandbox', 'lib/extern/underscore'], function(Sandbox) {
 						}
 					} );
 					return result;
+				},
+
+				/**
+				 * Returns a module given  of all started modules by name/id
+				 *
+				 * @param id the name of the module to retrieve
+				 *
+				 * @returns a module with the given id, null otherwise
+				 */
+				getModule : function(id) {
+					_.each(activeModules, function(module) {
+						if(module.name === id) {
+							return module;
+						}
+					});
+					return null;
 				}
 			};
 		}

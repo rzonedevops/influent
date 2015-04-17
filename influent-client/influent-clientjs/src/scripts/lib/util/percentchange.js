@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,6 +24,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define([], function() {
 
 	return {
@@ -44,7 +47,7 @@ define([], function() {
 		 * Returns true if pct change is nominal (very close to zero).
 		 */
 		isNominal : function (pctChange) {
-			return (pctChange && Math.abs(pctChange).toFixed(1) == '0.0');
+			return (pctChange && Math.abs(pctChange).toFixed(1) === '0.0');
 		},
 
 		/**
@@ -63,14 +66,16 @@ define([], function() {
 
 			// if positive
 			if (pctChange > 0) {
-				if (pctChange > 1000)
+				if (pctChange > 1000) {
 					return '+1000+%';
+				}
 
 				return '+' + s + '%';
 			}
 
-			if (pctChange < -1000)
+			if (pctChange < -1000) {
 				return '-1000+%';
+			}
 
 			return s + '%';
 		}

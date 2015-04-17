@@ -5,7 +5,34 @@ runtime-injected modules for search, data access, clustering and other services.
 language independent form.
 The following is a log of changes to the avro service provider interfaces (SPIs) made with each version. 
 
+## Version 1.9 Change Log
+### Data Types
++ `FL_PropertyTag`
+	+ added `HTML`
++ `FL_PropertyType`
+	+ added `INTEGER` AND `FLOAT` for consistency with allowable values
++ Added `FL_ReservedPropertyKey` enum to designate reserved property keys
+
+Changes to the `FL_DataAccess` protocol:
++ added `getAvailableLinkTypes()`
+
+### Search
+Changes to the `FL_Search` protocol:
++ `FL_PropertyMatchDescriptor`, `FL_SearchResult`, `FL_SearchResults` moved from `FL_EntitySearch` protocol
+
+Added `FL_TransactionsSearch` protocol:
++ Added `search()` to search for transaction results using `FL_PropertyMatchDescriptor` search properties
++ Added `getDescriptors()` to retrieve transactions related search properties
+	
+	
 ## Version 1.8 Change Log
+### Data Types
+Changes to the `FL_DataTypes` protocol:
++ `FL_EntityTag`
+	+ added `UNBRANCHABLE`
+Changes to the `FL_DataAccess` protocol:
++ added `getDataSummary()`
++ added `FL_DataSummary`
 
 ### Search
 Changes to `FL_Search` protocol:
@@ -116,9 +143,9 @@ Changes to the `FL_DataTypes` protocol:
 + `FL_PropertyType`
 	+ removed `SERIES` (use the new `FL_RangeType` to define a Range)
 + Series
-    + use the `FL_RangeType` to define a Range
+	+ use the `FL_RangeType` to define a Range
 + `FL_DateInterval`
-    + moved here from DataAccess/ClusteringDataAccess
+	+ moved here from DataAccess/ClusteringDataAccess
 	+ added `SECONDS` and `HOURS`
 	+ renamed `DAILY`/`WEEKLY`/`MONTHLY`/`QUARTERLY`/`YEARLY` to `DAYS`/`WEEKS`/`MONTHS`/`QUARTERS`/`YEARS`
 + `FL_Duration`
@@ -168,4 +195,4 @@ Changes to the `FL_PatternSearch` protocol:
 	+ removed `FL_PathMatchDescriptor` (use `FL_PropertyMatchDescriptor`s with `FL_PathMatchTag`s)
 	+ replaced `weight` with `FL_Constraint`
 + `searchByExample()`, `searchByTemplate()`
-    + added optional `dateRange` filter to search calls
+	+ added optional `dateRange` filter to search calls

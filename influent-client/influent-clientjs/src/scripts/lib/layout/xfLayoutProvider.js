@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,14 +24,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/channels', 'lib/module', 'lib/render/workspaceRenderer', 'lib/render/columnRenderer', 'lib/render/cardRenderer',
+		'lib/communication/applicationChannels', 'lib/module', 'lib/render/workspaceRenderer', 'lib/render/columnRenderer', 'lib/render/cardRenderer',
 		'lib/render/fileRenderer', 'lib/render/matchRenderer', 'lib/render/clusterRenderer',
-		'lib/constants'
+		'lib/constants', 'underscore'
 	],
 	function(
-		chan, modules, workspaceRenderer, columnRenderer, cardRenderer,
+		appChannel, modules, workspaceRenderer, columnRenderer, cardRenderer,
 		fileRenderer, matchRenderer, clusterRenderer,
 		constants
 	) {
@@ -121,8 +124,9 @@ define(
 				var clusterStackHeight = (_clusterDefaults.STACK_COUNT-1)*_clusterDefaults.STACK_WIDTH;
 
 				// Skip links to/from hidden objects
-				if (visualInfo.isHidden)
+				if (visualInfo.isHidden) {
 					continue;
+				}
 
 				switch (objectType){
 					case constants.MODULE_NAMES.FILE : {

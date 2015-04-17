@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,15 +24,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/util/xfUtil',
+		'lib/interfaces/xfUIObject', 'lib/communication/applicationChannels', 'lib/util/GUID', 'lib/util/xfUtil',
 		'lib/models/xfCard', 'lib/models/xfSummaryCluster',
 		'lib/models/xfClusterBase', 'lib/constants',
-		'lib/extern/underscore'
+		'underscore'
 	],
 	function(
-		xfUIObject, chan, guid, xfUtil,
+		xfUIObject, appChannel, guid, xfUtil,
 		xfCard, xfSummaryCluster,
 		xfClusterBase, constants
 	) {
@@ -293,7 +296,7 @@ define(
 					removeIfEmpty
 				) {
 					aperture.pubsub.publish(
-						chan.REMOVE_REQUEST,
+						appChannel.REMOVE_REQUEST,
 						{
 							xfIds : [_UIObjectState.xfId],
 							dispose : true
@@ -405,6 +408,7 @@ define(
 				_UIObjectState.spec.flow = state.spec.flow;
 				_UIObjectState.spec.inDegree = state.spec.inDegree;
 				_UIObjectState.spec.outDegree = state.spec.outDegree;
+				_UIObjectState.spec.promptForDetails = state.spec.promptForDetails;
 
 				_UIObjectState.children = [];
 				var childCount = state.children ? state.children.length : 0;

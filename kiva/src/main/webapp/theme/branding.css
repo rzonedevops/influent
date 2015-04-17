@@ -1,19 +1,21 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc. 
- * http://www.oculusinfo.com/
- * 
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
+ *
  * Released under the MIT License.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,21 +26,10 @@
  */
 @CHARSET "ISO-8859-1";
 
-#main-logo {
-	position: absolute;
-	bottom: 5px;
-	left: 5px;
-	width: 182px;
-	height: 32px;
-	z-index: 1;
-	background-image: url(../img/influent.png);
-	background-repeat: no-repeat;
-}
-
 #banner-1 {
 	position: absolute;
 	top: 0px;
-	left: 20px;
+	left: 0px;
 	right: 0px;
 }
 
@@ -46,22 +37,26 @@
 	display:none;
 	position: absolute;
 	bottom: 0px;
-	left: 20px;
+	left: 0px;
 	right: 0px;
 }
 
 .banner-text {
 	font-weight: bold;
-	width: 100px;
+	width: 250px;
 	margin-left: auto;
 	margin-right: auto;
-	background-color: #74B446;
+	background-color: #C5C3C1; /*#74B446 #C1E0AA*/
 	color: white;
 	text-align: center;
 	white-space: nowrap;
 	padding-bottom: 2px;
 	z-index: 999999999;
 	position: relative;
+}
+
+.banner-text:before {
+	content: "Semi-Anonymized Snapshot";
 }
 
 #banner-1-text {
@@ -85,3 +80,21 @@
 	-khtml-border-top-right-radius : 4px;
 	border-top-right-radius : 4px;
 }
+
+/* When showing a logo you need to hide its fallback children. See next css block */
+.app-logo {
+	width: 121px;
+	height: 64px;
+	z-index: 1;
+	background-image: url(../img/kiva_summary.png);
+	background-repeat: no-repeat;
+	margin-bottom: 10px;
+
+}
+
+/* Hide all logo children, otherwise a label will appear */
+.app-logo * {
+	display: none;
+}
+
+

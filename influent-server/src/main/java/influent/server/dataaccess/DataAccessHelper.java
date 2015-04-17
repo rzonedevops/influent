@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -28,20 +30,12 @@ import influent.idl.FL_DateInterval;
 import influent.idl.FL_DateRange;
 import influent.idl.FL_DirectionFilter;
 import influent.idl.FL_LinkEntityTypeFilter;
-import influent.server.dataaccess.AbstractDataNamespaceHandler.ID_TYPE;
-
-import java.io.Serializable;
-import java.util.AbstractList;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.RandomAccess;
-import java.util.TimeZone;
-
+import influent.server.configuration.ApplicationConfiguration;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+
+import java.io.Serializable;
+import java.util.*;
 
 public class DataAccessHelper {
 
@@ -55,42 +49,34 @@ public class DataAccessHelper {
 	public static final String FLOW_COLUMN_AMOUNT 							= "FinFlow_Amount";
 	public static final String FLOW_COLUMN_PERIOD_DATE						= "FinFlow_PeriodDate";
 
-    // --- Entity ---
+	// --- Entity ---
 	public static final String ENTITY_TABLE									= "FinEntity";
 	
 	public static final String ENTITY_COLUMN_ENTITY_ID 						= "FinEntity_EntityId";
 	public static final String ENTITY_COLUMN_INBOUND_AMOUNT 				= "FinEntity_InboundAmount";
-	public static final String ENTITY_COLUMN_INBOUND_DEGREE					= "FinEntity_InboundDegree";
+	public static final String ENTITY_COLUMN_INBOUND_DEGREE 		        = "FinEntity_InboundDegree";
 	public static final String ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE 			= "FinEntity_UniqueInboundDegree";
 	public static final String ENTITY_COLUMN_OUTBOUND_AMOUNT 				= "FinEntity_OutboundAmount";
-	public static final String ENTITY_COLUMN_OUTBOUND_DEGREE 				= "FinEntity_OutboundDegree";
+	public static final String ENTITY_COLUMN_OUTBOUND_DEGREE 		        = "FinEntity_OutboundDegree";
 	public static final String ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE 		= "FinEntity_UniqueOutboundDegree";
-	public static final String ENTITY_COLUMN_BALANCE 						= "FinEntity_Balance";
 	public static final String ENTITY_COLUMN_PERIOD_DATE					= "FinEntity_PeriodDate";
-	
-    // --- Cluster Summary ---
-	public static final String CLUSTER_SUMMARY_TABLE 						= "ClusterSummary";
+	public static final String ENTITY_COLUMN_NUM_TRANSACTIONS				= "FinEntity_NumTransactions";
+	public static final String ENTITY_COLUMN_EARLIEST_TRANSACTION			= "FinEntity_StartDate";
+	public static final String ENTITY_COLUMN_LATEST_TRANSACTION				= "FinEntity_EndDate";
+	public static final String ENTITY_COLUMN_MAX_TRANSACTION				= "FinEntity_MaxTransaction";
+	public static final String ENTITY_COLUMN_AVG_TRANSACTION				= "FinEntity_AvgTransaction";
 
-	public static final String CLUSTER_SUMMARY_COLUMN_ENTITY_ID 			= "ClusterSummary_EntityId";
-	public static final String CLUSTER_SUMMARY_COLUMN_SUMMARY_ID 			= "ClusterSummary_SummaryId";
-	public static final String CLUSTER_SUMMARY_COLUMN_PROPERTY 				= "ClusterSummary_Property";
-	public static final String CLUSTER_SUMMARY_COLUMN_TAG					= "ClusterSummary_Tag";
-	public static final String CLUSTER_SUMMARY_COLUMN_TYPE 					= "ClusterSummary_Type";
-	public static final String CLUSTER_SUMMARY_COLUMN_VALUE 				= "ClusterSummary_Value";
-	public static final String CLUSTER_SUMMARY_COLUMN_STAT 					= "ClusterSummary_Stat";
+	// --- Transactions
+	public static final String RAW_TRANSACTIONS_TABLE	                    = "RawTransactions";
 
-    // --- Cluster Summary Members ---
-	public static final String CLUSTER_SUMMARY_MEMBERS_TABLE 				= "ClusterSummaryMembers";
-	public static final String CLUSTER_SUMMARY_MEMBERS_COLUMN_ENTITY_ID 	= "ClusterSummaryMembers_EntityId";
+	// --- DataSummary
+	public static final String DATA_SUMMARY_TABLE		                    = "DataSummary";
 	
-	// --- Deprecated ---
-	public static final String GLOBAL_CLUSTER_TABLE 						= "global_cluster_dataview";
-	public static final String DYNAMIC_CLUSTER_TABLE						= "dynamic_cluster_dataview";
-	
-	public static final String CLIENT_STATE_TABLE 							= "clientState";
-	
-	
-	
+	public static final String DATA_SUMMARY_TABLE_COLUMN_SUMMARY_ORDER		= "DataSummary_SummaryOrder";
+	public static final String DATA_SUMMARY_TABLE_COLUMN_SUMMARY_KEY		= "DataSummary_SummaryKey";
+	public static final String DATA_SUMMARY_TABLE_COLUMN_SUMMARY_LABEL		= "DataSummary_SummaryLabel";
+	public static final String DATA_SUMMARY_TABLE_COLUMN_SUMMARY_VALUE		= "DataSummary_SummaryValue";
+
 	// Serves no purpose other than for us to identify popup requests down the line when we are looking up entities.
 	public interface DetailsSubject {}
 	
@@ -104,33 +90,33 @@ public class DataAccessHelper {
 	
 	
 	
-    private static class DetailsSubjectList extends AbstractList<String> implements DetailsSubject, RandomAccess, Serializable {
-        
-    	static final long serialVersionUID = 3093736618740652951L;
-        private final String _id;
+	private static class DetailsSubjectList extends AbstractList<String> implements DetailsSubject, RandomAccess, Serializable {
+		
+		static final long serialVersionUID = 3093736618740652951L;
+		private final String _id;
 
-        DetailsSubjectList(String id) {
-        	_id = id;
-        }
+		DetailsSubjectList(String id) {
+			_id = id;
+		}
 
-        public int size() {
-        	return 1;
-        }
+		public int size() {
+			return 1;
+		}
 
-        public boolean contains(Object obj) {
-        	return _id.equals(obj);
-        }
+		public boolean contains(Object obj) {
+			return _id.equals(obj);
+		}
 
-        public String get(int index) {
-            if (index != 0) throw new IndexOutOfBoundsException("Index: "+index+", Size: 1");
-            
-            return _id;
-        }
-    }
-    
-    
-    
-    
+		public String get(int index) {
+			if (index != 0) throw new IndexOutOfBoundsException("Index: "+index+", Size: 1");
+			
+			return _id;
+		}
+	}
+	
+	
+	
+	
 	/**
 	 * Formats a date, exclusive of time, as a UTC date string.
 	 */
@@ -333,52 +319,6 @@ public class DataAccessHelper {
 		}
 		return "Yearly";
 	}
-	
-	
-
-
-	public static String createNodeIdListFromCollection(
-		List<String> nodeIDs
-	) {
-		return createNodeIdListFromCollection(
-			nodeIDs, 
-			null, 
-			""
-		);
-	}
-	
-	
-	
-	
-	public static String createNodeIdListFromCollection(
-		List<String> nodeIDs,
-		DataNamespaceHandler nameSpaceHandler, 
-		String namespace
-	) {
-		
-		if (nodeIDs == null || nodeIDs.isEmpty()) return null;
-	
-		StringBuilder resultString = new StringBuilder();
-		
-		for (String id : nodeIDs) {
-			if(nameSpaceHandler == null) {
-				resultString.append("'" + id + "', ");
-			} else {
-                if (nameSpaceHandler.getIdType(namespace) == ID_TYPE.HEX) {
-                    resultString.append(nameSpaceHandler.toSQLId(id, namespace) + ", ");
-                } else {
-                    resultString.append("'" + id + "', ");
-                }
-			}
-		}
-		
-		resultString.replace(
-			resultString.lastIndexOf(","),
-			resultString.length() - 1,
-			""
-		);
-		return resultString.toString();
-	}
 
 	
 	
@@ -393,7 +333,7 @@ public class DataAccessHelper {
 	public static String createInClause(
 		Collection<String> inItemIds, 
 		DataNamespaceHandler nameSpaceHandler,
-		String namespace
+		ApplicationConfiguration.SystemColumnType idType
 	) {
 		
 		StringBuilder resultString = new StringBuilder();
@@ -403,24 +343,14 @@ public class DataAccessHelper {
 			if(nameSpaceHandler == null) {
 				resultString.append("'" + item + "',");
 			} else {
-				
-				if (nameSpaceHandler.getIdType(namespace) == ID_TYPE.HEX) {
-					resultString.append(nameSpaceHandler.toSQLId(item, namespace) + ",");
-				} else {
-					resultString.append("'" + item + "',");
-				}
+				resultString.append(nameSpaceHandler.toSQLId(item, idType) + ",");
 			}
 		}
 		if (!inItemIds.isEmpty()) {
-			resultString.replace(
-				resultString.lastIndexOf(","),
-				resultString.length(),
-				")"
-			);
+			resultString.deleteCharAt(resultString.lastIndexOf(","));
 		}
-		else {
-			resultString.append(")");
-		}
+
+		resultString.append(")");
 		return resultString.toString();
 	}
 	

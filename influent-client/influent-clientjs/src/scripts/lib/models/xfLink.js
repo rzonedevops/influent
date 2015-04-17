@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,13 +24,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID',
+		'lib/interfaces/xfUIObject', 'lib/communication/applicationChannels', 'lib/util/GUID',
 		'lib/ui/xfLinkType', 'lib/util/xfUtil', 'lib/constants'
 	],
 	function(
-		xfUIObject, chan, guid,
+		xfUIObject, appChannel, guid,
 		xfLinkType, xfUtil, constants
 	) {
 

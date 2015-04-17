@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -23,9 +25,6 @@
  * SOFTWARE.
  */
 
-/**
- * Defines the names of pub/sub channels used throughout the app
- */
 define({
 	FLOW : 'flow',
 	FILE : 'file',

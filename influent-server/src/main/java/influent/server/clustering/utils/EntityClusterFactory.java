@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -40,11 +42,10 @@ import influent.idlhelper.ClusterHelper;
 import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.SingletonRangeHelper;
-import influent.server.clustering.BaseEntityClusterer;
 import influent.server.clustering.ClusterContext;
 import influent.server.clustering.ClusterDistributionProperty;
 import influent.server.utilities.IdGenerator;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.InfluentId;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -54,6 +55,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import oculus.aperture.spi.common.Properties;
@@ -67,8 +69,28 @@ public class EntityClusterFactory {
 	protected final List<ClusterDistributionProperty> distProperties = new ArrayList<ClusterDistributionProperty>();
 	
 	private class Distribution {
-		public final Map<String, Double> frequencies = new HashMap<String, Double>();
+		public final Map<Object, Double> frequencies = new HashMap<Object, Double>();
 		public final Set<FL_PropertyTag> tags = new HashSet<FL_PropertyTag>();
+		public final Boolean normalize;
+		public Distribution(boolean normalize) {
+			this.normalize = normalize;
+		}
+		
+		@Override
+		public String toString() {
+			StringBuilder str = new StringBuilder();
+			str.append("(");
+			
+			String delim = "";
+		
+			for (Entry<Object, Double> entry : frequencies.entrySet()) {
+				str.append(delim).append(entry.getKey()).append("=").append(entry.getValue());
+				delim = ",";
+			}
+			str.append(")");
+			
+			return str.toString();
+		}
 	}
 	
 	public EntityClusterFactory(IdGenerator idGen, FL_Geocoding geocoding, Properties pMgr) {
@@ -82,11 +104,12 @@ public class EntityClusterFactory {
 		
 		for (String property : properties) {
 			String[] tokens = property.split(":");
-			distProperties.add( new ClusterDistributionProperty(tokens[0], tokens[1]) );
+			boolean normalize = (tokens.length == 3) ? Boolean.parseBoolean(tokens[2]) : false;
+			distProperties.add( new ClusterDistributionProperty(tokens[0], tokens[1], normalize) );
 		}
 	}
 	
-	protected static void increment(String key, double increment, Map<String, Double> index) {
+	protected static void increment(Object key, double increment, Map<Object, Double> index) {
 		double count = 0;
 		
 		if (index.containsKey(key)) {
@@ -96,16 +119,22 @@ public class EntityClusterFactory {
 		index.put(key, count);
 	}
 	
-	protected static void increment(List<FL_Frequency> stats, Map<String, Double> index) {
+	protected static void increment(List<FL_Frequency> stats, Map<Object, Double> index) {
 		for (FL_Frequency freq : stats) {
-			String key = "";
+			Object key = null;
+			double count = freq.getFrequency();
+			
 			if (freq.getRange() instanceof FL_GeoData) {
 				key = ((FL_GeoData)freq.getRange()).getCc();
 			}
-			else {
-				key = (String)freq.getRange();
+			else if (freq.getRange() instanceof Number) {
+				key = 0;
+				count = ((Number)freq.getRange()).doubleValue();
 			}
-			double count = freq.getFrequency();
+			else {
+				key = freq.getRange();
+			}
+			
 			increment(key, count, index);
 		}
 	}
@@ -153,7 +182,7 @@ public class EntityClusterFactory {
 		Map<String, Distribution> distSummaries = new HashMap<String, Distribution>();
 		
 		for (ClusterDistributionProperty distProp : this.distProperties) {
-			distSummaries.put(distProp.clusterFieldName, new Distribution());
+			distSummaries.put(distProp.clusterFieldName, new Distribution(distProp.normalize));
 		}
 		
 		return distSummaries;
@@ -174,8 +203,19 @@ public class EntityClusterFactory {
 							increment(cc, 1, distribution.frequencies);
 						}
 					}
+					else if (prop.hasTag(FL_PropertyTag.TOPIC)) {
+						@SuppressWarnings("unchecked")
+						List<FL_Frequency> dist = (List<FL_Frequency>)value;
+						for (FL_Frequency freq : dist) {
+							String range = (String) freq.getRange();
+							increment( range, freq.getFrequency(), distribution.frequencies );
+						}
+					}
 					else if (value instanceof String) {
 						increment( (String)value, 1, distribution.frequencies );
+					}
+					else if (value instanceof Number) {
+						increment( 0, ((Number)value).doubleValue(), distribution.frequencies );
 					}
 					// all other value types are ignored
 				}
@@ -196,7 +236,8 @@ public class EntityClusterFactory {
 		}
 	}
 	
-	protected List<FL_Property> createDistProperties(Map<String, Distribution> distSummaries) {
+	protected List<FL_Property> createDistProperties(Map<String, Distribution> distSummaries, 
+												List<FL_Entity> members, List<FL_Cluster> subClusters, int decendentCount) {
 		List<FL_Property> properties = new ArrayList<FL_Property>(distSummaries.size());
 		
 		for (String fieldName : distSummaries.keySet()) {
@@ -206,29 +247,46 @@ public class EntityClusterFactory {
 			boolean isGeo = distribution.tags.contains(FL_PropertyTag.GEO);
 			FL_PropertyType type = isGeo ? FL_PropertyType.GEO : FL_PropertyType.STRING;
 			
-			for (String key : distribution.frequencies.keySet()) {
+			double total = 0;
+			
+			for (Object key : distribution.frequencies.keySet()) {
 				Object range = key;
+				double freq = distribution.frequencies.get(key);
+				
 				if (isGeo) {
-					FL_GeoData geo = new FL_GeoData(null, null, null, key);
+					FL_GeoData geo = FL_GeoData.newBuilder().setText(null).setLat(null).setLon(null).setCc((String)key).build();
 					try {
 						geocoder.geocode(Collections.singletonList(geo));
 					} catch (AvroRemoteException e) { /* ignore */ }
 					range = geo;
-				}
-				freqs.add( new FL_Frequency(range, distribution.frequencies.get(key)) );
+				} else if (key instanceof Number) {  // compute the average for the numeric value
+					double size = (members != null ? members.size() : 0) + (subClusters != null ? subClusters.size() : 0);  // range is the average stat value
+					range = freq / size;
+					freq = decendentCount; 
+				} 
+				
+				freqs.add(FL_Frequency.newBuilder().setRange(range).setFrequency(freq).build());
+				total += freq;
 			}
 			
-			FL_DistributionRange range = new FL_DistributionRange(freqs, FL_RangeType.DISTRIBUTION, type, false);
+			if (distribution.normalize) {
+				for (FL_Frequency freq : freqs) {
+					double f = freq.getFrequency();
+					if (f != 0 ) {
+						freq.setFrequency( f / total );
+					}
+				}
+			}
 			
+			FL_DistributionRange range = FL_DistributionRange.newBuilder().setDistribution(freqs).setRangeType(FL_RangeType.DISTRIBUTION).setType(type).setIsProbability(false).build();
 			FL_Property dist = FL_Property.newBuilder()
-						.setKey(fieldName)
-						.setFriendlyText(fieldName)
-						.setRange(range)
-						.setTags(new ArrayList<FL_PropertyTag>(distribution.tags))
-						.setProvenance(null)
-						.setUncertainty(null)
-						.build();
-			
+					.setKey(fieldName)
+					.setFriendlyText(fieldName)
+					.setRange(range)
+					.setProvenance(null)
+					.setUncertainty(null)
+					.setTags(new ArrayList<FL_PropertyTag>(distribution.tags))
+					.build();
 			properties.add(dist);
 		}
 			
@@ -282,7 +340,7 @@ public class EntityClusterFactory {
 			if (subCluster == null) continue;  // sub cluster is not present - consider it removed
 			subClusters.add(subCluster);
 			// only update sub cluster if update children is true and not an immutable cluster
-			if (updateChildren && !BaseEntityClusterer.isImmutableCluster(subCluster)) { 
+			if ((updateChildren) && !InfluentId.hasIdClass(subCluster.getUid(), InfluentId.CLUSTER_SUMMARY)) {
 				updateClusterProperties(subCluster, relatedEntities, relatedClusters, true);
 			}
 		}
@@ -322,9 +380,9 @@ public class EntityClusterFactory {
 		List<FL_Property> properties = new LinkedList<FL_Property>();
 		
 		// initialize decendentCount to number of entities - if there are any
-		long decendentCount = members == null ? 0 : members.size();
-		long outDegree = -1;
-		long inDegree = -1;
+		int decendentCount = members == null ? 0 : members.size();
+		int outDegree = -1;
+		int inDegree = -1;
 		double avgConfidence = 0;
 				
 		Map<String, Distribution> distSummaries = initDistSummaries();
@@ -336,11 +394,11 @@ public class EntityClusterFactory {
 				
 				PropertyHelper inFlow = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.INFLOWING);
 				if (inFlow != null) {
-					inDegree += (Long)inFlow.getValue();
+					inDegree += (Integer)inFlow.getValue();
 				}
 				PropertyHelper outFlow = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.OUTFLOWING);
 				if (outFlow != null) {
-					outDegree += (Long)outFlow.getValue();
+					outDegree += (Integer)outFlow.getValue();
 				}
 				
 				FL_Uncertainty pConfidence = entity.getUncertainty();
@@ -353,17 +411,17 @@ public class EntityClusterFactory {
 		// next process the sub clusters
 		if (subClusters != null) {
 			for (FL_Cluster cluster : subClusters) {
-				long count = ((Number)ClusterHelper.getFirstProperty(cluster, "count").getValue()).longValue(); 
+				int count = (Integer)ClusterHelper.getFirstProperty(cluster, "count").getValue(); 
 				decendentCount += count;
 				
 				PropertyHelper inFlow = ClusterHelper.getFirstPropertyByTag(cluster, FL_PropertyTag.INFLOWING);
 				if (inFlow != null) {
-					inDegree += (Long)inFlow.getValue();
+					inDegree += (Integer)inFlow.getValue();
 				}
 				
 				PropertyHelper outFlow = ClusterHelper.getFirstPropertyByTag(cluster, FL_PropertyTag.OUTFLOWING);
 				if (outFlow != null) {
-					outDegree += (Long)outFlow.getValue();
+					outDegree += (Integer)outFlow.getValue();
 				}
 			
 				updateDistSummaries(cluster, distSummaries);
@@ -384,16 +442,16 @@ public class EntityClusterFactory {
 				"count",
 				"count",
 				decendentCount,
-				FL_PropertyType.LONG,
+				FL_PropertyType.INTEGER,
 				FL_PropertyTag.STAT);
 		properties.add(p);
 		
 		if (inDegree > -1) {
 			p = new PropertyHelper(
 					"inDegree",
-					"inDegree",
+					"Inbound Sources",
 					(inDegree + 1),
-					FL_PropertyType.LONG,
+					FL_PropertyType.INTEGER,
 					FL_PropertyTag.INFLOWING);
 			properties.add(p);
 		}
@@ -401,9 +459,9 @@ public class EntityClusterFactory {
 		if (outDegree > -1) {
 			p = new PropertyHelper(
 					"outDegree",
-					"outDegree",
+					"Outbound Targets",
 					(outDegree + 1),
-					FL_PropertyType.LONG,
+					FL_PropertyType.INTEGER,
 					FL_PropertyTag.OUTFLOWING);
 			properties.add(p);
 		}
@@ -419,7 +477,7 @@ public class EntityClusterFactory {
 		properties.add(p);
 		
 		// Add the cluster distribution properties
-		properties.addAll( createDistProperties(distSummaries) );
+		properties.addAll( createDistProperties(distSummaries, members, subClusters, decendentCount) );
 
 		// add a confidence property
 		p = new PropertyHelper(
@@ -479,14 +537,14 @@ public class EntityClusterFactory {
 
 		// create the entity cluster and return
 		ClusterHelper cluster = new ClusterHelper(clusterId, 
-											 label,
-											 FL_EntityTag.CLUSTER,
-											 properties,
-											 new LinkedList<String>(childEntityIds),
-											 new LinkedList<String>(childClusterIds),
-											 null,
-											 null,
-											 -1);
+											label,
+											FL_EntityTag.CLUSTER,
+											properties,
+											new LinkedList<String>(childEntityIds),
+											new LinkedList<String>(childClusterIds),
+											null,
+											null,
+											-1);
 		cluster.setUncertainty(FL_Uncertainty.newBuilder().setConfidence(avgConfidence).build());
 		
 		// lastly associate cluster with each entity
@@ -500,14 +558,14 @@ public class EntityClusterFactory {
 	public FL_Cluster toAccountOwnerSummary(FL_Entity owner, List<FL_Entity> accounts, List<FL_Cluster> accountClusters) {
 		FL_Cluster ownerCluster = this.toCluster(accounts, accountClusters);
 		
-		String rawId = TypedId.fromTypedId(owner.getUid()).getNativeId();
-		String namespace = TypedId.fromTypedId(owner.getUid()).getNamespace();
+		String rawId = InfluentId.fromInfluentId(owner.getUid()).getNativeId();
+		String namespace = InfluentId.fromInfluentId(owner.getUid()).getIdType();
 		
-		ownerCluster.setUid( TypedId.fromNativeId(TypedId.ACCOUNT_OWNER, namespace, rawId).getTypedId() );
+		ownerCluster.setUid( InfluentId.fromNativeId(InfluentId.ACCOUNT_OWNER, namespace, rawId).getInfluentId() );
 		ownerCluster.getTags().add(FL_EntityTag.ACCOUNT_OWNER);
 		
 		FL_Property label = ClusterHelper.getFirstPropertyByTag(ownerCluster, FL_PropertyTag.LABEL);
-		label.setRange( new SingletonRangeHelper( EntityHelper.getFirstPropertyByTag(owner, FL_PropertyTag.LABEL).getValue(), FL_PropertyType.STRING) );
+		label.setRange( SingletonRangeHelper.from( (String)EntityHelper.getFirstPropertyByTag(owner, FL_PropertyTag.LABEL).getValue()) );
 		
 		for (FL_Cluster cluster : accountClusters) {
 			cluster.setParent(ownerCluster.getUid());
@@ -526,7 +584,7 @@ public class EntityClusterFactory {
 	public static void setEntityCluster(FL_Entity entity, FL_Cluster cluster) {		
 		PropertyHelper p = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.CLUSTER);
 		if (p != null) {
-			p.setRange( new SingletonRangeHelper(cluster.getUid()) );
+			p.setRange( SingletonRangeHelper.from(cluster.getUid()) );
 		}
 		else {
 			p = new PropertyHelper(
@@ -554,10 +612,10 @@ public class EntityClusterFactory {
 		FL_Cluster parent = null;
 		
 		// find parent
-		if (TypedId.hasType(objectId, TypedId.ACCOUNT)) {
+		if (InfluentId.hasIdClass(objectId, InfluentId.ACCOUNT)) {
 			FL_Entity entity = targetContext.getEntity(objectId);
 			if (entity != null) {
-				String parentId = (String)EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.CLUSTER).getValue();
+				String parentId = ClusterHelper.getEntityParent(entity);
 				parent = targetContext.getContext().clusters.get(parentId);
 			}
 		}

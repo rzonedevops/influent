@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,14 +24,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/channels', 'lib/render/cardRenderer', 'lib/render/columnRenderer', 'lib/util/xfUtil'
+		'lib/communication/applicationChannels', 'lib/render/cardRenderer', 'lib/render/columnRenderer',
+		'lib/constants',
+		'hbs!templates/flowView/branchHint', 'hbs!templates/flowView/emptyHint'
 	],
 	function(
-		chan, cardRenderer, columnRenderer, xfUtil
+		appChannel, cardRenderer, columnRenderer,
+		constants,
+		branchHintTemplate, emptyHintTemplate
 	) {
 
+		var config = aperture.config.get()['influent.config'];
+		
 		/**
 		 * the workspace renderer is the top level renderer, managing the dom element for the workspace model.
 		 */
@@ -64,7 +73,7 @@ define(
 		
 		//------------------------------------------------------------------------------------------------------------------
 
-		function positionColumns(columns, parentCanvas) {
+		function positionColumns(columns, parentCanvas, updateOnly) {
 			
 			var x = 0;
 			var maxHeight = 0;
@@ -72,12 +81,44 @@ define(
 			
 			var colsn = $();
 			var shift = null;
-			
-			aperture.util.forEach(columns, function(column) {
+
+			aperture.util.forEach(columns, function(column, colNum) {
 				var visualInfo = column.getVisualInfo();
-				
+
+				// Column hints
+				var hint = null;
+
+
+				if (columns.length === 3) {
+
+					// If this is an empty workspace, add a hint to redirect to Accounts View
+					if (columns[1].getVisualInfo().children.length === 0) {
+						if (colNum === 1) {
+							hint = emptyHintTemplate({aboutFlow: config.aboutFlow});
+						}
+					}
+					// If only one column is filled, add hint to show flow direction
+					else if (
+						columns[0].getVisualInfo().children.length === 0 &&
+						columns[2].getVisualInfo().children.length === 0
+					) {
+						if (colNum === 0) {
+							hint = branchHintTemplate({hintContent: 'FROM ACCOUNTS'});
+						} else if (colNum === 2) {
+							hint = branchHintTemplate({hintContent: 'TO ACCOUNTS'});
+						}
+					}
+				}
+
 				// create the dom element
-				var element = columnRenderer.createElement(visualInfo);
+				var element = columnRenderer.renderElement(visualInfo, hint, updateOnly);
+
+				// If there is an Accounts View shortcut, link it up here
+				element.find('#flowShortcutAccounts').click(function () {
+					aperture.pubsub.publish(appChannel.SWITCH_VIEW, {
+						title: constants.VIEWS.ACCOUNTS.NAME
+					});
+				});
 
 				// keep track of these for return
 				colsn = colsn.add(element);
@@ -86,17 +127,16 @@ define(
 				if (shift == null && !column.isEmpty() && element.parent(parentId).length !== 0) {
 					shift = x - left(element);
 				}
-				
-				// append/re-append (keeps columns in the right order).
-				parentCanvas.append(element);
 
-				
+				if (!updateOnly) {
+					parentCanvas.append(element);
+				}
+
 				// track the maximum column height
 				maxHeight = Math.max(maxHeight, columnRenderer.getHeight(element));
 
 				// position the column.
 				element.css('left', x);
-				
 				
 				x+= _columnDefaults.COLUMN_DISTANCE;
 			});
@@ -111,14 +151,14 @@ define(
 		}
 		
 		//------------------------------------------------------------------------------------------------------------------
-		var processColumns = function(columns, parentCanvas) {
+		var processColumns = function(columns, parentCanvas, updateOnly) {
 
 			// PROCESS COLUMNS
 			// cache list of old children
 			var colso = parentCanvas.children();
 
 			// position the active children.
-			var cdata = positionColumns(columns, parentCanvas);
+			var cdata = positionColumns(columns, parentCanvas, updateOnly);
 			
 			// remove any removed children.
 			var removed = colso.not(cdata.columns).remove();
@@ -190,51 +230,31 @@ define(
 			container.animate({left: inset.xn});
 		};
 
-		//------------------------------------------------------------------------------------------------------------------
-
-		$('#workspace').click(function(event) {
-			// deselect?
-			if (xfUtil.isWorkspaceWhitespace(event.target)) {
-				aperture.pubsub.publish(
-					chan.SELECTION_CHANGE_REQUEST,
-					{
-						xfId: null,
-						selected : true,
-						noRender: false
-					}
-				);
-			}
-		});
-
         //------------------------------------------------------------------------------------------------------------------
 
-        $('#workspace').scroll(function(event) {
-            aperture.pubsub.publish(chan.SCROLL_VIEW_EVENT, {
-                div : event.target
-            });
-        });
-
-        //------------------------------------------------------------------------------------------------------------------
-
-		workspaceRenderer.createElement = function(visualInfo, capturing) {
+		workspaceRenderer.renderElement = function(visualInfo, capturing, updateOnly) {
 
 			// the column container.
 			var canvas = $('#' + visualInfo.xfId);
-			if (canvas.length === 0){
-				canvas = $('<div></div>');
-				canvas.attr('id', visualInfo.xfId);
-				
-				var cardsDiv = $('#cards');
-				cardsDiv.empty();
-				cardsDiv.append(canvas);
 
-				if (capturing) {
-					var workspaceDiv = $('#workspace');
-					workspaceDiv.css('overflow', 'visible');
+			if (!updateOnly) {
+
+				if (canvas.length === 0) {
+					canvas = $('<div></div>');
+					canvas.attr('id', visualInfo.xfId);
+
+					var cardsDiv = $('#cards');
+					cardsDiv.empty();
+					cardsDiv.append(canvas);
+
+					if (capturing) {
+						var workspaceDiv = $('#workspace');
+						workspaceDiv.css('overflow', 'visible');
+					}
 				}
 			}
 
-			processColumns(visualInfo.children, canvas);
+			processColumns(visualInfo.children, canvas, updateOnly);
 
 			return canvas;
 		};

@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,18 +26,11 @@
  */
 package influent.server.rest;
 
-import influent.idl.FL_EntitySearch;
-import influent.idl.FL_PropertyDescriptor;
-import influent.idl.FL_TypeDescriptor;
+import influent.idl.*;
 import influent.server.utilities.UISerializationHelper;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.restlet.data.MediaType;
@@ -44,6 +39,9 @@ import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
 import com.google.inject.Inject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class EntitySearchParamsResource extends ApertureServerResource {
 
@@ -63,28 +61,7 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 	public StringRepresentation propertyList (String jsonData) throws ResourceException{
 		
 		try {
-			JSONObject jo = new JSONObject();
-
-			List<FL_PropertyDescriptor> properties = searcher.getDescriptors().getProperties();
-			List<FL_TypeDescriptor> types = searcher.getDescriptors().getTypes();
-
-			if (properties == null)
-				properties = new ArrayList<FL_PropertyDescriptor>();
-			if (types == null)
-				types = new ArrayList<FL_TypeDescriptor>();
-
-            JSONArray propertyJSON = new JSONArray();
-            for (FL_PropertyDescriptor pd : properties) {
-	            propertyJSON.put(UISerializationHelper.toUIJson(pd));
-            }
-
-			JSONArray typeJSON = new JSONArray();
-			for (FL_TypeDescriptor td : types) {
-				typeJSON.put(UISerializationHelper.toUIJson(td));
-			}
-
-			jo.put("properties", propertyJSON);
-			jo.put("types", typeJSON);
+			JSONObject jo = UISerializationHelper.toUIJson(filterSearchable(searcher.getDescriptors()));
 
 			return new StringRepresentation(jo.toString(), MediaType.APPLICATION_JSON);
 		} catch (AvroRemoteException ae) {
@@ -92,5 +69,20 @@ public class EntitySearchParamsResource extends ApertureServerResource {
 		} catch (JSONException e) {
 			throw new ResourceException(e);
 		}
+	}
+
+
+
+
+	private static FL_PropertyDescriptors filterSearchable(FL_PropertyDescriptors pds) {
+		List<FL_PropertyDescriptor> filtered = new ArrayList<FL_PropertyDescriptor>();
+
+		for (FL_PropertyDescriptor pd : pds.getProperties()) {
+			if (!FL_SearchableBy.NONE.equals(pd.getSearchableBy())) {
+				filtered.add(pd);
+			}
+		}
+
+		return FL_PropertyDescriptors.newBuilder(pds).setProperties(filtered).build();
 	}
 }

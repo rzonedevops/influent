@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -50,28 +52,31 @@ import com.google.inject.Inject;
 
 public class EntityDetailsResource extends ApertureServerResource {
 
-	private static final Logger s_logger = LoggerFactory.getLogger(EntityDetailsResource.class);
+    private static final Logger s_logger = LoggerFactory.getLogger(EntityDetailsResource.class);
 
-	private FL_DataAccess service;
-	private EntityPropertiesViewService propView;
+    private FL_DataAccess service;
+    private EntityPropertiesViewService propView;
 
-	
-	@Inject 
-	public EntityDetailsResource (FL_DataAccess service, EntityPropertiesViewService propView) {
-		this.service = service;
-		this.propView = propView;
-	}
-	
-	
-	
-	
-	@Post("json")
-	public StringRepresentation getContent(String jsonData)  {
+
+    
+    @Inject
+    public EntityDetailsResource(FL_DataAccess service, EntityPropertiesViewService propView) {
+        this.service = service;
+        this.propView = propView;
+    }
+
+
+
+    
+    @Post("json")
+    public StringRepresentation getContent(String jsonData) {
+
+        String entityId = "";
 		
 		try {	
 			JSONObject jsonObj = new JSONObject(jsonData);
 		
-			String entityId = jsonObj.getString("entityId").trim();
+			entityId = jsonObj.getString("entityId").trim();
 
             List<FL_Entity> entities = service.getEntities(DataAccessHelper.detailsSubject(entityId), FL_LevelOfDetail.FULL);
             if (entities != null && !entities.isEmpty()) {
@@ -85,22 +90,22 @@ public class EntityDetailsResource extends ApertureServerResource {
             }
         } catch (DataAccessException e) {
             throw new ResourceException(
-            	Status.CLIENT_ERROR_BAD_REQUEST,
-                "Unable to create JSON object from supplied options string",
-                e
+                    Status.CLIENT_ERROR_BAD_REQUEST,
+                    "Unable to create JSON object from supplied options string",
+                    e
             );
         } catch (AvroRemoteException e) {
             throw new ResourceException(
-                Status.CLIENT_ERROR_BAD_REQUEST,
-                "Unable to create JSON object from supplied options string",
-                e
+                    Status.CLIENT_ERROR_BAD_REQUEST,
+                    "Unable to create JSON object from supplied options string",
+                    e
             );
-        } catch (JSONException e) {
-        	throw new ResourceException(
-        		Status.CLIENT_ERROR_BAD_REQUEST,
-                "Unable to create JSON object from supplied options string",
-                e
-            );
+        } catch (JSONException je) {
+			throw new ResourceException(
+				Status.CLIENT_ERROR_BAD_REQUEST,
+				"JSON parse error.",
+				je
+			);
 		}
     }
 }

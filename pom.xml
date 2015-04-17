@@ -5,11 +5,11 @@
 	<groupId>oculus.influent</groupId>
 	<artifactId>influent</artifactId>
 	<packaging>pom</packaging>
-	<version>1.3.6</version>
+	<version>2.0.0-SNAPSHOT</version>
 
 	<name>Influent Project Modules</name>
 	<description>Parent module for building Influent projects</description>
-	<url>https://github.com/oculusinfo/influent</url>
+	<url>influent.org</url>
 	<scm>
 		<url>https://github.com/oculusinfo/influent</url>
 		<connection>scm:git:https://github.com/oculusinfo/influent.git</connection>
@@ -118,11 +118,14 @@
 	</build>
 	
 	<modules>
-        	<module>influent-spi</module>
-	        <module>influent-server</module>
-	        <module>influent-client</module>
-        	<module>kiva</module>
-        	<module>bitcoin</module>
+		<module>influent-spi</module>
+		<module>influent-server</module>
+		<module>influent-client</module>
+		<module>influent-app</module>
+		<module>kiva</module>
+		<module>bitcoin</module>
+		<module>walker</module>
+		<module>influent-selenium-test</module>
 	</modules>
 	
 	<dependencyManagement>
