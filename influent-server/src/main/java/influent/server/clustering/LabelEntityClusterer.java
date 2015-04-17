@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,6 +24,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package influent.server.clustering;
 
 import influent.idl.FL_Cluster;
@@ -51,13 +54,16 @@ import com.oculusinfo.ml.feature.string.distance.EditDistance;
 import com.oculusinfo.ml.unsupervised.cluster.BaseClusterer;
 import com.oculusinfo.ml.unsupervised.cluster.Cluster;
 import com.oculusinfo.ml.unsupervised.cluster.ClusterResult;
-import com.oculusinfo.ml.unsupervised.cluster.dpmeans.DPMeans;
+import com.oculusinfo.ml.unsupervised.cluster.kmeans.KMeans;
 import com.oculusinfo.ml.utils.StringTools;
 
 public class LabelEntityClusterer extends BaseEntityClusterer {
 	private static Set<String> stopwords;
+	private Map<String, String> keyLookup;
 	private Properties pMgr;
-	private String clusterType;
+	private Boolean clusterByAlpha;
+	private int K = 6;
+	private int bucketSize = 10;
 	
 	private Set<String> getStopWords() {
 		Set<String> stopwords = new HashSet<String>();
@@ -100,8 +106,15 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 		try {
 			clusterFactory = (EntityClusterFactory)args[0];
 			clusterField = (String)args[1];
-			clusterType = (String)args[2];
+			clusterByAlpha = (Boolean)args[2];
 			pMgr = (Properties)args[3];
+			
+			if (clusterByAlpha) {
+				bucketSize = (Integer)args[4];
+				keyLookup = createAlphaKeyLookupTable();
+			} else {
+				K = (Integer)args[4];
+			}
 			stopwords = getStopWords();
 		 }
 		 catch (Exception e) {
@@ -124,9 +137,38 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 		return cleanStr;
 	}
 	
+	private Map<String, String> createAlphaKeyLookupTable() {
+		String[] alphabet = new String[]{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"};
+		Map<String, String> lookupTable = new HashMap<String, String>();
+		
+		int start = 0;
+		
+		while (start < 26) {
+			StringBuilder key = new StringBuilder();
+			for (int i=start; i < start+bucketSize && i < 26; i++) {
+				key.append(alphabet[i]);
+			}
+			
+			for (int i=start; i < start+bucketSize && i < 26; i++) {
+				lookupTable.put(alphabet[i], key.toString());
+			}
+			start += bucketSize;
+		}
+		return lookupTable;
+	}
+	
 	private String toLabelKey(String key) {
-		if (clusterType.equalsIgnoreCase("alpha")) {
-			key = key.isEmpty() ? "_" : key.substring(0, 1).toLowerCase();  // grab the first character - we are bucketing by alpha
+		if (clusterByAlpha) {  // bucketing by alpha
+			if (key.isEmpty()) {
+				key = "_";
+			} else { // if there is a key lookup it's key value (might be bucketing alpha into ranges)
+				String alpha = key.substring(0, 1).toLowerCase();
+				if (keyLookup.containsKey(alpha)) {
+					key = keyLookup.get(alpha);
+				} else {
+					key = "_";
+				}
+			}
 		}
 		else {  // use fingerprint
 			// first clean the string
@@ -170,11 +212,17 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 		return inst;
 	}
 	
-	private DataSet createDataSet(Collection<FL_Entity> entities, Collection<FL_Cluster> immutableClusters, ClusterContext context) {
+	private DataSet createDataSet(Collection<FL_Cluster> entities, ClusterContext context) {
 		DataSet ds = new DataSet();
 		
-		for (FL_Entity entity : entities) {			
-			PropertyHelper prop = getFirstProperty(entity, clusterField);
+		for (FL_Cluster entity : entities) {
+			PropertyHelper prop = getFirstProperty(entity, toClusterPropertyName(clusterField));
+			if (prop == null) {
+				FL_Entity firstChild = getFirstChildEntity(entity, context);
+				if (firstChild != null) {
+					prop = getFirstProperty(firstChild, clusterField);
+				}
+			}
 			if (prop != null) {
 				String val = getStringValue(prop);
 				Instance inst = createInstance(entity.getUid(), val);
@@ -186,45 +234,27 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 				ds.add(inst);
 			}
 		}
-		for (FL_Cluster immutableCluster : immutableClusters) {
-			PropertyHelper prop = getFirstProperty(immutableCluster, clusterField);
-			if (prop == null) {
-				FL_Entity firstChild = getFirstChildEntity(immutableCluster, context);
-				if (firstChild != null) {
-					prop = getFirstProperty(firstChild, clusterField);
-				}
-			}
-			if (prop != null) {
-				String val = getStringValue(prop);
-				Instance inst = createInstance(immutableCluster.getUid(), val);
-				ds.add(inst);
-			}
-			else {
-				// No valid clusterField property found default to "Unknown"
-				Instance inst = createInstance(immutableCluster.getUid(), "Unknown");
-				ds.add(inst);
-			}
-		}
 		return ds;
 	}
 	
 	private BaseClusterer createEditDistanceClusterer() {
-		DPMeans clusterer = new DPMeans(3, true);
-		clusterer.setThreshold(0.6);
+		KMeans clusterer = new KMeans(K, 5, true); 
 		clusterer.registerFeatureType("label", StringMedianCentroid.class, new EditDistance(1.0));
 		return clusterer;
 	}
 	
 	private ClusterContext clusterByEditDistance(Collection<FL_Entity> entities,
 												 Collection<FL_Cluster> immutableClusters,
+												 Collection<FL_Cluster> mergeClusters,
 												 Collection<FL_Cluster> clusters, 
 												 ClusterContext context) {
 		
 		Map<String, FL_Entity> entityIndex = createEntityIndex(entities);
+		Map<String, FL_Cluster> mergeClusterIndex = createClusterIndex(mergeClusters);
 		Map<String, FL_Cluster> immutableClusterIndex = createClusterIndex(immutableClusters);
 		Map<String, FL_Cluster> clusterIndex = createClusterIndex(clusters);
 		
-		DataSet ds = createDataSet(entities, immutableClusters, context);
+		DataSet ds = createDataSet(mergeClusters, context);
 		
 		BaseClusterer clusterer = createEditDistanceClusterer();
 		
@@ -261,12 +291,18 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 			List<FL_Entity> members = new LinkedList<FL_Entity>();
 			
 			for (Instance inst : c.getMembers()) {
-				String id = inst.getId();
-				if ( entityIndex.containsKey(id) ) {
-					members.add( entityIndex.get(id) );
+				FL_Cluster mergeCluster = mergeClusterIndex.get(inst.getId());
+				
+				for (String entityId : mergeCluster.getMembers()) {				
+					if ( entityIndex.containsKey(entityId) ) {
+						members.add( entityIndex.get(entityId) );
+					}
 				}
-				else if ( immutableClusterIndex.containsKey(id) ){
-					subClusters.add( immutableClusterIndex.get(id) );
+				
+				for (String subClusterId : mergeCluster.getSubclusters()) {
+					if ( immutableClusterIndex.containsKey(subClusterId) ){
+						subClusters.add( immutableClusterIndex.get(subClusterId) );
+					}
 				}
 			}
 			
@@ -308,10 +344,15 @@ public class LabelEntityClusterer extends BaseEntityClusterer {
 										  Collection<FL_Cluster> clusters, 
 										  ClusterContext context) {
 		
-		if (clusterType.equalsIgnoreCase("edit")) {
-			return clusterByEditDistance(entities, immutableClusters, clusters, context);
-		}
+		ClusterContext modifiedClusters = super.clusterEntities(entities, immutableClusters, clusters, context);
 		
-		return super.clusterEntities(entities, immutableClusters, clusters, context);
+		Collection<FL_Cluster> newClusters = findNewClusters(modifiedClusters.roots, clusters);
+		
+		int totalClusters = newClusters.size() + clusters.size();
+		
+		if (totalClusters > K) {  // more than max clusters generated - merge clusters
+			modifiedClusters = clusterByEditDistance(entities, immutableClusters, newClusters, clusters, context);
+		}
+		return modifiedClusters;
 	}
 }

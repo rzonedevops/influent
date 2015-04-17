@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,23 +24,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/channels', 'lib/util/xfUtil', 'lib/ui/toolbarOperations', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/util/currency', 'lib/plugins'
+		'lib/communication/applicationChannels', 'lib/util/xfUtil', 'lib/ui/toolbarOperations', 'lib/ui/xfModalDialog', 'lib/constants', 'lib/util/currency', 'lib/plugins'
 	],
 	function(
-		chan, xfUtil, toolbarOp, xfModalDialog, constants, currency, plugins
+		appChannel, xfUtil, toolbarOp, xfModalDialog, constants, currency, plugins
 	) {
-		var _toolbarState = {
-			canvas : null,
-			toolbarDiv : null,
-			searchDiv : null,
-			leftOp : null,
-			rightOp : null,
-			leftOpState : null,
-			rightOpState : null,
-			maxClusterCount : 20, //TODO: Until this is loaded from a config, this value must be kept in sync with the value in fileRenderer.
-			matchDiv : null
+		var DIV_IDS = {
+			toolbar : '.toolbarDiv',
+			leftOp :'.leftOp',
+			rightOp : '.rightOp',
+			cardToolbar : '.cardToolbar',
+			matchToolbar : '.matchToolbar'
 		};
 
 		var _renderDefaults = {
@@ -76,55 +75,104 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _resetControls = function(){
-			if (_toolbarState.toolbarDiv){
-				_toolbarState.toolbarDiv.remove();
-			}
-			if (_toolbarState.matchDiv){
-				_toolbarState.matchDiv.remove();
-			}
-			if (_toolbarState.searchDiv){
-				_toolbarState.searchDiv.remove();
-			}
-			if (_toolbarState.leftOp && _toolbarState.leftOpState !== toolbarOp.WORKING){
-				_toolbarState.leftOp.remove();
-			}
-			if (_toolbarState.rightOp && _toolbarState.rightOpState !== toolbarOp.WORKING){
-				_toolbarState.rightOp.remove();
-			}
+		var _resetControls = function(canvas){
+
+			aperture.util.forEach(DIV_IDS, function(id) {
+				var element = _getElement(canvas, id);
+				if (element){
+					element.remove();
+				}
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _getStateElement = function(selector){
-			var element = _toolbarState.canvas.children(selector).first();
-			return (element.length === 0)?null:element;
+		var _showControls = function(canvas){
+			aperture.util.forEach(DIV_IDS, function(id) {
+				var element = _getElement(canvas, id);
+				if (element){
+					element.show();
+				}
+			});
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _getDegreeLabel = function(degree, shownDegree, inOrOut) {
+		var _hideControls = function(canvas){
+			aperture.util.forEach(DIV_IDS, function(id) {
+				var element = _getElement(canvas, id);
+				if (element){
+					element.hide();
+				}
+			});
 
-			// Test for equality here to handle numbers and strings
-			if (degree == '0') {
-				return 'no links';
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		var _getElement = function(canvas, selector){
+			var element = canvas.children(selector).first();
+			return (element.length === 0) ? null : element;
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		var _getDegreeLabel = function(
+			unbranchable,
+			degree,
+			shownDegree,
+			isSource,
+			linkDescription,
+			info
+		) {
+
+			var degreeString = '';
+
+			if (degree === 0) {
+				degreeString = 'no' + '<br>';
+				if (isSource) {
+					degreeString = degreeString + 'destinations ';
+				} else {
+					degreeString = degreeString + ' sources';
+				}
+				return degreeString;
 			}
-			if (degree == 'null') {
-				return '';
+
+			if (degree == null) {
+				return degreeString;
 			}
-			var d = parseInt(degree);
+
+			var d = parseInt(degree, 10);
 			if (isNaN(d)) {
-				return '';
+				return degreeString;
 			}
-			return 'showing ' + currency.formatNumber(shownDegree) + '/' + currency.formatNumber(d) + '<br> '+ inOrOut;
+
+			if (unbranchable) {
+				degreeString = currency.formatNumber(d) + '<br>';
+				if (isSource) {
+					degreeString = degreeString + 'destinations ' + info + ' ' + linkDescription;
+				} else {
+					degreeString = degreeString + linkDescription + ' ' + info + ' sources';
+				}
+				return degreeString;
+			}
+
+			degreeString = 'showing ' + currency.formatNumber(shownDegree) + '/' + currency.formatNumber(d) + '<br>';
+			if (isSource) {
+				degreeString = degreeString + 'destinations ' + linkDescription;
+			} else {
+				degreeString = degreeString + linkDescription + ' sources';
+			}
+			return degreeString;
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _createBranchControls = function(visualInfo, cardHeight){
-			_toolbarState.leftOp = _getStateElement('.leftOp');
+		var _createBranchControls = function(visualInfo, canvas, cardHeight){
+
+			var leftOpDiv = _getElement(canvas, DIV_IDS.leftOp);
 			var leftImg = null;
-			var leftOp = null;
+			var unbranchable = visualInfo.spec.unbranchable;
 			var inDegree = (visualInfo.spec.inDegree != null ? visualInfo.spec.inDegree : 0);
 			var outDegree = (visualInfo.spec.outDegree != null ? visualInfo.spec.outDegree : 0);
 			var shownInDegree = 0;
@@ -142,24 +190,28 @@ define(
 				}
 			}
 
-			if (_toolbarState.leftOp == null) {
-				_toolbarState.leftOp = leftOp = $('<div class="leftOp"></div>')
-					.appendTo(_toolbarState.canvas);
+			if (leftOpDiv == null) {
+				leftOpDiv = $('<div class="leftOp"></div>')
+					.appendTo(canvas);
 
-				if (inDegree !== 0) {
+				if (inDegree !== 0 && !unbranchable) {
 					leftImg = xfUtil.makeButton('branch left to inflowing sources', 'expand', null, 'card-button', null)
 						.addClass('branch-button')
-						.appendTo(leftOp);
+						.appendTo(leftOpDiv);
 				}
 
-				$('<div class="opDegree leftOpDegree"></div>')
-					.html(_getDegreeLabel(inDegree, shownInDegree, '<span class="opArrow">&#x2039;</span> sources'))
-					.appendTo(leftOp);
-
-				_toolbarState.leftOpState = toolbarOp.BRANCH;
+				$('<div class="opDegree leftOpDegree"></div>').html(
+					_getDegreeLabel(
+						unbranchable,
+						inDegree,
+						shownInDegree,
+						false,
+						'<img src="img/sources.png" alt="<">',
+						'<img src="img/info-small.png" alt="(?)" title="Cannot branch any further on this large summary of accounts">'
+					)
+				).appendTo(leftOpDiv);
 			} else {
-				leftOp = _toolbarState.leftOp;
-				leftImg = $(_toolbarState.leftOp.children()[0]);
+				leftImg = $(leftOpDiv.children()[0]);
 			}
 
 			var requestedLeftOp = visualInfo.spec.leftOperation;
@@ -177,30 +229,34 @@ define(
 				} else if (requestedLeftOp === toolbarOp.WORKING) {
 					leftImg.addClass('button-branching');
 				}
-				_toolbarState.leftOpState = requestedLeftOp;
 			}
-			leftOp.css('top', (cardHeight - _renderDefaults.CARD_BUTTON_HEIGHT)/2);
+			leftOpDiv.css('top', (cardHeight - _renderDefaults.CARD_BUTTON_HEIGHT)/2);
 
-			_toolbarState.rightOp = _getStateElement('.rightOp');
+			var rightOpDiv = _getElement(canvas, DIV_IDS.rightOp);
 			var rightImg = null;
-			var rightOp = null;
-			if (_toolbarState.rightOp == null) {
-				_toolbarState.rightOp = rightOp = $('<div class="rightOp"></div>')
-					.appendTo(_toolbarState.canvas);
+			if (rightOpDiv == null) {
+				rightOpDiv = $('<div class="rightOp"></div>')
+					.appendTo(canvas);
 
-				if (outDegree !== 0) {
+				if (outDegree !== 0 && !unbranchable) {
 					rightImg = xfUtil.makeButton('branch right to outflowing destinations', 'expand', null, 'card-button', null)
 						.addClass('branch-button')
-						.appendTo(rightOp);
+						.appendTo(rightOpDiv);
 				}
 
-				$('<div class="opDegree rightOpDegree"></div>')
-					.appendTo(rightOp)
-					.html(_getDegreeLabel(outDegree, shownOutDegree, 'destinations <span class="opArrow">&#x203A;</span>'));
+				$('<div class="opDegree rightOpDegree"></div>').html(
+					_getDegreeLabel(
+						unbranchable,
+						outDegree,
+						shownOutDegree,
+						true,
+						'<img src="img/destinations.png" alt=">">',
+						'<img src="img/info-small.png" alt="(?)" title="Cannot branch any further on this large summary of accounts">'
+					)
+				).appendTo(rightOpDiv);
 
 			} else {
-				rightOp = _toolbarState.rightOp;
-				rightImg = $(_toolbarState.rightOp.children()[0]);
+				rightImg = $(rightOpDiv.children()[0]);
 			}
 
 			var requestedRightOp = visualInfo.spec.rightOperation;
@@ -218,13 +274,12 @@ define(
 				} else if (requestedRightOp === toolbarOp.WORKING ) {
 					rightImg.addClass('button-branching');
 				}
-				_toolbarState.rightOpState = requestedRightOp;
 			}
-			rightOp.css('top', (cardHeight - _renderDefaults.CARD_BUTTON_HEIGHT)/2);
+			rightOpDiv.css('top', (cardHeight - _renderDefaults.CARD_BUTTON_HEIGHT)/2);
 
 			var publishBranchRequest = function(direction) {
 				aperture.pubsub.publish(
-					chan.BRANCH_REQUEST,
+					appChannel.BRANCH_REQUEST,
 					{
 						xfId : visualInfo.xfId,
 						direction : direction
@@ -235,15 +290,15 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _createToolbar = function(visualInfo){
+		var _createToolbar = function(visualInfo, canvas) {
 			// Create toolbar buttons.
-			_toolbarState.toolbarDiv = _getStateElement('.cardToolbar');
+			var toolbarDiv = _getElement(canvas, DIV_IDS.cardToolbar);
 			var buttonItemList = [];
 
-			if (_toolbarState.toolbarDiv == null){
-				_toolbarState.toolbarDiv = $('<div class="cardToolbar"></div>');
+			if (toolbarDiv == null){
+				toolbarDiv = $('<div class="cardToolbar"></div>');
 
-				_toolbarState.canvas.append(_toolbarState.toolbarDiv);
+				canvas.append(toolbarDiv);
 
 				// If this card is a branch result, show
 				// the additional controls like the
@@ -257,86 +312,66 @@ define(
 
 						var fileButton = xfUtil.makeButton(isCopy? 'copy to new file':'move to new file', 'new-file', null, 'card-button', null).click(
 							function() {
-								// Check if this cluster is within the max. cluster count threshold.
-								// If it isn't, alert the user that this action may take a while.
-								var clusterCount = visualInfo.spec.count;
-								var isLargeCluster = clusterCount && clusterCount > _toolbarState.maxClusterCount;
-
-								aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : isLargeCluster});
+								aperture.pubsub.publish(appChannel.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showSpinner : true});
 								return false;
 							});
+						fileButton.addClass('infFileButton');
 
 						buttonItemList.push(fileButton);
 					}
 
-					// Search button
 					var bSearchable = visualInfo.toolbarSpec['allowSearch'];
+					var bFocusable = visualInfo.toolbarSpec['allowFocus'];
+
 					if (bSearchable === true) {
 						var searchTip = visualInfo.UIType === constants.MODULE_NAMES.FILE?
 								'search for accounts to add' : 'search for similar accounts';
 
 						var searchButton = xfUtil.makeButton(searchTip, 'search-small', null, 'card-button', null).click(
 							function() {
-								var rootFile = _getVisualAncestor(visualInfo, constants.MODULE_NAMES.FILE);
-								if (visualInfo.UIType === constants.MODULE_NAMES.FILE || rootFile != null) {
-									var fileVisualInfo = (rootFile == null) ? visualInfo : rootFile.getVisualInfo();
-									var matchUIObj = fileVisualInfo.matchUIObject;
-									if(matchUIObj == null) {
-										aperture.pubsub.publish(
-											chan.SHOW_MATCH_REQUEST,
-											{
-												xfId : fileVisualInfo.xfId
-											}
-										);
-									}
-
-									// if did not click a file...
-									if (fileVisualInfo.xfId !== visualInfo.xfId) {
-
-										aperture.pubsub.publish(
-											chan.ADVANCE_SEARCH_DIALOG_REQUEST,
-											{
-												fileId : fileVisualInfo.xfId,
-												terms : null,
-												dataIds : xfUtil.getContainedCardDataIds(visualInfo),
-												contextId : fileVisualInfo.spec.dataId
-											}
-										);
-									}
+								if (visualInfo.UIType === constants.MODULE_NAMES.FILE) {
+									//Switch to accounts view with blank search term
+									aperture.pubsub.publish(appChannel.CLEAR_VIEW, {
+										title : constants.VIEWS.ACCOUNTS.NAME
+									});
+									aperture.pubsub.publish(appChannel.SELECT_VIEW, {
+										title: constants.VIEWS.ACCOUNTS.NAME
+									});
 								} else {
-									aperture.pubsub.publish(chan.CREATE_FILE_REQUEST, {xfId : visualInfo.xfId, showMatchCard : true});
+									aperture.pubsub.publish(appChannel.SEARCH_ON_CARD, {xfId: visualInfo.xfId});
 								}
 								return false;
 							});
+						searchButton.addClass('infSearchButton');
 
 						buttonItemList.push(searchButton);
 					}
 
 					// Focus button
-					var bFocusable = visualInfo.toolbarSpec['allowFocus'];
 					if ( bFocusable === true) {
 						var highlightButton = xfUtil.makeButton('highlight flow', 'highlight-flow', null, 'card-button', null).click(
 							function() {
-								aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
+								aperture.pubsub.publish(appChannel.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
 								return false;
 							});
+						highlightButton.addClass('infFocusButton');
 
 						buttonItemList.push(highlightButton);
 					}
 
 					// xfFile objects require different positioning due to the asymmetrical shape of the file tabs.
 					if (visualInfo.UIType === constants.MODULE_NAMES.FILE){
-						_toolbarState.toolbarDiv.css('top', -0.5*_renderDefaults.CARD_BUTTON_HEIGHT - 6);
-						_toolbarState.toolbarDiv.css('right', 10);
+						toolbarDiv.css('top', -0.5*_renderDefaults.CARD_BUTTON_HEIGHT - 5);
+						toolbarDiv.css('right', 10);
 					}
 					else {
-						_toolbarState.toolbarDiv.css('top', -_renderDefaults.CARD_BUTTON_HEIGHT - 5);
-						_toolbarState.toolbarDiv.css('right', 0);
+						toolbarDiv.css('top', -_renderDefaults.CARD_BUTTON_HEIGHT - 5);
+						toolbarDiv.css('right', 0);
 					}
 				}
 				else {
-					_toolbarState.toolbarDiv.css('right', 5);
-					_toolbarState.toolbarDiv.css('top', 5);
+					toolbarDiv.css('right', 5);
+					toolbarDiv.css('top', 5);
 				}
 
 				// Add default Close button
@@ -345,13 +380,15 @@ define(
 					var closeButton = xfUtil.makeButton('remove', 'remove', null, 'card-button', null).click(
 						function() {
 							if (visualInfo.UIType === constants.MODULE_NAMES.FILE){
+
+								var title = visualInfo.title ? visualInfo.title : 'Unnamed File';
 								xfModalDialog.createInstance({
 									title : 'Remove File?',
-									contents : 'Are you sure you want to remove "<b>' + visualInfo.title + '"</b>?',
+									contents : 'Are you sure you want to remove "<b>' + title + '"</b>?',
 									buttons : {
 										'Remove' : function() {
 											aperture.pubsub.publish(
-												chan.REMOVE_REQUEST,
+												appChannel.REMOVE_REQUEST,
 												{
 													xfIds : [visualInfo.xfId],
 													dispose : true,
@@ -365,7 +402,7 @@ define(
 							}
 							else {
 								aperture.pubsub.publish(
-									chan.REMOVE_REQUEST,
+									appChannel.REMOVE_REQUEST,
 									{
 										xfIds : [visualInfo.xfId],
 										dispose : true,
@@ -377,6 +414,8 @@ define(
 						}
 					);
 
+					closeButton.addClass('infCloseButton');
+
 					buttonItemList.push(closeButton);
 
 				}
@@ -385,7 +424,7 @@ define(
 			}
 
 			for (var i=0; i < buttonItemList.length; i++){
-				_toolbarState.toolbarDiv.append(buttonItemList[i]);
+				toolbarDiv.append(buttonItemList[i]);
 			}
 
 		};
@@ -399,20 +438,20 @@ define(
 		 * @param cardHeight
 		 * @private
 		 */
-		var _createMatchControls = function(visualInfo){
-			_toolbarState.matchDiv = _getStateElement('.matchToolbar');
+		var _createMatchControls = function(visualInfo, canvas){
+			var matchDiv = _getElement(canvas, DIV_IDS.matchToolbar);
 			var buttonItemList = [];
 
-			if (_toolbarState.matchDiv == null){
-				_toolbarState.matchDiv = $('<div class="matchToolbar"></div>');
-				_toolbarState.canvas.append(_toolbarState.matchDiv);
+			if (matchDiv == null){
+				matchDiv = $('<div class="matchToolbar"></div>');
+				canvas.append(matchDiv);
 
 				// Focus button
 				var bFocusable = visualInfo.toolbarSpec['allowFocus'];
 				if ( bFocusable === true) {
 					var focusBtn = xfUtil.makeButton('highlight flow', 'highlight-flow', null, 'card-button', null)
 						.click(function() {
-							aperture.pubsub.publish(chan.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
+							aperture.pubsub.publish(appChannel.FOCUS_CHANGE_REQUEST, {xfId : visualInfo.xfId});
 							return false;
 						});
 
@@ -426,7 +465,7 @@ define(
 				if (fileObj != null){
 					var fileBtn = xfUtil.makeButton('add to file', 'add-to-file', null, 'card-button', null)
 						.click(function(){
-							aperture.pubsub.publish(chan.ADD_TO_FILE_REQUEST, {
+							aperture.pubsub.publish(appChannel.ADD_TO_FILE_REQUEST, {
 								containerId : fileObj.getXfId(),
 								cardId: visualInfo.xfId
 							});
@@ -443,7 +482,7 @@ define(
 					.click(
 						function() {
 							aperture.pubsub.publish(
-								chan.REMOVE_REQUEST,
+								appChannel.REMOVE_REQUEST,
 								{
 									xfIds : [visualInfo.xfId],
 									dispose : true
@@ -459,34 +498,32 @@ define(
 			}
 
 			for (var i=0; i < buttonItemList.length; i++){
-				_toolbarState.matchDiv.append(buttonItemList[i]);
+				matchDiv.append(buttonItemList[i]);
 			}
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _createControls = function(visualInfo, parentCanvas, cardHeight) {
-			if (_toolbarState.canvas != null){
-				_resetControls();
-			}
+		var _createControls = function(visualInfo, canvas, cardHeight) {
+			_resetControls(canvas);
 
 			// Create the toolbar buttons.
-			_toolbarState.canvas = parentCanvas;
+			//_toolbarState.canvas = parentCanvas;
 
 			// If this is an xfMatch object, we want to use a
 			// custom button layout, otherwise use the default
 			// toolbar.
 			if (_isVisualDescendant(visualInfo, constants.MODULE_NAMES.MATCH)){
-				_createMatchControls(visualInfo);
+				_createMatchControls(visualInfo, canvas);
 			}
 			else {
-				_createToolbar(visualInfo);
+				_createToolbar(visualInfo, canvas);
 			}
 
 			// Add expand right/left buttons.
 			if (!(_isVisualDescendant(visualInfo, constants.MODULE_NAMES.MATCH) ||
 				visualInfo.UIType === constants.MODULE_NAMES.FILE)){
-				_createBranchControls(visualInfo, cardHeight);
+				_createBranchControls(visualInfo, canvas, cardHeight);
 			}
 		};
 
@@ -526,6 +563,8 @@ define(
 
 		return {
 			createControls : _createControls,
+			showControls : _showControls,
+			hideControls : _hideControls,
 			getRenderDefaults : function(){
 				return _.clone(_renderDefaults);
 			}

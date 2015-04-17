@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,10 +24,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package influent.entity.clustering.kiva.batchjob;
 
 import influent.server.utilities.BoneCPConnectionPool;
 import influent.server.utilities.SQLConnectionPool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
@@ -33,9 +38,6 @@ import java.io.UnsupportedEncodingException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class GenerateClusterDataSet {
 	

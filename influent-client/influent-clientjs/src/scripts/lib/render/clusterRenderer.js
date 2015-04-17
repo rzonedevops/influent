@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,12 +24,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 'lib/constants'
+		'lib/communication/applicationChannels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 'lib/constants'
 	],
 	function(
-		chan, xfUtil, cardRenderer, constants
+		appChannel, xfUtil, cardRenderer, constants
 	) {
 
 		var _renderDefaults = {
@@ -87,7 +90,7 @@ define(
 			}
 
 			// Create the face card of the cluster.
-			var faceElement = cardRenderer.createElement(visualInfo);
+			var faceElement = cardRenderer.renderElement(visualInfo);
 			faceElement.css('top', top);
 			state.canvas.append(faceElement);
 			// Resize the stacked cards to be the same as the face card.
@@ -103,7 +106,7 @@ define(
 				xfUtil.makeTooltip(clipContainer, 'Unstack ' + state.spec.label, 'unstack cards');
 				clipContainer.click(function() {
 					aperture.pubsub.publish(
-						chan.EXPAND_EVENT,
+						appChannel.EXPAND_EVENT,
 						{
 							xfId : visualInfo.xfId
 						}
@@ -127,7 +130,7 @@ define(
 			state.canvas.append(marginDiv);
 			// Add the listener for collapsing the cluster.
 			marginDiv.click(function() {
-				aperture.pubsub.publish(chan.COLLAPSE_EVENT, {xfId : visualInfo.xfId});
+				aperture.pubsub.publish(appChannel.COLLAPSE_EVENT, {xfId : visualInfo.xfId});
 				return false;   // prevents click handler on card from firing and re-expanding
 			});
 
@@ -151,11 +154,11 @@ define(
 					case constants.MODULE_NAMES.IMMUTABLE_CLUSTER :
 					case constants.MODULE_NAMES.MUTABLE_CLUSTER :
 					case constants.MODULE_NAMES.SUMMARY_CLUSTER : {
-						element = _createElement(visualInfo, parentCanvas);
+						element = _renderElement(visualInfo, parentCanvas);
 						break;
 					}
 					case constants.MODULE_NAMES.ENTITY : {
-						element = cardRenderer.createElement(visualInfo);
+						element = cardRenderer.renderElement(visualInfo);
 						parentCanvas.append(element);
 						break;
 					}
@@ -204,16 +207,24 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _createElement = function(visualInfo, parentCanvas){
+		var _renderElement = function(visualInfo, parentCanvas, updateOnly) {
 			var spec = visualInfo.spec;
 			// Add a suffix of "_cluster" so that we can differentiate
 			// between the cluster's container, and the face card
 			// the represents a collapsed cluster.
 			var canvas = $('#' + visualInfo.xfId + '_cluster');
-			if (canvas.length > 0){
-				canvas.empty();
+
+			if (updateOnly) {
+				if (!visualInfo.isExpanded) {
+					cardRenderer.renderElement(visualInfo, updateOnly);
+				}
+
+				return canvas;
 			}
-			else {
+
+			if (canvas.length > 0) {
+				canvas.empty();
+			} else {
 				canvas = $('<div></div>');
 				canvas.attr('id', visualInfo.xfId + '_cluster');
 			}
@@ -225,9 +236,9 @@ define(
 			_initElement(visualInfo, canvas);
 
 			var _instanceState = {
-				xfId : visualInfo.xfId,
-				spec : _.clone(spec),
-				canvas : canvas
+				xfId: visualInfo.xfId,
+				spec: _.clone(spec),
+				canvas: canvas
 			};
 
 			// parent before processing children so that children can climb ancestry for leaders.
@@ -238,11 +249,11 @@ define(
 			// Check if the card is expanded, if it is we
 			// need to process it's children and change it's visuals.
 			// create all the cards for memberIds
-			if (visualInfo.isExpanded){
+			if (visualInfo.isExpanded) {
 				_createExpansionElements(visualInfo, _instanceState);
 				// create all the cards for memberIds
 				var childUIObjects = visualInfo.children;
-				if ( childUIObjects.length > 0 ) {
+				if (childUIObjects.length > 0) {
 					_processChildren(childUIObjects, canvas);
 				}
 			}
@@ -261,14 +272,16 @@ define(
 				opacity: 0.7,
 				cursor: 'move',
 				stack: '.fileContainer',
-				start: function(){
+				start: function () {
 					canvas.addClass('is-dragged');
 					canvas.data('origPosition', canvas.position());
 				},
-				stop: function(e){
+				stop: function (e) {
 					canvas.removeClass('is-dragged');
 					// Prevent a click from propagating after releasing the drag operation
-					$( e.toElement ).one('click', function(e){ e.stopImmediatePropagation(); } );
+					$(e.toElement).one('click', function (e) {
+						e.stopImmediatePropagation();
+					});
 				}
 			});
 
@@ -277,7 +290,7 @@ define(
 
 		// Public Functions ------------------------------------------------------------------------------
 
-		clusterRenderer.createElement = _createElement;
+		clusterRenderer.renderElement = _renderElement;
 		clusterRenderer.getRenderDefaults = function(){
 			return _renderDefaults;
 		};

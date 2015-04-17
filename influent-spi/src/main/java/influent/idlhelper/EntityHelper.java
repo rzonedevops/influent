@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,11 +24,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package influent.idlhelper;
 
 import influent.idl.FL_Entity;
 import influent.idl.FL_EntityTag;
 import influent.idl.FL_Property;
+import influent.idl.FL_PropertyDescriptor;
 import influent.idl.FL_PropertyTag;
 import influent.idl.FL_Provenance;
 import influent.idl.FL_Uncertainty;
@@ -40,12 +44,30 @@ import java.util.Map;
 
 public class EntityHelper extends FL_Entity {
 
-	public EntityHelper(String id, List<FL_EntityTag> tagList, FL_Provenance provenance, FL_Uncertainty uncertainty, List<FL_Property> properties) {
-		super(id, new ArrayList<FL_EntityTag>(tagList), provenance, uncertainty, new ArrayList<FL_Property>(properties));
+	public EntityHelper(String id, String type, List<FL_EntityTag> tagList, FL_Provenance provenance, FL_Uncertainty uncertainty, List<FL_Property> properties) {
+		super(id, type, new ArrayList<FL_EntityTag>(tagList), provenance, uncertainty, new ArrayList<FL_Property>(properties));
+	}
+
+	public EntityHelper(String id, String type, List<FL_EntityTag> tagList, List<FL_Property> properties) {
+		this(
+			id,
+			type,
+			tagList,
+			null,
+			null,
+			merge(
+				properties,
+				Arrays.asList(
+					new FL_Property[] {
+						new PropertyHelper(FL_PropertyTag.TYPE, type)
+					}
+				)
+			)
+		);
 	}
 
 	public EntityHelper(String id, String label, String type, List<FL_EntityTag> tagList, List<FL_Property> properties) {
-		this(id, tagList, null, null, merge(properties, Arrays.asList(new FL_Property[] {
+		this(id, type, tagList, null, null, merge(properties, Arrays.asList(new FL_Property[] {
 				new PropertyHelper(FL_PropertyTag.LABEL, label),
 				new PropertyHelper(FL_PropertyTag.TYPE, type)
 		})));
@@ -76,7 +98,7 @@ public class EntityHelper extends FL_Entity {
 		PropertyHelper label = getFirstProperty(FL_PropertyTag.LABEL.name());
 		return (String) (label != null ? label.getValue() : null); 
 	}
-	
+
 	public String toJson() throws IOException {
 		return SerializationHelper.toJson(this);
 	}
@@ -118,5 +140,15 @@ public class EntityHelper extends FL_Entity {
 		}
 		return null;
 	}
+
+	public static Object getValueByUnmappedKey(FL_Entity link, String key, List<FL_PropertyDescriptor> defns) {
+		return PropertyHelper.getValue(getPropertyByUnmappedKey(link, key, defns));
+	}
 	
+	public static FL_Property getPropertyByUnmappedKey(FL_Entity entity, String key, List<FL_PropertyDescriptor> defns) {
+		key = DataPropertyDescriptorHelper.mapKey(key, defns, entity.getType());
+
+		return PropertyHelper.getPropertyByKey(entity.getProperties(), key);
+	}
+
 }

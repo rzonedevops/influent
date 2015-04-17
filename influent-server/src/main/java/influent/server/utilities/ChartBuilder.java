@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,16 +26,10 @@
  */
 package influent.server.utilities;
 
-import influent.idl.FL_ClusteringDataAccess;
-import influent.idl.FL_DateRange;
-import influent.idl.FL_Link;
-import influent.idl.FL_LinkTag;
-import influent.idl.FL_Property;
-import influent.idl.FL_PropertyTag;
+import influent.idl.*;
 import influent.idlhelper.PropertyHelper;
 import influent.server.data.ChartData;
 import influent.server.dataaccess.DataAccessHelper;
-import influent.server.rest.ChartHash;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,11 +47,13 @@ import org.slf4j.LoggerFactory;
 
 public class ChartBuilder {
 	private static final Logger s_logger = LoggerFactory.getLogger(ChartBuilder.class);
+	private final FL_LinkSearch transactionsSearcher;
 	private final FL_ClusteringDataAccess da;
 	private final Cache chartDataCache;
 	private boolean bDebugChartData = false;
 	
-	public ChartBuilder(FL_ClusteringDataAccess da,  String ehCacheConfig) {
+	public ChartBuilder(FL_LinkSearch transactionsSearcher, FL_ClusteringDataAccess da,  String ehCacheConfig) {
+		this.transactionsSearcher = transactionsSearcher;
 		this.da = da;
 		
 		CacheManager cacheManager = null;
@@ -117,7 +115,7 @@ public class ChartBuilder {
 		Double minBalance = startingBalance;
 
 		if (!foundInCache) {
-			Map<String, List<FL_Link>> links = da.getTimeSeriesAggregation(entities, focusEntities, FL_LinkTag.FINANCIAL, dateRange, contextId, focusContextId);
+			Map<String, List<FL_Link>> links = da.getTimeSeriesAggregation(entities, focusEntities, dateRange, contextId, focusContextId);
 			if (links != null && links.size() > 0) {
 				
 				for (String entity : links.keySet()) {
@@ -137,21 +135,6 @@ public class ChartBuilder {
 							
 							if (property.hasTag(FL_PropertyTag.AMOUNT)) {
 								amount = (Double)property.getValue();
-							}
-							
-							if (units == null) {
-								if (property.hasTag(FL_PropertyTag.USD)) {
-									units = "USD";
-								}
-								else if (property.hasTag(FL_PropertyTag.DURATION)) {
-									units = "duration";
-								}
-								else if (property.hasTag(FL_PropertyTag.COUNT)) {
-									units = "count";
-								}
-								else {
-									units = "USD";
-								}
 							}
 						}
 						if (!skip) {
@@ -173,7 +156,7 @@ public class ChartBuilder {
 										focusDebits.set(bucket, focusDebits.get(bucket) + (amount == null ? 0.0 : amount));
 									} else {
 										focusCredits.set(bucket, focusCredits.get(bucket) + (amount == null ? 0.0 : amount));
-									}			
+									}
 								}
 								if (sourceId != null) {
 									debits.set(bucket, debits.get(bucket) + (amount == null ? 0.0 : amount));
@@ -185,6 +168,14 @@ public class ChartBuilder {
 					}
 	
 				}
+			}
+		}
+
+		FL_PropertyDescriptors searchDescriptors = transactionsSearcher.getDescriptors();
+		for (FL_PropertyDescriptor pd :searchDescriptors.getProperties()) {
+			if (pd.getKey().equals(FL_RequiredPropertyKey.AMOUNT.name())) {
+				units = pd.getFriendlyText();
+				break;
 			}
 		}
 		

@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,6 +24,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 (function ($) {
 	/**
 	 * Transparent extension of jQuery-ui draggable that automatically suspends and resumes render requests for influent
@@ -55,4 +58,42 @@
 
 		return this;
 	};
+
+	/**
+	 * jQuery plugin to replace text strings
+	 *
+	 * Taken from @link http://net.tutsplus.com/tutorials/javascript-ajax/spotlight-jquery-replacetext/
+	 *
+	 * eg:
+	 *     $('#resltsContainer').highlight(searchTerm, '.bold')
+	 */
+
+	$.fn.highlight = function (str, className) {
+		var regex = new RegExp(str, "gi");
+		return this.each(function () {
+			this.innerHTML = this.innerHTML.replace(regex, function(matched) {
+				return "<span class=\"" + className + "\">" + matched + "</span>";
+			});
+		});
+	};
+
+	$.fn.clickAndDblClick = function(onClick, onDblClick, toleranceOverride) {
+		var DELAY = toleranceOverride || 300, clicks = 0, timer = null;
+		$(this).click(function(e) {
+			clicks++;
+			if (clicks === 1) {
+				timer = setTimeout(function() {
+					onClick(e);
+					clicks = 0;
+				}, DELAY);
+			} else {
+				clearTimeout(timer);
+				onDblClick(e);
+				clicks = 0;
+			}
+		});
+		$(this).dblclick(function(e) {
+			e.preventDefault();
+		});
+	}
 }(jQuery));

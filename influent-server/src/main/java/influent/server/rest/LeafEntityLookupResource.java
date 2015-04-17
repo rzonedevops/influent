@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,7 +27,6 @@
 package influent.server.rest;
 
 import influent.idl.FL_Cluster;
-import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
 import influent.idl.FL_EntityTag;
@@ -37,13 +38,15 @@ import influent.server.clustering.utils.ClusterContextCache;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
 import influent.server.clustering.utils.ContextRead;
 import influent.server.utilities.GuidValidator;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.InfluentId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import oculus.aperture.common.JSONProperties;
 import oculus.aperture.common.rest.ApertureServerResource;
+import oculus.aperture.spi.common.Properties;
 
 import org.apache.avro.AvroRemoteException;
 import org.json.JSONArray;
@@ -55,6 +58,7 @@ import org.restlet.representation.StringRepresentation;
 import org.restlet.resource.Post;
 import org.restlet.resource.ResourceException;
 
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 
 
@@ -67,7 +71,7 @@ public class LeafEntityLookupResource extends ApertureServerResource{
 	
 	
 	@Inject
-	public LeafEntityLookupResource(FL_DataAccess service, FL_ClusteringDataAccess clusterDataAccess, ClusterContextCache contextCache) {
+	public LeafEntityLookupResource(FL_DataAccess service, ClusterContextCache contextCache) {
 		this.service = service;
 		this.contextCache = contextCache;
 	}
@@ -105,40 +109,32 @@ public class LeafEntityLookupResource extends ApertureServerResource{
 	@Post("json")
 	public StringRepresentation getContainedEntities(String jsonData) throws ResourceException {
 		
-		JSONObject jsonObj;
 		JSONObject result = new JSONObject();
 		
 		try {
-			jsonObj = new JSONObject(jsonData);
+			JSONProperties request = new JSONProperties(jsonData);
 			
-			String sessionId = jsonObj.getString("sessionId").trim();
+			final String sessionId = request.getString("sessionId", null);
 			if (!GuidValidator.validateGuidString(sessionId)) {
 				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
 
 			// Details or no?
-			Boolean details = jsonObj.has("details")? jsonObj.getBoolean("details"):false;
+			final Boolean details = request.getBoolean("details", false);
 			
 			// get the root node ID from the form
-			JSONArray sets = jsonObj.getJSONArray("entitySets");
+			Iterable<Properties> sets = request.getPropertiesSets("entitySets");
 			JSONArray resultSets = new JSONArray();
 			
 			
-			for (int c=0; c < sets.length(); c++) {
-				final JSONObject set = sets.getJSONObject(c);
-				final String contextid = set.getString("contextId").trim();
+			for (Properties set : sets) {
+				final String contextid = set.getString("contextId", null);
 				
-				final JSONArray entityNodes = set.getJSONArray("entities");
-				final List<String> entityIds = new ArrayList<String>(entityNodes.length());
+				final List<String> entityIds = Lists.newArrayList(set.getStrings("entities"));
 			
-				for (int i=0; i < entityNodes.length(); i++){
-					String id = entityNodes.getString(i).trim();
-					entityIds.add(id);
-				}
-				
 				PermitSet permits = new PermitSet();
 				
-				final List<String> clusterIds = TypedId.filterTypedIds(entityIds, TypedId.CLUSTER);
+				final List<String> clusterIds = InfluentId.filterInfluentIds(entityIds, InfluentId.CLUSTER);
 				final List<String> leafIds = new ArrayList<String>();
 				if (!clusterIds.isEmpty()) {
 					try {
@@ -151,9 +147,9 @@ public class LeafEntityLookupResource extends ApertureServerResource{
 					}
 				}
 				
-				List<String> accountIds = TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT);
-				accountIds.addAll(TypedId.filterTypedIds(entityIds, TypedId.ACCOUNT_OWNER));
-				accountIds.addAll(TypedId.filterTypedIds(entityIds, TypedId.CLUSTER_SUMMARY));
+				List<String> accountIds = InfluentId.filterInfluentIds(entityIds, InfluentId.ACCOUNT);
+				accountIds.addAll(InfluentId.filterInfluentIds(entityIds, InfluentId.ACCOUNT_OWNER));
+				accountIds.addAll(InfluentId.filterInfluentIds(entityIds, InfluentId.CLUSTER_SUMMARY));
 				accountIds.addAll(leafIds);
 				
 				JSONArray ja = new JSONArray();

@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,16 +29,15 @@ package influent.server.dataaccess;
 import influent.idl.FL_Persistence;
 import influent.idl.FL_PersistenceState;
 import influent.server.utilities.SQLConnectionPool;
+import org.apache.avro.AvroRemoteException;
+import org.joda.time.DateTime;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-
-import org.apache.avro.AvroRemoteException;
-import org.joda.time.DateTime;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 
 /**
@@ -74,7 +75,7 @@ public class DatabasePersistenceAccess implements FL_Persistence {
 		String clientStateTableName = "clientState";
 		try {
 			JSONObject tableNameMap = new JSONObject(_dataTableNames);
-			if (tableNameMap.getString(clientStateTableName) != null) {
+			if (!tableNameMap.isNull(clientStateTableName)) {
 				clientStateTableName = tableNameMap.getString(clientStateTableName);
 			}
 		} catch (JSONException e) {
@@ -90,11 +91,11 @@ public class DatabasePersistenceAccess implements FL_Persistence {
 	public FL_PersistenceState persistData(String sessionId, String data) throws AvroRemoteException {
 		
 		FL_PersistenceState state = null;
-		
+		Connection connection = null;
 		try {
 			String clientStateTableName = getClientStateTableName();
 			
-			Connection connection = _connectionPool.getConnection();
+			connection = _connectionPool.getConnection();
 		
 			PreparedStatement stmt = connection.prepareStatement(
 				"SELECT sessionId FROM " + 
@@ -159,6 +160,12 @@ public class DatabasePersistenceAccess implements FL_Persistence {
 		} catch (SQLException e) {
 			state = FL_PersistenceState.ERROR;
 			throw new AvroRemoteException(e);
+		} finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		return state;
@@ -171,9 +178,9 @@ public class DatabasePersistenceAccess implements FL_Persistence {
 	public String getData(String sessionId) throws AvroRemoteException {
 		
 		String data = null;
-		
+		Connection connection = null;
 		try {
-			Connection connection = _connectionPool.getConnection();
+			connection = _connectionPool.getConnection();
 		
 			String clientStateTableName = getClientStateTableName();
 			
@@ -222,6 +229,12 @@ public class DatabasePersistenceAccess implements FL_Persistence {
 			throw new AvroRemoteException(e);
 		} catch (SQLException e) {
 			throw new AvroRemoteException(e);
+		} finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		return data;

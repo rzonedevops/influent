@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -25,12 +27,7 @@
 package influent.server.dataaccess;
 
 
-import java.util.Map;
-
-import oculus.aperture.spi.common.Properties;
-
 import org.joda.time.DateTime;
-import org.json.JSONException;
 
 
 /**
@@ -44,41 +41,7 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	 * Constructs a handler which uses standard table names.
 	 */
 	public OracleDataNamespaceHandler() {
-	}
-	
-	
-	
-	
-	/**
-	 * Creates a new handler based on a configuration defined as a JSON object string
-	 * mapping standard names to localized names.
-	 * 
-	 * @throws JSONException 
-	 */
-	public OracleDataNamespaceHandler(Properties config) throws JSONException {
-		super(config);
-	}
-	
-	
-	
-	
-	/**
-	 * Constructs a namespace handler from a
-	 * map of standard names to localized names.
-	 */
-	public OracleDataNamespaceHandler(Map<String, String> tableNames) {
-		super(tableNames);
-	}
-	
-	
-	
-	
-	/* (non-Javadoc)
-	 * @see influent.server.dataaccess.DataViewNamespaceHandler#escapeColumnName(java.lang.String)
-	 */
-	@Override
-	public String escapeColumnName(String columnName) {
-		return '"' + columnName + '"';
+		super();
 	}
 	
 	
@@ -136,12 +99,14 @@ public class OracleDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	 */
 	@Override
 	protected String idToBinaryFromHex(String id) {
-		return "HEXTORAW('" +id+ "')";
+		return "HEXTORAW('" + id + "')";
 	}
 
 
-    @Override
-    protected String columnToHex(String columnName) {
+
+
+	@Override
+	protected String columnToHex(String columnName) {
         return "RAWTOHEX('" + columnName + "') as " + columnName;
     }
 }

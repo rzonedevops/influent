@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,159 +26,284 @@
  */
 package influent.server.dataaccess;
 
-import influent.idl.FL_Constraint;
-import influent.idl.FL_DataAccess;
-import influent.idl.FL_DateRange;
-import influent.idl.FL_DirectionFilter;
-import influent.idl.FL_Entity;
-import influent.idl.FL_EntitySearch;
-import influent.idl.FL_LevelOfDetail;
-import influent.idl.FL_Link;
-import influent.idl.FL_LinkEntityTypeFilter;
-import influent.idl.FL_LinkTag;
-import influent.idl.FL_Property;
-import influent.idl.FL_PropertyMatchDescriptor;
-import influent.idl.FL_PropertyTag;
-import influent.idl.FL_PropertyType;
-import influent.idl.FL_SearchResult;
-import influent.idl.FL_SearchResults;
-import influent.idl.FL_EntityTag;
-import influent.idlhelper.PropertyHelper;
+import influent.idl.*;
+import influent.idlhelper.DataPropertyDescriptorHelper;
 import influent.idlhelper.EntityHelper;
+import influent.idlhelper.PropertyHelper;
+import influent.server.configuration.ApplicationConfiguration;
+import influent.server.utilities.Pair;
+import influent.server.utilities.PropertyField;
 import influent.server.utilities.SQLConnectionPool;
-import influent.server.utilities.TypedId;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import influent.server.utilities.InfluentId;
 import org.apache.avro.AvroRemoteException;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import oculus.aperture.spi.common.Properties;
 
-public abstract class DataViewDataAccess implements FL_DataAccess {
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.sql.*;
+import java.util.*;
+import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-	private static Logger s_logger = LoggerFactory.getLogger(DataViewDataAccess.class);
-	
+import static influent.server.configuration.ApplicationConfiguration.SystemPropertyKey.*;
+
+
+public class DataViewDataAccess implements FL_DataAccess {
+
 	protected final SQLConnectionPool _connectionPool;
 	protected final FL_EntitySearch _search;
 	private final DataNamespaceHandler _namespaceHandler;
-	
+	private final boolean _isMultiType;
+	protected final ApplicationConfiguration _applicationConfiguration;
+
 	private static Pattern COLUMN_PATTERN = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*", 0);
-	private final static int PARAMETER_BRACKET[] = {1000, 500, 200, 100, 50, 20};
-	
-	private final static boolean USE_PREPARED_STATEMENTS = false;
-	
+
+	protected static final Logger s_logger = LoggerFactory.getLogger(DataViewDataAccess.class);
+
+	protected Logger getLogger() {
+		return s_logger;
+	}
+
+
+
 	public DataViewDataAccess(
+		Properties config,
 		SQLConnectionPool connectionPool,
 		FL_EntitySearch search,
 		DataNamespaceHandler namespaceHandler
 	) throws ClassNotFoundException, SQLException {
-		
+
 		// TODO: ehCacheConfig!!
 		_connectionPool = connectionPool;
 		_search = search;
 		_namespaceHandler = namespaceHandler;
+		_applicationConfiguration = ApplicationConfiguration.getInstance(config);
+		_isMultiType = (_applicationConfiguration.getEntityDescriptors().getTypes().size() > 1);
 	}
-	
-	
-	
-	
+
+
+
+
 	protected DataNamespaceHandler getNamespaceHandler() {
 		return _namespaceHandler;
 	}
-	
-	
-	
-	
+
+
+
+
+	protected FL_PropertyDescriptors getDescriptors() {
+		return _applicationConfiguration.getEntityDescriptors();
+	}
+
+
+
+
+	public PropertyField.Provider getPropertyFieldProvider() {
+		return _applicationConfiguration;
+	}
+
+
+	private ApplicationConfiguration.SystemColumnType _getIdColumnType() {
+		if (_isMultiType) {
+			// Multitype IDs are always strings
+			return ApplicationConfiguration.SystemColumnType.STRING;
+		} else {
+			// There is only one type, so get the column type for it
+			String typeString = getDescriptors().getTypes().get(0).getKey();
+			return _applicationConfiguration.getColumnType(typeString, FIN_ENTITY.name(), ENTITY_ID.name());
+		}
+	}
+
+
+	private InfluentId influentIDFromRaw(char entityClass, String entityType, String rawId) {
+		if (_isMultiType) {
+			return InfluentId.fromTypedId(entityClass, rawId);
+		} else {
+			return InfluentId.fromNativeId(entityClass, entityType, rawId);
+		}
+	}
+
+	private String rawFromInfluentID(InfluentId infId) {
+		if (_isMultiType) {
+			return infId.getTypedId();
+		} else {
+			return infId.getNativeId();
+		}
+	}
+
+
+	private String typeFromRaw(String rawId) {
+		if (_isMultiType) {
+			return InfluentId.fromTypedId(InfluentId.ACCOUNT, rawId).getIdType();
+		} else {
+			return getDescriptors().getTypes().get(0).getKey();
+		}
+	}
+
+
 	@Override
 	public List<FL_Entity> getEntities(
-		List<String> entities, 
+		List<String> entities,
 		FL_LevelOfDetail levelOfDetail
 	) throws AvroRemoteException {
+
 		List<FL_Entity> results = new LinkedList<FL_Entity>();
 
+		if (entities == null || entities.isEmpty()) {
+			return results;
+		}
 
-		if (entities == null || entities.isEmpty()) return results;
-
-		Map<String, List<String>> bySchema = _namespaceHandler.entitiesByNamespace(entities);
+		FL_PropertyDescriptors descriptors = getDescriptors();
+		Map<String, List<String>> entitiesByType = _namespaceHandler.entitiesByType(entities);
 
 		try {
 
 			Connection connection = _connectionPool.getConnection();
 
-			for (Map.Entry<String, List<String>> entry : bySchema.entrySet()) {
-				if (entry.getValue() == null || entry.getValue().isEmpty()) {
+			for (Map.Entry<String, List<String>> entry : entitiesByType.entrySet()) {
+
+				String entityType = entry.getKey();
+				List<String> entitySubgroup = entry.getValue();
+
+				if (entitySubgroup == null || entitySubgroup.isEmpty()) {
 					continue;
 				}
 
+				String finEntityTable = _applicationConfiguration.getTable(entityType, FIN_ENTITY.name(), FIN_ENTITY.name());
+				String finEntityEntityId = _applicationConfiguration.getColumn(entityType, FIN_ENTITY.name(), ENTITY_ID.name());
+
 				// process entities in batches
-				List<String> idsCopy = new ArrayList<String>(entry.getValue()); // copy the ids as we will take 1000 at a time to process and the take method is destructive
+				List<String> idsCopy = new ArrayList<String>(entitySubgroup); // copy the ids as we will take 1000 at a time to process and the take method is destructive
 				while (idsCopy.size() > 0) {
 					List<String> tempSubList = (idsCopy.size() > 1000) ? idsCopy.subList(0, 999) : idsCopy; // get the next 1000
 					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
 					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy
-
-					String finEntityTable = _namespaceHandler.tableName(entry.getKey(), DataAccessHelper.ENTITY_TABLE);
-					String finEntityEntityIdColumn = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
-					String finEntityUniqueInboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_INBOUND_DEGREE);
-					String finEntityUniqueOutboundDegree = _namespaceHandler.columnName(DataAccessHelper.ENTITY_COLUMN_UNIQUE_OUTBOUND_DEGREE);
+					String ids = createIdListFromCollection(subIds);
 
 					StringBuilder sb = new StringBuilder();
-					sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finEntityEntityIdColumn, entry.getKey()) + ", " +
-                                          finEntityUniqueInboundDegree + ", " +
-                                          finEntityUniqueOutboundDegree + " ");
+					sb.append("SELECT ");
+					for (FL_PropertyDescriptor prop : descriptors.getProperties()) {
+						for (FL_TypeMapping map : prop.getMemberOf()) {
+							if (map.getType().equalsIgnoreCase(entityType)) {
+
+								// non-primitive objects need decomposition
+								if (prop.getPropertyType() == FL_PropertyType.GEO) {
+									List<PropertyField> fields = getPropertyFieldProvider().getFields(prop.getKey());
+
+									if (fields != null) {
+										for (PropertyField field : fields) {
+											final String fieldKey = DataPropertyDescriptorHelper.getFieldname(field.getProperty(), entry.getKey(), null);
+
+											if (fieldKey != null) {
+												sb.append(fieldKey + ", ");
+											}
+										}
+									}
+
+								} else {
+									sb.append(map.getMemberKey() + ", ");
+								}
+							}
+						}
+					}
+					sb.replace(sb.length() - 2, sb.length(), " ");
+
 					sb.append("FROM " + finEntityTable + " ");
-					sb.append("WHERE " + finEntityEntityIdColumn + " IN (");
-					for (int i = 1; i < subIds.size(); i++) {
-						sb.append("?, ");
-					}
-					sb.append("?) ");
-					PreparedStatement stmt = connection.prepareStatement(sb.toString());
-					int index = 1;
+					sb.append("WHERE " + finEntityEntityId + " IN (" + ids + ")");
 
-					for (String id : subIds) {
-						stmt.setString(index++, getNamespaceHandler().toSQLId(id, entry.getKey()));
-					}
+					Statement stmt = connection.createStatement();
 
-					// Execute prepared statement and evaluate results
-					ResultSet rs = stmt.executeQuery();
+					ResultSet rs = stmt.executeQuery(sb.toString());
 					while (rs.next()) {
-						String entityId = rs.getString(finEntityEntityIdColumn);
-						int uniqueInboundDegree = rs.getInt(finEntityUniqueInboundDegree);
-						int uniqueOutboundDegree = rs.getInt(finEntityUniqueOutboundDegree);
-
-						String uid = _namespaceHandler.globalFromLocalEntityId(entry.getKey(), entityId.toString(), TypedId.ACCOUNT);
-
 
 						List<FL_Property> props = new ArrayList<FL_Property>();
-						props.add(new PropertyHelper("UniqueInboundDegree", "Unique Inbound Links", uniqueInboundDegree, Collections.singletonList(FL_PropertyTag.INFLOWING)));
-						props.add(new PropertyHelper("UniqueOutboundDegree", "Unique Outbound Links", uniqueOutboundDegree, Collections.singletonList(FL_PropertyTag.OUTFLOWING)));
 
-						FL_Entity entity = new EntityHelper(uid, uid, FL_EntityTag.ACCOUNT.name(), FL_EntityTag.ACCOUNT, props);
+						for (FL_PropertyDescriptor prop : descriptors.getProperties()) {
+							// Test to see if the property is set hidden, or if it's hidden by Level of Detail
+							boolean isHidden = prop.getLevelOfDetail().equals(FL_LevelOfDetail.HIDDEN) ||
+									(levelOfDetail.equals(FL_LevelOfDetail.SUMMARY) && prop.getLevelOfDetail().equals(FL_LevelOfDetail.FULL));
+
+							List<Object> dataList = new ArrayList<Object>();
+
+							if (prop.getPropertyType() == FL_PropertyType.GEO) {
+								// Handle GEO composite properties
+								List<Object> textValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "text");
+								List<Object> ccValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "cc");
+								List<Object> latValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "lat");
+								List<Object> lonValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "lon");
+
+								// Assume we have the same number of values in all lists.
+								for (int i = 0; i < latValues.size(); i++) {
+
+									FL_GeoData.Builder geoDataBuilder = FL_GeoData.newBuilder()
+											.setText(textValues != null ? (String) textValues.get(i)    : null)
+											.setCc(ccValues     != null ? (String) ccValues.get(i)      : null)
+											.setLat(latValues   != null ? parseLatLon(latValues.get(i)) : null)
+											.setLon(lonValues   != null ? parseLatLon(lonValues.get(i)) : null);
+
+									dataList.add(geoDataBuilder.build());
+								}
+
+							} else {
+								// Handle everything else
+								dataList = getPropertyValuesFromResults(rs, prop, entityType);
+							}
+
+							if (dataList == null || dataList.isEmpty()) {
+								continue;
+							}
+
+							Object range;
+							// Create a list range, or a singleton range depending on how many values we got
+							if (dataList.size() > 1) {
+								range =	FL_ListRange.newBuilder()
+										.setType(prop.getPropertyType())
+										.setValues(dataList)
+										.build();
+							} else {
+								range =	FL_SingletonRange.newBuilder()
+										.setType(prop.getPropertyType())
+										.setValue(dataList.get(0))
+										.build();
+							}
+
+							// Add the property
+							props.add(
+									new PropertyHelper(
+											prop.getKey(),
+											prop.getFriendlyText(),
+											null,
+											null,
+											prop.getTags(),
+											isHidden,
+											range
+									)
+							);
+						}
+
+						FL_Property idProp = PropertyHelper.getPropertyByKey(props, FL_RequiredPropertyKey.ID.name());
+						String idVal = idProp != null ? PropertyHelper.getValue(idProp).toString() : null;
+
+						char entityClass = getEntityClass(subIds, entityType, idVal);
+
+						FL_Entity entity = createEntity(
+							idVal,
+							entityClass,
+							entityType,
+							props
+						);
 
 						results.add(entity);
 					}
 					rs.close();
 
-					// Close prepared statement
 					stmt.close();
-
 				}
 			}
 
@@ -187,72 +314,246 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			throw new AvroRemoteException(e);
 		}
 	}
-	
-	
-	private Map<String, List<FL_Link>> getFlowAggregationNoPrepared(
-			List<String> entities,
-			List<String> focusEntities,
-			FL_DirectionFilter direction,
-			FL_LinkEntityTypeFilter entityType,
-			FL_LinkTag tag,
-			FL_DateRange date) throws AvroRemoteException {
-		
-		Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
-		
-		final Map<String, List<String>> ns_entities = getNamespaceHandler().entitiesByNamespace(entities);
-		final Map<String, List<String>> ns_focusEntities = getNamespaceHandler().entitiesByNamespace(focusEntities);
+
+
+
+
+	private Double parseLatLon(Object value) {
+		// Lat/Lon conversion helper function
+
+		if (value instanceof Float) {
+			Float f = (Float) value;
+			return f.doubleValue();
+		} else if (value instanceof String) {
+			return Double.parseDouble(value.toString());
+		}
+
+		return (Double)value;
+	}
+
+
+
+
+	protected List<Object> getCompositeFieldValues(ResultSet rs, String key, String type, String fieldName) throws AvroRemoteException {
+		// Get values for fields in composite properties
+
+		PropertyField pf = getPropertyFieldProvider().getField(key, fieldName);
+		FL_PropertyDescriptor pd = pf.getProperty();
+
+		if (pf != null) {
+			final String mappedKey = DataPropertyDescriptorHelper.getFieldname(pd, type, null);
+
+			if (mappedKey != null) {
+				return getPropertyValuesFromResults(rs, pd, type);
+			}
+		}
+
+		return null;
+	}
+
+	private char getEntityClass(List<String> influentIds, String type, String rawId) {
+		String unclassedId = influentIDFromRaw(InfluentId.ACCOUNT, type, rawId).toString();
+		for (String influentId : influentIds) {
+			if (influentId.substring(2).equals(unclassedId.substring(2))) {
+				return influentId.charAt(0);
+			}
+		}
+		return InfluentId.ACCOUNT;
+	}
+
+
+	protected List<Object> getPropertyValuesFromResults(ResultSet rs, FL_PropertyDescriptor pd, String type) throws AvroRemoteException {
+		// Get values for a property from the results set
+
+		boolean isMultiValue = pd.getMultiValue();
+		String key = null;
+		for (FL_TypeMapping typeMapping : pd.getMemberOf()) {
+			if (typeMapping.getType().equals(type)) {
+				key = typeMapping.getMemberKey();
+				break;
+			}
+		}
+
+		if (key == null) {
+			return null;
+		}
+
+		final FL_PropertyType dataType = pd.getPropertyType();
+		List<Object> values = new ArrayList<Object>();
+		Object value;
 
 		try {
-			Connection connection = _connectionPool.getConnection();
-			
-			for (Entry<String, List<String>>  entitiesByNamespace : ns_entities.entrySet()) {
-				final String namespace = entitiesByNamespace.getKey();
-				final List<String> localFocusEntities = ns_focusEntities.get(namespace);
-				
-				// will be no matches - these are from different schemas.
-				if (!ns_focusEntities.isEmpty() && localFocusEntities == null) {
-					continue;
+			value = rs.getObject(key);
+
+			// If the value was a clob, convert it to a string first
+			if (value instanceof Clob) {
+				StringBuilder sb = new StringBuilder();
+				Clob clob = (Clob) (value);
+				Reader reader = clob.getCharacterStream();
+				BufferedReader bufferedReader = new BufferedReader(reader);
+
+				String line;
+				while (null != (line = bufferedReader.readLine())) {
+					sb.append(line);
 				}
-				
-				Statement stmt = connection.createStatement();
-			
-				DateTime startDate = DataAccessHelper.getStartDate(date);
-				DateTime endDate = DataAccessHelper.getEndDate(date);
-				
-				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, getNamespaceHandler(), namespace);
-				
-				String finFlowTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.FLOW_TABLE);
-				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-				String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
-				String finFlowFromEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_TYPE);
-				String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
-				String finFlowToEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_TYPE);
-				String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
-				String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
-				
-				List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
-				while (idsCopy.size() > 0) {
-					List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
-					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
-					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
-		
-					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, getNamespaceHandler(), namespace);
-					String sourceDirectionClause = finFlowFromEntityIdColumn + " in ("+ids+")";
-					String destDirectionClause = finFlowToEntityIdColumn + " in ("+ids+")";
-					
-					if (focusIds != null) {
-						sourceDirectionClause += " and " + finFlowToEntityIdColumn + " in ("+focusIds+")";
-						destDirectionClause += " and " + finFlowFromEntityIdColumn + " in ("+focusIds+")";				
+				bufferedReader.close();
+				value = sb.toString();
+			}
+		} catch (Exception e) {
+			throw new AvroRemoteException(e);
+		}
+
+		if (isMultiValue) {
+			// Multivalue properties should always be strings. Split them up.
+			values.addAll(Arrays.asList(value.toString().split(",")));
+		} else {
+			if (value != null) {
+				values.add(value);
+			}
+		}
+
+		if (values.isEmpty()) {
+			return null;
+		}
+
+		for (int i = 0; i < values.size(); i++) {
+			Object val = values.get(i);
+
+			switch (dataType) {
+				case DATE:
+					Timestamp dateValue;
+					if (val instanceof Long) {
+						dateValue = new Timestamp((Long)val);
+					} else {
+						dateValue = (Timestamp) val;
 					}
-					String directionClause = (direction == FL_DirectionFilter.BOTH ) ? sourceDirectionClause+" and "+destDirectionClause : (direction == FL_DirectionFilter.DESTINATION ) ? destDirectionClause : (direction == FL_DirectionFilter.SOURCE ) ? sourceDirectionClause : "1=1";
-					String entityTypeClause = linkEntityTypeClause(direction, entityType);
+
+					val = dateValue.getTime();
+					break;
+				case STRING:
+					val = val.toString();
+					break;
+			}
+
+			values.set(i, val);
+		}
+
+		return values;
+
+	}
+
+	protected FL_Entity createEntity(String id, char entityClass, String entityType, List<FL_Property> props) {
+		String uid = influentIDFromRaw(entityClass, entityType, id).toString();
+		return new EntityHelper(uid, entityType, Collections.singletonList(FL_EntityTag.ACCOUNT), null, null, props);
+
+	}
+
+
+	@Override
+	public List<FL_DataSummary> getDataSummary() {
+		List<FL_DataSummary> ret = new ArrayList<FL_DataSummary>();
+		try {
+
+			String dataSummaryTable = _applicationConfiguration.getTable(DATA_SUMMARY.name(), DATA_SUMMARY.name());
+			String summaryKeyColumn = _applicationConfiguration.getColumn(DATA_SUMMARY.name(), SUMMARY_KEY.name());
+			String summaryLabelColumn = _applicationConfiguration.getColumn(DATA_SUMMARY.name(), SUMMARY_LABEL.name());
+			String summaryValueColumn = _applicationConfiguration.getColumn(DATA_SUMMARY.name(), SUMMARY_VALUE.name());
+			String summaryOrderColumn = _applicationConfiguration.getColumn(DATA_SUMMARY.name(), SUMMARY_ORDER.name());
+
+			Connection con = _connectionPool.getConnection();
+			Statement stmt = con.createStatement();
+			ResultSet rs = stmt.executeQuery(String.format("SELECT %s, %s, %s FROM %s ORDER BY %s ASC", summaryKeyColumn, summaryLabelColumn,
+				summaryValueColumn, dataSummaryTable, summaryOrderColumn));
+			while (rs.next()) {
+				String key = rs.getString("SummaryKey");
+				String label = rs.getString("SummaryLabel");
+				String value = rs.getString("SummaryValue");
+
+				FL_DataSummary tmp = FL_DataSummary.newBuilder()
+					.setKey(key)
+					.setLabel(label)
+					.setValue(value)
+					.build();
+
+				ret.add(tmp);
+			}
+		} catch (Exception e) {
+			System.out.println("Error while retrieving summary from data source");
+			e.printStackTrace();
+		}
+		return ret;
+	}
+
+
+
+	@Override
+	public Map<String, List<FL_Link>> getFlowAggregation(
+		List<String> entities,
+		List<String> focusEntities,
+		FL_DirectionFilter direction,
+		FL_LinkEntityTypeFilter entityTypeFilter,
+		FL_DateRange date
+	) throws AvroRemoteException {
+
+		Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
+
+		FL_PropertyDescriptors linkDescriptors = _applicationConfiguration.getLinkDescriptors();
+
+		DateTime startDate = DataAccessHelper.getStartDate(date);
+		DateTime endDate = DataAccessHelper.getEndDate(date);
+
+		Connection connection = null;
+		try {
+			connection = _connectionPool.getConnection();
+			for (FL_TypeDescriptor td : linkDescriptors.getTypes()) {
+
+				String type = td.getKey();
+
+				// get tables
+				String finFlowTable = _applicationConfiguration.getTable(type, FIN_FLOW.name(), FIN_FLOW.name());
+				String finFlowIntervalTable = _applicationConfiguration.getIntervalTable(type, FIN_FLOW_BUCKETS.name(), date.getDurationPerBin().getInterval());
+
+				// get columns
+				String finFlowFromEntityIdColumn = _applicationConfiguration.getColumn(type, FIN_FLOW_BUCKETS.name(), FROM_ENTITY_ID.name());
+				String finFlowFromEntityTypeColumn = _applicationConfiguration.getColumn(type, FIN_FLOW_BUCKETS.name(), FROM_ENTITY_TYPE.name());
+				String finFlowToEntityIdColumn = _applicationConfiguration.getColumn(type, FIN_FLOW_BUCKETS.name(), TO_ENTITY_ID.name());
+				String finFlowToEntityTypeColumn = _applicationConfiguration.getColumn(type, FIN_FLOW_BUCKETS.name(), TO_ENTITY_TYPE.name());
+				String finFlowAmountColumn = _applicationConfiguration.getColumn(type, FIN_FLOW_BUCKETS.name(), AMOUNT.name());
+				String finFlowDateColumn = _applicationConfiguration.getColumn(type, FIN_FLOW_BUCKETS.name(), PERIOD_DATE.name());
+
+				Statement stmt = connection.createStatement();
+
+				List<String> idsCopy = new ArrayList<String>(entities); // copy the ids as we will take 100 at a time to process and the take method is destructive
+				String focusIds = createIdListFromCollection(focusEntities);
+
+				while (idsCopy.size() > 0) {
+					List<String> tempSubList = (idsCopy.size() > 100) ? idsCopy.subList(0, 99) : idsCopy; // get the next 100
+					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
+					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy
 					
-					String dateRespectingFlowSQL = "select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", sum(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+ getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+directionClause+" and "+entityTypeClause+" group by " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn;
-					String flowSQL = "select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + finFlowFromEntityTypeColumn + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowToEntityTypeColumn + " from " + finFlowTable + " where "+directionClause+" and "+entityTypeClause;
-						
+					String ids = createIdListFromCollection(subIds);
+
+					String sourceDirectionClause = finFlowFromEntityIdColumn + " in (" + ids + ")";
+					String destDirectionClause = finFlowToEntityIdColumn + " in (" + ids + ")";
+
+					if (focusIds != null) {
+						sourceDirectionClause += " and " + finFlowToEntityIdColumn + " in (" + focusIds + ")";
+						destDirectionClause += " and " + finFlowFromEntityIdColumn + " in (" + focusIds + ")";
+					}
+					String directionClause = (direction == FL_DirectionFilter.BOTH) ? sourceDirectionClause + " and " + destDirectionClause : (direction == FL_DirectionFilter.DESTINATION) ? destDirectionClause : (direction == FL_DirectionFilter.SOURCE) ? sourceDirectionClause : "1=1";
+					String entityTypeClause = linkEntityTypeClause(
+						direction,
+						entityTypeFilter,
+						finFlowFromEntityTypeColumn,
+						finFlowToEntityTypeColumn
+					);
+
+					String dateRespectingFlowSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn + ", sum(" + finFlowAmountColumn + ") as " + finFlowAmountColumn + " from " + finFlowIntervalTable + " where " + finFlowDateColumn + " between '" + getNamespaceHandler().formatDate(startDate) + "' and '" + getNamespaceHandler().formatDate(endDate) + "' and " + directionClause + " and " + entityTypeClause + " group by " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn;
+					String flowSQL = "select " + finFlowFromEntityIdColumn + ", " + finFlowFromEntityTypeColumn + ", " + finFlowToEntityIdColumn + ", " + finFlowToEntityTypeColumn + " from " + finFlowTable + " where " + directionClause + " and " + entityTypeClause;
+
 					Map<String, Map<String, Double>> fromToAmountMap = new HashMap<String, Map<String, Double>>();
-					
-					s_logger.trace(dateRespectingFlowSQL);
+
+					getLogger().trace(dateRespectingFlowSQL);
 					if (stmt.execute(dateRespectingFlowSQL)) {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
@@ -262,7 +563,7 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							if (fromToAmountMap.containsKey(from)) {
 								if (fromToAmountMap.get(from).containsKey(to)) {
 									fromToAmountMap.get(from).put(to, fromToAmountMap.get(from).get(to) + amount);
-									s_logger.warn("Duplicate entity to entity link discovered: " + from + " to " + to + ". The link has been aggregated.");
+									getLogger().warn("Duplicate entity to entity link discovered: " + from + " to " + to + ". The link has been aggregated.");
 								} else {
 									fromToAmountMap.get(from).put(to, amount);
 								}
@@ -273,739 +574,300 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 							}
 						}
 					}
-					s_logger.trace(flowSQL);
+					getLogger().trace(flowSQL);
 					if (stmt.execute(flowSQL)) {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
 							String from = rs.getString(finFlowFromEntityIdColumn);
-							String fromType = rs.getString(finFlowFromEntityTypeColumn).toLowerCase();
+							char fromClass = rs.getString(finFlowFromEntityTypeColumn).toLowerCase().charAt(0);
+							String fromType = typeFromRaw(from);
 							String to = rs.getString(finFlowToEntityIdColumn);
-							String toType = rs.getString(finFlowToEntityTypeColumn).toLowerCase();
-	
-							String keyId = from;
-							char type = fromType.charAt(0); // from type must be a single char
-							if (subIds.contains(to)) {
-								keyId = to;
-								type = toType.charAt(0); // to type must be a single char
-							}
-							
+							char toClass = rs.getString(finFlowToEntityTypeColumn).toLowerCase().charAt(0);
+							String toType = typeFromRaw(to);
+
 							// globalize this for return
-							keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId, type);
-							
+							String keyId = InfluentId.fromNativeId(InfluentId.LINK, type, from + "_" + to).toString();
+
 							List<FL_Link> linkList = results.get(keyId);
 							if (linkList == null) {
 								linkList = new LinkedList<FL_Link>();
 								results.put(keyId, linkList);
 							}
-		
+
 							// only use the amount calculated above with the date respecting FLOW map
 							Double amount = (fromToAmountMap.containsKey(from) && fromToAmountMap.get(from).containsKey(to)) ? amount = fromToAmountMap.get(from).get(to) : 0.0;
 							List<FL_Property> properties = new ArrayList<FL_Property>();
 							properties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, amount));
-		
+
 							// globalize these for return
-							from = getNamespaceHandler().globalFromLocalEntityId(namespace, from, fromType.charAt(0));
-							to = getNamespaceHandler().globalFromLocalEntityId(namespace, to, toType.charAt(0));
-							
+							from = influentIDFromRaw(fromClass, fromType, from).toString();
+							to = influentIDFromRaw(toClass, toType, to).toString();
+
 							//Finally, create the link between the two, and add it to the map.
-							FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), from, to, true, null, null, properties);
+							FL_Link link = FL_Link.newBuilder()
+								.setUid(keyId)
+								.setLinkTypes(null)
+								.setSource(from)
+								.setTarget(to)
+								.setType(type)
+								.setDirected(true)
+								.setProvenance(null)
+								.setUncertainty(null)
+								.setProperties(properties)
+								.build();
 							linkList.add(link);
 						}
 						rs.close();
 					}
 				}
-				
+
 				stmt.close();
 			}
-			
+
 			connection.close();
 		} catch (ClassNotFoundException e) {
 			throw new AvroRemoteException(e);
 		} catch (SQLException e) {
 			throw new AvroRemoteException(e);
+		} finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
-		
+
 		return results;
 	}
-	
-	private Map<String, List<FL_Link>> getFlowAggregationPrepared(
-			List<String> entities,
-			List<String> focusEntities,
-			FL_DirectionFilter direction,
-			FL_LinkEntityTypeFilter entityType,
-			FL_LinkTag tag,
-			FL_DateRange date
-		) throws AvroRemoteException {
-			
-			Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
-			
-			final Map<String, List<String>> ns_entities = getNamespaceHandler().entitiesByNamespace(entities);
-			final Map<String, List<String>> ns_focusEntities = getNamespaceHandler().entitiesByNamespace(focusEntities);
 
-			try {
-				Connection connection = _connectionPool.getConnection();
-				
-				for (Entry<String, List<String>>  entitiesByNamespace : ns_entities.entrySet()) {
-					final String namespace = entitiesByNamespace.getKey();
-					final List<String> localFocusEntities = ns_focusEntities.get(namespace);
-					
-					// will be no matches - these are from different schemas.
-					if (!ns_focusEntities.isEmpty() && localFocusEntities == null) {
-						continue;
-					}
-				
-					DateTime startDate = DataAccessHelper.getStartDate(date);
-					DateTime endDate = DataAccessHelper.getEndDate(date);
 
-					String finFlowTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.FLOW_TABLE);
-					String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-					String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
-					String finFlowFromEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_TYPE);
-					String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
-					String finFlowToEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_TYPE);
-					String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
-					String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
-					
-					List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
-					List<String> focusIdsCopy = localFocusEntities == null ? null : new ArrayList<String>(localFocusEntities);
-					
-					int idPos = 0;
-					int focusIdPos = 0;
-					List<String> subIds = null;
-					List<String> subFocusIds = null; 
-					
-					while (idPos < idsCopy.size()) {
-						
-						int idBracket = 0; 
-						int focusIdBracket = 0;
-						
-						// Calculate the statement parameter bracket for the remaining amount of ids
-						while (idBracket != PARAMETER_BRACKET.length && 
-								idPos + PARAMETER_BRACKET[idBracket] > idsCopy.size()) {
-							idBracket++;
-						}
-						if (localFocusEntities != null) {
-							while (focusIdBracket != PARAMETER_BRACKET.length && 
-									focusIdPos + PARAMETER_BRACKET[focusIdBracket] > focusIdsCopy.size()) {
-								focusIdBracket++;
-							}
-						}
-						
-						// Create sublists using bracket offsets	
-						int idOffset = (idBracket == PARAMETER_BRACKET.length) ? idsCopy.size() : idPos + PARAMETER_BRACKET[idBracket];
-						subIds = idsCopy.subList(idPos, idOffset);
-						if (localFocusEntities != null) {
-							
-							int focusIdOffset = (focusIdBracket == PARAMETER_BRACKET.length) ? focusIdsCopy.size() : focusIdPos + PARAMETER_BRACKET[focusIdBracket];
-							subFocusIds = focusIdsCopy.subList(focusIdPos, focusIdOffset);
-						}
-						
-						Map<String, Map<String, Double>> fromToAmountMap = new HashMap<String, Map<String, Double>>();
-						
-						// Create prepared statement
-						String preparedStatementString = buildPreparedStatementForDateRespectingFlow(
-							subIds.size(),
-							(localFocusEntities == null) ? 0 : subFocusIds.size(),
-							direction,
-							entityType,
-							finFlowIntervalTable,
-							finFlowAmountColumn,
-							finFlowFromEntityIdColumn,
-							finFlowToEntityIdColumn,
-							finFlowDateColumn,
-							finFlowFromEntityTypeColumn,
-							finFlowToEntityTypeColumn,
-                            namespace
-						);
-						PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
-						
-						int index = 1;
-						
-						stmt.setString(index++, getNamespaceHandler().formatDate(startDate));
-						stmt.setString(index++, getNamespaceHandler().formatDate(endDate));
-						
-						if (direction == FL_DirectionFilter.BOTH) {
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-						} else if (direction == FL_DirectionFilter.SOURCE) {
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-						} else if (direction == FL_DirectionFilter.DESTINATION) {
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-						}
-						
-						if (entityType != FL_LinkEntityTypeFilter.ANY) {
-							String type = "A";
-							if (entityType == FL_LinkEntityTypeFilter.ACCOUNT_OWNER) {
-								type = "O";
-							} else if (entityType == FL_LinkEntityTypeFilter.CLUSTER_SUMMARY) {
-								type = "S";
-							}
-							
-							stmt.setString(index++, type);
-							if (direction == FL_DirectionFilter.BOTH) {
-								stmt.setString(index++, type);
-							}
-						}
-						
-						// Execute prepared statement and evaluate results
-						ResultSet rs = stmt.executeQuery();
-						while (rs.next()) {
-							String from = rs.getString(finFlowFromEntityIdColumn);
-							String to = rs.getString(finFlowToEntityIdColumn);
-							Double amount = rs.getDouble(finFlowAmountColumn);
-							if (fromToAmountMap.containsKey(from)) {
-								if (fromToAmountMap.get(from).containsKey(to)) {
-									throw new AssertionError("Group by clause in dateRespectingFlowSQL erroneously created duplicates"); 
-								} else {
-									fromToAmountMap.get(from).put(to, amount);
-								}
-							} else {
-								Map<String, Double> toAmountMap = new HashMap<String, Double>();
-								toAmountMap.put(to, amount);
-								fromToAmountMap.put(from, toAmountMap);							
-							}
-						}
-						rs.close();
-						
-						// Close prepared statement
-						stmt.close();
 
-						// Create prepared statement
-						preparedStatementString = buildPreparedStatementForFlow(
-							subIds.size(),
-							(localFocusEntities == null) ? 0 : subFocusIds.size(),
-							direction,
-							entityType,
-							finFlowFromEntityIdColumn,
-							finFlowFromEntityTypeColumn,
-							finFlowToEntityIdColumn,
-							finFlowToEntityTypeColumn,
-							finFlowTable,
-                            namespace
-						);
-						stmt = connection.prepareStatement(preparedStatementString);
-						
-						index = 1;
 
-						if (direction == FL_DirectionFilter.BOTH) {
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-						} else if (direction == FL_DirectionFilter.SOURCE) {
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-						} else if (direction == FL_DirectionFilter.DESTINATION) {
-							for (int i = 0; i < subIds.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-							}
-							if (localFocusEntities != null) {
-								for (int i = 0; i < subFocusIds.size(); i++) {
-									stmt.setString(index++, getNamespaceHandler().toSQLId(subFocusIds.get(i), namespace));
-								}
-							}
-						}
-						if (entityType != FL_LinkEntityTypeFilter.ANY) {
-							String type = "A";
-							if (entityType == FL_LinkEntityTypeFilter.ACCOUNT_OWNER) {
-								type = "O";
-							} else if (entityType == FL_LinkEntityTypeFilter.CLUSTER_SUMMARY) {
-								type = "S";
-							}
-							
-							stmt.setString(index++, type);
-							if (direction == FL_DirectionFilter.BOTH) {
-								stmt.setString(index++, type);
-							}
-						}
-						
-						// Execute prepared statement and evaluate results
-						rs = stmt.executeQuery();
-						while (rs.next()) {
-							String from = rs.getString(finFlowFromEntityIdColumn);
-							String fromType = rs.getString(finFlowFromEntityTypeColumn).toLowerCase();
-							String to = rs.getString(finFlowToEntityIdColumn);
-							String toType = rs.getString(finFlowToEntityTypeColumn).toLowerCase();
+	private String createIdListFromCollection(List<String> ids) {
+		if (ids == null || ids.isEmpty()) return null;
 
-							String keyId = from;
-							char type = fromType.charAt(0); // from type must be a single char
-							if (subIds.contains(to)) {
-								keyId = to;
-								type = toType.charAt(0); // to type must be a single char
-							}
-							
-							// globalize this for return
-							keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId, type);
-							
-							List<FL_Link> linkList = results.get(keyId);
-							if (linkList == null) {
-								linkList = new LinkedList<FL_Link>();
-								results.put(keyId, linkList);
-							}
-		
-							// only use the amount calculated above with the date respecting FLOW map
-							Double amount = (fromToAmountMap.containsKey(from) && fromToAmountMap.get(from).containsKey(to)) ? amount = fromToAmountMap.get(from).get(to) : 0.0;
-							List<FL_Property> properties = new ArrayList<FL_Property>();
-							properties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, amount));
-		
-							// globalize these for return
-							from = getNamespaceHandler().globalFromLocalEntityId(namespace, from, fromType.charAt(0));
-							to = getNamespaceHandler().globalFromLocalEntityId(namespace, to, toType.charAt(0));
-							
-							//Finally, create the link between the two, and add it to the map.
-							FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), from, to, true, null, null, properties);
-							linkList.add(link);
-						}
-						rs.close();
-						
-						// Close prepared statement
-						stmt.close();
-						
-						// Move the sublist positions
-						if (localFocusEntities != null) {
-							
-							if (focusIdBracket != PARAMETER_BRACKET.length) { 
-								focusIdPos += PARAMETER_BRACKET[focusIdBracket];
-							} else {
-								
-								focusIdPos = 0;
-								if (idBracket != PARAMETER_BRACKET.length) { 
-									idPos += PARAMETER_BRACKET[idBracket];
-								} else {
-									idPos = idsCopy.size();
-								}
-							}						
-						} else {
-							
-							if (idBracket != PARAMETER_BRACKET.length) { 
-								idPos += PARAMETER_BRACKET[idBracket];
-							} else {
-								idPos = idsCopy.size();
-							}
-						}
-					}
-				}
-				
-				connection.close();
-			} catch (ClassNotFoundException e) {
-				throw new AvroRemoteException(e);
-			} catch (SQLException e) {
-				throw new AvroRemoteException(e);
-			}
-			
-			return results;
+		StringBuilder resultString = new StringBuilder();
+
+		ApplicationConfiguration.SystemColumnType idType = _getIdColumnType();
+
+		for (String id : ids) {
+			InfluentId infId = InfluentId.fromInfluentId(id);
+			resultString.append(getNamespaceHandler().toSQLId(rawFromInfluentID(infId), idType));
+			resultString.append(",");
 		}
-		
-	@Override
-	public Map<String, List<FL_Link>> getFlowAggregation(
-		List<String> entities,
-		List<String> focusEntities,
-		FL_DirectionFilter direction,
-		FL_LinkEntityTypeFilter entityType,
-		FL_LinkTag tag,
-		FL_DateRange date
-	) throws AvroRemoteException {
-		if (USE_PREPARED_STATEMENTS) {
-			return getFlowAggregationPrepared(entities, focusEntities, direction, entityType, tag, date);
-		} else {
-			return getFlowAggregationNoPrepared(entities, focusEntities, direction, entityType, tag, date);
-		}
+
+		resultString.deleteCharAt(resultString.lastIndexOf(","));
+
+		return resultString.toString();
 	}
-	
+
+
 	@Override
 	public Map<String, List<FL_Link>> getTimeSeriesAggregation(
-			List<String> entities,
-			List<String> focusEntities,
-			FL_LinkTag tag,
-			FL_DateRange date) throws AvroRemoteException {
-		if (USE_PREPARED_STATEMENTS) {
-			return getTimeSeriesAggregationPrepared(entities, focusEntities, tag, date);
-		} else {
-			return getTimeSeriesAggregationNoPrepared(entities, focusEntities, tag, date);
-		}
-	}
-	
-	private Map<String, List<FL_Link>> getTimeSeriesAggregationPrepared(
 		List<String> entities,
 		List<String> focusEntities,
-		FL_LinkTag tag,
 		FL_DateRange date
 	) throws AvroRemoteException {
-		
+
 		Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
-		
+
+		FL_PropertyDescriptors linkDescriptors = _applicationConfiguration.getLinkDescriptors();
+		FL_PropertyDescriptors entityDescriptors = _applicationConfiguration.getEntityDescriptors();
+
 		DateTime startDate = DataAccessHelper.getStartDate(date);
 		DateTime endDate = DataAccessHelper.getEndDate(date);
-			
-		final Map<String, List<String>> ns_entities = getNamespaceHandler().entitiesByNamespace(entities);
-		final Map<String, List<String>> ns_focusEntities = getNamespaceHandler().entitiesByNamespace(focusEntities);
+		String focusIds = createIdListFromCollection(focusEntities);
 
+		Connection connection = null;
 		try {
-			Connection connection = _connectionPool.getConnection();
-			
-			for (Entry<String, List<String>>  entitiesByNamespace : ns_entities.entrySet()) {
-				
-				final String namespace = entitiesByNamespace.getKey();
-				final List<String> localFocusEntities = ns_focusEntities.get(namespace);
-	
-				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-				String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
-				String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
-				String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
-				String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
-				String finFlowDateColNoEscape = unescapeColumnName(finFlowDateColumn);
+			connection = _connectionPool.getConnection();
 
-				String finEntityIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.ENTITY_TABLE, date.getDurationPerBin().getInterval()));
-				String finEntityEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
-				String finEntityInboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_INBOUND_AMOUNT);
-				String finEntityOutboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_OUTBOUND_AMOUNT);
-				String finEntityDateColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_PERIOD_DATE);
-				String finEntityDateColNoEscape = unescapeColumnName(finFlowDateColumn);
-				
-				List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
-				while (idsCopy.size() > 0) {
-					List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
-					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
-					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
-		
-					if (localFocusEntities != null && !localFocusEntities.isEmpty()) {
-						
-						// Create prepared statement
-						String preparedStatementString = buildPreparedStatementForSkippingFoci(
-							subIds.size(),
-							(localFocusEntities == null) ? 0 : localFocusEntities.size(),
-							finFlowFromEntityIdColumn,
-							finFlowToEntityIdColumn,
-							finFlowDateColumn, 
-							finFlowAmountColumn,
-							finFlowIntervalTable,
-                            namespace
+			if (focusEntities != null && focusEntities.size() > 0) {
+				for (FL_TypeDescriptor td : linkDescriptors.getTypes()) {
+
+					String linkType = td.getKey();
+
+					String finFlowIntervalTable = _applicationConfiguration.getIntervalTable(linkType, FIN_FLOW_BUCKETS.name(), date.getDurationPerBin().getInterval());
+					String finFlowFromEntityIdColumn = _applicationConfiguration.getColumn(linkType, FIN_FLOW_BUCKETS.name(), FROM_ENTITY_ID.name());
+					String finFlowFromEntityTypeColumn = _applicationConfiguration.getColumn(linkType, FIN_FLOW_BUCKETS.name(), FROM_ENTITY_TYPE.name());
+					String finFlowToEntityIdColumn = _applicationConfiguration.getColumn(linkType, FIN_FLOW_BUCKETS.name(), TO_ENTITY_ID.name());
+					String finFlowToEntityTypeColumn = _applicationConfiguration.getColumn(linkType, FIN_FLOW_BUCKETS.name(), TO_ENTITY_TYPE.name());
+					String finFlowAmountColumn = _applicationConfiguration.getColumn(linkType, FIN_FLOW_BUCKETS.name(), AMOUNT.name());
+					String finFlowDateColumn = _applicationConfiguration.getColumn(linkType, FIN_FLOW_BUCKETS.name(), PERIOD_DATE.name());
+
+					Statement stmt = connection.createStatement();
+
+					List<String> idsCopy = new ArrayList<String>(entities); // copy the ids as we will take 100 at a time to process and the take method is destructive
+					while (idsCopy.size() > 0) {
+						List<String> tempSubList = (idsCopy.size() > 100) ? idsCopy.subList(0, 99) : idsCopy; // get the next 100
+						List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
+						tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy
+
+						String ids = createIdListFromCollection(subIds);
+
+						String focusedSQL = buildStatementForFocusFlow(
+								ids,
+								focusIds,
+								finFlowFromEntityIdColumn,
+								finFlowFromEntityTypeColumn,
+								finFlowToEntityIdColumn,
+								finFlowToEntityTypeColumn,
+								finFlowDateColumn,
+								finFlowAmountColumn,
+								finFlowIntervalTable,
+								startDate,
+								endDate
 						);
-						PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
 
-						int index = 1;
-						
-						stmt.setString(index++, getNamespaceHandler().formatDate(startDate));
-						stmt.setString(index++, getNamespaceHandler().formatDate(endDate));
-						for (int i = 0; i < subIds.size(); i++) {
-							stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-						}
-						if (localFocusEntities != null) {
-							for (int i = 0; i < localFocusEntities.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(localFocusEntities.get(i), namespace));
-							}
-						}
-						stmt.setString(index++, getNamespaceHandler().formatDate(startDate));
-						stmt.setString(index++, getNamespaceHandler().formatDate(endDate));
-						for (int i = 0; i < subIds.size(); i++) {
-							stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-						}
-						if (localFocusEntities != null) {
-							for (int i = 0; i < localFocusEntities.size(); i++) {
-								stmt.setString(index++, getNamespaceHandler().toSQLId(localFocusEntities.get(i), namespace));
-							}
-						}
-						// Log prepared statement
-						s_logger.trace(stmt.toString());
-						
-						// Execute prepared statement and evaluate results
-						ResultSet rs = stmt.executeQuery();
-						while (rs.next()) {
-							String from = rs.getString(finFlowFromEntityIdColumn);
-							String to = rs.getString(finFlowToEntityIdColumn);
-							Double amount = rs.getDouble(finFlowAmountColumn);
-							Date rsDate = rs.getDate(finFlowDateColNoEscape);
-	
-							String keyId = from;
-							if (subIds.contains(to)) {
-								keyId = to;
-							}
+						getLogger().trace(focusedSQL);
 
-							// globalize this for return
-							keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId, TypedId.ACCOUNT);
-							
-							List<FL_Link> linkList = results.get(keyId);
-							if (linkList == null) {
-								linkList = new LinkedList<FL_Link>();
-								results.put(keyId, linkList);
-							}
-							
-							// only use the amount calculated above with the date respecting FLOW map
-							List<FL_Property> properties = new ArrayList<FL_Property>();
-							properties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, amount));
-							properties.add(new PropertyHelper(FL_PropertyTag.DATE, rsDate));
-		
-							// globalize these for return
-							from = getNamespaceHandler().globalFromLocalEntityId(namespace, from, TypedId.ACCOUNT);
-							to = getNamespaceHandler().globalFromLocalEntityId(namespace, to, TypedId.ACCOUNT);
-							
-							FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), from, to, true, null, null, properties);
-							linkList.add(link);
-						}
-						rs.close();
-						
-						// Close prepared statement
-						stmt.close();
-					}
-
-					// Create prepared statement
-					String preparedStatementString = buildPreparedStatementForTimeSeriesAggregation(
-						subIds.size(),
-						finEntityEntityIdColumn,
-						finEntityDateColumn,
-						finEntityInboundAmountColumn, 
-						finEntityOutboundAmountColumn,
-						finEntityIntervalTable,
-                        namespace
-					);
-					PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
-					
-					int index = 1;
-					
-					stmt.setString(index++, getNamespaceHandler().formatDate(startDate));
-					stmt.setString(index++, getNamespaceHandler().formatDate(endDate));
-					for (int i = 0; i < subIds.size(); i++) {
-						stmt.setString(index++, getNamespaceHandler().toSQLId(subIds.get(i), namespace));
-					}
-					
-					// Log prepared statement
-					s_logger.trace(stmt.toString());
-					
-					// Execute prepared statement and evaluate results
-					ResultSet rs = stmt.executeQuery();
-					while (rs.next()) {
-						String entity = rs.getString(finEntityEntityIdColumn);
-						Double inboundAmount = rs.getDouble(finEntityInboundAmountColumn);
-						Double outboundAmount = rs.getDouble(finEntityOutboundAmountColumn);
-						Date rsDate = rs.getDate(finEntityDateColNoEscape);
-
-						// globalize this for return
-						entity = getNamespaceHandler().globalFromLocalEntityId(namespace, entity, TypedId.ACCOUNT);
-						
-						List<FL_Link> linkList = results.get(entity);
-						if (linkList == null) {
-							linkList = new LinkedList<FL_Link>();
-							results.put(entity, linkList);
-						}
-	
-						List<FL_Property> inProperties = new ArrayList<FL_Property>();
-						inProperties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, inboundAmount));
-						inProperties.add(new PropertyHelper(FL_PropertyTag.DATE, rsDate));
-
-						List<FL_Property> outProperties = new ArrayList<FL_Property>();
-						outProperties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, outboundAmount));
-						outProperties.add(new PropertyHelper(FL_PropertyTag.DATE, rsDate));
-
-						FL_Link inLink = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), null, entity, false, null, null, inProperties);
-						FL_Link outLink = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), entity, null, false, null, null, outProperties);
-						linkList.add(inLink);
-						linkList.add(outLink);
-					}
-					rs.close();
-
-					// Close prepared statement
-					stmt.close();
-				}
-			}
-			connection.close();
-		} catch (ClassNotFoundException e) {
-			throw new AvroRemoteException(e);
-		} catch (SQLException e) {
-			throw new AvroRemoteException(e);
-		}
-		
-		return results;				
-	}
-	
-	
-	
-	private Map<String, List<FL_Link>> getTimeSeriesAggregationNoPrepared(
-			List<String> entities,
-			List<String> focusEntities,
-			FL_LinkTag tag,
-			FL_DateRange date) throws AvroRemoteException {
-		Map<String, List<FL_Link>> results = new HashMap<String, List<FL_Link>>();
-		
-		DateTime startDate = DataAccessHelper.getStartDate(date);
-		DateTime endDate = DataAccessHelper.getEndDate(date);
-			
-		
-		final Map<String, List<String>> ns_entities = getNamespaceHandler().entitiesByNamespace(entities);
-		final Map<String, List<String>> ns_focusEntities = getNamespaceHandler().entitiesByNamespace(focusEntities);
-
-
-		
-		try {
-			Connection connection = _connectionPool.getConnection();
-			
-			
-			for (Entry<String, List<String>>  entitiesByNamespace : ns_entities.entrySet()) {
-				final String namespace = entitiesByNamespace.getKey();
-				final List<String> localFocusEntities = ns_focusEntities.get(namespace);
-	
-				
-				// skip foci from different schemas.
-				boolean skipFoci = false;
-				if (!ns_focusEntities.isEmpty() && (localFocusEntities == null || localFocusEntities.isEmpty())) {
-					skipFoci = true;
-				}				
-				
-				Statement stmt = connection.createStatement();
-	
-				String focusIds = DataAccessHelper.createNodeIdListFromCollection(localFocusEntities, getNamespaceHandler(), namespace);
-	
-				String finFlowIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.FLOW_TABLE, date.getDurationPerBin().getInterval()));
-				String finFlowFromEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_ID);
-				String finFlowToEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_ID);
-				String finFlowAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_AMOUNT);
-				String finFlowDateColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_PERIOD_DATE);
-				String finFlowDateColNoEscape = unescapeColumnName(finFlowDateColumn);
-
-				String finEntityIntervalTable = getNamespaceHandler().tableName(namespace, DataAccessHelper.standardTableName(DataAccessHelper.ENTITY_TABLE, date.getDurationPerBin().getInterval()));
-				String finEntityEntityIdColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_ENTITY_ID);
-				String finEntityInboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_INBOUND_AMOUNT);
-				String finEntityOutboundAmountColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_OUTBOUND_AMOUNT);
-				String finEntityDateColumn = getNamespaceHandler().columnName(DataAccessHelper.ENTITY_COLUMN_PERIOD_DATE);
-				String finEntityDateColNoEscape = unescapeColumnName(finFlowDateColumn);
-				
-				List<String> idsCopy = new ArrayList<String>(entitiesByNamespace.getValue()); // copy the ids as we will take 100 at a time to process and the take method is destructive
-				while (idsCopy.size() > 0) {
-					List<String> tempSubList = (idsCopy.size() > 100) ? tempSubList = idsCopy.subList(0, 99) : idsCopy; // get the next 100
-					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
-					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy 
-		
-					String ids = DataAccessHelper.createNodeIdListFromCollection(subIds, getNamespaceHandler(), namespace);
-					String tsSQL = "select " + _namespaceHandler.toSQLIdColumn(finEntityEntityIdColumn, namespace) + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " from "+finEntityIntervalTable+" where " + finEntityDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and " + finEntityEntityIdColumn + " in ("+ids+")" ;
-	
-					if (!skipFoci) {
-						String sourceDirectionClause = finFlowFromEntityIdColumn + " in ("+ids+") and " + finFlowToEntityIdColumn + " in ("+focusIds+")";
-						String destDirectionClause = finFlowToEntityIdColumn + " in ("+ids+") and " + finFlowFromEntityIdColumn + " in ("+focusIds+")";
-						String focusedSQL = "select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+sourceDirectionClause +
-											" union " +
-											"select " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " from "+finFlowIntervalTable+" where " + finFlowDateColumn + " between '"+getNamespaceHandler().formatDate(startDate)+"' and '"+getNamespaceHandler().formatDate(endDate)+"' and "+destDirectionClause;
-					
-						s_logger.trace(focusedSQL);
-		
 						if (stmt.execute(focusedSQL)) {
 							ResultSet rs = stmt.getResultSet();
 							while (rs.next()) {
+
 								String from = rs.getString(finFlowFromEntityIdColumn);
+								char fromClass = rs.getString(finFlowFromEntityTypeColumn).toLowerCase().charAt(0);
+								String fromType = typeFromRaw(from);
 								String to = rs.getString(finFlowToEntityIdColumn);
+								char toClass = rs.getString(finFlowToEntityTypeColumn).toLowerCase().charAt(0);
+								String toType = typeFromRaw(to);
+
 								Double amount = rs.getDouble(finFlowAmountColumn);
-								Date rsDate = rs.getDate(finFlowDateColNoEscape);
-		
-								String keyId = from;
-								if (subIds.contains(to)) {
-									keyId = to;
+								Date rsDate = rs.getDate(finFlowDateColumn);
+
+								// globalize these for return
+								String globalFrom = InfluentId.fromNativeId(fromClass, fromType, from).toString();
+								String globalTo = InfluentId.fromNativeId(toClass, toType, to).toString();
+
+								String keyId = globalFrom;
+								if (subIds.contains(globalTo)) {
+									keyId = globalTo;
 								}
-	
-								// globalize this for return
-								keyId = getNamespaceHandler().globalFromLocalEntityId(namespace, keyId, TypedId.ACCOUNT);
-								
+
 								List<FL_Link> linkList = results.get(keyId);
 								if (linkList == null) {
 									linkList = new LinkedList<FL_Link>();
 									results.put(keyId, linkList);
 								}
-								
+
 								// only use the amount calculated above with the date respecting FLOW map
 								List<FL_Property> properties = new ArrayList<FL_Property>();
 								properties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, amount));
 								properties.add(new PropertyHelper(FL_PropertyTag.DATE, rsDate));
-			
-								// globalize these for return
-								from = getNamespaceHandler().globalFromLocalEntityId(namespace, from, TypedId.ACCOUNT);
-								to = getNamespaceHandler().globalFromLocalEntityId(namespace, to, TypedId.ACCOUNT);
-								
-								FL_Link link = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), from, to, true, null, null, properties);
+
+								FL_Link link = FL_Link.newBuilder()
+									.setUid(InfluentId.fromNativeId(InfluentId.LINK, linkType, UUID.randomUUID().toString()).toString())
+									.setSource(globalFrom)
+									.setTarget(globalTo)
+									.setLinkTypes(null)
+									.setType(linkType)
+									.setDirected(true)
+									.setProvenance(null)
+									.setUncertainty(null)
+									.setProperties(properties)
+									.build();
 								linkList.add(link);
 							}
 							rs.close();
 						}
 					}
-					
-					s_logger.trace(tsSQL);
-					
+					stmt.close();
+				}
+			}
+
+			Map<String, List<String>> entitiesByType = _namespaceHandler.entitiesByType(entities);
+			for (Map.Entry<String, List<String>> entry : entitiesByType.entrySet()) {
+
+				String entityType = entry.getKey();
+				List<String> entitySubgroup = entry.getValue();
+
+				if (entitySubgroup == null || entitySubgroup.isEmpty()) {
+					continue;
+				}
+
+				String finEntityIntervalTable = _applicationConfiguration.getIntervalTable(entityType, FIN_ENTITY_BUCKETS.name(), date.getDurationPerBin().getInterval());
+				String finEntityEntityIdColumn = _applicationConfiguration.getColumn(entityType, FIN_ENTITY_BUCKETS.name(), ENTITY_ID.name());
+				String finEntityInboundAmountColumn = _applicationConfiguration.getColumn(entityType, FIN_ENTITY_BUCKETS.name(), INBOUND_AMOUNT.name());
+				String finEntityOutboundAmountColumn = _applicationConfiguration.getColumn(entityType, FIN_ENTITY_BUCKETS.name(), OUTBOUND_AMOUNT.name());
+				String finEntityDateColumn = _applicationConfiguration.getColumn(entityType, FIN_ENTITY_BUCKETS.name(), PERIOD_DATE.name());
+
+				Statement stmt = connection.createStatement();
+
+				// process entities in batches
+				List<String> idsCopy = new ArrayList<String>(entitySubgroup); // copy the ids as we will take 1000 at a time to process and the take method is destructive
+				while (idsCopy.size() > 0) {
+					List<String> tempSubList = (idsCopy.size() > 1000) ? idsCopy.subList(0, 999) : idsCopy; // get the next 1000
+					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
+					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy
+
+					String ids = createIdListFromCollection(subIds);
+
+					String tsSQL = buildStatementForTimeSeriesAggregation(
+						ids,
+						finEntityEntityIdColumn,
+						finEntityDateColumn,
+						finEntityInboundAmountColumn,
+						finEntityOutboundAmountColumn,
+						finEntityIntervalTable,
+						startDate,
+						endDate
+					);
+
+					getLogger().trace(tsSQL);
+
 					if (stmt.execute(tsSQL)) {
 						ResultSet rs = stmt.getResultSet();
 						while (rs.next()) {
 							String entity = rs.getString(finEntityEntityIdColumn);
 							Double inboundAmount = rs.getDouble(finEntityInboundAmountColumn);
 							Double outboundAmount = rs.getDouble(finEntityOutboundAmountColumn);
-							Date rsDate = rs.getDate(finEntityDateColNoEscape);
-	
+							Date rsDate = rs.getDate(finEntityDateColumn);
+
 							// globalize this for return
-							entity = getNamespaceHandler().globalFromLocalEntityId(namespace, entity, TypedId.ACCOUNT);
-							
+							entity = influentIDFromRaw(InfluentId.ACCOUNT, entityType, entity).toString();
+
 							List<FL_Link> linkList = results.get(entity);
 							if (linkList == null) {
 								linkList = new LinkedList<FL_Link>();
 								results.put(entity, linkList);
 							}
-		
+
 							List<FL_Property> inProperties = new ArrayList<FL_Property>();
 							inProperties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, inboundAmount));
 							inProperties.add(new PropertyHelper(FL_PropertyTag.DATE, rsDate));
-	
+
 							List<FL_Property> outProperties = new ArrayList<FL_Property>();
 							outProperties.add(new PropertyHelper(FL_PropertyTag.AMOUNT, outboundAmount));
 							outProperties.add(new PropertyHelper(FL_PropertyTag.DATE, rsDate));
-	
-							FL_Link inLink = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), null, entity, false, null, null, inProperties);
-							FL_Link outLink = new FL_Link(Collections.singletonList(FL_LinkTag.FINANCIAL), entity, null, false, null, null, outProperties);
+
+							FL_Link inLink = FL_Link.newBuilder()
+								.setUid(InfluentId.fromNativeId(InfluentId.LINK, linkDescriptors.getTypes().get(0).getKey(), UUID.randomUUID().toString()).toString())
+								.setLinkTypes(null)
+								.setSource(null)
+								.setTarget(entity)
+								.setType(linkDescriptors.getTypes().get(0).getKey())
+								.setDirected(false)
+								.setProvenance(null)
+								.setUncertainty(null)
+								.setProperties(inProperties)
+								.build();
+							FL_Link outLink = FL_Link.newBuilder()
+								.setUid(InfluentId.fromNativeId(InfluentId.LINK, linkDescriptors.getTypes().get(0).getKey(), UUID.randomUUID().toString()).toString())
+								.setLinkTypes(null)
+								.setSource(entity)
+								.setTarget(null)
+								.setType(linkDescriptors.getTypes().get(0).getKey())
+								.setDirected(false)
+								.setProvenance(null)
+								.setUncertainty(null)
+								.setProperties(outProperties)
+								.build();
 							linkList.add(inLink);
 							linkList.add(outLink);
 						}
 						rs.close();
 					}
 				}
-				
 				stmt.close();
 			}
 			connection.close();
@@ -1013,129 +875,318 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			throw new AvroRemoteException(e);
 		} catch (SQLException e) {
 			throw new AvroRemoteException(e);
+		} finally {
+			try {
+				if (connection != null) {
+					connection.close();
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
-		
-		return results;				
+
+		return results;
 	}
-	
-	
+
+
+
+
+	protected String buildStatementForTimeSeriesAggregation(
+		String ids,
+		String finEntityEntityIdColumn,
+		String finEntityDateColumn,
+		String finEntityInboundAmountColumn,
+		String finEntityOutboundAmountColumn,
+		String finEntityIntervalTable,
+		DateTime startDate,
+		DateTime endDate
+
+	) {
+		if (finEntityEntityIdColumn == null ||
+			finEntityDateColumn == null ||
+			finEntityInboundAmountColumn == null ||
+			finEntityOutboundAmountColumn == null ||
+			finEntityIntervalTable == null ||
+			startDate == null ||
+			endDate == null
+			) {
+			getLogger().error("buildStatementForTimeSeriesAggregation: Invalid parameter");
+			return null;
+		}
+
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("SELECT ");
+		sb.append(finEntityEntityIdColumn);
+		sb.append(", ");
+		sb.append(finEntityDateColumn);
+		sb.append(", ");
+		sb.append(finEntityInboundAmountColumn);
+		sb.append(", ");
+		sb.append(finEntityOutboundAmountColumn);
+		sb.append(" FROM ");
+		sb.append(finEntityIntervalTable);
+		sb.append(" WHERE ");
+		sb.append(finEntityDateColumn);
+		sb.append(" BETWEEN '");
+		sb.append(getNamespaceHandler().formatDate(startDate));
+		sb.append("' AND '");
+		sb.append(getNamespaceHandler().formatDate(endDate));
+		sb.append("'");
+
+		if (ids.length() > 0) {
+			sb.append(" AND ");
+			sb.append(finEntityEntityIdColumn);
+			sb.append(" IN (");
+			sb.append(ids);
+			sb.append(") ");
+		}
+
+		return sb.toString();
+	}
+
+
+
+
+	protected String buildStatementForFocusFlow(
+		String ids,
+		String focusIds,
+		String finFlowFromEntityIdColumn,
+		String finFlowFromEntityTypeColumn,
+		String finFlowToEntityIdColumn,
+		String finFlowToEntityTypeColumn,
+		String finFlowDateColumn,
+		String finFlowAmountColumn,
+		String finFlowIntervalTable,
+		DateTime startDate,
+		DateTime endDate
+	) {
+		if (finFlowFromEntityIdColumn == null ||
+			finFlowFromEntityTypeColumn == null ||
+			finFlowToEntityIdColumn == null ||
+			finFlowToEntityTypeColumn == null ||
+			finFlowDateColumn == null ||
+			finFlowAmountColumn == null ||
+			finFlowIntervalTable == null ||
+			startDate == null ||
+			endDate == null
+		) {
+			getLogger().error("buildStatementForFlow: Invalid parameter");
+			return null;
+		}
+
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("SELECT ");
+		sb.append(finFlowFromEntityIdColumn);
+		sb.append(", ");
+		sb.append(finFlowFromEntityTypeColumn);
+		sb.append(", ");
+		sb.append(finFlowToEntityIdColumn);
+		sb.append(", ");
+		sb.append(finFlowToEntityTypeColumn);
+		sb.append(", ");
+		sb.append(finFlowDateColumn);
+		sb.append(", ");
+		sb.append(finFlowAmountColumn);
+		sb.append(" FROM ");
+		sb.append(finFlowIntervalTable);
+		sb.append(" WHERE ");
+		sb.append(finFlowDateColumn);
+		sb.append(" BETWEEN '");
+		sb.append(getNamespaceHandler().formatDate(startDate));
+		sb.append("' AND '");
+		sb.append(getNamespaceHandler().formatDate(endDate));
+		sb.append("'");
+		if (ids.length() > 0) {
+			sb.append(" AND ");
+			sb.append(finFlowFromEntityIdColumn);
+			sb.append(" IN (");
+			sb.append(ids);
+			sb.append(") ");
+		}
+		if (focusIds.length() > 0) {
+			sb.append(" AND ");
+			sb.append(finFlowToEntityIdColumn);
+			sb.append(" IN (");
+			sb.append(focusIds);
+			sb.append(") ");
+		}
+		sb.append(" UNION ");
+		sb.append("SELECT ");
+		sb.append(finFlowFromEntityIdColumn);
+		sb.append(", ");
+		sb.append(finFlowFromEntityTypeColumn);
+		sb.append(", ");
+		sb.append(finFlowToEntityIdColumn);
+		sb.append(", ");
+		sb.append(finFlowToEntityTypeColumn);
+		sb.append(", ");
+		sb.append(finFlowDateColumn);
+		sb.append(", ");
+		sb.append(finFlowAmountColumn);
+		sb.append(" FROM ");
+		sb.append(finFlowIntervalTable);
+		sb.append(" WHERE ");
+		sb.append(finFlowDateColumn);
+		sb.append(" BETWEEN '");
+		sb.append(getNamespaceHandler().formatDate(startDate));
+		sb.append("' AND '");
+		sb.append(getNamespaceHandler().formatDate(endDate));
+		sb.append("'");
+		if (ids.length() > 0) {
+			sb.append(" AND ");
+			sb.append(finFlowToEntityIdColumn);
+			sb.append(" IN (");
+			sb.append(ids);
+			sb.append(") ");
+		}
+		if (focusIds.length() > 0) {
+			sb.append(" AND ");
+			sb.append(finFlowFromEntityIdColumn);
+			sb.append(" IN (");
+			sb.append(focusIds);
+			sb.append(") ");
+		}
+
+		return sb.toString();
+	}
+
+
+
+
 	@Override
-	public Map<String, List<FL_Entity>> getAccounts(List<String> entities) throws AvroRemoteException {
+	public Map<String, List<FL_Entity>> getAccounts(
+		List<String> entities
+	) throws AvroRemoteException {
 		Map<String, List<FL_Entity>> map = new HashMap<String, List<FL_Entity>>();
 		for (FL_Entity entity : getEntities(entities, FL_LevelOfDetail.SUMMARY)) {
 			map.put(entity.getUid(), Collections.singletonList(entity));
 		}
 		return map;
 	}
-	
-	
-	
-	
-	public String getClientState(String sessionId) throws AvroRemoteException {
+
+
+
+
+	public String getClientState(
+		String sessionId
+	) throws AvroRemoteException {
 		String data = null;
+		Connection connection = null;
 		try {
-			Connection connection = _connectionPool.getConnection();
-		
-			String clientStateTableName = getNamespaceHandler().tableName(null, "clientState");
-				
+			connection = _connectionPool.getConnection();
+
+			String clientStateTableName = _applicationConfiguration.getTable(CLIENT_STATE.name(), CLIENT_STATE.name());
+
 			// Create prepared statement
 			PreparedStatement stmt = connection.prepareStatement(
 				"SELECT data " +
-				"FROM " + clientStateTableName + " " +
-				"WHERE sessionId = ?"
+					"FROM " + clientStateTableName + " " +
+					"WHERE sessionId = ?"
 			);
 			stmt.setString(1, sessionId);
-				
+
 			// Log prepared statement
-			s_logger.trace(stmt.toString());
-			
+			getLogger().trace(stmt.toString());
+
 			// Execute prepared statement and evaluate results
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
 				data = rs.getString("data");
 			}
 			rs.close();
-			
+
 			// Close prepared statement
 			stmt.close();
-			
+
 			connection.close();
 		} catch (ClassNotFoundException e) {
 			throw new AvroRemoteException(e);
 		} catch (SQLException e) {
 			throw new AvroRemoteException(e);
+		} finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
-		
+
 		return data;
 	}
-	
-	
-	
-	
-	public void setClientState(String sessionId, String state) throws AvroRemoteException {
+
+
+
+
+	public void setClientState(
+		String sessionId,
+		String state
+	) throws AvroRemoteException {
+		Connection connection = null;
 		try {
-			Connection connection = _connectionPool.getConnection();
-		
-			String clientStateTableName = getNamespaceHandler().tableName(null, "clientState");
+			connection = _connectionPool.getConnection();
+
+			String clientStateTableName = _applicationConfiguration.getTable(CLIENT_STATE.name(), CLIENT_STATE.name());
 			boolean exists = false;
-	
+
 			// Create prepared statement
 			PreparedStatement stmt = connection.prepareStatement(
 				"SELECT sessionId " +
-				"FROM " + clientStateTableName + " " +
-				"WHERE sessionId = ?"
+					"FROM " + clientStateTableName + " " +
+					"WHERE sessionId = ?"
 			);
 			stmt.setString(1, sessionId);
-			
+
 			// Execute prepared statement and evaluate results
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
 				exists = true;
 			}
 			rs.close();
-			
+
 			// Close prepared statement
 			stmt.close();
 
 			String data = state.replaceAll("'", "''");
 			DateTime now = new DateTime();
-			
+
 			if (exists) {
 				// Create UPDATE prepared statement
 				PreparedStatement pstmt = connection.prepareStatement(
 					"UPDATE " + clientStateTableName + " " +
-					"SET data = ?, modified = ? " +
-					"WHERE sessionId = ?"
+						"SET data = ?, modified = ? " +
+						"WHERE sessionId = ?"
 				);
 				pstmt.setString(1, data);
 				pstmt.setString(2, getNamespaceHandler().formatDate(now));
 				pstmt.setString(3, sessionId);
-				
+
 				// Log prepared statement
-				s_logger.trace(pstmt.toString());
-				
+				getLogger().trace(pstmt.toString());
+
 				// Execute prepared statement and evaluate results
 				pstmt.executeUpdate();
-				
+
 				// Close prepared statement
 				pstmt.close();
 			} else {
 				// Create INSERT prepared statement
 				PreparedStatement pstmt = connection.prepareStatement(
 					"INSERT INTO " + clientStateTableName + " (sessionId, created, modified, data)" +
-					"VALUES (?, ?, ?, ?) "
+						"VALUES (?, ?, ?, ?) "
 				);
 				pstmt.setString(2, sessionId);
 				pstmt.setString(3, getNamespaceHandler().formatDate(now));
 				pstmt.setString(4, getNamespaceHandler().formatDate(now));
 				pstmt.setString(5, data);
-				
+
 				// Log prepared statement
-				s_logger.trace(pstmt.toString());
-				
+				getLogger().trace(pstmt.toString());
+
 				// Execute prepared statement and evaluate results
 				pstmt.executeUpdate();
-				
+
 				// Close prepared statement
 				pstmt.close();
 			}
@@ -1145,319 +1196,37 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 			throw new AvroRemoteException(e);
 		} catch (SQLException e) {
 			throw new AvroRemoteException(e);
+		} finally {
+			try {
+				connection.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		}
 	}
-	
-	
-	
-	
-	private String buildPreparedStatementForFlow(
-		int numIds,
-		int numFocusIds,
-		FL_DirectionFilter direction, 
-		FL_LinkEntityTypeFilter entityType,
-		String finFlowFromEntityIdColumn,
-		String finFlowFromEntityTypeColumn,
-		String finFlowToEntityIdColumn,
-		String finFlowToEntityTypeColumn,
-		String finFlowTable,
-        String namespace
+
+
+	private static String unescapeColumnName(
+		String columnName
 	) {
-		if (direction == null ||
-			entityType == null ||
-			finFlowFromEntityIdColumn == null ||
-			finFlowFromEntityTypeColumn == null ||
-			finFlowToEntityIdColumn == null ||
-			finFlowToEntityTypeColumn == null ||
-			finFlowTable == null
-		) {
-			s_logger.error("buildPreparedStatementForDateRespectingFlow: Invalid parameter");
-			return null;
-		}
-		
-		boolean addedWhereClause = false;
-		
-		StringBuilder sb = new StringBuilder();
-		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + finFlowFromEntityTypeColumn + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowToEntityTypeColumn + " ");
-		sb.append("FROM " + finFlowTable + " ");
-		
-		if (numIds > 0) {
-			sb.append("WHERE ");
-			addedWhereClause = true;
-			
-			if (direction == FL_DirectionFilter.DESTINATION) {
-				sb.append(finFlowToEntityIdColumn + " ");
-			} else {
-				sb.append(finFlowFromEntityIdColumn + " ");
-			}
-			sb.append("IN (");
-			for (int i = 1; i < numIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		if (numFocusIds > 0) {
-			
-			if (!addedWhereClause) {
-				sb.append("WHERE ");
-				addedWhereClause = true;
-			} else {
-				sb.append("AND ");
-			}
-			
-			if (direction == FL_DirectionFilter.DESTINATION) {
-				sb.append(finFlowFromEntityIdColumn + " ");
-			} else {
-				sb.append(finFlowToEntityIdColumn + " ");
-			}
-			sb.append("IN (");
-			for (int i = 1; i < numFocusIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		if (direction == FL_DirectionFilter.BOTH) {
-			
-			if (numIds > 0) {
-				sb.append("AND " + finFlowToEntityIdColumn + " IN (");
-				for (int i = 1; i < numIds; i++) {
-					sb.append("?, ");
-				}
-				sb.append("?) ");
-			}
-			if (numFocusIds > 0) {
-				sb.append("AND " + finFlowFromEntityIdColumn + " IN (");
-				for (int i = 1; i < numFocusIds; i++) {
-					sb.append("?, ");
-				}
-				sb.append("?) ");
-			}
-		}
-		if (entityType != FL_LinkEntityTypeFilter.ANY) {
-			
-			if (!addedWhereClause) {
-				sb.append("WHERE ");
-				addedWhereClause = true;
-			} else {
-				sb.append("AND ");
-			}
-			
-			if (direction == FL_DirectionFilter.DESTINATION) {
-				sb.append(finFlowFromEntityTypeColumn + " ");
-			} else {
-				sb.append(finFlowToEntityTypeColumn + " ");
-			}
-			sb.append("= ? ");
-			if (direction == FL_DirectionFilter.BOTH) {
-				sb.append("AND " + finFlowFromEntityTypeColumn + " = ?");
-			}
-		}
-		
-		return sb.toString();
-	}
-	
-	
-	
-	
-	private String buildPreparedStatementForDateRespectingFlow(
-		int numIds,
-		int numFocusIds,
-		FL_DirectionFilter direction, 
-		FL_LinkEntityTypeFilter entityType,
-		String finFlowIntervalTable, 
-		String finFlowAmountColumn,
-		String finFlowFromEntityIdColumn,
-		String finFlowToEntityIdColumn, 
-		String finFlowDateColumn,
-		String finFlowFromEntityTypeColumn,
-		String finFlowToEntityTypeColumn,
-        String namespace
-	) {
-		if (direction == null ||
-			entityType == null ||
-			finFlowIntervalTable == null ||
-			finFlowAmountColumn == null
-		) {
-			s_logger.error("buildPreparedStatementForDateRespectingFlow: Invalid parameter");
-			return null;
-		}
-		
-		StringBuilder sb = new StringBuilder();
-		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", SUM(" + finFlowAmountColumn + ") AS " + finFlowAmountColumn + " ");
-		sb.append("FROM " + finFlowIntervalTable + " ");
-		sb.append("WHERE " + finFlowDateColumn + " BETWEEN ? AND ? ");
-		if (numIds > 0) {
-			sb.append("AND ");
-			if (direction == FL_DirectionFilter.DESTINATION) {
-				sb.append(finFlowToEntityIdColumn + " ");
-			} else {
-				sb.append(finFlowFromEntityIdColumn + " ");
-			}
-			sb.append("IN (");
-			for (int i = 1; i < numIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		if (numFocusIds > 0) {
-			sb.append("AND ");
-			if (direction == FL_DirectionFilter.DESTINATION) {
-				sb.append(finFlowFromEntityIdColumn + " ");
-			} else {
-				sb.append(finFlowToEntityIdColumn + " ");
-			}
-			sb.append("IN (");
-			for (int i = 1; i < numFocusIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		if (direction == FL_DirectionFilter.BOTH) {
-			if (numIds > 0) {
-				sb.append("AND " + finFlowToEntityIdColumn + " IN (");
-				for (int i = 1; i < numIds; i++) {
-					sb.append("?, ");
-				}
-				sb.append("?) ");
-			}
-			if (numFocusIds > 0) {
-				sb.append("AND " + finFlowFromEntityIdColumn + " IN (");
-				for (int i = 1; i < numFocusIds; i++) {
-					sb.append("?, ");
-				}
-				sb.append("?) ");
-			}
-		}
-		if (entityType != FL_LinkEntityTypeFilter.ANY) {
-			sb.append("AND ");
-			if (direction == FL_DirectionFilter.DESTINATION) {
-				sb.append(finFlowFromEntityTypeColumn + " ");
-			} else {
-				sb.append(finFlowToEntityTypeColumn + " ");
-			}
-			sb.append("= ? ");
-			if (direction == FL_DirectionFilter.BOTH) {
-				sb.append("AND " + finFlowFromEntityTypeColumn + " = ?");
-			}
-		}
-		sb.append("GROUP BY " + finFlowFromEntityIdColumn + ", " + finFlowToEntityIdColumn);
-		
-		return sb.toString();
-	}
-	
-	
-	
-	
-	private String buildPreparedStatementForTimeSeriesAggregation(
-		int numIds,
-		String finEntityEntityIdColumn, 
-		String finEntityDateColumn,
-		String finEntityInboundAmountColumn,
-		String finEntityOutboundAmountColumn, 
-		String finEntityIntervalTable,
-        String namespace
-	) {
-		if (finEntityEntityIdColumn == null ||
-			finEntityDateColumn == null ||
-			finEntityInboundAmountColumn == null ||
-			finEntityOutboundAmountColumn == null ||
-			finEntityIntervalTable == null
-		) {
-			s_logger.error("buildPreparedStatementForTimeSeriesAggregation: Invalid parameter");
-			return null;
-		}
-
-		StringBuilder sb = new StringBuilder();
-		
-		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finEntityEntityIdColumn, namespace) + ", " + finEntityDateColumn + ", " + finEntityInboundAmountColumn + ", " + finEntityOutboundAmountColumn + " ");
-		sb.append("FROM " + finEntityIntervalTable + " ");
-		sb.append("WHERE " + finEntityDateColumn + " BETWEEN ? AND ? ");
-		if (numIds > 0) {
-			sb.append("AND " + finEntityEntityIdColumn + " IN (");
-			for (int i = 1; i < numIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		
-		return sb.toString();
-	}
-
-
-
-
-	private String buildPreparedStatementForSkippingFoci(
-		int numIds, 
-		int numFocusIds,
-		String finFlowFromEntityIdColumn, 
-		String finFlowToEntityIdColumn,
-		String finFlowDateColumn, 
-		String finFlowAmountColumn,
-		String finFlowIntervalTable,
-        String namespace
-	) {
-		if (finFlowFromEntityIdColumn == null ||
-			finFlowToEntityIdColumn == null ||
-			finFlowDateColumn == null ||
-			finFlowAmountColumn == null ||
-			finFlowIntervalTable == null
-		) {
-			s_logger.error("buildPreparedStatementForSkippingFoci: Invalid parameter");
-			return null;
-		}
-		
-		StringBuilder sb = new StringBuilder();
-		
-		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " ");
-		sb.append("FROM " + finFlowIntervalTable + " ");
-		sb.append("WHERE " + finFlowDateColumn + " BETWEEN ? AND ? ");
-		if (numIds > 0) {
-			sb.append("AND " + finFlowFromEntityIdColumn + " IN (");
-			for (int i = 1; i < numIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		if (numFocusIds > 0) {
-			sb.append("AND " + finFlowToEntityIdColumn + " IN (");
-			for (int i = 1; i < numFocusIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		sb.append("UNION ");
-		sb.append("SELECT " + _namespaceHandler.toSQLIdColumn(finFlowFromEntityIdColumn, namespace) + ", " + _namespaceHandler.toSQLIdColumn(finFlowToEntityIdColumn, namespace) + ", " + finFlowDateColumn + ", " + finFlowAmountColumn + " ");
-		sb.append("FROM " + finFlowIntervalTable + " ");
-		sb.append("WHERE " + finFlowDateColumn + " BETWEEN ? AND ? ");
-		if (numIds > 0) {
-		sb.append("AND " + finFlowToEntityIdColumn + " IN (");
-			for (int i = 1; i < numIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		if (numFocusIds > 0) {
-			sb.append("AND " + finFlowFromEntityIdColumn + " IN (");
-			for (int i = 1; i < numFocusIds; i++) {
-				sb.append("?, ");
-			}
-			sb.append("?) ");
-		}
-		
-		return sb.toString();
-	}
-	
-	private static String unescapeColumnName(String columnName) {
 		Matcher m = COLUMN_PATTERN.matcher(columnName);
 		if (m.find()) {
 			return m.group();
 		}
 		return columnName;
 	}
-	
-	private String linkEntityTypeClause(FL_DirectionFilter direction, FL_LinkEntityTypeFilter entityType) {
+
+
+
+
+	private String linkEntityTypeClause(
+		FL_DirectionFilter direction,
+		FL_LinkEntityTypeFilter entityType,
+		String finFlowFromEntityTypeColumn,
+		String finFlowToEntityTypeColumn
+	) {
 		if (entityType == FL_LinkEntityTypeFilter.ANY) return " 1=1 ";
-		
+
 		StringBuilder clause = new StringBuilder();
 		String type = "A";
 		if (entityType == FL_LinkEntityTypeFilter.ACCOUNT_OWNER) {
@@ -1465,24 +1234,20 @@ public abstract class DataViewDataAccess implements FL_DataAccess {
 		} else if (entityType == FL_LinkEntityTypeFilter.CLUSTER_SUMMARY) {
 			type = "S";
 		}
-		
-		String finFlowFromEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_FROM_ENTITY_TYPE);
-		String finFlowToEntityTypeColumn = getNamespaceHandler().columnName(DataAccessHelper.FLOW_COLUMN_TO_ENTITY_TYPE);
 
 		// reverse direction - we are filtering on other entity
 		switch (direction) {
-		case DESTINATION:
-			clause.append(" " + finFlowFromEntityTypeColumn + " = '" + type + "' ");
-			break;
-		case SOURCE:
-			clause.append(" " + finFlowToEntityTypeColumn + " = '" + type + "' ");
-			break;
-		case BOTH:
-			clause.append(" " + finFlowFromEntityTypeColumn + " = '" + type + "' AND " + finFlowToEntityTypeColumn + " = '" + type + "' ");
-			break;
+			case DESTINATION:
+				clause.append(" " + finFlowFromEntityTypeColumn + " = '" + type + "' ");
+				break;
+			case SOURCE:
+				clause.append(" " + finFlowToEntityTypeColumn + " = '" + type + "' ");
+				break;
+			case BOTH:
+				clause.append(" " + finFlowFromEntityTypeColumn + " = '" + type + "' AND " + finFlowToEntityTypeColumn + " = '" + type + "' ");
+				break;
 		}
-		
-		return clause.toString();
-	}	
-}
 
+		return clause.toString();
+	}
+}

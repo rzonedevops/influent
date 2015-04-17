@@ -5,7 +5,7 @@
 	<!-- Config File Location -->
 	<!-- context-param>
 		<param-name>apertureConfig</param-name>
-		<param-value>res:///app-my.properties</param-value>
+		<param-value>res:///dev-server.config</param-value>
 	</context-param -->
 
 	<!-- ehcache Config File Location -->

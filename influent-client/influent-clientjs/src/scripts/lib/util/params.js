@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -23,10 +25,6 @@
  * SOFTWARE.
  */
 
-/**
- * Defines the base application state object and functions on that object.
- * State is for instance the current time window.
- */
 define([], function() {
 	return {
 
@@ -99,8 +97,9 @@ define([], function() {
 
 					// cannot compare dates using equals operator
 					if (myprop && nwprop && myprop.getTime && nwprop.getTime) {
-						if (myprop.getTime() === nwprop.getTime())
+						if (myprop.getTime() === nwprop.getTime()) {
 							continue;
+						}
 					}
 					else if (myprop === nwprop) {
 						continue;

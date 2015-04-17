@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,12 +24,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/channels', 'lib/util/xfUtil', 'lib/render/cardRenderer', 'lib/render/clusterRenderer', 'lib/constants'
+		'lib/communication/applicationChannels',
+		'lib/communication/flowViewChannels',
+		'lib/util/xfUtil',
+		'lib/render/cardRenderer',
+		'lib/render/clusterRenderer',
+		'lib/constants'
 	],
 	function(
-		chan, xfUtil, cardRenderer, clusterRenderer, constants
+		appChannel,
+		flowChannel,
+		xfUtil,
+		cardRenderer,
+		clusterRenderer,
+		constants
 	) {
 
 		var _cardDefaults = cardRenderer.getRenderDefaults();
@@ -69,129 +82,36 @@ define(
 		var createSearchControls = function(visualInfo){
 
 			var parentId = visualInfo.xfId;
-			var fileId = visualInfo.spec.parent.getXfId();
 
 			// Create the controls
 			var form  = $('<div></div>');
-			var searchBox = $('<input/>');
-			var advancedOptionsButton =  xfUtil.makeButton('advanced search options', 'searchIcon', null, null, 'advancedOptionsButton');
 			var removeButton = $('<div></div>');
-			var searchType = $('<div></div>');
-			var globalSearchButton = xfUtil.makeButton('execute search', null, 'Search', null, 'globalSearchButton');
+
 
 			// Add the controls.
-			form.append(searchBox);
-			form.append(advancedOptionsButton);
 			form.append(removeButton);
-			form.append(globalSearchButton);
-			form.keypress(function(){                  // ignore ENTER
-				return true;
-			});
 
 			// configure the controls
 			form.addClass('matchCardForm');
-			searchBox.addClass('matchCardSearchBox');
-			searchBox.attr({name : 'searchBox'});
-			searchBox.val(visualInfo.spec.searchTerm);
-
-			// Notify the xfMatch instance that it's search box has changed
-			searchBox.bind('input', function() {
-				aperture.pubsub.publish(
-					chan.SEARCH_BOX_CHANGED,
-					{
-						xfId: visualInfo.xfId,
-						val: searchBox.val(),
-						noRender: true
-					}
-				);
-			});
-
-			advancedOptionsButton.addClass('searchButton advancedOptionsButton');
-
-			form.append(searchType);
 
 			removeButton.addClass('matchRemoveButton');
 			xfUtil.makeTooltip(removeButton, 'remove', 'remove matchcard');
-			globalSearchButton.addClass('searchButton globalSearchButton');
-
-			searchBox.keypress(
-				function(event) {
-					if(!visualInfo.isSearchControlFocused) {
-						aperture.pubsub.publish(chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST, { xfId: parentId } );
-					}
-
-					if (event.which === 13) {
-						event.preventDefault();
-						onSubmit();
-					}
-
-					return true;
-				}
-			);
 
 			// set the remove button click handling
 			removeButton.click(
 				function() {
 					aperture.pubsub.publish(
-						chan.REMOVE_REQUEST,
+						appChannel.REMOVE_REQUEST,
 						{
 							xfIds : [parentId],
 							dispose : true,
-                            isMatchCard : true,
-                            userRequested : true
+							isMatchCard : true,
+							userRequested : true
 						}
 					);
 					return false;
 				}
 			);
-
-			advancedOptionsButton.click(
-				function(e) {
-					searchType.attr('clicked', e.currentTarget.id);
-					onSubmit();
-					return false;
-				}
-			);
-
-			// set the pattern search handler
-			globalSearchButton.click(
-				function(e) {
-					searchType.attr('clicked', e.currentTarget.id);
-					onSubmit();
-					return false;
-				}
-			);
-
-			function onSubmit() {
-				form.children('.ui-draggable').remove();
-
-				if (searchType.attr('clicked') === 'advancedOptionsButton') {
-					aperture.pubsub.publish(
-						chan.ADVANCE_SEARCH_DIALOG_REQUEST,
-						{
-							fileId : fileId,
-							terms : searchBox.val(),
-							dataIds : null,
-							contextId : visualInfo.spec.parent.getDataId()
-						}
-					);
-				}
-				else {
-					if (searchBox.val() === '') {
-						return false;
-					}
-
-					var searchData = {
-						xfId : parentId,
-						searchTerm : searchBox.val()
-					};
-
-					aperture.pubsub.publish(chan.SEARCH_REQUEST, searchData);
-				}
-
-				searchType.removeAttr('clicked');
-				return false;
-			}
 
 			return form;
 		};
@@ -207,11 +127,11 @@ define(
 					case constants.MODULE_NAMES.IMMUTABLE_CLUSTER :
 					case constants.MODULE_NAMES.MUTABLE_CLUSTER :
 					case constants.MODULE_NAMES.SUMMARY_CLUSTER : {
-						element = clusterRenderer.createElement(visualInfo);
+						element = clusterRenderer.renderElement(visualInfo);
 						break;
 					}
 					case constants.MODULE_NAMES.ENTITY : {
-						element = cardRenderer.createElement(visualInfo);
+						element = cardRenderer.renderElement(visualInfo);
 						break;
 					}
 					default : {
@@ -230,7 +150,7 @@ define(
 		var _getPageString = function(visualInfo) {
 			var minIdx = visualInfo.minIdx;
 			var maxIdx = Math.min(visualInfo.maxIdx, visualInfo.children.length);
-			return (minIdx + 1) + '-' + maxIdx + ' of top ' + visualInfo.children.length;
+			return (minIdx + 1) + '-' + maxIdx + ' of ' + visualInfo.totalMatches + ' results';
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -239,12 +159,13 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		matchRenderer.createElement = function(visualInfo) {
+		matchRenderer.renderElement = function(visualInfo, updateOnly) {
 
 			var canvas = $('#' + visualInfo.xfId);
 
-			var searchBox = canvas.children('.searchControls').children('.matchCardForm').children('.matchCardSearchBox');
-			searchBox.val(visualInfo.spec.searchTerm);
+			if (updateOnly) {
+				return canvas;
+			}
 
 			var searchDiv = canvas.children('.searchControls');
 			var cardDiv = canvas.children('.searchResults');
@@ -263,6 +184,7 @@ define(
 				searchDiv.css('padding-top', _renderDefaults.SEARCH_CTRL_PADDING_TOP);
 				searchDiv.css('padding-bottom', _renderDefaults.SEARCH_CTRL_PADDING_BOTTOM);
 				canvas.append(searchDiv);
+
 				var searchElement = createSearchControls(visualInfo);
 				searchDiv.append(searchElement);
 
@@ -302,7 +224,7 @@ define(
 				searchingDiv.css('height', _renderDefaults.SEARCH_RESULT_HEIGHT);
 				searchingDiv.css('background', constants.AJAX_SPINNER_BG);
 				cardDiv.append(searchingDiv);
-				aperture.pubsub.publish(chan.SET_SEARCH_PAGE_REQUEST, {
+				aperture.pubsub.publish(flowChannel.SET_SEARCH_PAGE_REQUEST, {
                     xfId: visualInfo.xfId,
                     page: 0,
                     noRender: true
@@ -317,16 +239,16 @@ define(
 					var searchPagingControlDiv = $('<div class="searchPagingControls"></div>');
 
 					var searchPagingLabel =$('<div class="searchResultCount"></div>');
-					searchPagingLabel.html(_getPageString(visualInfo) + ' (' + visualInfo.totalMatches + ')');
+					searchPagingLabel.html(_getPageString(visualInfo));
 					searchPagingLabel.css('height', _renderDefaults.SEARCH_RESULT_COUNT_HEIGHT);
 
 					var prevButton = xfUtil.makeButton(null, 'ui-icon-carat-1-w', null, 'prevPageButton', null).click(function() {
-						aperture.pubsub.publish(chan.PREV_SEARCH_PAGE_REQUEST, {xfId : visualInfo.xfId});
+						aperture.pubsub.publish(appChannel.PREV_SEARCH_PAGE_REQUEST, {xfId : visualInfo.xfId});
 					});
 					xfUtil.makeTooltip(prevButton, 'display previous page of search results');
 
 					var nextButton = xfUtil.makeButton(null, 'ui-icon-carat-1-e', null, 'nextPageButton', null).click(function() {
-						aperture.pubsub.publish(chan.NEXT_SEARCH_PAGE_REQUEST, {xfId : visualInfo.xfId});
+						aperture.pubsub.publish(appChannel.NEXT_SEARCH_PAGE_REQUEST, {xfId : visualInfo.xfId});
 					});
 					xfUtil.makeTooltip(nextButton, 'display next page of search results');
 
@@ -347,40 +269,7 @@ define(
 
 			}
 
-			var globalSearchButton = canvas.children('.searchControls').children('.matchCardForm').children('.globalSearchButton');
-			if(globalSearchButton.length > 0) {
-				if(visualInfo.isSearchControlFocused) {
-					globalSearchButton.show();
-				}
-				else {
-					globalSearchButton.hide();
-				}
-			}
-
 			initStyling(canvas);
-
-			canvas.mousedown (
-				function(eventObject) {
-					var focusChanged = false;
-					if(eventObject != null && eventObject.target != null) {
-						var elem = $(eventObject.target);
-						focusChanged =	elem.hasClass('matchCardSearchBox') ||
-											elem.parents('.searchResults').length !== 0 ||
-											elem.parents('.searchPagingControls').length !== 0 ||
-											elem.parents('.advancedOptionsButton').length !== 0;
-					}
-
-					if(focusChanged) {
-
-						aperture.pubsub.publish(
-							chan.SEARCH_CONTROL_FOCUS_CHANGE_REQUEST,
-							{
-								xfId: visualInfo.xfId
-							}
-						);
-					}
-				}
-			);
 
 			return canvas;
 		};

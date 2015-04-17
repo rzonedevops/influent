@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,35 +26,16 @@
  */
 package influent.server.rest;
 
-import influent.idl.FL_Cluster;
-import influent.idl.FL_ClusteringDataAccess;
-import influent.idl.FL_DataAccess;
-import influent.idl.FL_DateRange;
-import influent.idl.FL_DirectionFilter;
-import influent.idl.FL_Entity;
-import influent.idl.FL_Link;
-import influent.idl.FL_LinkTag;
-import influent.server.clustering.utils.ContextCollapser;
+import com.google.common.collect.Lists;
+import com.google.inject.Inject;
+import influent.idl.*;
 import influent.server.clustering.utils.ClusterContextCache;
-import influent.server.clustering.utils.ContextReadWrite;
 import influent.server.clustering.utils.ClusterContextCache.PermitSet;
-import influent.server.utilities.DateRangeBuilder;
-import influent.server.utilities.DateTimeParser;
-import influent.server.utilities.GuidValidator;
-import influent.server.utilities.Pair;
-import influent.server.utilities.UISerializationHelper;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import influent.server.clustering.utils.ContextCollapser;
+import influent.server.clustering.utils.ContextReadWrite;
+import influent.server.utilities.*;
+import oculus.aperture.common.JSONProperties;
 import oculus.aperture.common.rest.ApertureServerResource;
-
 import org.apache.avro.AvroRemoteException;
 import org.joda.time.DateTime;
 import org.json.JSONArray;
@@ -66,7 +49,7 @@ import org.restlet.resource.ResourceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.Inject;
+import java.util.*;
 
 public class RelatedLinkResource extends ApertureServerResource{
 
@@ -96,54 +79,40 @@ public class RelatedLinkResource extends ApertureServerResource{
 		// This list is populated with the entities at the other end of the discovered links, and pass to the UI.
 		// This is so the UI doesn't need to make a second call to get the entities at the end of the found links.
 		List<Object> targets = new ArrayList<Object>();
-		boolean fetchTargetEntities = true;
 		
 		try {
-			JSONObject jsonObj = new JSONObject(jsonData);
+			JSONProperties request = new JSONProperties(jsonData);
 			
-			String sessionId = jsonObj.getString("sessionId").trim();
+			String sessionId = request.getString("sessionId", null);
 			if (!GuidValidator.validateGuidString(sessionId)) {
 				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
-
+			
 			// determine the related link direction requested
 			FL_DirectionFilter direction = FL_DirectionFilter.BOTH;
-			if (jsonObj.has("linktype")) {
-				String linktype = jsonObj.getString("linktype");
-				
+			final String linktype = request.getString("linktype", null);
+			
+			if (linktype != null) {
 				if (linktype.equalsIgnoreCase ("source"))
 					direction = FL_DirectionFilter.SOURCE;
 				else if (linktype.equalsIgnoreCase ("destination"))
 					direction = FL_DirectionFilter.DESTINATION;
 			}
 			
-			String contextId = jsonObj.getString("srcContextId").trim();
-			String targetContextId = jsonObj.getString("tarContextId").trim();
-			
-			if (jsonObj.has("fetchTargets")) {
-				fetchTargetEntities = Boolean.parseBoolean(jsonObj.getString("fetchTargets"));
-			}
+			final String contextId = request.getString("srcContextId", null);
+			final String targetContextId = request.getString("tarContextId", null);
+			final boolean fetchTargetEntities = request.getBoolean("fetchTargets", true);
 			
 			// the "entity" to fetch related links for - entity could be one of: file cluster, entity cluster or raw entity
-			String entityId = jsonObj.getString("entity");
+			final String entityId = request.getString("entity", null);
 			List<String> flowEntityIds = Collections.singletonList(entityId);
-						
-			// determine the link filter to use
-			FL_LinkTag tag = FL_LinkTag.OTHER;
-			if (jsonObj.has("type")){
-				String type = jsonObj.getString("type");
-				if (type.equalsIgnoreCase ("communication")) {
-					tag = FL_LinkTag.COMMUNICATION;
-				} else if (type.equalsIgnoreCase ("financial")) {
-					tag = FL_LinkTag.FINANCIAL;
-				} else if (type.equalsIgnoreCase ("social")) {
-					tag = FL_LinkTag.SOCIAL;
-				}
-			}
+
+			final String startDateStr = request.getString("startdate", null);
+			final String endDateStr = request.getString("enddate", null);
 
 			DateTime startDate = null;
 			try {
-				startDate = (jsonObj.has("startdate")) ? DateTimeParser.parse(jsonObj.getString("startdate")) : null;
+				startDate = (startDateStr != null) ? DateTimeParser.parse(startDateStr) : null;
 			} catch (IllegalArgumentException iae) {
 				throw new ResourceException(
 					Status.CLIENT_ERROR_BAD_REQUEST,
@@ -153,7 +122,7 @@ public class RelatedLinkResource extends ApertureServerResource{
 			
 			DateTime endDate = null;
 			try {
-				endDate = (jsonObj.has("enddate")) ? DateTimeParser.parse(jsonObj.getString("enddate")) : null;
+				endDate = (endDateStr != null) ? DateTimeParser.parse(endDateStr) : null;
 			} catch (IllegalArgumentException iae) {
 				throw new ResourceException(
 					Status.CLIENT_ERROR_BAD_REQUEST,
@@ -161,21 +130,26 @@ public class RelatedLinkResource extends ApertureServerResource{
 				);
 			}
 
-			FL_DateRange dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
+			
+			FL_DateRange dateRange = null;
+			if (startDate != null && endDate != null) {
+				dateRange = DateRangeBuilder.getDateRange(startDate, endDate);
+			}
 			
 			long ams = System.currentTimeMillis();
 			
 			// determine the focus filter to use - only fetch links that point to these focus ids
-			List<String> focusIds;
-			if (jsonObj.has("targets")) {
-				focusIds = UISerializationHelper.buildListFromJson(jsonObj, "targets");
+			final Iterable<String> focusIter = request.getStrings("targets");
+			List<String> focusIds = null;
+			if (focusIter != null) {
+				focusIds = Lists.newArrayList(focusIter);
 			} else {
-				focusIds = new ArrayList<String>(0);  // no focus ids
+				focusIds = Collections.emptyList();
 			}
 
 			// retrieve and aggregate the related links for the flow entities using the appropriate filters
 			// If no focus filter is specified this will cluster the related entities and aggregate the related links accordingly 
-			Map<String, List<FL_Link>> relatedLinks = clusterAccess.getFlowAggregation(flowEntityIds, focusIds, direction, tag, dateRange, contextId, targetContextId);	
+			Map<String, List<FL_Link>> relatedLinks = clusterAccess.getFlowAggregation(flowEntityIds, focusIds, direction, dateRange, contextId, targetContextId);
 			
 			long bms = System.currentTimeMillis();
 			

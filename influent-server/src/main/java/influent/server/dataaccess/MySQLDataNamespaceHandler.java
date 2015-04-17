@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -24,12 +26,7 @@
  */
 package influent.server.dataaccess;
 
-import java.util.Map;
-
-import oculus.aperture.spi.common.Properties;
-
 import org.joda.time.DateTime;
-import org.json.JSONException;
 
 
 /**
@@ -43,41 +40,7 @@ public class MySQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	 * Constructs a handler which uses standard table names.
 	 */
 	public MySQLDataNamespaceHandler() {
-	}
-	
-	
-	
-	
-	/**
-	 * Creates a new handler based on a configuration defined as a JSON object string
-	 * mapping standard names to localized names.
-	 * 
-	 * @throws JSONException 
-	 */
-	public MySQLDataNamespaceHandler(Properties config) throws JSONException {
-		super(config);
-	}
-	
-	
-	
-	
-	/**
-	 * Constructs a namespace handler from a
-	 * map of standard names to localized names.
-	 */
-	public MySQLDataNamespaceHandler(Map<String, String> tableNames) {
-		super(tableNames);
-	}
-	
-	
-	
-	
-	/* (non-Javadoc)
-	 * @see influent.server.dataaccess.DataViewNamespaceHandler#escapeColumnName(java.lang.String)
-	 */
-	@Override
-	public String escapeColumnName(String columnName) {
-		return '`' + columnName + '`';
+		super();
 	}
 	
 	
@@ -139,11 +102,12 @@ public class MySQLDataNamespaceHandler extends AbstractDataNamespaceHandler {
 	}
 
 
-    /* (non-Javadoc)
-     * @see influent.server.dataaccess.AbstractDataNamespaceHandler#columnToHex(java.lang.String)
-     */
-    @Override
-    protected String columnToHex(String columnName) {
-        return "HEX('" + columnName + "') as " + columnName;
-    }
+
+	/* (non-Javadoc)
+	 * @see influent.server.dataaccess.AbstractDataNamespaceHandler#columnToHex(java.lang.String)
+	 */
+	@Override
+	protected String columnToHex(String columnName) {
+		return "HEX('" + columnName + "') as " + columnName;
+	}
 }

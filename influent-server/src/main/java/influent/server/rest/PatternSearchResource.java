@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -50,7 +52,7 @@ import influent.server.clustering.utils.EntityClusterFactory;
 import influent.server.utilities.AvroUtils;
 import influent.server.utilities.DateTimeParser;
 import influent.server.utilities.GuidValidator;
-import influent.server.utilities.TypedId;
+import influent.server.utilities.InfluentId;
 import influent.server.utilities.UISerializationHelper;
 
 import java.util.ArrayList;
@@ -60,6 +62,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import oculus.aperture.common.JSONProperties;
 import oculus.aperture.common.rest.ApertureServerResource;
 
 import org.apache.avro.AvroRemoteException;
@@ -87,7 +90,7 @@ public class PatternSearchResource extends ApertureServerResource{
 	
 	protected final static int DEFAULT_MAX_LIMIT = 50;
 	
-	private static final Logger s_logger = LoggerFactory.getLogger(EntitySearchResource.class);
+	private static final Logger s_logger = LoggerFactory.getLogger(PatternSearchResource.class);
 	
 	
 	
@@ -109,57 +112,51 @@ public class PatternSearchResource extends ApertureServerResource{
 	
 	@Post("json")
 	public StringRepresentation search(String jsonData) throws ResourceException {
-		JSONObject jsonObj;
 
 		try {
-			jsonObj = new JSONObject(jsonData);
+			JSONProperties request = new JSONProperties(jsonData);
 			
-			String sessionId = jsonObj.getString("sessionId").trim();
+			final String sessionId = request.getString("sessionId", null);
 			if (!GuidValidator.validateGuidString(sessionId)) {
 				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
-
+			
 			// Determine the number of results to return.
-			int resultLimit = DEFAULT_MAX_LIMIT;
-			if (jsonObj.has("limit")){
-				resultLimit = jsonObj.getInt("limit") > 0?jsonObj.getInt("limit"):resultLimit;
+			int resultLimit = request.getInteger("limit", DEFAULT_MAX_LIMIT);
+			if (resultLimit <= 0) {
+				resultLimit = DEFAULT_MAX_LIMIT;
 			}
 
 			// Determine the start index.
-			int startIndex = 0;
-			if (jsonObj.has("start")){
-				startIndex = jsonObj.getInt("start");
-			}
-			
-			boolean useAptima = false;
-			if (jsonObj.has("useAptima")){
-				useAptima = jsonObj.getBoolean("useAptima");
-			}
+			final int startIndex = request.getInteger("start", 0);
+			final boolean useAptima = request.getBoolean("useAptima", false);
 
 			// if date range is supplied, use it.
 			FL_BoundedRange dateRange = null;
+
+			final String startDateStr = request.getString("startDate", null);
+			final String endDateStr = request.getString("endDate", null);
+			
 			DateTime startDate = null;
+			try {
+				startDate = (startDateStr != null) ? DateTimeParser.parse(startDateStr) : null;
+			} catch (IllegalArgumentException iae) {
+				throw new ResourceException(
+					Status.CLIENT_ERROR_BAD_REQUEST,
+					"PatternSearchResource: An illegal argument was passed into the 'startDate' parameter."
+				);
+			}
+			
 			DateTime endDate = null;
-			
 			try {
-				startDate = DateTimeParser.parse(jsonObj.getString("startDate"));
-			} catch (JSONException e) {
+				endDate = (endDateStr != null) ? DateTimeParser.parse(endDateStr) : null;
 			} catch (IllegalArgumentException iae) {
 				throw new ResourceException(
 					Status.CLIENT_ERROR_BAD_REQUEST,
 					"PatternSearchResource: An illegal argument was passed into the 'startDate' parameter."
 				);
 			}
-			try {
-				endDate = DateTimeParser.parse(jsonObj.getString("endDate"));
-			} catch (JSONException e) {
-			} catch (IllegalArgumentException iae) {
-				throw new ResourceException(
-					Status.CLIENT_ERROR_BAD_REQUEST,
-					"PatternSearchResource: An illegal argument was passed into the 'startDate' parameter."
-				);
-			}
-			
+						
 			if (startDate != null || endDate != null) {
 				FL_BoundedRange.Builder builder= FL_BoundedRange.newBuilder();
 				builder.setStart(startDate.getMillis());
@@ -170,7 +167,7 @@ public class PatternSearchResource extends ApertureServerResource{
 			}
 
 			// get the search term
-			String term = jsonObj.getString("term").trim();
+			final String term = request.getString("term", "").trim();
 			FL_PatternDescriptor example = (FL_PatternDescriptor)AvroUtils.decodeJSON(FL_PatternDescriptor.getClassSchema(), term);
 			
 			Map<String, Character> searchEntityTypeMap = new HashMap<String, Character>();
@@ -187,7 +184,7 @@ public class PatternSearchResource extends ApertureServerResource{
 
 				// get native entity id refs from globals and substitute
 				for (String uid : emd.getExamplars()) {
-					String nid = TypedId.fromTypedId(uid).getNativeId();
+					String nid = InfluentId.fromInfluentId(uid).getNativeId();
 					
 					if (nid == null) {
 						continue;
@@ -198,8 +195,8 @@ public class PatternSearchResource extends ApertureServerResource{
 					// Assume that we're looking for entities of a similar type 
 					// in same namespace as the first entity in the list
 					if (searchEntityTypeMap.get(emd.getUid()) == null) {
-						searchEntityTypeMap.put(emd.getUid(), TypedId.fromTypedId(uid).getType());
-						searchEntityNamespaceMap.put(emd.getUid(), TypedId.fromTypedId(uid).getNamespace());
+						searchEntityTypeMap.put(emd.getUid(), InfluentId.fromInfluentId(uid).getIdClass());
+						searchEntityNamespaceMap.put(emd.getUid(), InfluentId.fromInfluentId(uid).getIdType());
 					}
 				}
 				
@@ -251,7 +248,6 @@ public class PatternSearchResource extends ApertureServerResource{
 				roleResults.put(exampleEntity.getUid(), new ArrayList<FL_EntityMatchResult>());
 			}
 			
-			
 			final Map<String, List<FL_EntityMatchResult>> entityInstances= new HashMap<String, List<FL_EntityMatchResult>>();
 			
 			final StringBuilder trace = new StringBuilder("----Results----\n      ");
@@ -279,7 +275,7 @@ public class PatternSearchResource extends ApertureServerResource{
 					// Calculate the actual entity id by assuming it matches the searched-for type/namespace
 					char entityType = searchEntityTypeMap.get(resultUid);
 					String entityNamespace = searchEntityNamespaceMap.get(resultUid);
-					String entityId = TypedId.fromNativeId(entityType, entityNamespace, nId).getTypedId();
+					String entityId = InfluentId.fromNativeId(entityType, entityNamespace, nId).getInfluentId();
 					
 					// Put our new entityId back into the results set
 					entityResult.getEntity().setUid(entityId);
@@ -302,10 +298,10 @@ public class PatternSearchResource extends ApertureServerResource{
 					if (roleMatches != null) {
 						int i;
 						
-						// look for duplicate, and if found add to cumulative score
+						// look for duplicate, and if found add to cumulative match score
 						for (i=0; i < roleMatches.size(); i++) {
 							if (roleMatches.get(i).getEntity().getUid().toString().equals(entityId)) {
-								roleMatches.get(i).setScore(roleMatches.get(i).getScore() + entityResult.getScore());
+								roleMatches.get(i).setMatchScore(roleMatches.get(i).getMatchScore() + entityResult.getMatchScore());
 								break;
 							}
 						}
@@ -345,8 +341,8 @@ public class PatternSearchResource extends ApertureServerResource{
 				for (Map.Entry<String,List<FL_EntityMatchResult>> entry : roleResults.entrySet()) {
 					
 					for (FL_EntityMatchResult emr : entry.getValue()) {
-						String tempNId = TypedId.fromTypedId(emr.getEntity().getUid()).getNativeId();
-						String searchedNId = TypedId.fromTypedId(entity.getUid()).getNativeId();
+						String tempNId = InfluentId.fromInfluentId(emr.getEntity().getUid()).getNativeId();
+						String searchedNId = InfluentId.fromInfluentId(entity.getUid()).getNativeId();
 						
 						if (tempNId.equals(searchedNId)) {
 							emr.setEntity(entity);
@@ -441,17 +437,18 @@ public class PatternSearchResource extends ApertureServerResource{
 						continue;
 					} 
 				}
-				
+
 				JSONObject jsonRoleResult = new JSONObject();
 				jsonRoleResult.put("uid", entry.getKey());
 				jsonRoleResult.put("results", jsonRoleResultSet);
+				jsonRoleResult.put("totalResults", jsonRoleResultSet.length());
 				jsonRoleResults.put(jsonRoleResult);
 			}
 				
 			JSONObject result = new JSONObject();
 			result.put("roleResults", jsonRoleResults);
-			result.put("graphResults", AvroUtils.encodeJSON(searchResults));
-			result.put("totalResults", searchResults.getTotal());
+			//result.put("graphResults", AvroUtils.encodeJSON(searchResults));
+			//result.put("totalResults", searchResults.getTotal());
 			result.put("sessionId", sessionId);
 
 			return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
@@ -481,15 +478,15 @@ public class PatternSearchResource extends ApertureServerResource{
 	
 	
 	
-	public static void normalizeScores (Map<String, Double> scores) {
+	public static void normalizeMatchScores (Map<String, Double> matchScores) {
 		double maxscore = 0;
 		
-		for (String entity : scores.keySet()) 
-			if (scores.get(entity) > maxscore)
-				maxscore = scores.get(entity);
+		for (String entity : matchScores.keySet()) 
+			if (matchScores.get(entity) > maxscore)
+				maxscore = matchScores.get(entity);
 		
 		if (maxscore != 0)
-			for (String entity : scores.keySet()) 
-				scores.put(entity, scores.get(entity)/maxscore);
+			for (String entity : matchScores.keySet()) 
+				matchScores.put(entity, matchScores.get(entity)/maxscore);
 	}
 }

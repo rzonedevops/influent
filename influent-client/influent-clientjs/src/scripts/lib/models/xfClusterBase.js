@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,13 +24,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/xfUtil', 'lib/constants',
-		'lib/extern/underscore'
+		'lib/interfaces/xfUIObject', 'lib/communication/applicationChannels', 'lib/util/xfUtil', 'lib/constants', 'underscore'
 	],
 	function(
-		xfUIObject, chan, xfUtil, constants
+		xfUIObject, appChannel, xfUtil, constants
 	) {
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -71,6 +73,7 @@ define(
 			label               : '',
 			confidenceInSrc     : 1.0,
 			confidenceInAge     : 1.0,
+			unbranchable        : false,
 			inDegree			: 0,
 			outDegree			: 0,
 			leftOperation       : 'branch',
@@ -349,7 +352,7 @@ define(
 
 					if (_UIObjectState.children.length === 0) {
 						aperture.pubsub.publish(
-							chan.REMOVE_REQUEST,
+							appChannel.REMOVE_REQUEST,
 							{
 								xfIds : [this.getXfId()],
 								dispose : true
@@ -421,7 +424,7 @@ define(
 			//----------------------------------------------------------------------------------------------------------
 
 			xfClusterInstance.remove = function(eventChannel, dispose) {
-				if (chan.REMOVE_REQUEST === eventChannel){
+				if (appChannel.REMOVE_REQUEST === eventChannel){
 
 					for (var linkId in _UIObjectState.links) {
 						if (_UIObjectState.links.hasOwnProperty(linkId)) {
@@ -487,6 +490,14 @@ define(
 
 				var specs = [];
 
+				if (bOnlyEmptySpecs) {
+					if (_UIObjectState.spec.graphUrl === '') {
+						specs.push(_.clone(_UIObjectState.spec));
+					}
+				} else {
+					specs.push(_.clone(_UIObjectState.spec));
+				}
+
 				if (_UIObjectState.isExpanded) {
 
 					for (var i = 0; i < _UIObjectState.children.length; i++) {
@@ -496,14 +507,6 @@ define(
 						}
 					}
 					return specs;
-				}
-
-				if (bOnlyEmptySpecs) {
-					if (_UIObjectState.spec.graphUrl === '') {
-						specs.push(_.clone(_UIObjectState.spec));
-					}
-				} else {
-					specs.push(_.clone(_UIObjectState.spec));
 				}
 
 				return specs;
@@ -579,7 +582,10 @@ define(
 					// If this id belongs to this objects parent,
 					// and that parent is expanded, the child
 					// shall also inherit the highlight.
-					if (xfUtil.isClusterTypeFromObject(this.getParent()) && this.getParent().isExpanded() && this.getParent().isHighlighted()){
+					if (xfUtil.isClusterTypeFromObject(this.getParent()) &&
+						this.getParent().isExpanded() &&
+						this.getParent().isHighlighted()
+					){
 						_UIObjectState.isHighlighted = true;
 					}
 					else {
@@ -646,10 +652,9 @@ define(
 					}
 
 					if (stateChanged) {
-						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfClusterInstance});
+						aperture.pubsub.publish(appChannel.RENDER_UPDATE_REQUEST, {UIObject : xfClusterInstance, updateOnly: true});
 					}
-				}
-				else {
+				} else {
 					for (var i = 0; i < _UIObjectState.children.length; i++) {
 						_UIObjectState.children[i].setHovering(xfId);
 					}
@@ -662,10 +667,10 @@ define(
 
 				var i;
 				if (_UIObjectState.xfId === xfId) {
-					if (_UIObjectState.isHidden != state ) {
+					if (_UIObjectState.isHidden !== state ) {
 
 						_UIObjectState.isHidden = state;
-						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject: xfClusterInstance});
+						aperture.pubsub.publish(appChannel.RENDER_UPDATE_REQUEST, {UIObject: xfClusterInstance});
 
 						// Set parent cluster visibility
 						if (xfUtil.isClusterTypeFromObject(this.getParent())) {
@@ -742,6 +747,13 @@ define(
 				}
 
 				_UIObjectState.spec.duplicateCount = count;
+
+				aperture.pubsub.publish(
+					appChannel.RENDER_UPDATE_REQUEST,
+					{
+						UIObject: this
+					}
+				);
 			};
 
 			//----------------------------------------------------------------------------------------------------------
@@ -822,7 +834,10 @@ define(
 				state['spec']['members'] = _UIObjectState.spec.members;
 				state['spec']['inDegree'] = _UIObjectState.spec.inDegree;
 				state['spec']['outDegree'] = _UIObjectState.spec.outDegree;
-				state['spec']['ownerId'] = _UIObjectState.spec.ownerId;
+				if (_UIObjectState.spec.ownerId) {
+					state['spec']['ownerId'] = _UIObjectState.spec.ownerId;
+				}
+				state['spec']['promptForDetails'] = _UIObjectState.spec.promptForDetails;
 
 				state['children'] = [];
 				for (i = 0; i < _UIObjectState.children.length; i++) {
@@ -854,7 +869,7 @@ define(
 
 				if (_UIObjectState.isSelected) {
 					aperture.pubsub.publish(
-						chan.SELECTION_CHANGE_REQUEST,
+						appChannel.SELECTION_CHANGE_REQUEST,
 						{
 							xfId: null,
 							selected : true,
@@ -925,6 +940,24 @@ define(
 				}
 
 				return amount;
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfClusterInstance.updatePromptState = function(dataId, state) {
+				if (_UIObjectState.spec.dataId === dataId) {
+					_UIObjectState.spec.promptForDetails = state;
+				}
+
+				for (var i = 0; i < _UIObjectState.children.length; i++) {
+					_UIObjectState.children[i].updatePromptState(dataId, state);
+				}
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfClusterInstance.getPromptState = function(xfId) {
+				return _UIObjectState.spec.promptForDetails;
 			};
 
 			//--------------------------------

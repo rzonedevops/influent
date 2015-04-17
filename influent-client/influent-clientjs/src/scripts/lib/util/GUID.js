@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,16 +24,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[],
 	function() {
 
 		var guid = {};
 
-		var generateGuid = function () {
+		guid.generateGuid = function () {
 			var result = '';
 			for (var i = 0; i < 32; i++) {
-				if (i == 8 || i == 12 || i == 16 || i == 20) {
+				if (i === 8 || i === 12 || i === 16 || i === 20) {
 					result = result + '-';
 				}
 				result = result + Math.floor(Math.random() * 16).toString(16).toUpperCase();
@@ -39,8 +42,6 @@ define(
 
 			return result;
 		};
-
-		guid.generateGuid = generateGuid;
 
 		return guid;
 	}

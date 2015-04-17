@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -23,7 +25,7 @@
  * SOFTWARE.
  */
 
-define(['lib/module', 'lib/channels'], function(modules, chan) {
+define(['lib/module', 'lib/communication/applicationChannels'], function(modules, appChannel) {
 	var module = {};
 
 	var unimpMethod = 'Unimplemented Method';
@@ -133,10 +135,6 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 			aperture.log.error(unimpMethod + ': "getVisualInfo" by module ' + implementingObjectModuleName);
 		};
 
-		implementingObject.getFocus = function() {
-			aperture.log.error(unimpMethod + ': "getFocus" by module ' + implementingObjectModuleName);
-		};
-
 		implementingObject.setFocus = function(data) {
 			aperture.log.error(unimpMethod + ': "setFocus" by module ' + implementingObjectModuleName);
 		};
@@ -215,6 +213,14 @@ define(['lib/module', 'lib/channels'], function(modules, chan) {
 
 		implementingObject.updateToolbar = function(spec, recursiveUpdate) {
 			aperture.log.error(unimpMethod + ': "updateToolbar" by module ' + implementingObjectModuleName);
+		};
+
+		implementingObject.updatePromptState = function(dataId, state) {
+			aperture.log.error(unimpMethod + ': "updatePromptState" by module ' + implementingObjectModuleName);
+		};
+
+		implementingObject.getPromptState = function(xfId) {
+			aperture.log.error(unimpMethod + ': "getPromptState" by module ' + implementingObjectModuleName);
 		};
 	};
 

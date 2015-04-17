@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -24,12 +26,11 @@
  */
 package influent.server.dataaccess;
 
-import influent.server.dataaccess.AbstractDataNamespaceHandler.ID_TYPE;
+import influent.server.configuration.ApplicationConfiguration;
+import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
-
-import org.joda.time.DateTime;
 
 public interface DataNamespaceHandler {
 
@@ -40,20 +41,45 @@ public interface DataNamespaceHandler {
 	 * <code>
 	 * 		return namespace + "." + entityType + "." + localEntityId;
 	 * </code>
+	 *
+	 * @param entityClass
+	 * 		the type of entity : see influent.server.utilities.TypedId types
 	 * 
-	 * @param namespace
+	 * @param entityType
 	 * 		the namespace the entity belongs to
 	 * 
 	 * @param localEntityId
 	 * 		the entity id as it exists in the data store
 	 * 
-	 * @param entityType
-	 * 		the type of entity : see influent.server.utilities.TypedId types
-	 * 
 	 * @return
 	 * 		a globally unique id used for reference in the system
 	 */
-	public String globalFromLocalEntityId(String namespace, String localEntityId, char entityType);
+	public String globalFromLocalEntityId(char entityClass, String entityType, String localEntityId);
+
+
+
+
+	/**
+	 * Creates a typed entity id given a local entity id and an entity type.
+	 * The default implementation here simply returns the typed local entity id.
+	 * An example override might look like this:
+	 * <code>
+	 * 		return entityType + "." + localEntityId;
+	 * </code>
+	 *
+	 * @param entityType
+	 * 		the namespace the entity belongs to
+	 *
+	 * @param localEntityId
+	 * 		the entity id as it exists in the data store
+	 *
+	 * @return
+	 * 		a typed id
+	 */
+	public String typedFromLocalEntityId(String entityType, String localEntityId);
+
+
+
 
 	/**
 	 * Translates an entity id from global to local namespace for querying in
@@ -77,8 +103,63 @@ public interface DataNamespaceHandler {
 	 */
 	public String localFromGlobalEntityId(String globalEntityId);
 
+
+
+
 	/**
-	 * Extracts and returns a namespace from a global entity id, typically formed
+	 * Translates an entity id from global to typed for querying multi-type
+	 * entities in the Data View. The default implementation returns the typed id.
+	 *
+	 * @param globalEntityId
+	 * 		the globally unique entity id
+	 *
+	 * @return
+	 * 		a typed id
+	 */
+	public String typedFromGlobalEntityId(String globalEntityId);
+
+
+
+
+	/**
+	 * Creates a globally unique entity id given a typed entity id and an entityClass.
+	 * The default implementation here simply returns the typed local entity id.
+	 * An example override might look like this:
+	 * <code>
+	 * 		return entityClass + "." + typedEntityId;
+	 * </code>
+	 *
+	 * @param entityClass
+	 * 		the type of entity : see influent.server.utilities.TypedId types
+	 *
+	 * @param typedEntityId
+	 * 		the typed entity id
+	 *
+	 * @return
+	 * 		a globally unique id used for reference in the system
+	 */
+	public String globalFromTypedEntityId(char entityClass, String typedEntityId);
+
+
+
+
+	/**
+	 * Translates an entity id from typed to local namespace for querying in
+	 * the Data View.
+	 *
+	 * @param typedEntityId
+	 * 		the typed entity id
+	 *
+	 * @return
+	 * 		the entity id as it exists in the data store
+	 */
+	public String localFromTypedEntityId(String typedEntityId);
+
+
+
+
+	/**
+	 * Extracts and returns the entity type from a global entity id, typically formed
 	 * by a call to createGlobalEntityId. The default implementation here returns
 	 * null.
 	 * 
@@ -97,56 +178,49 @@ public interface DataNamespaceHandler {
 	 * 
 	 * @return
 	 */
-	public String namespaceFromGlobalEntityId(String globalEntityId);
+	public String entityTypeFromGlobalEntityId(String globalEntityId);
+
+
+
 
 	/**
-	 * Returns a data view table name, given a namespace to consider. The
-	 * default implementation here maps the name using any mappings defined
-	 * in construction, then prepends the namespace as a db schema in the form
-	 * namespace.tableName if a namespace is provided. 
-	 * @param namespace TODO
-	 * @param standardTableName
-	 * 		The standard data view table name.
-	 * 
-	 * @return
-	 * 		The localized data view table name.
-	 */
-	public String tableName(String namespace, /*String namespace,*/String standardTableName);
-	
-	/**
-	 * Returns a data view column name. The default implementation here maps the name using 
-	 * any mappings defined in construction.
+	 * Extracts and returns the entity type from a typed entity id
 	 *
-	 * @param standardColumnName
-	 * 		The standard data view column name.
-	 * 
+	 * @param typedEntityId
+	 * 		the typed entity id
+	 *
 	 * @return
-	 * 		The localized data view column name.
 	 */
-	public String columnName(String standardColumnName);
+	public String entityTypeFromTypedEntityId(String typedEntityId);
+
+
+
 
 	/**
 	 * Localizes and organizes entities by namespace
 	 */
-	public Map<String, List<String>> entitiesByNamespace(List<String> entities);
+	public Map<String, List<String>> entitiesByType(List<String> entities);
 
-	/**
-	 * Escapes the column name in a db specific manner. This method is 
-	 * provided for convenience.
-	 */
-	public String escapeColumnName(String columnName);
+
+
 
 	/**
 	 * Creates a temp table name in a db specific manner. This method is 
 	 * provided for convenience.
 	 */
 	public String createTempTable(String tableName, String spec);
-	
+
+
+
+
 	/**
 	 * Returns a temp table name in a db specific manner. This method is 
 	 * provided for convenience.
 	 */
 	public String tempTableName(String tableName);
+
+
+
 
 	/**
 	 * Sets a row limit in a db specific manner. This method is 
@@ -159,52 +233,22 @@ public interface DataNamespaceHandler {
 	 */
 	public String rowLimit(String selectBody, long limit);
 
+
+
+
 	/**
-	 * Gets the SQL type for use with Ids, as specified in app.properties.
-	 *
-	 * @param namespace
-	 * 		the optional namespace to use for conversion
-	 * @return
-	 * 		the id type
-	 */
-	public ID_TYPE getIdType(String namespace);
-	
-	/**
-	 * Converts an influent string id to a SQL id. SQL type is specified
-	 * in app.properties.
+	 * Converts an influent string id to a SQL id.
 	 * 
 	 * @param id 
 	 * 		the id to be converted
-	 * @param namespace
-	 * 		the optional namespace to use for conversion
+	 * @param type
+	 * 		the type that
 	 * @return
 	 * 		the converted id
 	 */
-	public String toSQLId(String id, String namespace);
+	public String toSQLId(String id, ApplicationConfiguration.SystemColumnType type);
 
-	/**
-	 * Converts a SQL id to an influent id. SQL typed id is specified in
-	 * app.properties.
-	 * 
-	 * @param id
-	 * 		the id to be converted
-	 * @return
-	 * 		the converted id
-	 */
-	public String fromSQLId(String id);
 
-    /**
-     * Returns a SQL statement fragment to handle Id columns of the SQL
-     * type specified in app.properties.
-     *
-     * @param columnName
-     * 		the column name	to be converted
-     * @param namespace
-     * 		the optional namespace to use for conversion
-     * @return
-     * 		the converted column
-     */
-    public String toSQLIdColumn(String columnName, String namespace);
 
 
 	/**

@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,13 +24,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/models/xfMatch', 'lib/util/GUID',
+		'lib/interfaces/xfUIObject', 'lib/communication/applicationChannels', 'lib/models/xfMatch', 'lib/util/GUID',
 		'lib/models/xfImmutableCluster', 'lib/util/xfUtil', 'lib/constants', 'lib/ui/xfLinkType'
 	],
 	function(
-		xfUIObject, chan, xfMatch, guid,
+		xfUIObject, appChannel, xfMatch, guid,
 		xfImmutableCluster, xfUtil, constants, xfLinkType
 	) {
 
@@ -83,6 +86,7 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		xfFileModule.createInstance = function(spec){
+
 			var _UIObjectState = {
 				xfId                : '',
 				UIType              : MODULE_NAME,
@@ -92,7 +96,7 @@ define(
 				clusterUIObject     : null,
 				duplicateCount      : 1,
 				links               : {},
-				title               : 'New File',
+				title               : '',
 				isSelected          : false,
 				isHighlighted       : false,
 				isMatchHighlighted  : false,
@@ -181,11 +185,13 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfFileInstance.setLabel = function(newLabel) {
-				if(_UIObjectState.title === newLabel) {
-					return;
-				}
+			xfFileInstance.isLabelInitialized = function() {
+				return _UIObjectState.titleInitialized;
+			};
 
+			//----------------------------------------------------------------------------------------------------------
+
+			xfFileInstance.setLabel = function(newLabel) {
 				_UIObjectState.title = newLabel;
 				_UIObjectState.titleInitialized = true;
 			};
@@ -220,6 +226,10 @@ define(
 
 			xfFileInstance.getUIObjectsByDataId = function(dataId) {
 				var objectList = [];
+
+				if (_UIObjectState.spec.dataId === dataId) {
+					objectList.push(xfFileInstance);
+				}
 
 				// Check if the dataId corresponds to an associated xfMatch object.
 				if (_hasMatchcard(_UIObjectState)){
@@ -375,7 +385,7 @@ define(
 			xfFileInstance.remove = function(eventChannel, dispose) {
 				// An event channel argument is required to help enforce that this method should
 				// ONLY ever be called from a pubsub type handler.
-				if (chan.REMOVE_REQUEST === eventChannel){
+				if (appChannel.REMOVE_REQUEST === eventChannel){
 
 					// Get all the links and remove them from any link maps.
 					var allLinks = this.getLinks();
@@ -663,7 +673,7 @@ define(
 				}
 
 				if (stateChanged) {
-					aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject : xfFileInstance});
+					aperture.pubsub.publish(appChannel.RENDER_UPDATE_REQUEST, {UIObject: xfFileInstance, updateOnly: true});
 				}
 			};
 
@@ -673,10 +683,10 @@ define(
 
 
 				if (_UIObjectState.xfId === xfId) {
-					if (_UIObjectState.isHidden != state) {
+					if (_UIObjectState.isHidden !== state) {
 
 						_UIObjectState.isHidden = state;
-						aperture.pubsub.publish(chan.RENDER_UPDATE_REQUEST, {UIObject: xfFileInstance});
+						aperture.pubsub.publish(appChannel.RENDER_UPDATE_REQUEST, {UIObject: xfFileInstance, updateOnly: true});
 					}
 				}
 
@@ -693,21 +703,8 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfFileInstance.setSearchControlFocused = function(xfId) {
-				if(_hasMatchcard(_UIObjectState)) {
-					_UIObjectState.matchUIObject.setSearchControlFocused(xfId);
-				}
-			};
-
-			//----------------------------------------------------------------------------------------------------------
-
 			xfFileInstance.setDuplicateCount = function(count) {
-
-				if (_UIObjectState.spec.duplicateCount === count) {
-					return;
-				}
-
-				_UIObjectState.spec.duplicateCount = count;
+				// do nothing
 			};
 
 			//----------------------------------------------------------------------------------------------------------
@@ -851,7 +848,7 @@ define(
 
 				if (_UIObjectState.isSelected) {
 					aperture.pubsub.publish(
-						chan.SELECTION_CHANGE_REQUEST,
+						appChannel.SELECTION_CHANGE_REQUEST,
 						{
 							xfId: null,
 							selected : true,
@@ -883,6 +880,18 @@ define(
 				}
 
 				_UIObjectState = null;
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
+			xfFileInstance.updatePromptState = function(dataId, state) {
+				if (_hasMatchcard(_UIObjectState)){
+					_UIObjectState.matchUIObject.updatePromptState(dataId, state);
+				}
+
+				if (_hasCluster(_UIObjectState)){
+					_UIObjectState.clusterUIObject.updatePromptState(dataId, state);
+				}
 			};
 
 			//-----------------------------
@@ -940,7 +949,7 @@ define(
 				}
 				else if (_hasMatchcard(_UIObjectState)){
 					aperture.pubsub.publish(
-						chan.REMOVE_REQUEST,
+						appChannel.REMOVE_REQUEST,
 						{
 							xfIds : [_UIObjectState.matchUIObject.getXfId()],
 							dispose : true
@@ -1063,6 +1072,9 @@ define(
 			};
 
 			//----------------------------------------------------------------------------------------------------------
+			xfFileInstance.setXfId = function(xfId) {
+				_UIObjectState.xfId = xfId;
+			};
 
 			return xfFileInstance;
 		};
@@ -1079,9 +1091,11 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		xfFileModule.getModuleName = function() {
-			return MODULE_NAME;
-		};
+		if (constants.UNIT_TESTS_ENABLED) {
+			xfFileModule.getModuleName = function () {
+				return MODULE_NAME;
+			};
+		}
 
 		//--------------------------------------------------------------------------------------------------------------
 

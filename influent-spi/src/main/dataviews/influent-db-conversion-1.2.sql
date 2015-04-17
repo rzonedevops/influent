@@ -1,3 +1,30 @@
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
+ *
+ * Released under the MIT License.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 use [DB SCHEMA NAME];
 
 -- NOTE: If dataview table names are different from defaults then modify the below scripts accordingly
@@ -8,6 +35,7 @@ use [DB SCHEMA NAME];
 create table FinEntity(EntityId varchar(100), InboundDegree int, UniqueInboundDegree int,  OutboundDegree int, UniqueOutboundDegree int);
 create table ClusterSummary	(EntityId varchar(100), Property varchar(50), Tag varchar(50), Type varchar(50), Value varchar(200), Stat float);
 create table ClusterSummaryMembers (SummaryId varchar(100), EntityId varchar(100));
+create table DataSummary (Scope varchar(100) NOT NULL, IdKey varchar(100) NOT NULL, Label varchar(100) NOT NULL, NumberValue float , StringValue varchar(100),DateValue datetime);
 
 alter table FinFlow add FromEntityType varchar(1), ToEntityType varchar(1);
 alter table FinFlowDaily add FromEntityType varchar(1), ToEntityType varchar(1);
@@ -176,3 +204,38 @@ insert into FinEntity
 create index ix_ff_id on FinEntity (EntityId);
 create index ix_csum on ClusterSummary	(EntityId);
 create index ix_cmem on ClusterSummaryMembers  (SummaryId);
+
+--
+--- Populate summary stats table
+--
+
+--Summary Description to appear on landing page.
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'InfoSummary' , 'ABOUT' , NULL , 'some interesting description of your dataset' , NULL);
+ 
+--Number of accounts statistic, that will appear on landing page
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'NumAccounts' , 'ACCOUNTS' , (select count(*) from FinEntity) , NULL , NULL);
+ 
+--Number of transactions statistic, that will appear on landing page
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'NumTransactions' , 'TRANSACTIONS' , (select count(*) from FinFlow) , NULL , NULL);
+ 
+--Start date of transactions statistic, that will appear on landing page
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'StartDate' , 'START DATE' , NULL , NULL , (select MIN(firstTransaction) from FinFlow));
+ 
+--End date of transactions statistic, that will appear on landing page
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'EndDate' , 'END DATE' , NULL , NULL , (select MAX(lastTransaction) from FinFlow));
+ 
+--Smallest,Largest and Average Transaction statistics, that will appear on landing page
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'TransactionMin' , 'MIN' , (select MIN(Amount) from FinFlow) , NULL , NULL);
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'TransactionMax' , 'MAX' , (select MAX(Amount) from FinFlow) , NULL , NULL); 
+insert into DataSummary (Scope , IdKey , Label , NumberValue , StringValue , DateValue)
+ values ('All Data' , 'TransactionAVG' , 'AVERAGE' , (select AVG(Amount) from FinFlow) , NULL , NULL);
+ 
+--Other statistics can be entered in a similiar fashion and will be listed underneath these primary ones.
+ 

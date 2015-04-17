@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,14 +24,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/interfaces/xfUIObject', 'lib/channels', 'lib/util/GUID', 'lib/constants',
+		'lib/interfaces/xfUIObject', 'lib/communication/applicationChannels', 'lib/util/GUID', 'lib/constants',
 		'lib/models/xfCard', 'lib/models/xfImmutableCluster', 'lib/models/xfMutableCluster', 'lib/models/xfSummaryCluster',
 		'lib/models/xfFile', 'lib/ui/xfLinkType', 'lib/models/xfLink', 'lib/util/xfUtil'
 	],
 	function(
-		xfUIObject, chan, guid, constants,
+		xfUIObject, appChannel, guid, constants,
 		xfCard, xfImmutableCluster, xfMutableCluster, xfSummaryCluster,
 		xfFile, xfLinkType, xfLink, xfUtil
 	) {
@@ -218,7 +221,7 @@ define(
 			xfColumnInstance.remove = function(eventChannel, dispose) {
 				// An event channel argument is required to help enforce that this method should
 				// ONLY ever be called from a pubsub type handler.
-				if (chan.REMOVE_REQUEST === eventChannel){
+				if (appChannel.REMOVE_REQUEST === eventChannel){
 					_UIObjectState.spec.parent.removeChild(
 						_UIObjectState.xfId,
 						(dispose != null) ? dispose : true,
@@ -257,7 +260,7 @@ define(
 						removeIfEmpty
 					) {
 						aperture.pubsub.publish(
-							chan.REMOVE_REQUEST,
+							appChannel.REMOVE_REQUEST,
 							{
 								xfIds : [_UIObjectState.xfId],
 								dispose : true
@@ -409,16 +412,6 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfColumnInstance.setSearchControlFocused = function(xfId) {
-				for (var i = 0; i < _UIObjectState.children.length; i++) {
-					if(_UIObjectState.children[i].getUIType() === constants.MODULE_NAMES.FILE) {
-						_UIObjectState.children[i].setSearchControlFocused(xfId);
-					}
-				}
-			};
-
-			//----------------------------------------------------------------------------------------------------------
-
 			xfColumnInstance.expand = function() {
 				// Column objects cannot be expanded, so we throw an error to indicate this.
 				aperture.log.error(MODULE_NAME + ': call to unimplemented method "expand".');
@@ -462,7 +455,7 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
-			xfColumnInstance.cleanColumn = function() {
+			xfColumnInstance.cleanColumn = function(unfiledOnly, exceptXfIds) {
 				var removedDataIds = [];
 				if (_UIObjectState.children && _UIObjectState.children.length > 0) {
 					var i;
@@ -471,13 +464,20 @@ define(
 
 					for (i = 0; i < _UIObjectState.children.length; i++) {
 						uiObj = _UIObjectState.children[i];
-						if (uiObj.getUIType() !== constants.MODULE_NAMES.FILE && !xfUtil.isUITypeDescendant(uiObj, constants.MODULE_NAMES.MATCH)){
-							objectsToRemove.push(uiObj.getXfId());
-							removedDataIds.push(uiObj.getDataId());
+
+						if (exceptXfIds && exceptXfIds.indexOf(uiObj.getXfId()) !== -1) {
+							continue;
 						}
+
+						if (unfiledOnly && ((uiObj.getUIType() === constants.MODULE_NAMES.FILE || xfUtil.isUITypeDescendant(uiObj, constants.MODULE_NAMES.MATCH)))) {
+							continue;
+						}
+
+						objectsToRemove.push(uiObj.getXfId());
+						removedDataIds.push(uiObj.getDataId());
 					}
 					aperture.pubsub.publish(
-						chan.REMOVE_REQUEST,
+						appChannel.REMOVE_REQUEST,
 						{
 							xfIds : objectsToRemove,
 							dispose : true
@@ -624,6 +624,14 @@ define(
 			};
 
 			//----------------------------------------------------------------------------------------------------------
+
+			xfColumnInstance.updatePromptState = function(dataId, state) {
+				for (var i = 0; i < _UIObjectState.children.length; i++) {
+					_UIObjectState.children[i].updatePromptState(dataId, state);
+				}
+			};
+
+			//----------------------------------------------------------------------------------------------------------
 			// Column specific functions
 			//----------------------------------------------------------------------------------------------------------
 
@@ -640,11 +648,11 @@ define(
 			xfColumnInstance.getContextIds = function() {
 
 				var contextIds = [];
-				contextIds.push(this.getXfId());
+				contextIds.push(this.getDataId());
 				for (var i = 0; i < _UIObjectState.children.length; i++) {
 
 					if (_UIObjectState.children[i].getUIType() === constants.MODULE_NAMES.FILE) {
-						contextIds.push(_UIObjectState.children[i].getXfId());
+						contextIds.push(_UIObjectState.children[i].getDataId());
 					}
 				}
 

@@ -1,0 +1,23 @@
+<nav>
+	<div class="toc right">
+		<div class="toc-header">Contents</div>
+		<ol class="toc-body">
+			{% for topic in site.data.userGuideTopics %}
+				<li>
+					{% if topic.label != page.topic %}
+						<a href="{{site.baseurl}}/{{page.section | slugify}}/{{page.subsection | slugify}}/{{topic.path}}">{{topic.label}}</a>
+					{% else %}
+						{{topic.label}}
+						<ul>
+							{% for bookmark in topic.bookmarks %}
+								<li><a href="{{site.baseurl}}/{{page.section | slugify}}/{{page.subsection | slugify}}/{{topic.path}}/#{{bookmark.anchor}}">{{bookmark.label}}</a></li>
+							{% endfor %}
+						</ul>
+					{% endif %}
+				</li>
+			{% endfor %}
+		</ol>
+	</div>
+</nav>
+
+{% include footer.html %}

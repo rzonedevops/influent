@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,13 +24,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 define(
 	[
-		'lib/channels', 'lib/util/xfUtil', 'lib/render/toolbarRenderer', 'lib/ui/toolbarOperations',
-		'lib/constants'
+		'lib/module', 'lib/communication/applicationChannels', 'lib/util/xfUtil', 'lib/render/toolbarRenderer', 'lib/ui/toolbarOperations',
+		'lib/constants', 'underscore'
 	],
 	function(
-		chan, xfUtil, toolbarRenderer, toolbarOperations,
+		module, appChannel, xfUtil, toolbarRenderer, toolbarOperations,
 		constants
 	) {
 
@@ -243,19 +246,12 @@ define(
 
 			var top = _renderDefaults.MARGIN;
 
-			// Determine if the top-level wait spinner is visible.
-			if (visualInfo.showSpinner){
-				state.outerContainer.hide();
-				state.spinnerContainer.css('position','absolute');
-				state.spinnerContainer.css('top', top);
-				state.spinnerContainer.css('left', _renderDefaults.MARGIN);
-				state.spinnerContainer.css('background', constants.AJAX_SPINNER_BG);
-				state.spinnerContainer.width(_renderDefaults.CARD_WIDTH);
-				state.spinnerContainer.height(_getCardHeight(visualInfo.showDetails));
-			}
-			else {
-				state.spinnerContainer.hide();
-			}
+			state.spinnerContainer.css('position','absolute');
+			state.spinnerContainer.css('top', top);
+			state.spinnerContainer.css('left', _renderDefaults.MARGIN);
+			state.spinnerContainer.css('background', constants.AJAX_SPINNER_BG);
+			state.spinnerContainer.width(_renderDefaults.CARD_WIDTH);
+			state.spinnerContainer.height(_getCardHeight(visualInfo.showDetails));
 
 			// parse icon list
 			var iconList = state.spec['icons'];
@@ -332,14 +328,9 @@ define(
 			// Create summary text components.
 			var label = visualInfo.spec.label;
 
-			// HACK: append cluster count to face card of mutable clusters
-			if (visualInfo.spec.count && visualInfo.spec.count > 1 &&
-				visualInfo.UIType === constants.MODULE_NAMES.MUTABLE_CLUSTER) {
-
-				// Some clusters may already have a count appended
-				if (!(label.indexOf('(+') !== -1 && label.charAt(label.length - 1) === ')')) {
-					label += ' (+' + (visualInfo.spec.count - 1) + ')';
-				}
+			// append cluster count to face card
+			if (visualInfo.spec.count && visualInfo.spec.count > 1) {
+				label += ' (+' + (visualInfo.spec.count - 1) + ')';
 			}
 
 			var textNodeY = 0;
@@ -360,8 +351,6 @@ define(
 			textNodeY += _insertLabel(state.labelContainer, textNodeY, 0, label);
 			top += textNodeY + _renderDefaults.ELEMENT_PADDING;
 
-			// Create graph components.
-			var graphUrl = xfUtil.getSafeURI(state.spec['graphUrl']);
 
 			state.graphContainer = _getStateElement(state, '.graphContainer');
 			if (state.graphContainer == null) {
@@ -369,21 +358,7 @@ define(
 			}
 			state.graphContainer.css('top',top);
 
-			if (graphUrl) {
-				state.graphContainer.css('background', 'url("' + graphUrl + '") no-repeat center center');
-			} else {
-				state.graphContainer.css('background', constants.AJAX_SPINNER_BG);
-			}
-
 			top += _renderDefaults.GRAPH_HEIGHT;
-
-			// Create card controls.
-			if (visualInfo.isHovered ||
-				visualInfo.spec.leftOperation === toolbarOperations.WORKING ||
-				visualInfo.spec.rightOperation === toolbarOperations.WORKING
-			) {
-				toolbarRenderer.createControls(visualInfo, state.outerContainer, _getCardHeight(visualInfo.showDetails));
-			}
 
 			// Update visuals.
 			_updateChartVisual(visualInfo, state);
@@ -403,7 +378,7 @@ define(
 		var _selectHandler = function(event, bSelect, xfId) {
 			if ( bSelect ) {
 				// Notify the UIObject that it has been clicked.
-				aperture.pubsub.publish(chan.SELECTION_CHANGE_REQUEST, {
+				aperture.pubsub.publish(appChannel.SELECTION_CHANGE_REQUEST, {
 					xfId : xfId,
 					selected : bSelect,
 					clickEvent: event
@@ -435,90 +410,144 @@ define(
 		//------------------------------------------------------------------------------------------------------------------
 
 		var cardRenderer = {};
-		cardRenderer.createElement = function(visualInfo) {
+		cardRenderer.renderElement = function(visualInfo, updateOnly) {
 			var spec = visualInfo.spec;
 			var canvas = $('#' + visualInfo.xfId);
-
 			var outerContainer;
 			var spinnerContainer;
 
-			if (canvas.length === 0){
-				canvas = $('<div></div>');
-				canvas.attr('id', visualInfo.xfId);
-				outerContainer = $('<div class="insideBaseballCard"></div>');
-				outerContainer.attr('id', 'outerContainer_'+visualInfo.xfId);
-				spinnerContainer = $('<div></div>');
-				spinnerContainer.attr('id', 'spinnerContainer_'+visualInfo.xfId);
-				canvas.append(outerContainer);
-				canvas.append(spinnerContainer);
-			}
-			else {
+			if (!updateOnly) {
 
-				// Remove any existing listeners.
-				xfUtil.clearMouseListeners(canvas, ['click', 'mouseover']);
-				outerContainer = $(canvas).find('#' + 'outerContainer_'+visualInfo.xfId);
-				spinnerContainer = $(canvas).find('#' + 'spinnerContainer_'+visualInfo.xfId);
-			}
-
-			if (visualInfo.isHidden) {
-				return canvas;
-			}
-
-			_initElement(visualInfo, canvas);
-
-
-			var _instanceState = {
-				xfId : visualInfo.xfId,
-				canvas : canvas,
-				spec : _.clone(spec),
-				dupDiv : undefined,
-				outerContainer :  outerContainer,
-				bordered : canvas.add(outerContainer),
-				spinnerContainer :  spinnerContainer,
-				labelContainer : undefined,
-				detailsNodeContainer : undefined,
-				iconContainer : undefined,
-				graphContainer : undefined
-			};
-
-			if (visualInfo.UIType !== constants.MODULE_NAMES.IMMUTABLE_CLUSTER &&
-				visualInfo.UIType !== constants.MODULE_NAMES.MUTABLE_CLUSTER &&
-				visualInfo.UIType !== constants.MODULE_NAMES.SUMMARY_CLUSTER
-			) {
-				if (canvas.hasClass('influentDraggable')) {
-					canvas.draggable('destroy');
+				if (canvas.length === 0) {
+					canvas = $('<div></div>');
+					canvas.attr('id', visualInfo.xfId);
+					outerContainer = $('<div class="insideBaseballCard"></div>');
+					outerContainer.attr('id', 'outerContainer_' + visualInfo.xfId);
+					spinnerContainer = $('<div></div>');
+					spinnerContainer.attr('id', 'spinnerContainer_' + visualInfo.xfId);
+					canvas.append(outerContainer);
+					canvas.append(spinnerContainer);
 				}
-				canvas.influentDraggable({
-					revert: 'invalid',
-					opacity: 0.7,
-					cursor: 'move',
-					stack: '.fileContainer',
-					start: function(){
-						canvas.addClass('is-dragged');
-						canvas.data('origPosition', canvas.position());
-					},
-					stop: function(){
-						canvas.removeClass('is-dragged');
+				else {
+
+					// Remove any existing listeners.
+					xfUtil.clearMouseListeners(canvas, ['click', 'mouseover']);
+					outerContainer = $(canvas).find('#' + 'outerContainer_' + visualInfo.xfId);
+					spinnerContainer = $(canvas).find('#' + 'spinnerContainer_' + visualInfo.xfId);
+				}
+
+				_initElement(visualInfo, canvas);
+
+				var _instanceState = {
+					xfId: visualInfo.xfId,
+					canvas: canvas,
+					spec: _.clone(spec),
+					dupDiv: undefined,
+					outerContainer: outerContainer,
+					bordered: canvas.add(outerContainer),
+					spinnerContainer: spinnerContainer,
+					labelContainer: undefined,
+					detailsNodeContainer: undefined,
+					iconContainer: undefined,
+					graphContainer: undefined
+				};
+
+				if (visualInfo.UIType !== constants.MODULE_NAMES.IMMUTABLE_CLUSTER &&
+					visualInfo.UIType !== constants.MODULE_NAMES.MUTABLE_CLUSTER &&
+					visualInfo.UIType !== constants.MODULE_NAMES.SUMMARY_CLUSTER
+					) {
+					if (canvas.hasClass('influentDraggable')) {
+						canvas.draggable('destroy');
 					}
-				});
-			}
-
-			_constructCard(visualInfo, _instanceState);
-
-			canvas.click(function(event) {
-				var selectionState = !visualInfo.isSelected;
-				_selectHandler(event, selectionState, visualInfo.xfId);
-				return selectionState;
-			});
-
-			canvas.mouseover(function() {
-				if(!visualInfo.isHovered) {         // Notify the UIObject that it's being hovered over.
-					aperture.pubsub.publish(chan.UI_OBJECT_HOVER_CHANGE_REQUEST, {
-						xfId : visualInfo.xfId
+					canvas.influentDraggable({
+						revert: 'invalid',
+						opacity: 0.7,
+						cursor: 'move',
+						stack: '.fileContainer',
+						start: function () {
+							canvas.addClass('is-dragged');
+							canvas.data('origPosition', canvas.position());
+						},
+						stop: function () {
+							canvas.removeClass('is-dragged');
+						}
 					});
 				}
-				return false;
-			});
+
+				_constructCard(visualInfo, _instanceState);
+
+				var onSingleClick = function (event) {
+					var selectionState = !visualInfo.isSelected;
+					_selectHandler(event, selectionState, visualInfo.xfId);
+					return selectionState;
+				};
+
+				canvas.clickAndDblClick(onSingleClick,
+
+					// dblclick
+					function () {
+						// If it's not a cluster, go to the details for this entity, otherwise expand the cluster
+						if (visualInfo.UIType === constants.MODULE_NAMES.IMMUTABLE_CLUSTER ||
+							visualInfo.UIType === constants.MODULE_NAMES.MUTABLE_CLUSTER) {
+
+							aperture.pubsub.publish(
+								appChannel.EXPAND_EVENT,
+								{
+									xfId: visualInfo.xfId
+								}
+							);
+						} else if (visualInfo.UIType === constants.MODULE_NAMES.SUMMARY_CLUSTER) {
+							onSingleClick();
+						}
+					}
+				);
+
+				canvas.mouseover(function () {
+					aperture.pubsub.publish(appChannel.UI_OBJECT_HOVER_CHANGE_REQUEST, {
+						xfId: visualInfo.xfId
+					});
+
+					return false;
+				});
+			} else {
+				outerContainer = $(canvas).find('#' + 'outerContainer_' + visualInfo.xfId);
+			}
+
+
+			if (visualInfo.isHidden) {
+				canvas.hide();
+			} else {
+				canvas.show();
+			}
+
+			if (visualInfo.isHovered ||
+				visualInfo.spec.leftOperation === toolbarOperations.WORKING ||
+				visualInfo.spec.rightOperation === toolbarOperations.WORKING
+			) {
+				toolbarRenderer.createControls(visualInfo, outerContainer, _getCardHeight(visualInfo.showDetails));
+				toolbarRenderer.showControls(outerContainer);
+			} else {
+				toolbarRenderer.hideControls(outerContainer);
+			}
+
+			spinnerContainer = canvas.find('[id^="spinnerContainer_"]');
+			if (visualInfo.showSpinner){
+				outerContainer.hide();
+				spinnerContainer.show();
+			}
+			else {
+				spinnerContainer.hide();
+			}
+
+			// Enable/disable graph
+			var graphContainer = canvas.find('.graphContainer');
+			var graphUrl = xfUtil.getSafeURI(spec['graphUrl']);
+			if (graphUrl) {
+				graphContainer.css('background', 'url("' + graphUrl + '") no-repeat center center');
+			} else {
+				graphContainer.css('background', constants.AJAX_SPINNER_BG);
+			}
+
 
 			return canvas;
 		};

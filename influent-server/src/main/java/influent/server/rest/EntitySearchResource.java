@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -10,10 +12,10 @@
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,40 +26,37 @@
  */
 package influent.server.rest;
 
+import com.google.inject.name.Named;
 import influent.idl.FL_Cluster;
-import influent.idl.FL_Clustering;
-import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_DataAccess;
 import influent.idl.FL_Entity;
 import influent.idl.FL_EntitySearch;
-import influent.idl.FL_EntityTag;
-import influent.idl.FL_GeoData;
+import influent.idl.FL_LevelOfDetail;
+import influent.idl.FL_OrderBy;
 import influent.idl.FL_Property;
-import influent.idl.FL_PropertyTag;
+import influent.idl.FL_PropertyDescriptor;
+import influent.idl.FL_PropertyDescriptors;
+import influent.idl.FL_PropertyMatchDescriptor;
 import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
-import influent.idlhelper.EntityHelper;
+import influent.idlhelper.DataPropertyDescriptorHelper;
 import influent.idlhelper.PropertyHelper;
-import influent.server.clustering.utils.ClusterContextCache;
-import influent.server.clustering.utils.ClusterContextCache.PermitSet;
-import influent.server.clustering.utils.ContextCollapser;
-import influent.server.clustering.utils.ContextReadWrite;
-import influent.server.clustering.utils.EntityClusterFactory;
-import influent.server.data.EntitySearchTerms;
+import influent.server.configuration.ApplicationConfiguration;
+import influent.server.data.PropertyMatchBuilder;
 import influent.server.utilities.GuidValidator;
-import influent.server.utilities.Pair;
-import influent.server.utilities.TypedId;
 import influent.server.utilities.UISerializationHelper;
+import influent.server.utilities.ValueFormatter;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import oculus.aperture.common.JSONProperties;
 import oculus.aperture.common.rest.ApertureServerResource;
 
+import oculus.aperture.spi.common.Properties;
 import org.apache.avro.AvroRemoteException;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -76,303 +75,228 @@ import com.google.inject.Inject;
 
 public class EntitySearchResource extends ApertureServerResource{
 
-	private final FL_DataAccess entityAccess;
-	private final FL_EntitySearch entitySearcher;
-	private final FL_Clustering clusterer;
-	private final FL_ClusteringDataAccess clusterAccess;
-	private final EntityClusterFactory clusterFactory;
-	private final ClusterContextCache contextCache;
+	private final FL_EntitySearch _entitySearcher;
+	private final FL_DataAccess _dataAccess;
+	private static ApplicationConfiguration _applicationConfiguration;
 
-	protected final static int DEFAULT_MAX_LIMIT = 50;
+	private static FL_PropertyDescriptors _searchDescriptors = null;
+
+	private final static int DEFAULT_MAX_LIMIT = 50;
 	
 	private static final Logger s_logger = LoggerFactory.getLogger(EntitySearchResource.class);
-	
-	
-	
+
+
+
 	@Inject
-	public EntitySearchResource(FL_DataAccess entityAccess, 
-								FL_EntitySearch entitySearcher, 
-								FL_Clustering cluster, 
-								FL_ClusteringDataAccess clusterAccess, 
-								EntityClusterFactory clusterFactory,
-								ClusterContextCache contextCache) {
-		this.entityAccess = entityAccess;
-		this.entitySearcher = entitySearcher;
-		this.clusterer = cluster;
-		this.clusterAccess = clusterAccess;	
-		this.clusterFactory = clusterFactory;
-		this.contextCache = contextCache;
+	public EntitySearchResource(
+		FL_EntitySearch entitySearcher,
+		FL_DataAccess dataAccess,
+		@Named("aperture.server.config") Properties config) {
+		_entitySearcher = entitySearcher;
+		_dataAccess = dataAccess;
+		_applicationConfiguration = ApplicationConfiguration.getInstance(config);
 	}
-	
-	
-	
-	
-	@Post("json")
-	public StringRepresentation search(String jsonData) throws ResourceException {
-		JSONObject jsonObj;
-		Map<String, Double> scores = new HashMap<String, Double>();
-		List<FL_Entity> entities = new ArrayList<FL_Entity>();
-		List<FL_Cluster> summaries = new ArrayList<FL_Cluster>();
-		List<FL_Cluster> owners = new ArrayList<FL_Cluster>();
+
+
+
+
+	private Map<String, List<Object>> groupEntitiesBy(String groupByKey, Map<String, Double> matchScores, List<FL_Entity> entities) {
+		Map<String, List<Object>> groupedEntities = new LinkedHashMap<String, List<Object>>();
+
+		final FL_PropertyDescriptor pd = DataPropertyDescriptorHelper.find(groupByKey, _searchDescriptors.getProperties());
+
+		if (pd != null || (groupByKey.equals("MATCH") && matchScores.size() != 0)) {
+			for (FL_Entity entity : entities) {
+
+				FL_Property prop = PropertyHelper.getPropertyByKey(entity.getProperties(), groupByKey);
+				String groupKey;
+
+				if (pd != null) {
+					groupKey = pd.getFriendlyText()+ ": " + ValueFormatter.format(prop);
+				} else {
+					groupKey = "Match: " + String.format("%.2f", matchScores.get(entity.getUid()));
+				}
+
+				List<Object> group = groupedEntities.get(groupKey);
+				if (group == null) {
+					group = new ArrayList<Object>();
+					groupedEntities.put(groupKey, group);
+				}
+
+				group.add(entity);
+			}
+		} else {
+			List<Object> group = groupedEntities.get("");
+
+			if (group == null) {
+				groupedEntities.put("", new ArrayList<Object>(entities));
+			} else {
+				group.addAll(entities);
+			}
+		}
+		
+		return groupedEntities;
+	}
+
+
+
+
+	private JSONArray serializeEntities(List<Object> entities) {
+		JSONArray ja = new JSONArray();
+		
+		for (Object entity : entities) {
+			JSONObject jo = serializeEntity(entity);
+			if (jo != null) {  // skip over any objects that failed serialization
+				ja.put(jo);
+			}
+		}
+		return ja;
+	}
+
+
+
+
+	private JSONObject serializeEntity(Object entity) {
+		String id = null;
 		
 		try {
-			jsonObj = new JSONObject(jsonData);
+			JSONObject jo = null;
 			
-			String sessionId = jsonObj.getString("sessionId").trim();
+			if (entity instanceof FL_Cluster) {
+				FL_Cluster cluster = (FL_Cluster)entity;
+				id = cluster.getUid();
+				jo = UISerializationHelper.toUIJson(cluster);
+				
+				//adding in the entities so we don't have to do a separate call to get them all
+				jo.put("memberEntities", UISerializationHelper.toUIJson(_dataAccess.getEntities(cluster.getMembers(), FL_LevelOfDetail.FULL)));
+			} else {
+				FL_Entity e = (FL_Entity)entity;
+				id = e.getUid();
+				jo = UISerializationHelper.toUIJson(e);
+			}
+			return jo;
+		} catch (Exception e) {
+			s_logger.error("Error serializing object with uid: " + id + ".   Omitting from results.");
+			return null;
+		}
+	}
+
+
+
+
+	@Post("json")
+	public StringRepresentation search(String jsonData) throws ResourceException {
+		Map<String, Double> matchScores = new HashMap<String, Double>();
+		List<FL_Entity> entities = new ArrayList<FL_Entity>();
+		
+		try {
+			JSONProperties request = new JSONProperties(jsonData);
+			
+			final String sessionId = request.getString("sessionId", null);
 			if (!GuidValidator.validateGuidString(sessionId)) {
 				throw new ResourceException(Status.CLIENT_ERROR_EXPECTATION_FAILED, "sessionId is not a valid UUID");
 			}
-			
-			// Flag to indicate whether or not to cluster the results.
-			boolean doCluster = true;
-			
-			if (jsonObj.has("cluster")) {
-				doCluster = jsonObj.getBoolean("cluster");
-			}
-						
-			String groupByTagOrFieldName = null;
-			
-			if (jsonObj.has("groupby")) {
-				groupByTagOrFieldName = jsonObj.getString("groupby");
-			}
-			
-			String contextId = "UNKNOWN-CONTEXT";
-			if (jsonObj.has("contextId")) {
-				contextId = jsonObj.getString("contextId").trim();
-			}
 
 			// Determine the number of results to return.
-			int resultLimit = DEFAULT_MAX_LIMIT;
-			if (jsonObj.has("limit")){
-				resultLimit = jsonObj.getInt("limit") > 0?jsonObj.getInt("limit"):resultLimit;
+			int resultLimit = request.getInteger("limit", DEFAULT_MAX_LIMIT);
+			if (resultLimit <= 0) {
+				resultLimit = DEFAULT_MAX_LIMIT;
 			}
 
 			// Determine the start index.
-			int startIndex = 0;
-			if (jsonObj.has("start")){
-				startIndex = jsonObj.getInt("start");
+			final int startIndex = request.getInteger("start", 0);
+			
+			// Get the descriptors if we don't have them yet
+			if (_searchDescriptors == null) {
+				_searchDescriptors = _entitySearcher.getDescriptors();
 			}
 			
-			// get the search term
-			final String term = jsonObj.getString("term").trim();
+			// get all the search terms
+			final PropertyMatchBuilder bld;
+			String propMatchDesc = request.getString("descriptors", null);
+			if (propMatchDesc != null) {
+				bld = processDescriptors(new JSONObject(propMatchDesc));
+			} else {
+				bld = processSearchTerms(request.getString("query", "").trim());
+			}
 			
-			final EntitySearchTerms terms = new EntitySearchTerms(term, entitySearcher.getDescriptors());
+			final Map<String, List<FL_PropertyMatchDescriptor>> termMap = bld.getDescriptorMap();
+			List<FL_OrderBy> orderBy = bld.getOrderBy();
 			
-				// Execute the search
-			FL_SearchResults sResponse = entitySearcher.search(terms.getTerms(), (long)startIndex, (long)resultLimit);
+			// return groups of one as singletons?
+			final boolean ungroupSingletons = request.getBoolean("ungroupSingles", false);
+
+			if (orderBy == null) {
+				orderBy = _searchDescriptors.getOrderBy();
+			}
 			
-			// TODO modify below code to use Cluster data access getAccountOwners() API method
-			Map<String, String> clusterSummaries = new HashMap<String, String>();
-			List<String> accountOwners = new ArrayList<String>();
+			final String groupByKey = orderBy != null? orderBy.get(0).getPropertyKey() : null;
+
 			
-			for (FL_SearchResult sResult : sResponse.getResults()){
+			// Execute the search
+			FL_SearchResults sResponse = _entitySearcher.search(termMap, orderBy, (long)startIndex, (long)resultLimit);
+
+			for (FL_SearchResult sResult : sResponse.getResults()) {
 				FL_Entity entity = (FL_Entity)sResult.getResult();
-
-				// If this is an account owner either we retrieve a cluster summary or all accounts
-				if (entity.getTags().contains(FL_EntityTag.ACCOUNT_OWNER)) {
-					FL_Property summary = EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.CLUSTER_SUMMARY);
-					
-					if (summary != null) {
-						// retrieve the cluster summary for this account owner
-						clusterSummaries.put(entity.getUid(), (String)PropertyHelper.from(summary).getValue());
-					} else {
-						// retrieve the accounts for account owner
-						accountOwners.add(entity.getUid());
-					}
-				}
+				matchScores.put(entity.getUid(), sResult.getMatchScore());
+				entities.add(entity);
 			}
+			
+			normalizeMatchScores(matchScores);
 
-			// fetch all accounts for account owners
-			Map<String, List<FL_Entity>> accountsForAccountOwners = entityAccess.getAccounts(accountOwners);
+			// search results response object
+			JSONObject result = new JSONObject();
 			
-			Map<String, List<FL_Entity>> groupedEntities = new HashMap<String, List<FL_Entity>>();
+			// search result entities
+			JSONArray resultItems = new JSONArray();
+						
+			// group entities if a grouping field was provided
+			if (groupByKey != null && !groupByKey.equals("null")) {
+				Map<String, List<Object>> groupedEntities = groupEntitiesBy(groupByKey, matchScores, entities);
+				
+				// add grouped entities to result items
+				for (String key : groupedEntities.keySet()) {
+					final List<Object> group = groupedEntities.get(key);
 			
-			// fetch all cluster summaries
-			summaries.addAll(clusterAccess.getClusterSummary(new ArrayList<String>(clusterSummaries.values())));
+					JSONObject groupResult = new JSONObject();
+					
+					// don't provide a group key if ungroupSingletons and the group size is 1
+					if (!ungroupSingletons || group.size() > 1) {
+						groupResult.put("groupKey", key);
+					}
+				
+					JSONArray groupMembers = serializeEntities(group);
 			
-			PermitSet permits = new PermitSet();
-			
-			try {
-				// Ok, now process the entities.  If the entity key is in the accounts map, construct account owner, otherwise use the entity
-				for (FL_SearchResult sResult : sResponse.getResults()) {
-					FL_Entity entity = (FL_Entity)sResult.getResult();
-	
-					// If this is an account owner then construct an account owner cluster
-					if (accountsForAccountOwners.containsKey(entity.getUid())) {
-						List<FL_Entity> accounts = accountsForAccountOwners.get(entity.getUid());
-						if (accounts != null) {
-							FL_Cluster owner = clusterFactory.toAccountOwnerSummary(entity, accounts, new ArrayList<FL_Cluster>(0));
-							owners.add(owner);
-						}
-					} else if (!clusterSummaries.containsKey(entity.getUid())) {  // if not a cluster summary then add entity
-						entities.add(entity);
-					}
+					groupResult.put("items", groupMembers);
+				
+					resultItems.put(groupResult);
 				}
+			} else {
+				// create a single anonymous group for all results
+				JSONObject groupResult = new JSONObject();
+
+				// under an empty group header
+				groupResult.put("groupKey", "");
+
+				List<Object> allResults = new ArrayList<Object>(entities.size());
+				allResults.addAll(entities);
 				
-				// group entities if a grouping field was provided
-				if (groupByTagOrFieldName != null) {
-					for (FL_Entity entity : entities) {
-						PropertyHelper prop = getFirstProperty(entity, groupByTagOrFieldName);
-						if (prop != null) {
-							Object val = prop.getValue();
-							String key = null;
-							
-							if (val instanceof FL_GeoData) {
-								key = ((FL_GeoData)val).getCc();
-							} else if (val instanceof String) {
-								key = (String)val;
-							}
-							
-							List<FL_Entity> group = groupedEntities.get(key);
-							if (group == null) {
-								group = new ArrayList<FL_Entity>();
-								groupedEntities.put(key, group);
-							}
-							
-							group.add(entity);
-						}
-					}
-				}
-	
-				normalizeScores(scores);
+				groupResult.put("items", serializeEntities(allResults));
 				
-				// Perform clustering is required - only support grouping XOR clustering
-				if (groupByTagOrFieldName == null && doCluster && entities.size()>4){
-				
-					final ContextReadWrite contextRW = contextCache.getReadWrite(contextId, permits);
-					
-					clusterAccess.clearContext(contextId);
-					
-					/*List<String> clusterIds =*/ clusterer.clusterEntities(entities, null, null, contextId);
-					
-					Pair<Collection<FL_Entity>,Collection<FL_Cluster>> simpleContext = ContextCollapser.collapse(contextRW,false,null);
-	
-					JSONObject result = new JSONObject();
-					JSONArray rArr = new JSONArray();
-					List<String> fetchFullClusters = new ArrayList<String>();
-	
-					contextRW.setSimplifiedContext(simpleContext.second);
-					
-					for (FL_Cluster cluster : simpleContext.second) {
-						if (cluster.getParent() == null) {
-							fetchFullClusters.add(cluster.getUid());
-						}
-					}
-					if (!fetchFullClusters.isEmpty()) {
-						List<FL_Cluster> topClusters = clusterAccess.getClusters(fetchFullClusters, contextId);
-						contextRW.setSimplifiedContext(topClusters);
-	
-						//Re-insert the clusters with the computed summaries
-						for (String cid : fetchFullClusters) {
-							rArr.put(UISerializationHelper.toUIJson(contextRW.getCluster(cid)));
-						}
-					}
-					
-					for (FL_Entity entity : entities) {
-						if (simpleContext.first.contains(entity.getUid())) {
-							rArr.put(UISerializationHelper.toUIJson(entity));
-						}
-					}
-					
-					result.put("data",rArr);
-					result.put("totalResults",sResponse.getTotal());
-					result.put("sessionId", sessionId);
-					
-					StringRepresentation responseSR = new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
-					
-					return responseSR;
-				}
-				else {
-					JSONObject result = new JSONObject();
-					
-					JSONArray ja = new JSONArray();
-				
-					List<Object> entityGroups = new LinkedList<Object>();
-					
-					// initially add all the entities to the entityGroups
-					entityGroups.addAll(entities);
-					
-					// replace entities with group clusters as necessary
-					for (String key : groupedEntities.keySet()) {
-						final List<FL_Entity> group = groupedEntities.get(key);
-					
-						if (group.size() < 2) continue;
-						
-						// create cluster for the group
-						FL_Cluster cluster = clusterFactory.toCluster(group, new ArrayList<FL_Cluster>(0));
-						
-						// HACK for now the cluster id is a concatenation of it's child ids
-						StringBuilder str = new StringBuilder();
-						
-						for (FL_Entity entity : group) {
-							str.append("|" + entity.getUid());
-						}
-						cluster.setUid( TypedId.fromNativeId(TypedId.CLUSTER, str.toString()).getTypedId() );
-	
-						// find the index of the first entity in the group - the cluster will be placed at this location in the results
-						int idx = entityGroups.indexOf(group.get(0));
-						
-						// remove the group from the entities result set - replace with a cluster
-						entityGroups.removeAll(group);
-						entityGroups.add(idx, cluster);
-					}
-					
-					// add the found entities and group clusters to result set
-					for (Object obj : entityGroups) {
-						JSONObject jo;
-						String id = null;
-						try {
-							if (obj instanceof FL_Cluster) {
-								FL_Cluster cluster = (FL_Cluster)obj;
-								id = cluster.getUid();
-								jo = UISerializationHelper.toUIJson(cluster);
-							} else {
-								FL_Entity entity = (FL_Entity)obj;
-								id = entity.getUid();
-								jo = UISerializationHelper.toUIJson(entity);
-							}
-						} catch (NullPointerException npe) {
-							s_logger.error("Error serializing object with uid: " + id + ".   Omitting from results.");
-							continue;
-						}
-						ja.put(jo);
-					}
-					
-					// add the found owners to result set
-					for (FL_Cluster owner : owners) {
-						JSONObject jo;
-						try {
-							jo = UISerializationHelper.toUIJson(owner);
-						} catch (NullPointerException npe) {
-							s_logger.error("Error serializing entity with uid: " + owner.getUid() + ".   Omitting from results.");
-							continue;
-						}
-						ja.put(jo);
-					}
-					// add the found cluster summaries to result set
-					for (FL_Cluster summary : summaries) {
-						JSONObject jo;
-						try {
-							jo = UISerializationHelper.toUIJson(summary);
-						} catch (NullPointerException npe) {
-							s_logger.error("Error serializing entity with uid: " + summary.getUid() + ".   Omitting from results.");
-							continue;
-						}
-						ja.put(jo);
-					}
-					
-					result.put("data", ja);
-					result.put("scores", scores);
-					result.put("totalResults", sResponse.getTotal());
-					result.put("sessionId", sessionId);
-	
-					return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
-	
-				}
-				
-			} finally {
-				permits.revoke();
+				resultItems.put(groupResult);
 			}
+			
+			// Get the column header from the searcher
+			FL_PropertyDescriptors columnHeaders = _entitySearcher.getKeyDescriptors(sResponse, orderBy);
+			
+			result.put("data", resultItems);
+			result.put("matchScores", matchScores);
+			result.put("totalResults", sResponse.getTotal());
+			result.put("sessionId", sessionId);
+			result.put("headers", UISerializationHelper.toUIJson(columnHeaders));
+			result.put("detailLevel", sResponse.getLevelOfDetail());
+
+			return new StringRepresentation(result.toString(),MediaType.APPLICATION_JSON);
 		}
 		catch (JSONException e) {
 			throw new ResourceException(
@@ -388,40 +312,35 @@ public class EntitySearchResource extends ApertureServerResource{
 				);
 		}
 	}
-	
-	
-	
-	
-	protected PropertyHelper getFirstProperty(FL_Entity entity, String tagOrName) {
-		PropertyHelper prop = null;
-		FL_PropertyTag tag = null;
-		
-		try {
-			tag = FL_PropertyTag.valueOf(tagOrName);
-		}
-		catch (Exception e) { }
-		
-		if (tag != null) {
-			prop = EntityHelper.getFirstPropertyByTag(entity, tag);
-		}
-		if (prop == null) {
-			prop = EntityHelper.getFirstProperty(entity, tagOrName);
-		}
-		return prop;
+
+
+
+
+	private PropertyMatchBuilder processSearchTerms(String query) {
+		//Extract a map of FL_PropertyMatchDescriptors by type from the query
+		s_logger.info("Processing search terms from: " + query);
+		final PropertyMatchBuilder terms = new PropertyMatchBuilder(query, _searchDescriptors, false, _applicationConfiguration.hasMultipleEntityTypes());
+
+		return terms;
 	}
 	
+	private PropertyMatchBuilder processDescriptors(JSONObject propertyMatchDescriptorsMap) throws JSONException {
+		//Extract a map of FL_PropertyMatchDescriptors by type from the propertyMatchDescriptors
+		s_logger.info("Processing search terms from: " + propertyMatchDescriptorsMap);
+		final PropertyMatchBuilder terms = new PropertyMatchBuilder(propertyMatchDescriptorsMap, false, _applicationConfiguration.hasMultipleEntityTypes());
+
+		return terms;
+	}
 	
-	
-	
-	public static void normalizeScores (Map<String, Double> scores) {
+	public static void normalizeMatchScores (Map<String, Double> matchScores) {
 		double maxscore = 0;
 		
-		for (String entity : scores.keySet()) 
-			if (scores.get(entity) > maxscore)
-				maxscore = scores.get(entity);
+		for (String entity : matchScores.keySet()) 
+			if (matchScores.get(entity) > maxscore)
+				maxscore = matchScores.get(entity);
 		
 		if (maxscore != 0)
-			for (String entity : scores.keySet()) 
-				scores.put(entity, scores.get(entity)/maxscore);
+			for (String entity : matchScores.keySet()) 
+				matchScores.put(entity, matchScores.get(entity)/maxscore);
 	}
 }

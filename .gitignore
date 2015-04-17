@@ -5,7 +5,7 @@ target
 /*.project
 .metadata
 *~
-/influent-clustering-job/bin/
-/influent.iml
+*.iml
 .idea
 .settings
+.project

@@ -1,6 +1,8 @@
-/**
- * Copyright (c) 2013-2014 Oculus Info Inc.
- * http://www.oculusinfo.com/
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
  *
  * Released under the MIT License.
  *
@@ -22,6 +24,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 /**
  * duration is specified in the following form "PnYnMnDTnHnMnS" derived
  * from the XSD data type specification, where:
@@ -56,11 +59,13 @@ define([], function() {
 	 * Private implementation : add (or subtract) duration to date and return new date
 	 */
 	var toDate = function(duration, date, sign) {
-		if (typeof duration != 'string' || !date) {
-			if (!date)
-				aperture.log.error('Invalid date object in addToDate: '+ date);
-			else
+		if (typeof duration !== 'string' || !date) {
+			if (!date) {
+				aperture.log.error('Invalid date object in addToDate: ' + date);
+			}
+			else {
 				aperture.log.error('Invalid duration format in addToDate: ' + duration);
+			}
 
 			return date;
 		}
@@ -68,7 +73,7 @@ define([], function() {
 		duration = duration.toUpperCase();
 
 		// first character is supposed to be a P
-		if (duration.charAt(0) != 'P') {
+		if (duration.charAt(0) !== 'P') {
 			aperture.log.error('Invalid duration format in addToDate: ' + duration);
 			return date;
 		}
@@ -86,13 +91,14 @@ define([], function() {
 			var unicode = duration.charCodeAt(i);
 
 			// a number?
-			if (unicode >= 48 && unicode <= 57)
+			if (unicode >= 48 && unicode <= 57) {
 				continue;
+			}
 
 			// else we hit a symbol.
 			// get number part
 			var number = (i > startNum)?
-					parseInt(duration.substring(startNum, i)) : 0;
+					parseInt(duration.substring(startNum, i), 10) : 0;
 
 			// get symbol part
 			tokens.push({
@@ -110,7 +116,7 @@ define([], function() {
 		for (var p=0; p< tokens.length; p++) {
 			var part = tokens[p];
 
-			if (part.symbol == 'T') {
+			if (part.symbol === 'T') {
 				timePart = true;
 				continue;
 			}
@@ -176,7 +182,7 @@ define([], function() {
 		}
 		function iterByMonth(date, direction) {
 			if(direction > 0) {
-				if(date.getMonth() == 11) {
+				if(date.getMonth() === 11) {
 					date.setYear(date.getFullYear() + 1);
 				}
 
@@ -337,13 +343,13 @@ define([], function() {
 	var format = function (duration, spec) {
 		var form = spec? spec.form : null;
 
-		var longForm  = form != 'symbol';
-		var adjective = form == 'adjective';
+		var longForm  = form !== 'symbol';
+		var adjective = form === 'adjective';
 
-		if (typeof duration == 'string') {
+		if (typeof duration === 'string') {
 			var formatted = duration.toUpperCase();
 
-			if (formatted.charAt(0) == 'P') {
+			if (formatted.charAt(0) === 'P') {
 				formatted = formatted.substr(1);
 			}
 
@@ -375,7 +381,7 @@ define([], function() {
 				if (formatted.length <= delimiter.length) {
 					formatted = adjective? 'Immediate' : 'None';
 				}
-				else if (formatted.substring(formatted.length - delimiter.length) == delimiter) {
+				else if (formatted.substring(formatted.length - delimiter.length) === delimiter) {
 					formatted = formatted.substring(0, formatted.length - delimiter.length);
 				}
 			}
