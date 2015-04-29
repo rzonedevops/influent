@@ -366,22 +366,21 @@ public class BaseSQLSelect implements SQLSelect {
 			//TODO:
 			throw new UnsupportedOperationException("Having filters have not been implemented yet");
 		}
-		
+
+		if (!usesTop() &&
+			topCount != null &&
+			topCount.doubleValue() > 0) {
+			boolean isPercent = (topCount instanceof Double);
+			strb.append(" LIMIT ");
+			strb.append(topCount);
+			strb.append((isPercent)? " PERCENT " : " ");
+		}
+
 		if (selectClause.unionSelect != null) {
 			strb.append((selectClause.unionAll)? " UNION ALL " : " UNION ");
 			result.addResult(buildSelectClause(selectClause.unionSelect, strb, paramValues));
 		}
 
-		if (!usesTop() &&
-			topCount != null &&
-			topCount.doubleValue() > 0
-		) {
-			boolean isPercent = (topCount instanceof Double);
-			strb.append("LIMIT ");
-			strb.append(topCount);
-			strb.append((isPercent)? " PERCENT " : " ");
-		}
-		
 		return result;
 	}
 	

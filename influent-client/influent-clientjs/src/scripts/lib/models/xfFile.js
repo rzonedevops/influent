@@ -192,8 +192,10 @@ define(
 			//----------------------------------------------------------------------------------------------------------
 
 			xfFileInstance.setLabel = function(newLabel) {
-				_UIObjectState.title = newLabel;
-				_UIObjectState.titleInitialized = true;
+				if (typeof(newLabel) === 'string') {
+					_UIObjectState.title = newLabel;
+					_UIObjectState.titleInitialized = true;
+				}
 			};
 
 			//----------------------------------------------------------------------------------------------------------

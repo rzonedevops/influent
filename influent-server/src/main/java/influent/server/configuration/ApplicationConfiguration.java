@@ -163,6 +163,13 @@ public class ApplicationConfiguration implements PropertyField.Provider {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
+	public boolean isCompositeProperty(String key) {
+		return _propertyCompositions.containsKey(key);
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	@Override
 	public List<PropertyField> getFields(String key) {
 		return _propertyCompositions.get(key);
 	}

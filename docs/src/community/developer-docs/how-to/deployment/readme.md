@@ -129,7 +129,7 @@ The "skinny war" approach can be implemented in a standalone Jetty server by con
 	<ul>
 		<li><a href="../../../tour/">Tour</a>: Take our tour to learn more about Influent.
 		<li><a href="../../../docs/user-guide/">Docs</a>: Learn how to use Influent to explore your large-scale transaction flow data.
-		<li><a href="../../../demos/">Live Example</a>: Explore a live example of the capabilities of Influent.
+		<li><a href="../../../demos/">Live Examples</a>: Explore live examples of the capabilities of Influent.
 		<li><a href="../../../contact/">Contact</a>: Contact Uncharted for more information about Influent or to submit technical suggestions/contributions.
 	</ul>
 </div>

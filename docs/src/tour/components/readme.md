@@ -7,13 +7,13 @@ layout: submenu
 
 # System Description #
 
-The Influent web app is a servlet, utilizing server-side Java and client-side HTML5 and JavaScript. Each custom Influent project supports two types of databases that store information about the individual transactions and entities involved in the transaction flow data.
+The Influent web app is a servlet, utilizing server-side Java and client-side HTML5 and JavaScript. Custom Influent applications can be created from raw datasets that describe the individual transactions and entities involved in the transaction flow data.
 
 ## Databases ##
 
-Influent builds visual transaction flow analytics from conventional relational databases: a **Transaction Database**, which stores information about each transaction in the source data (e.g., identities of involved entities, date and time and transaction value), and an optional **Entity Database**, which stores additional details (e.g., names, images, locations) about each of the entities involved in the transaction data.
+Influent builds visual transaction flow analytics from conventional relational databases containing detailed **transaction data** (i.e., identities of participating entities, date and time and transaction value). Optional **entity data** can be added to further describe (e.g., names, images, locations) each of the entities involved in the transactions.
 
-Influent can be configured to allow analysts to search for entities based on information in either database. Support for plugin enterprise search platforms such as [Apache Solr](http://lucene.apache.org/solr/) introduces the ability to execute "fuzzy" searches that can correct for misspellings and return results *like* the search terms (e.g., return *Steven* when searching for *Stephen*).
+Influent can be configured to allow analysts to search for entities based on information in either set of data. Support for plugin enterprise search platforms such as [Apache Solr](http://lucene.apache.org/solr/) introduces the ability to execute "fuzzy" searches that can correct for misspellings and return results *like* the search terms (e.g., return *Steven* when searching for *Stephen*).
 
 For ease of integration, Influent provides adapters for the following relational database formats:
 
@@ -42,7 +42,7 @@ The Influent workspace also enables analysts to export their work to:
 
 - XML files that can be loaded to share transaction flow graphs across sessions
 - PNG images that can be shared with individuals that do not have access to the application
-- CSV files that contain a detailed list of all transactions involving a specified entity
+- CSV files that contain detailed lists of all accounts or transactions that match a specific set of search criteria
 
 <div class="git">
 	<h2>Interested in Learning More?</h2>
@@ -50,7 +50,7 @@ The Influent workspace also enables analysts to export their work to:
 	<ul>
 		<li><a href="../../docs/user-guide/">Docs</a>: Learn how to use Influent to explore your large-scale transaction flow data.
 		<li><a href="../../community/developer-docs/">Community</a>: Learn how to download and use the Influent source code to install and implement your own custom deployment.
-		<li><a href="../../demos/">Live Example</a>: Explore a live example of the capabilities of Influent.
+		<li><a href="../../demos/">Live Examples</a>: Explore live examples of the capabilities of Influent.
 		<li><a href="../../contact/">Contact</a>: Contact Uncharted for more information about Influent or to submit technical suggestions/contributions.
 	</ul>
 </div>

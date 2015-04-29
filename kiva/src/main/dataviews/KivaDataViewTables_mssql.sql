@@ -28,40 +28,40 @@
 --
 -- FINANCIAL FLOW
 -- 
-create table TEST_FinFlow (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), FirstTransaction datetime, LastTransaction datetime, Amount float, CONSTRAINT pk_FF_ID PRIMARY KEY (FromEntityId, ToEntityId));
+create table FinFlow (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), FirstTransaction datetime, LastTransaction datetime, Amount float, CONSTRAINT pk_FF_ID PRIMARY KEY (FromEntityId, ToEntityId));
 
 --
 -- FINANCIAL FLOW SUMMARY
 --
-create table TEST_FinFlowDaily     (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFD_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table TEST_FinFlowWeekly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFW_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table TEST_FinFlowMonthly   (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFM_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table TEST_FinFlowQuarterly (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFQ_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table TEST_FinFlowYearly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFY_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowDaily     (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFD_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowWeekly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFW_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowMonthly   (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFM_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowQuarterly (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFQ_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
+create table FinFlowYearly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFY_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
 
 --
 -- FINANCIAL ENTITY SUMMARY
 --
-create table TEST_FinEntityDaily     (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FED_ID PRIMARY KEY (EntityId, PeriodDate));
-create table TEST_FinEntityWeekly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEW_ID PRIMARY KEY (EntityId, PeriodDate));
-create table TEST_FinEntityMonthly   (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEM_ID PRIMARY KEY (EntityId, PeriodDate));
-create table TEST_FinEntityQuarterly (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEQ_ID PRIMARY KEY (EntityId, PeriodDate));
-create table TEST_FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEY_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityDaily     (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FED_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityWeekly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEW_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityMonthly   (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEM_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityQuarterly (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEQ_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEY_ID PRIMARY KEY (EntityId, PeriodDate));
 
 --
 -- CLUSTER SUMMARY
 -- 
-create table TEST_ClusterSummary	(EntityId varchar(100), Property varchar(50), Tag varchar(50), Type varchar(50), Value varchar(200), Stat float, CONSTRAINT pk_CS_ID PRIMARY KEY (EntityId, Property, Value));
+--create table ClusterSummary	(EntityId varchar(100), Property varchar(50), Tag varchar(50), Type varchar(50), Value varchar(200), Stat float, CONSTRAINT pk_CS_ID PRIMARY KEY (EntityId, Property, Value));
 
 --
 -- CLUSTER SUMMARY MEMBERS
 -- 
-create table TEST_ClusterSummaryMembers (SummaryId varchar(100), EntityId varchar(100), CONSTRAINT pk_CSM_ID PRIMARY KEY (SummaryId, EntityId));
+--create table ClusterSummaryMembers (SummaryId varchar(100), EntityId varchar(100), CONSTRAINT pk_CSM_ID PRIMARY KEY (SummaryId, EntityId));
 
 --
 -- KIVA FLOW GENERATION
 --
-insert into TEST_FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntityType, Amount, PeriodDate)
+insert into FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntityType, Amount, PeriodDate)
 	select 
 		TransactionSource, 
 		'A', 
@@ -69,10 +69,10 @@ insert into TEST_FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntit
 		'A', 
 		sum(TransactionAmount), 
 		convert(varchar(50), TransactionDate, 101)
-	from TEST_Transactions
+	from Transactions
 	group by TransactionSource, TransactionTarget, convert(varchar(50), TransactionDate, 101)
 
-insert into TEST_FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntityType, Amount, PeriodDate)
+insert into FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntityType, Amount, PeriodDate)
  	select 
 		substring(TransactionSource, 1, charindex('-',TransactionSource)-1),
 		'O',
@@ -80,11 +80,11 @@ insert into TEST_FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntit
 		'A', 
 		sum(TransactionAmount), 
 		convert(varchar(50), TransactionDate, 101)
-  	from TEST_Transactions
+  	from Transactions
   	where substring(TransactionSource,1,8) = 'partner.'
   	group by substring(TransactionSource,1,charindex('-',TransactionSource)-1), TransactionTarget, convert(varchar(50), TransactionDate, 101)
 
-insert into TEST_FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntityType, Amount, PeriodDate)
+insert into FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntityType, Amount, PeriodDate)
  	select 
 		TransactionSource, 
 		'A', 
@@ -92,25 +92,25 @@ insert into TEST_FinFlowDaily (FromEntityId, FromEntityType, ToEntityId, ToEntit
 		'O', 
 		sum(TransactionAmount), 
 		convert(varchar(50), TransactionDate, 101)
-  	from TEST_Transactions
+  	from Transactions
   	where substring(TransactionTarget,1,8) = 'partner.'
   	group by TransactionSource, substring(TransactionTarget,1,charindex('-',TransactionTarget)-1), convert(varchar(50), TransactionDate, 101)
 
 --  create FinFlowDaily indices
-create index ix_ffd_from on TEST_FinFlowDaily     (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffd_to   on TEST_FinFlowDaily     (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_ffd_from on FinFlowDaily     (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_ffd_to   on FinFlowDaily     (ToEntityId,   PeriodDate, FromEntityId, Amount);
 
 --
 -- KIVA ENTITY GENERATION (LOANS)
 --
 
 -- create Fin Entity Loan table
-create table TEST_FinEntityLoan(
+create table FinEntityLoan(
 	EntityId varchar(100) PRIMARY KEY, 
-	InboundDegree int, 
-	UniqueInboundDegree int,  
-	OutboundDegree int, 
-	UniqueOutboundDegree int, 
+	IncomingLinks int, 
+	UniqueIncomingLinks int,  
+	OutgoingLinks int, 
+	UniqueOutgoingLinks int, 
 	NumTransactions int, 
 	MaxTransaction float, 
 	AvgTransaction float, 
@@ -166,133 +166,61 @@ create table TEST_FinEntityLoan(
 );
 
 -- populate table with common attributes
-insert into TEST_FinEntityLoan
-select 
-	t1.EntityId, 
-	inboundDegree, 
-	uniqueInboundDegree, 
-	outboundDegree, 
-	uniqueOutboundDegree, 
+insert into FinEntityLoan (
+	EntityId, 
+	IncomingLinks, 
+	UniqueIncomingLinks,  
+	OutgoingLinks, 
+	UniqueOutgoingLinks, 
 	NumTransactions, 
-	MaxTransactions, 
-	AvgTransactions, 
+	MaxTransaction, 
+	AvgTransaction, 
 	StartDate, 
-	EndDate,
-	NULL,
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL
+	EndDate
+)
+select 
+	EntityId, 
+	sum(IncomingLinks) as IncomingLinks, 
+	sum(UniqueIncomingLinks) as UniqueIncomingLinks, 
+	sum(OutgoingLinks) as OutgoingLinks, 
+	sum(UniqueOutgoingLinks) as UniqueOutgoingLinks, 
+	sum(NumTransactions) as NumTransactions, 
+	max(MaxTransaction) as MaxTransaction, 
+	sum(TotalTransactions) / sum(NumTransactions) as AvgTransaction, 
+	min(StartDate) as StartDate, 
+	max(EndDate) as EndDate
 from (
-	select 
-		EntityId, 
-		sum(inboundDegree) as inboundDegree, 
-		sum(uniqueInboundDegree) as uniqueInboundDegree, 
-		sum(outboundDegree) as outboundDegree, 
-		sum(uniqueOutboundDegree) as uniqueOutboundDegree
-	from (
-		select 
-			FromEntityId as EntityId, 
-			0 as inboundDegree, 
-			0 as uniqueInboundDegree, 
-			count(ToEntityId) as outboundDegree, 
-			count( distinct ToEntityId ) as uniqueOutboundDegree
-		from TEST_FinFlowDaily
-		where ToEntityType = 'A'
-		group by FromEntityId
-		union
-		select 
-			ToEntityId as EntityId, 
-			count(FromEntityId) as inboundDegree, 
-			count( distinct FromEntityId ) as uniqueInboundDegree, 
-			0 as outboundDegree, 
-			0 as uniqueOutboundDegree
-		from TEST_FinFlowDaily
-		where FromEntityType = 'A'
-		group by ToEntityId
-	) q
-	where EntityId like 'loan.%'
-	group by EntityId
-) t1
-left join
-(
-	select 
-		EntityId, 
-		sum(numTransactions) as NumTransactions, 
-		max(MaxTransaction) as MaxTransactions, 
-		sum(TotalTransactions) / sum(numTransactions) as AvgTransactions, 
-		min(StartDate) as StartDate, 
-		max(EndDate) as EndDate
-	from (
-		select 
-			TransactionTarget as EntityId, 
-			count(TransactionTarget) as numTransactions, 
+	select  TransactionTarget as EntityId, 
+			count(TransactionSource) as IncomingLinks, 
+			count( distinct TransactionSource ) as UniqueIncomingLinks, 
+			0 as OutgoingLinks, 
+			0 as UniqueOutgoingLinks, 
+			count(TransactionTarget) as NumTransactions, 
 			max(TransactionAmount) as MaxTransaction, 
 			sum(TransactionAmount) as TotalTransactions, 
 			min(TransactionDate) as StartDate, 
 			max(TransactionDate) as EndDate  
-		from TEST_Transactions
-		group by TransactionTarget
-		union
-		select 
-			TransactionSource as EntityId, 
-			count(TransactionSource) as numTransactions, 
+	from Transactions
+	group by TransactionTarget
+	union
+	select TransactionSource as EntityId,
+			0 as IncomingLinks,
+			0 as UniqueIncomingLinks,
+			count(TransactionTarget) as OutgoingLinks,
+			count( distinct TransactionTarget ) as UniqueOutgoingLinks,
+			sum( case when TransactionSource <> TransactionTarget then 1 else 0 end ) as NumTransactions, 
 			max(TransactionAmount) as MaxTransaction, 
 			sum(TransactionAmount) as TotalTransactions, 
 			min(TransactionDate) as StartDate, 
 			max(TransactionDate) as EndDate 
-		from TEST_Transactions
-		group by TransactionSource
-	)q
-	where EntityId like 'loan.%'
-	group by EntityId
-) t2
-on t2.EntityId = t1.EntityId
+	from Transactions
+	group by TransactionSource
+)q
+where EntityId like 'loan.%'
+group by EntityId
 
 -- update table with loan specific attributes
-update TEST_FinEntityLoan
+update FinEntityLoan
 set 
 	[type] = 'loan', 
 	LoanId = FEP.LoanId,
@@ -341,25 +269,25 @@ set
 	LoanJournalTotalsBulkEntries = FEP.LoanJournalTotalsBulkEntries, 
 	LoanLat = FEP.LoanLat, 
 	LoanLon = FEP.LoanLon
-from TEST_FinEntityLoan FE
+from FinEntityLoan FE
 inner join
-TEST_FinEntityProperties_loan FEP
+LoanProperties FEP
 on FE.EntityId = FEP.EntityId
 
 -- create index on Fin Entity Loan table
-create index ix_fe_lo_id on TEST_FinEntityLoan (EntityId);
+create index ix_fe_lo_id on FinEntityLoan (EntityId);
 
 --
 -- KIVA ENTITY GENERATION (LENDERS)
 --
 
 -- create Fin Entity Lender table
-create table TEST_FinEntityLender(
+create table FinEntityLender(
 	EntityId varchar(100) PRIMARY KEY, 
-	InboundDegree int, 
-	UniqueInboundDegree int,  
-	OutboundDegree int, 
-	UniqueOutboundDegree int, 
+	IncomingLinks int, 
+	UniqueIncomingLinks int,  
+	OutgoingLinks int, 
+	UniqueOutgoingLinks int, 
 	NumTransactions int, 
 	MaxTransaction float, 
 	AvgTransaction float, 
@@ -384,102 +312,61 @@ create table TEST_FinEntityLender(
 );
 
 -- populate table with common attributes
-insert into TEST_FinEntityLender
-select 
-	t1.EntityId, 
-	inboundDegree, 
-	uniqueInboundDegree, 
-	outboundDegree, 
-	uniqueOutboundDegree, 
+insert into FinEntityLender (
+	EntityId, 
+	IncomingLinks, 
+	UniqueIncomingLinks,  
+	OutgoingLinks, 
+	UniqueOutgoingLinks, 
 	NumTransactions, 
-	MaxTransactions, 
-	AvgTransactions, 
+	MaxTransaction, 
+	AvgTransaction, 
 	StartDate, 
-	EndDate,
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL
+	EndDate
+)
+select 
+	EntityId, 
+	sum(IncomingLinks) as IncomingLinks, 
+	sum(UniqueIncomingLinks) as UniqueIncomingLinks, 
+	sum(OutgoingLinks) as OutgoingLinks, 
+	sum(UniqueOutgoingLinks) as UniqueOutgoingLinks, 
+	sum(NumTransactions) as NumTransactions, 
+	max(MaxTransaction) as MaxTransaction, 
+	sum(TotalTransactions) / sum(NumTransactions) as AvgTransaction, 
+	min(StartDate) as StartDate, 
+	max(EndDate) as EndDate
 from (
-	select 
-		EntityId, 
-		sum(inboundDegree) as inboundDegree, 
-		sum(uniqueInboundDegree) as uniqueInboundDegree, 
-		sum(outboundDegree) as outboundDegree, 
-		sum(uniqueOutboundDegree) as uniqueOutboundDegree
-	from (
-		select 
-			FromEntityId as EntityId, 
-			0 as inboundDegree, 
-			0 as uniqueInboundDegree, 
-			count(ToEntityId) as outboundDegree, 
-			count( distinct ToEntityId ) as uniqueOutboundDegree
-		from TEST_FinFlowDaily
-		where ToEntityType = 'A'
-		group by FromEntityId
-		union
-		select 
-			ToEntityId as EntityId, 
-			count(FromEntityId) as inboundDegree, 
-			count( distinct FromEntityId ) as uniqueInboundDegree, 
-			0 as outboundDegree, 
-			0 as uniqueOutboundDegree
-		from TEST_FinFlowDaily
-		where FromEntityType = 'A'
-		group by ToEntityId
-	) q
-	where EntityId like 'lender.%'
-	group by EntityId
-) t1
-left join
-(
-	select 
-		EntityId, 
-		sum(numTransactions) as NumTransactions, 
-		max(MaxTransaction) as MaxTransactions, 
-		sum(TotalTransactions) / sum(numTransactions) as AvgTransactions, 
-		min(StartDate) as StartDate, 
-		max(EndDate) as EndDate
-	from (
-		select 
-			TransactionTarget as EntityId, 
-			count(TransactionTarget) as numTransactions, 
+	select  TransactionTarget as EntityId, 
+			count(TransactionSource) as IncomingLinks, 
+			count( distinct TransactionSource ) as UniqueIncomingLinks, 
+			0 as OutgoingLinks, 
+			0 as UniqueOutgoingLinks, 
+			count(TransactionTarget) as NumTransactions, 
 			max(TransactionAmount) as MaxTransaction, 
 			sum(TransactionAmount) as TotalTransactions, 
 			min(TransactionDate) as StartDate, 
 			max(TransactionDate) as EndDate  
-		from TEST_Transactions
-		group by TransactionTarget
-		union
-		select 
-			TransactionSource as EntityId, 
-			count(TransactionSource) as numTransactions, 
+	from Transactions
+	group by TransactionTarget
+	union
+	select TransactionSource as EntityId,
+			0 as IncomingLinks,
+			0 as UniqueIncomingLinks,
+			count(TransactionTarget) as OutgoingLinks,
+			count( distinct TransactionTarget ) as UniqueOutgoingLinks,
+			sum( case when TransactionSource <> TransactionTarget then 1 else 0 end ) as NumTransactions, 
 			max(TransactionAmount) as MaxTransaction, 
 			sum(TransactionAmount) as TotalTransactions, 
 			min(TransactionDate) as StartDate, 
 			max(TransactionDate) as EndDate 
-		from TEST_Transactions
-		group by TransactionSource
-	)q
-	where EntityId like 'lender.%'
-	group by EntityId
-) t2
-on t2.EntityId = t1.EntityId
+	from Transactions
+	group by TransactionSource
+)q
+where EntityId like 'lender.%'
+group by EntityId
 
 -- update table with lender specific attributes
-update TEST_FinEntityLender
+update FinEntityLender
 set 
 	[type] = 'lender', 
 	LenderId = FEP.LenderId, 
@@ -497,25 +384,25 @@ set
 	LenderLoanBecause = FEP.LenderLoanBecause, 
 	LenderLat = FEP.LenderLat, 
 	LenderLon = FEP.LenderLon
-from TEST_FinEntityLender FE
+from FinEntityLender FE
 inner join
-TEST_FinEntityProperties_lender FEP
+LenderProperties FEP
 on FE.EntityId = FEP.EntityId
 
 -- create index on Fin Entity Lender table
-create index ix_fe_le_id on TEST_FinEntityLender (EntityId);
+create index ix_fe_le_id on FinEntityLender (EntityId);
 
 --
 -- KIVA ENTITY GENERATION (PARTNERS + BROKERS)
 --
 
 -- create Fin Entity Partner table
-create table TEST_FinEntityPartner(
+create table FinEntityPartner(
 	EntityId varchar(100) PRIMARY KEY, 
-	InboundDegree int, 
-	UniqueInboundDegree int,  
-	OutboundDegree int, 
-	UniqueOutboundDegree int, 
+	IncomingLinks int, 
+	UniqueIncomingLinks int,  
+	OutgoingLinks int, 
+	UniqueOutgoingLinks int, 
 	NumTransactions int, 
 	MaxTransaction float, 
 	AvgTransaction float, 
@@ -540,165 +427,123 @@ create table TEST_FinEntityPartner(
     PartnerLon varchar(max),
 );
 
--- populate table with common attributes
-insert into TEST_FinEntityPartner
-select 
-	t1.EntityId, 
-	inboundDegree, 
-	uniqueInboundDegree, 
-	outboundDegree, 
-	uniqueOutboundDegree, 
+-- populate table with common attributes for brokers
+insert into FinEntityPartner (
+	EntityId, 
+	IncomingLinks, 
+	UniqueIncomingLinks,  
+	OutgoingLinks, 
+	UniqueOutgoingLinks, 
 	NumTransactions, 
-	MaxTransactions, 
-	AvgTransactions, 
+	MaxTransaction, 
+	AvgTransaction, 
 	StartDate, 
-	EndDate,
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL, 
-	NULL
+	EndDate
+)
+select 
+	EntityId, 
+	sum(IncomingLinks) as IncomingLinks, 
+	sum(UniqueIncomingLinks) as UniqueIncomingLinks, 
+	sum(OutgoingLinks) as OutgoingLinks , 
+	sum(UniqueOutgoingLinks) as UniqueOutgoingLinks, 
+	sum(NumTransactions) as NumTransactions, 
+	max(MaxTransaction) as MaxTransaction, 
+	sum(TotalTransactions) / sum(NumTransactions) as AvgTransaction, 
+	min(StartDate) as StartDate, 
+	max(EndDate) as EndDate
+from (
+	select  TransactionTarget as EntityId, 
+			count(TransactionSource) as IncomingLinks, 
+			count( distinct TransactionSource ) as UniqueIncomingLinks, 
+			0 as OutgoingLinks, 
+			0 as UniqueOutgoingLinks, 
+			count(TransactionTarget) as NumTransactions, 
+			max(TransactionAmount) as MaxTransaction, 
+			sum(TransactionAmount) as TotalTransactions, 
+			min(TransactionDate) as StartDate, 
+			max(TransactionDate) as EndDate  
+	from Transactions
+	group by TransactionTarget
+	union
+	select TransactionSource as EntityId,
+			0 as IncomingLinks,
+			0 as UniqueIncomingLinks,
+			count(TransactionTarget) as OutgoingLinks,
+			count( distinct TransactionTarget ) as UniqueOutgoingLinks,
+			sum( case when TransactionSource <> TransactionTarget then 1 else 0 end ) as NumTransactions, 
+			max(TransactionAmount) as MaxTransaction, 
+			sum(TransactionAmount) as TotalTransactions, 
+			min(TransactionDate) as StartDate, 
+			max(TransactionDate) as EndDate 
+	from Transactions
+	group by TransactionSource
+)q
+where EntityId like 'partner.%'
+group by EntityId
+
+-- populate table with common attributes for partners
+insert into FinEntityPartner (
+	EntityId, 
+	IncomingLinks, 
+	UniqueIncomingLinks,  
+	OutgoingLinks, 
+	UniqueOutgoingLinks, 
+	NumTransactions, 
+	MaxTransaction, 
+	AvgTransaction, 
+	StartDate, 
+	EndDate
+)
+select 
+	EntityId, 
+	sum(IncomingLinks) as IncomingLinks, 
+	sum(UniqueIncomingLinks) as UniqueIncomingLinks, 
+	sum(OutgoingLinks) as OutgoingLinks , 
+	sum(UniqueOutgoingLinks) as UniqueOutgoingLinks, 
+	sum(NumTransactions) as NumTransactions, 
+	max(MaxTransaction) as MaxTransaction, 
+	sum(TotalTransactions) / sum(NumTransactions) as AvgTransaction, 
+	min(StartDate) as StartDate, 
+	max(EndDate) as EndDate
 from (
 	select 
-		EntityId, 
-		sum(inboundDegree) as inboundDegree, 
-		sum(uniqueInboundDegree) as uniqueInboundDegree, 
-		sum(outboundDegree) as outboundDegree, 
-		sum(uniqueOutboundDegree) as uniqueOutboundDegree
-	from (
-		select 
-			FromEntityId as EntityId, 
-			0 as inboundDegree, 
-			0 as uniqueInboundDegree, 
-			count(ToEntityId) as outboundDegree, 
-			count( distinct ToEntityId ) as uniqueOutboundDegree
-		from TEST_FinFlowDaily
-		where ToEntityType = 'A'
-		group by FromEntityId
-		union
-		select 
-			ToEntityId as EntityId, 
-			count(FromEntityId) as inboundDegree, 
-			count( distinct FromEntityId ) as uniqueInboundDegree, 
-			0 as outboundDegree, 
-			0 as uniqueOutboundDegree
-		from TEST_FinFlowDaily
-		where FromEntityType = 'A'
-		group by ToEntityId
-	) q
-	where EntityId like 'partner.%'
-	group by EntityId
-) t1
-left join
-(
+		left(TransactionTarget, (charindex('-', TransactionTarget) - 1)) as EntityId, 
+		count(TransactionSource) as IncomingLinks, 
+		count( distinct TransactionSource ) as UniqueIncomingLinks, 
+		0 as OutgoingLinks, 
+		0 as UniqueOutgoingLinks, 
+		count(TransactionTarget) as NumTransactions, 
+		max(TransactionAmount) as MaxTransaction, 
+		sum(TransactionAmount) as TotalTransactions, 
+		min(TransactionDate) as StartDate, 
+		max(TransactionDate) as EndDate  
+	from Transactions
+	where TransactionTarget like 'partner.%'
+	group by 
+		left(TransactionTarget, (charindex('-', TransactionTarget) - 1))	
+	union
 	select 
-		EntityId, 
-		sum(numTransactions) as NumTransactions, 
-		max(MaxTransaction) as MaxTransactions, 
-		sum(TotalTransactions) / sum(numTransactions) as AvgTransactions, 
-		min(StartDate) as StartDate, 
-		max(EndDate) as EndDate
-	from (
-		select 
-			TransactionTarget as EntityId, 
-			count(TransactionTarget) as numTransactions, 
-			max(TransactionAmount) as MaxTransaction, 
-			sum(TransactionAmount) as TotalTransactions, 
-			min(TransactionDate) as StartDate, 
-			max(TransactionDate) as EndDate  
-		from TEST_Transactions
-		group by TransactionTarget
-		union
-		select 
-			TransactionSource as EntityId, 
-			count(TransactionSource) as numTransactions, 
-			max(TransactionAmount) as MaxTransaction, 
-			sum(TransactionAmount) as TotalTransactions, 
-			min(TransactionDate) as StartDate, 
-			max(TransactionDate) as EndDate 
-		from TEST_Transactions
-		group by TransactionSource
-	)q
-	where EntityId like 'partner.%'
-	group by EntityId
-) t2
-on t2.EntityId = t1.EntityId
-
--- Compute Partner NumTransactions, MaxTransactions, AvgTransactions, StartDate, EndDate
-update TEST_FinEntityPartner
-set NumTransactions = FEP.NumTransactions,
-	MaxTransaction = FEP.MaxTransaction, 
-	AvgTransaction = FEP.AvgTransaction, 
-	StartDate = FEP.StartDate, 
-	EndDate = FEP.EndDate
-from TEST_FinEntityPartner FE
-inner join 
-(
-	select 
-		EntityId, 
-		sum(numTransactions) as NumTransactions, 
-		max(MaxTransaction) as MaxTransaction, 
-		sum(TotalTransactions) / sum(numTransactions) as AvgTransaction, 
-		min(StartDate) as StartDate, 
-		max(EndDate) as EndDate
-	from (
-		select 
-			case 
-				when charindex('-', TransactionTarget) is NULL then TransactionTarget
-				when charindex('-', TransactionTarget) = 0 then TransactionTarget
-				else left(TransactionTarget, (charindex('-', TransactionTarget) - 1))
-			end as EntityId, 
-			count(TransactionTarget) as numTransactions, 
-			max(TransactionAmount) as MaxTransaction, 
-			sum(TransactionAmount) as TotalTransactions, 
-			min(TransactionDate) as StartDate, 
-			max(TransactionDate) as EndDate  
-		from TEST_Transactions
-		group by 
-			case 
-				when charindex('-', TransactionTarget) is NULL then TransactionTarget
-				when charindex('-', TransactionTarget) = 0 then TransactionTarget
-				else left(TransactionTarget, (charindex('-', TransactionTarget) - 1))
-			end 
-		union
-		select 
-			case 
-				when charindex('-', TransactionSource) is NULL then TransactionSource
-				when charindex('-', TransactionSource) = 0 then TransactionSource
-				else left(TransactionSource, (charindex('-', TransactionSource) - 1))
-			end as EntityId, 
-			count(TransactionSource) as numTransactions, 
-			max(TransactionAmount) as MaxTransaction, 
-			sum(TransactionAmount) as TotalTransactions, 
-			min(TransactionDate) as StartDate, 
-			max(TransactionDate) as EndDate 
-		from TEST_Transactions
-		group by 
-			case 
-				when charindex('-', TransactionSource) is NULL then TransactionSource
-				when charindex('-', TransactionSource) = 0 then TransactionSource
-				else left(TransactionSource, (charindex('-', TransactionSource) - 1))
-			end 
-	)q
-	where EntityId like 'partner.%'
-	group by EntityId
-) FEP
-on FE.EntityId = FEP.EntityId
+		left(TransactionSource, (charindex('-', TransactionSource) - 1)) as EntityId,
+		0 as IncomingLinks,
+		0 as UniqueIncomingLinks,
+		count(TransactionTarget) as OutgoingLinks,
+		count( distinct TransactionTarget ) as UniqueOutgoingLinks,
+		sum( case when TransactionSource <> TransactionTarget then 1 else 0 end ) as NumTransactions, 
+		max(TransactionAmount) as MaxTransaction, 
+		sum(TransactionAmount) as TotalTransactions, 
+		min(TransactionDate) as StartDate, 
+		max(TransactionDate) as EndDate 
+	from Transactions
+	where TransactionSource like 'partner.%'
+	group by
+		left(TransactionSource, (charindex('-', TransactionSource) - 1))
+)q
+where EntityId like 'partner.%'
+group by EntityId
+order by EntityId
 
 -- update table with partner specific attributes
-update TEST_FinEntityPartner
+update FinEntityPartner
 set 
 	[type] = 'partner', 
 	PartnerId = FEP.PartnerId, 
@@ -716,9 +561,9 @@ set
     PartnerCountryCode = FEP.PartnerCountryCode,
     PartnerLat = FEP.PartnerLat,
     PartnerLon = FEP.PartnerLon
-from TEST_FinEntityPartner FE
+from FinEntityPartner FE
 inner join
-TEST_FinEntityProperties_partner FEP
+PartnerProperties FEP
 on 
 case
 	when charindex('-', FE.EntityId) > 0 then left(FE.EntityId, (charindex('-', FE.EntityId) - 1))
@@ -726,54 +571,54 @@ case
 end = FEP.EntityId
 
 -- add ownerId information
-update TEST_FinEntityPartner
+update FinEntityPartner
 set OwnerId = left(EntityId, (charindex('-', EntityId) - 1))
 where charindex('-', EntityId) > 0
 
 -- create index on Fin Entity Partner table
-create index ix_fe_pa_id on TEST_FinEntityPartner (EntityId);
+create index ix_fe_pa_id on FinEntityPartner (EntityId);
 
 --
 --  FIN FLOW AGGREGATIONS
 --
-insert into TEST_FinFlowWeekly
+insert into FinFlowWeekly
  select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101)
-  from TEST_FinFlowDaily
+  from FinFlowDaily
   group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101);
   
-insert into TEST_FinFlowMonthly
+insert into FinFlowMonthly
  select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101)
-  from TEST_FinFlowDaily
+  from FinFlowDaily
   group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101);
   
-insert into TEST_FinFlowQuarterly
+insert into FinFlowQuarterly
  select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101)
-  from TEST_FinFlowMonthly
+  from FinFlowMonthly
   group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101);
   
-insert into TEST_FinFlowYearly
+insert into FinFlowYearly
  select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101)
-  from TEST_FinFlowMonthly
+  from FinFlowMonthly
   group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101);
 
 --  create FinFlow indices
-create index ix_ffw_from on TEST_FinFlowWeekly    (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffw_to   on TEST_FinFlowWeekly    (ToEntityId,   PeriodDate, FromEntityId, Amount);
-create index ix_ffm_from on TEST_FinFlowMonthly   (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffm_to   on TEST_FinFlowMonthly   (ToEntityId,   PeriodDate, FromEntityId, Amount);
-create index ix_ffq_from on TEST_FinFlowQuarterly (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffq_to   on TEST_FinFlowQuarterly (ToEntityId,   PeriodDate, FromEntityId, Amount);
-create index ix_ffy_from on TEST_FinFlowYearly    (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffy_to   on TEST_FinFlowYearly    (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_ffw_from on FinFlowWeekly    (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_ffw_to   on FinFlowWeekly    (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_ffm_from on FinFlowMonthly   (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_ffm_to   on FinFlowMonthly   (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_ffq_from on FinFlowQuarterly (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_ffq_to   on FinFlowQuarterly (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_ffy_from on FinFlowYearly    (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_ffy_to   on FinFlowYearly    (ToEntityId,   PeriodDate, FromEntityId, Amount);
 
 --  build FinFlow
-insert into TEST_FinFlow 
+insert into FinFlow 
  select FromEntityId, FromEntityType, ToEntityId, ToEntityType, min(PeriodDate), max(PeriodDate), sum(Amount)
-  from TEST_FinFlowDaily
+  from FinFlowDaily
   group by FromEntityId, FromEntityType, ToEntityId, ToEntityType;
 
-create index ix_ff_to_from on TEST_FinFlow (ToEntityId, FromEntityId);
-create index ix_ff_from_to on TEST_FinFlow (FromEntityId, ToEntityId);
+create index ix_ff_to_from on FinFlow (ToEntityId, FromEntityId);
+create index ix_ff_from_to on FinFlow (FromEntityId, ToEntityId);
 
 --
 --  FIN ENTITY AGGREGATIONS
@@ -783,49 +628,49 @@ create index tids on temp_ids (Entity);
 
 insert into temp_ids
  select distinct FromEntityId
-  from TEST_FinFlowYearly
+  from FinFlowYearly
  union
  select distinct ToEntityId
-  from TEST_FinFlowYearly;
+  from FinFlowYearly;
   
-insert into TEST_FinEntityDaily select Entity, PeriodDate,
+insert into FinEntityDaily select Entity, PeriodDate,
        sum(case when ToEntityId = Entity and FromEntityType = 'A' then Amount else 0 end),
        sum(case when ToEntityId = Entity and FromEntityType = 'A' then 1 else 0 end), -- calculate inbound degree
        sum(case when FromEntityId = Entity and ToEntityType = 'A' then Amount else 0 end),
        sum(case when FromEntityId = Entity and ToEntityType = 'A' then 1 else 0 end), -- calculate outbound degree
        0 -- TODO calculate balance
  from temp_ids
- join TEST_FinFlowDaily on FromEntityId = Entity or ToEntityId = Entity
+ join FinFlowDaily on FromEntityId = Entity or ToEntityId = Entity
  group by Entity, PeriodDate;
  
 -- cleanup
 drop table temp_ids;
 
-insert into TEST_FinEntityWeekly
- select EntityId, CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from TEST_FinEntityDaily
+insert into FinEntityWeekly
+ select EntityId, CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101), sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
+  from FinEntityDaily
   group by EntityId, CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101);
   
-insert into TEST_FinEntityMonthly
- select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from TEST_FinEntityDaily
+insert into FinEntityMonthly
+ select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101), sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
+  from FinEntityDaily
   group by EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101);
   
-insert into TEST_FinEntityQuarterly
- select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from TEST_FinEntityMonthly
+insert into FinEntityQuarterly
+ select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101), sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
+  from FinEntityMonthly
   group by EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101);
   
-insert into TEST_FinEntityYearly
- select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from TEST_FinEntityQuarterly
+insert into FinEntityYearly
+ select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101), sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
+  from FinEntityQuarterly
   group by EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101);
  
-create index ix_fed on TEST_FinEntityDaily     (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_few on TEST_FinEntityWeekly    (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_fem on TEST_FinEntityMonthly   (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_feq on TEST_FinEntityQuarterly (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_fey on TEST_FinEntityYearly    (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_fed on FinEntityDaily     (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_few on FinEntityWeekly    (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_fem on FinEntityMonthly   (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_feq on FinEntityQuarterly (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_fey on FinEntityYearly    (EntityId, PeriodDate, InboundAmount, OutboundAmount);
 
-create index ix_csum on TEST_ClusterSummary	(EntityId);
-create index ix_cmem on TEST_ClusterSummaryMembers  (SummaryId);
+--create index ix_csum on ClusterSummary	(EntityId);
+--create index ix_cmem on ClusterSummaryMembers  (SummaryId);

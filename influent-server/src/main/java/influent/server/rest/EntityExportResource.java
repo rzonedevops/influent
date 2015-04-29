@@ -102,10 +102,10 @@ public class EntityExportResource extends ApertureServerResource {
 
 			FL_SearchResults sResponse;
 			if (termMap.size() > 0) {
-				sResponse = _entitySearcher.search(termMap, orderBy, 0, 1000000);
+				sResponse = _entitySearcher.search(termMap, orderBy, 0, 1000000, FL_LevelOfDetail.SUMMARY);
 			} else {
 				// No terms. Return zero results.
-				sResponse = FL_SearchResults.newBuilder().setTotal(0).setResults(new ArrayList<FL_SearchResult>()).setLevelOfDetail(FL_LevelOfDetail.FULL).build();
+				sResponse = FL_SearchResults.newBuilder().setTotal(0).setResults(new ArrayList<FL_SearchResult>()).setLevelOfDetail(FL_LevelOfDetail.SUMMARY).build();
 			}
 
 			List<FL_SearchResult> searchResults = sResponse.getResults();

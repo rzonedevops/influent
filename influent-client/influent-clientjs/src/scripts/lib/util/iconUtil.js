@@ -117,7 +117,7 @@ define(
 					toReturn.push(
 						{
 							type: iconClass,
-							imgUrl: nextIcon.url || aperture.palette.icon(nextIcon.icon),
+							imgUrl: nextIcon.icon? aperture.palette.icon(nextIcon.icon) : nextIcon.css? ('class:' + nextIcon.css) : nextIcon.url,
 							title: (nextIcon.title || '') + ' ('+ count+ ')',
 							score : count / clusterCount,
 							friendlyName: friendlyName
@@ -168,6 +168,9 @@ define(
 							var sized = aperture.util.extend(aperture.util.viewOf(iconObject.icon), attrs);
 
 							url = aperture.palette.icon(sized);
+
+						} else if (iconObject.css) {
+							url = 'class:' + iconObject.css;
 						}
 
 						icon = {

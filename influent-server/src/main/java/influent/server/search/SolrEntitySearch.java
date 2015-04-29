@@ -33,7 +33,7 @@ import influent.idl.FL_PropertyMatchDescriptor;
 import influent.idl.FL_ReservedPropertyKey;
 import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.server.configuration.ApplicationConfiguration;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.SearchSolrHelper;
@@ -67,26 +67,18 @@ public class SolrEntitySearch extends DataViewEntitySearch implements FL_EntityS
 	) {
 		super(config, connectionPool, namespaceHandler, sqlBuilder);
 
-		_solr = new HttpSolrServer(config.getString("influent.midtier.solr.url", "http://localhost:8983"));
+		String url = config.getString("influent.midtier.solr.entities.url", null);
+		if (url == null) {
+			url = config.getString("influent.midtier.solr.url", "http://localhost:8983");
+		}
+
+		_solr = new HttpSolrServer(url);
 		_config = config;
 	}
 
 
 
-
 	@Override
-	public FL_SearchResults search(
-		Map<String, List<FL_PropertyMatchDescriptor>> termMap,
-		List<FL_OrderBy> orderBy,
-		long start,
-		long max
-	) throws AvroRemoteException {
-		return search(termMap, orderBy, start, max, FL_LevelOfDetail.SUMMARY);
-	}
-
-
-
-
 	public FL_SearchResults search(
 		Map<String, List<FL_PropertyMatchDescriptor>> termMap,
 		List<FL_OrderBy> orderBy,
@@ -107,7 +99,7 @@ public class SolrEntitySearch extends DataViewEntitySearch implements FL_EntityS
 		query.setFields("*","score");
 
 		// form a union of sort by fields for all types
-		orderBy = DataPropertyDescriptorHelper.mapOrderBy(orderBy, getDescriptors().getProperties(), termMap.keySet());
+		orderBy = PropertyDescriptorHelper.mapOrderBy(orderBy, getDescriptors().getProperties(), termMap.keySet());
 
 		if (orderBy != null) {
 			for (FL_OrderBy ob : orderBy) {

@@ -60,13 +60,25 @@ The [server.config](https://github.com/unchartedsoftware/influent/blob/master/in
 		<li><strong>influent.midtier.server.port</strong></li>
 		<li><strong>influent.midtier.database.name</strong></li>
 	</ul>
-3. Edit the **influent.midtier.solr.url** value in the *Solr Server Properties* section to specify the URL of the core you added to your Solr instance (e.g., `http://influent.oculusinfo.com:8983/solr/bitcoin`).
-4. Edit the **influent.pattern.search.remoteURL** value in the *Pattern Search Database* section to specify the URL of your Graph QuBE server (e.g., `http://influent.oculusinfo.com:8805/pattern/search/example`).
+3. Edit the *Solr Server Properties* section to specify the URL of the core you added to your Solr instance: 
+	- For single core instances containing both entity and transaction data:
+
+		```
+		influent.midtier.solr.url = http://solr.uncharted.software:8983/solr/aml
+		```
+	- For instances with separate cores for entity and transaction data:
+
+		```
+		influent.midtier.solr.entities.url = http://solr.uncharted.software:8983/solr/bitcoin-entities
+		influent.midtier.solr.links.url = http://solr.uncharted.software:8983/solr/bitcoin-links
+		```
+
+4. Edit the **influent.pattern.search.remoteURL** value in the *Pattern Search Database* section to specify the URL of your Graph QuBE server (e.g., `http://solr.uncharted.sofware:8805/pattern/search/example`).
 5. Save the [server.config](https://github.com/unchartedsoftware/influent/blob/master/influent-app/src/main/resources/server.config) file.
 
 ## <a name="raw-data"></a> Connecting to Your Raw Data Source ##
 
-In addition to requiring access to the FinFlow and FinEntity tables created by the DataViewTables script, Influent needs to connect to your raw data source to access your unique transaction IDs.
+In addition to requiring access to the LinkFlow and Entity tables created by the DataViewTables script, Influent needs to connect to your raw data source to access your unique transaction IDs.
 
 <h6 class="procedure">To connect to your raw data source</h6>
 
@@ -84,7 +96,7 @@ The following sections describe the data types you should be aware of when editi
 
 - [FL\_RequiredPropertyKey](#fl_requiredpropertykey)
 - [FL\_ReservedPropertyKey ](#fl_reservedpropertykey)
-- [FL\_PropertyTag](fl_propertytag)
+- [FL\_PropertyTag](#fl_propertytag)
 
 ### <a name="fl_requiredpropertykey"></a> FL\_RequiredPropertyKey ###
 
@@ -107,7 +119,7 @@ Each Influent app requires the presence of the following case-sensitive property
 			</tr>
 			<tr>
 				<td class="property">ID</td>
-				<td class="description">Unique entity ID. Should correspond to an entity in the <a href="../../database/finentity/#finentity">FinEntity</a> table created when you executed the <a href="../database-config/#add-influent-tables-transaction-db">DataViewTables script</a>.</td>
+				<td class="description">Unique entity ID. Should correspond to an entity in the <a href="../../database/entity/#entitysummary">EntitySummary</a> table created when you executed the <a href="../database-config/#add-influent-tables-transaction-db">DataViewTables script</a>.</td>
 			</tr>
 			<tr>
 				<td class="description" rowspan="5">Transactions</td>
@@ -144,7 +156,33 @@ The following property keys are reserved for search keywords and should not be r
 
 ### <a name="fl_propertytag"></a> FL\_PropertyTag ###
 
-The Avro data model includes FL\_PropertyTag names defined in the application layer as a taxonomy of user and application concepts independent of the data source. These tags allow application semantics to be reused with new data with minimal design and development. 
+The Avro data model includes FL\_PropertyTag names defined in the application layer as a taxonomy of user and application concepts independent of the data source. These tags allow application semantics to be reused with new data with minimal design and development.
+
+The following FL\_PropertyTags have applications that should be noted before you edit your property descriptors. For a complete list of FL_\PropertyTags, see the the **DataEnums\_vX.X.avdl** file in [influent-spi/src/main/avro/](https://github.com/unchartedsoftware/influent/tree/master/influent-spi/src/main/avro). 
+
+<div class="props">
+	<table class="summaryTable" width="100%">
+		<thead>
+			<tr>
+				<th scope="col" width="18%">PropertyTag</th>
+				<th scope="col" width="64%">Description</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td class="property">SHARED_IDENTIFIER</td>
+				<td class="description">Indicates that the property should be used to populate Influent's Advanced Account Search dialog when a user chooses to search for entities that are similar to a selected account.</td>
+			</tr>
+			<tr>
+				<td class="property">FROM_LABEL</td>
+				<td class="description" rowspan="2">Indicates that the property should be used as a label in the To/From columns of the Transaction search results.</td>
+			</tr>
+			<tr>
+				<td class="property">TO_LABEL</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
 
 ## <a name="map-fields-to-descriptors"></a> Mapping Fields to Property Descriptors ##
 
@@ -174,7 +212,7 @@ The Avro data model includes FL\_PropertyTag names defined in the application la
 	```xml
 	<property key="NAME" dataType="string" friendlyText="Name" 
 			  levelOfDetail="key" searchableBy="freeText" 
-			  memberKey="Label">
+			  memberKey="Label" multiValue="false">
 		...
 	</property>
 	```
@@ -237,7 +275,7 @@ The Avro data model includes FL\_PropertyTag names defined in the application la
 				<tr>
 					<td class="property">memberKey</td>
 					<td class="description">No</td>
-					<td class="description">If the field name in the data sources does not match the property key, **memberKey** defines that field name. However, if the field name varies by type or does not exist in every type, <strong>&lt;memberOf&gt;</strong> elements must be used instead</td>
+					<td class="description">If the field name in the data sources does not match the property key, <strong>memberKey</strong> defines that field name. However, if the field name varies by type or does not exist in every type, <strong>&lt;memberOf&gt;</strong> elements must be used instead.</td>
 				</tr>
 				<tr>
 					<td class="property">sortable</td>
@@ -247,10 +285,15 @@ The Avro data model includes FL\_PropertyTag names defined in the application la
 						<p><strong>NOTE</strong>: Sorting is not currently supported for multivalued fields.</a>.
 					</td>
 				</tr>
+				<tr>
+					<td class="property">multiValue</td>
+					<td class="description">No</td>
+					<td class="description">Indicates whether the field can support multiple values separated by commas. Defaults to <em>false</em>.</td>
+				</tr>
 			</tbody>
 		</table>
 	</div>
-4. For each property that you list, add one or more **\<memberOf\>** elements to specify the account or transaction types to which they apply. 
+4. For each property with a field name that varies by type or does not exist in every type, add one or more **\<memberOf\>** elements to specify the applicable account or transaction fields.
 
 	```xml
 	<property key="NAME" dataType="string" friendlyText="Name" 
@@ -297,18 +340,15 @@ The Avro data model includes FL\_PropertyTag names defined in the application la
 				  </tags>
 	</property>
 	```
-
-	**NOTE**: A special *SHARED_IDENTIFIER* tag indicates that the corresponding property should be used to populate Influent's Advanced Account Search dialog when a user chooses to search for entities that are similar to a selected account.
-
 6. To define a non-primitive property like FL_GeoData (*dataType="geo"*), list the primitive fields it comprises under a **\<fields\>** element. Geo properties can be particularly useful for [dynamic clustering](../clustering-config/).
 
 	```xml
-	<property key="address_geo" dataType="geo" friendlyText="Address">
+	<property key="GEO" dataType="geo" friendlyText="Location" levelOfDetail="summary">
 		<fields>
-			<field name="text" key="address" searchable="true/>
-			<field name="cc" key="address_country_code"/>
-			<field name="lat" key="address_lat"/>
-			<field name="lon" key="address_lon"/>
+			<field name="text" key="LocationText" searchable="false"/>
+			<field name="cc" key="CountryCode" searchable="true"/>
+			<field name="lat" key="Latitude" searchable="false"/>
+			<field name="lon" key="Longitude" searchable="false"/>
 		</fields>
 	</property>
 	```

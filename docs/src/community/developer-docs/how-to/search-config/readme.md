@@ -9,16 +9,18 @@ layout: submenu
 
 # Search Configuration #
 
-Influent's plugin-style framework allows you to integrate third-party search platforms into your app to enable:
+Influent's plugin-style framework allows you to integrate optional third-party search platforms into your app to enable:
 
 - Indexing, error correction and configurable matching for text searches on entity and transaction data
 - Transactional pattern searches that, starting with an example account or accounts, find other accounts with similar activity histories
 
-The example Influent apps use [Apache Solr](#solr) and MIT Lincoln Labs [Graph Query-by-Example (QuBE)](#qube) to implement these capabilities, respectively. The following sections describe how to install and configure these platforms.
+The example Influent apps use [Apache Solr](#solr) and [Graph Query-by-Example (QuBE)](#qube) to implement these capabilities, respectively. The following sections describe how to install and configure these platforms.
 
 ## <a name="solr"></a> Apache Solr ##
 
 Using [Apache Solr](http://lucene.apache.org/solr/), you can configure text searches on entity and transactions to adjust for misspellings and return results similar to the user's search criteria. The following sections describe how to install Solr and use the application to index your data.
+
+**NOTE**: The following instructions describe how to create a single Solr core that indexes your entity and transaction data. If there is any overlap between your unique entity IDs and transaction IDs (e.g., both are sequential identifiers beginning at 1), you must create separate cores for your entity and transaction data.
 
 ### <a name="installing-apache-solr"></a> Installing Solr ###
 
@@ -49,7 +51,7 @@ The **schema.xml** file in the *conf/* folder specifies the schema of the Solr t
 <h6 class="procedure">To edit the schema</h6>
 
 1. Open the **schema.xml** file in the *conf/* folder you copied in the previous step.
-2. Add each of the transaction (from your raw data) and/or entity (from *FinEntity*) columns you want to index in the following format. <p class="list-paragraph">For more information about the **schema.xml** format, see the <a href="http://wiki.apache.org/solr/SchemaXml">Solr SchemaXml wiki page</a>.</p>
+2. Add each of the transaction (from your raw data) and/or entity (from *EntitySummary*) columns you want to index in the following format. <p class="list-paragraph">For more information about the **schema.xml** format, see the <a href="http://wiki.apache.org/solr/SchemaXml">Solr SchemaXml wiki page</a>.</p>
 
 	```xml
 	<field name="lenders_name" type="text_general" indexed="true"
@@ -120,7 +122,7 @@ The **schema.xml** file in the *conf/* folder specifies the schema of the Solr t
 
 ### <a name="specifying-search-fields"></a> Choosing Fields to Import into Solr ###
 
-The **db-data-config.xml** file in the *conf/* folder defines how to select the transaction (from your raw data) and/or entity (from *FinEntity*) fields that can be imported into Solr from your database.
+The **db-data-config.xml** file in the *conf/* folder defines how to select the transaction (from your raw data) and/or entity (from *EntitySummary*) fields that can be imported into Solr from your database.
 
 For complete details on the data-config schema, see the [Solr DataImportHandler wiki page](http://wiki.apache.org/solr/DataImportHandler).
 
@@ -182,7 +184,7 @@ For complete details on the data-config schema, see the [Solr DataImportHandler 
 </div>
 
 	Depending on your data source, you may need to specify different account types. For example, the Kiva application supports one transaction type (*financial*) three different entity types (<em>lenders</em>, <em>borrowers</em> and <em>partners</em>).
-3. Use the **query** attribute at the **\<entity\>** level to select all the columns in your raw data and/or *FinEntity* tables.
+3. Use the **query** attribute at the **\<entity\>** level to select all the columns in your raw data and/or *EntitySummary* tables.
 4. Alternatively, add a set of **\<field\>** elements to each **\<entity\>** element to select individual transaction and/or entity details. Fields represent the entity attributes on which users of your Influent project can search. Each field can have its own unique set of attributes. Define the following attributes for each field you add:
 <div class="props">
 	<table class="summaryTable" width="100%">
@@ -271,7 +273,7 @@ For information on deploying your new core and Solr in a servlet container, see 
 
 ## <a name="qube"></a> Graph QuBE ##
 
-Using the [Graph Query-by-Example (QuBE)](https://github.com/mitll/graph-qube) tool created by MIT Lincoln Labs (MIT-LL), you can enable transactional pattern searching. The following sections describe how to install and configure Graph QuBE for Influent.
+Using the [Graph Query-by-Example (QuBE)](https://github.com/mitll/graph-qube) tool created by MIT Lincoln Labs (MIT-LL) in collaboration with Giant Oak, you can enable transactional pattern searching. The following sections describe how to install and configure Graph QuBE for Influent.
 
 ### Installation ###
 

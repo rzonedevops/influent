@@ -13,7 +13,7 @@ This guide is designed for developers who want to build, install and run the Inf
 - [How To](how-to/installation/) Instructions for downloading the Influent source code and quickly creating your own application.
 - [Reference](reference/clustering/): Comprehensive documentation of the property files that control the look and feel and functionality of your application.
 - [API](api/container): Definitions of the Container API members used by Influent's views.
-- [Database](database/finflow/): Detailed definitions and diagrams of the Influent tables that store your entity and transaction data.
+- [Database](database/linkflow/): Detailed definitions and diagrams of the Influent tables that store your entity and transaction data.
 
 ## Getting Started ##
 

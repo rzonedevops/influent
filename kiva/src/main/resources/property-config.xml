@@ -128,13 +128,13 @@
 			</tags>
 		</property>
 
-		<property key="UniqueInboundDegree" dataType="integer" friendlyText="Inbound Transfers" levelOfDetail="summary" searchableBy="none" memberKey="UniqueInboundDegree">
+		<property key="UniqueInboundDegree" dataType="integer" friendlyText="Inbound Transfers" levelOfDetail="summary" searchableBy="none" memberKey="UniqueIncomingLinks">
 			<tags>
 				<tag>INFLOWING</tag>
 			</tags>
 		</property>
 
-		<property key="UniqueOutboundDegree" dataType="integer" friendlyText="Outbound Transfers" levelOfDetail="summary" searchableBy="none" memberKey="UniqueOutboundDegree">
+		<property key="UniqueOutboundDegree" dataType="integer" friendlyText="Outbound Transfers" levelOfDetail="summary" searchableBy="none" memberKey="UniqueOutgoingLinks">
 			<tags>
 				<tag>OUTFLOWING</tag>
 			</tags>

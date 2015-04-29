@@ -15,7 +15,7 @@ For a diagram illustrating how the DataSummary table relates to other Influent t
 
 ## <a name="datasummary"></a> DataSummary ##
 
-While this table can be modified for your application, by default the following records are calculated from the information inserted into [FinEntity](../finentity/#finentity) and [FinFlow](../finflow/#finflow):
+While this table can be modified for your application, by default the following records are calculated from the information inserted into [EntitySummary](../entity/#entitysummary) and [LinkFlow](../linkflow/#linkflow):
  
 1. **About**: A short description of the dataset used to create your Influent application. Must be entered manually. Supports HTML encoding.
 2. **Account**: Total number of unique accounts in your dataset.
@@ -78,4 +78,4 @@ While this table can be modified for your application, by default the following 
 
 The following entity relationship diagram illustrates the order in which the DataSummary table is built using the information in your source dataset. As each table is essentially a summary of your original data, each table is linked to every other table through the unique entity IDs in your dataset.
 
-<img src="../../../../img/resources/transaction-db-datasummary.png" class="screenshot" alt="DataSummary Tables" />
+<img src="../../../../img/resources/db-datasummary-tables.png" class="screenshot" alt="DataSummary Tables" />

@@ -2,17 +2,17 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>oculus.influent</groupId>
+	<groupId>software.uncharted.influent</groupId>
 	<artifactId>influent</artifactId>
 	<packaging>pom</packaging>
-	<version>2.0.0-SNAPSHOT</version>
+	<version>2.0.0</version>
 
 	<name>Influent Project Modules</name>
 	<description>Parent module for building Influent projects</description>
 	<url>influent.org</url>
 	<scm>
-		<url>https://github.com/oculusinfo/influent</url>
-		<connection>scm:git:https://github.com/oculusinfo/influent.git</connection>
+		<url>https://github.com/unchartedsoftware/influent</url>
+		<connection>scm:git:https://github.com/unchartedsoftware/influent.git</connection>
 	</scm>
 	<licenses>
 		<license>
@@ -25,7 +25,7 @@
 		<developer>
 			<id>djonker</id>
 			<name>David Jonker</name>
-			<email>support@oculusinfo.com</email>
+			<email>support@uncharted.software</email>
 		</developer>
 	</developers>
 

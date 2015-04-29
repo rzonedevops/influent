@@ -28,7 +28,7 @@
 package influent.kiva.server.search;
 
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.midtier.kiva.data.KivaTypes;
 import influent.server.configuration.ApplicationConfiguration;
@@ -80,7 +80,7 @@ public class KivaEntitySearchIterator extends SolrEntitySearchIterator {
 
 		FL_PropertyDescriptors entityDescriptors = _applicationConfiguration.getEntityDescriptors();
 
-		String uid = sd.getFieldValue(DataPropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.ID.name(), entityDescriptors.getProperties(), type)).toString();
+		String uid = sd.getFieldValue(PropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.ID.name(), entityDescriptors.getProperties(), type)).toString();
 
 		if (entityDescriptors.getTypes().size() > 1) {
 			String[] splits = uid.split("\\.", 3);

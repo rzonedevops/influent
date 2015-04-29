@@ -118,9 +118,9 @@ For deployments that have multiple account types (e.g., the Kiva application sup
 ```xml
 <tables>
 	<table key="FIN_ENTITY">
-		<memberOf typeKey="loan" memberKey="dbo.TEST_FinEntityLoan"/>
-		<memberOf typeKey="lender" memberKey="dbo.TEST_FinEntityLender"/>
-		<memberOf typeKey="partner" memberKey="dbo.TEST_FinEntityPartner"/>
+		<memberOf typeKey="loan" memberKey="dbo.FinEntityLoan"/>
+		<memberOf typeKey="lender" memberKey="dbo.FinEntityLender"/>
+		<memberOf typeKey="partner" memberKey="dbo.FinEntityPartner"/>
 	</table>
 </tables>
 ```

@@ -182,50 +182,50 @@
   path: database
   listType: ul
   topics:
-    - label: FinFlow Tables
-      path: finflow
+    - label: LinkFlow Tables
+      path: linkflow
       bookmarks:
-        - label: FinFlow
-          anchor: finflow
+        - label: LinkFlow
+          anchor: linkflow
 
-        - label: FinFlowDaily
-          anchor: finflowdaily
+        - label: LinkFlowDaily
+          anchor: linkflowdaily
 
-        - label: FinFlowWeekly
-          anchor: finflowweekly
+        - label: LinkFlowWeekly
+          anchor: linkflowweekly
 
-        - label: FinFlowMonthly
-          anchor: finflowmonthly
+        - label: LinkFlowMonthly
+          anchor: linkflowmonthly
 
-        - label: FinFlowQuarterly
-          anchor: finflowquarterly
+        - label: LinkFlowQuarterly
+          anchor: linkflowquarterly
 
-        - label: FinFlowYearly
-          anchor: finflowyearly
+        - label: LinkFlowYearly
+          anchor: linkflowyearly
 
         - label: Entity Relationships
           anchor: entity-relationships
 
-    - label: FinEntity Tables
-      path: finentity
+    - label: Entity Tables
+      path: entity
       bookmarks:
-        - label: FinEntity
-          anchor: finentity
+        - label: EntitySummary
+          anchor: entitysummary
 
-        - label: FinEntityDaily
-          anchor: finentitydaily
+        - label: EntityDaily
+          anchor: entitydaily
 
-        - label: FinEntityWeekly
-          anchor: finentityweekly
+        - label: EntityWeekly
+          anchor: entityweekly
 
-        - label: FinEntityMonthly
-          anchor: finentitymonthly
+        - label: EntityMonthly
+          anchor: entitymonthly
 
-        - label: FinEntityQuarterly
-          anchor: finentityquarterly
+        - label: EntityQuarterly
+          anchor: entityquarterly
 
-        - label: FinEntityYearly
-          anchor: finentityyearly
+        - label: EntityYearly
+          anchor: entityyearly
 
         - label: Entity Relationships
           anchor: entity-relationships

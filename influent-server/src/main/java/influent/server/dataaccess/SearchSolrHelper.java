@@ -27,7 +27,7 @@
 package influent.server.dataaccess;
 
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.idlhelper.PropertyMatchDescriptorHelper;
 import influent.server.utilities.PropertyField;
 
@@ -223,7 +223,7 @@ public class SearchSolrHelper {
 				.setKey(FL_RequiredPropertyKey.FROM.name())
 				.setTypeMappings(Collections.singletonList(FL_TypeMapping.newBuilder()
 						.setType(type)
-						.setMemberKey(DataPropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.FROM.name(), propertyDescriptors.getProperties(), type))
+						.setMemberKey(PropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.FROM.name(), propertyDescriptors.getProperties(), type))
 						.build()))
 				.build();
 
@@ -231,7 +231,7 @@ public class SearchSolrHelper {
 				.setKey(FL_RequiredPropertyKey.TO.name())
 				.setTypeMappings(Collections.singletonList(FL_TypeMapping.newBuilder()
 						.setType(type)
-						.setMemberKey(DataPropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.TO.name(), propertyDescriptors.getProperties(), type))
+						.setMemberKey(PropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.TO.name(), propertyDescriptors.getProperties(), type))
 						.build()))
 				.build();
 
@@ -283,7 +283,7 @@ public class SearchSolrHelper {
 		}
 
 		// Test FROM propertyKey to see if ENTITY/LINKED keys for this term should be handled as a transactional to/from pairs, or as a single IDs.
-		boolean handleEntityKeyAsTransaction = DataPropertyDescriptorHelper.find(FL_RequiredPropertyKey.FROM.name(), propertyDescriptors.getProperties()) != null;
+		boolean handleEntityKeyAsTransaction = PropertyDescriptorHelper.find(FL_RequiredPropertyKey.FROM.name(), propertyDescriptors.getProperties()) != null;
 		boolean handlePairedEntityKeys = (entityIDTerm != null && linkedIDTerm != null);
 
 		// NOTE: constraints are currently only all OPTIONAL, or all REQUIRED

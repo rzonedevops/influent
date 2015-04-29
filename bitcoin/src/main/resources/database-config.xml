@@ -4,7 +4,7 @@
 	<dataTableSchema key="FIN_ENTITY">
 		<columns>
 			<!-- Influent Required -->
-			<column key="ENTITY_ID" memberKey="EntityId" memberType="string"/>
+			<column key="ENTITY_ID" memberKey="EntityId" memberType="integer"/>
 			<column key="INBOUND_DEGREE" memberKey="InboundDegree" memberType="integer"/>
 			<column key="UNIQUE_INBOUND_DEGREE" memberKey="UniqueInboundDegree" memberType="integer"/>
 			<column key="OUTBOUND_DEGREE" memberKey="OutboundDegree" memberType="integer"/>
@@ -30,7 +30,7 @@
 
 	<dataTableSchema key="FIN_ENTITY_BUCKETS">
 		<columns>
-			<column key="ENTITY_ID" memberKey="EntityId" memberType="string"/>
+			<column key="ENTITY_ID" memberKey="EntityId" memberType="integer"/>
 			<column key="PERIOD_DATE" memberKey="PeriodDate" memberType="date"/>
 			<column key="INBOUND_AMOUNT" memberKey="InboundAmount" memberType="float"/>
 			<column key="INBOUND_DEGREE" memberKey="InboundDegree" memberType="integer"/>
@@ -49,7 +49,7 @@
 
 	<dataTableSchema key="FIN_FLOW">
 		<columns>
-			<column key="FROM_ENTITY_ID" memberKey="FromEntityId" memberType="string"/>
+			<column key="FROM_ENTITY_ID" memberKey="FromEntityId" memberType="integer"/>
 			<column key="FROM_ENTITY_TYPE" memberKey="FromEntityType" memberType="string"/>
 			<column key="TO_ENTITY_ID" memberKey="ToEntityId" memberType="integer"/>
 			<column key="TO_ENTITY_TYPE" memberKey="ToEntityType" memberType="string"/>
@@ -64,7 +64,7 @@
 
 	<dataTableSchema key="FIN_FLOW_BUCKETS">
 		<columns>
-			<column key="FROM_ENTITY_ID" memberKey="FromEntityId" memberType="string"/>
+			<column key="FROM_ENTITY_ID" memberKey="FromEntityId" memberType="integer"/>
 			<column key="FROM_ENTITY_TYPE" memberKey="FromEntityType" memberType="string"/>
 			<column key="TO_ENTITY_ID" memberKey="ToEntityId" memberType="integer"/>
 			<column key="TO_ENTITY_TYPE" memberKey="ToEntityType" memberType="string"/>

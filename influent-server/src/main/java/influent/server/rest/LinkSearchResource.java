@@ -27,6 +27,7 @@
 package influent.server.rest;
 
 import com.google.inject.name.Named;
+
 import influent.idl.FL_ClusteringDataAccess;
 import influent.idl.FL_LevelOfDetail;
 import influent.idl.FL_Link;
@@ -54,8 +55,8 @@ import java.util.Map;
 
 import oculus.aperture.common.JSONProperties;
 import oculus.aperture.common.rest.ApertureServerResource;
-
 import oculus.aperture.spi.common.Properties;
+
 import org.apache.avro.AvroRemoteException;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -114,6 +115,14 @@ public class LinkSearchResource extends ApertureServerResource {
 			// Determine the start index.
 			final long startIndex = request.getInteger("start", 0);
 			
+			//Determine level of detail, default to summary
+			FL_LevelOfDetail levelOfDetail;
+			try {
+				levelOfDetail = FL_LevelOfDetail.valueOf(request.getString("levelOfDetail", "SUMMARY"));
+			} catch (Exception e) {
+				levelOfDetail = FL_LevelOfDetail.SUMMARY;
+			}
+			
 			// Get the descriptors if we don't have them yet
 			if (_searchDescriptors == null) {
 				_searchDescriptors = _transactionsSearcher.getDescriptors();
@@ -138,10 +147,10 @@ public class LinkSearchResource extends ApertureServerResource {
 			//actually run the search using the given property terms
 			FL_SearchResults sResponse = null;
 			if (termMap.size() > 0) {
-				sResponse = _transactionsSearcher.search(termMap, orderBy, startIndex, startIndex + maxResults, FL_LevelOfDetail.SUMMARY);
+				sResponse = _transactionsSearcher.search(termMap, orderBy, startIndex, startIndex + maxResults, levelOfDetail);
 			} else {
 				// No terms. Return zero results.
-				sResponse = FL_SearchResults.newBuilder().setTotal(0).setResults(new ArrayList<FL_SearchResult>()).setLevelOfDetail(FL_LevelOfDetail.SUMMARY).build();
+				sResponse = FL_SearchResults.newBuilder().setTotal(0).setResults(new ArrayList<FL_SearchResult>()).setLevelOfDetail(levelOfDetail).build();
 			}
 
 			//take the search results and package them up in a json object to return

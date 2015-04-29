@@ -335,7 +335,8 @@ define(
 					properties.filter(function(prop) {
 						
 						// skip images in plain text request
-						if (plain && getPropertyType(prop) === 'IMAGE') {
+						// skip hidden properties
+						if ((plain && getPropertyType(prop) === 'IMAGE') || prop.isHidden) {
 							return false;
 						}
 						

@@ -260,17 +260,21 @@ public class TransactionTableResource extends ApertureServerResource {
 
 			// get amount
 			FL_Property amount_prop = PropertyHelper.getPropertyByKey(link.getProperties(), FL_RequiredPropertyKey.AMOUNT.name());
-			PropertyHelper amount_helper = PropertyHelper.from(amount_prop);
-			Number value = (Number)amount_helper.getValue();
 			String stringValue;
-			if (amount_helper.hasTag(FL_PropertyTag.COUNT)) {
-				flowUnits = (flowUnits == null) ? FL_PropertyTag.COUNT.name().toLowerCase() : flowUnits;
-				stringValue = ResultFormatter.formatCount(value);
-			} else if (amount_helper.hasTag(FL_PropertyTag.USD)) {
-				flowUnits = (flowUnits == null) ? FL_PropertyTag.USD.name() : flowUnits;
-				stringValue = ResultFormatter.formatCur(value, true);
+			if (amount_prop != null) {
+				PropertyHelper amount_helper = PropertyHelper.from(amount_prop);
+				Number value = (Number) amount_helper.getValue();
+				if (amount_helper.hasTag(FL_PropertyTag.COUNT)) {
+					flowUnits = (flowUnits == null) ? FL_PropertyTag.COUNT.name().toLowerCase() : flowUnits;
+					stringValue = ResultFormatter.formatCount(value);
+				} else if (amount_helper.hasTag(FL_PropertyTag.USD)) {
+					flowUnits = (flowUnits == null) ? FL_PropertyTag.USD.name() : flowUnits;
+					stringValue = ResultFormatter.formatCur(value, true);
+				} else {
+					stringValue = value.toString();
+				}
 			} else {
-				stringValue = value.toString();
+				stringValue = "✓";
 			}
 
 			if (entityIds.contains(link.getSource())) {
@@ -285,11 +289,11 @@ public class TransactionTableResource extends ApertureServerResource {
 				// we get the first non-empty annotation property
 				for (FL_Property prop : annotation_props) {
 					PropertyHelper annotation_helper = PropertyHelper.from(prop);
-					String val = (String)annotation_helper.getValue();
+					Object val = annotation_helper.getValue();
 
 					// Check if it's empty or whitespace
-					if (val != null && val.trim().length() > 0) {
-						comment = (String) annotation_helper.getValue();
+					if (val != null && val.toString().trim().length() > 0) {
+						comment = val.toString();
 						commentLabel = commentLabel == null ? annotation_helper.getFriendlyText() : commentLabel;
 						break;
 					}

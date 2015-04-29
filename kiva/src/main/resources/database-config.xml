@@ -5,10 +5,10 @@
 		<columns>
 			<!-- Influent Required -->
 			<column key="ENTITY_ID" memberKey="EntityId" memberType="string"/>
-			<column key="INBOUND_DEGREE" memberKey="InboundDegree" memberType="integer"/>
-			<column key="UNIQUE_INBOUND_DEGREE" memberKey="UniqueInboundDegree" memberType="integer"/>
-			<column key="OUTBOUND_DEGREE" memberKey="OutboundDegree" memberType="integer"/>
-			<column key="UNIQUE_OUTBOUND_DEGREE" memberKey="UniqueOutboundDegree" memberType="integer"/>
+			<column key="INBOUND_DEGREE" memberKey="IncomingLinks" memberType="integer"/>
+			<column key="UNIQUE_INBOUND_DEGREE" memberKey="UniqueIncomingLinks" memberType="integer"/>
+			<column key="OUTBOUND_DEGREE" memberKey="OutgoingLinks" memberType="integer"/>
+			<column key="UNIQUE_OUTBOUND_DEGREE" memberKey="UniqueOutgoingLinks" memberType="integer"/>
 			<column key="NUM_TRANSACTIONS" memberKey="NumTransactions" memberType="integer"/>
 			<column key="START_DATE" memberKey="StartDate" memberType="date"/>
 			<column key="END_DATE" memberKey="EndDate" memberType="date"/>
@@ -19,9 +19,9 @@
 		</columns>
 		<tables>
 			<table key="FIN_ENTITY">
-				<memberOf typeKey="loan" memberKey="dbo.TEST_FinEntityLoan"/>
-				<memberOf typeKey="lender" memberKey="dbo.TEST_FinEntityLender"/>
-				<memberOf typeKey="partner" memberKey="dbo.TEST_FinEntityPartner"/>
+				<memberOf typeKey="loan" memberKey="dbo.FinEntityLoan"/>
+				<memberOf typeKey="lender" memberKey="dbo.FinEntityLender"/>
+				<memberOf typeKey="partner" memberKey="dbo.FinEntityPartner"/>
 			</table>
 		</tables>
 	</dataTableSchema>
@@ -37,11 +37,11 @@
 			<column key="BALANCE" memberKey="Balance" memberType="float"/>
 		</columns>
 		<tables>
-			<table key="FIN_ENTITY_DAILY" memberKey="dbo.TEST_FinEntityDaily"/>
-			<table key="FIN_ENTITY_WEEKLY" memberKey="dbo.TEST_FinEntityWeekly"/>
-			<table key="FIN_ENTITY_MONTHLY" memberKey="dbo.TEST_FinEntityMonthly"/>
-			<table key="FIN_ENTITY_QUARTERLY" memberKey="dbo.TEST_FinEntityQuarterly"/>
-			<table key="FIN_ENTITY_YEARLY" memberKey="dbo.TEST_FinEntityYearly"/>
+			<table key="FIN_ENTITY_DAILY" memberKey="dbo.FinEntityDaily"/>
+			<table key="FIN_ENTITY_WEEKLY" memberKey="dbo.FinEntityWeekly"/>
+			<table key="FIN_ENTITY_MONTHLY" memberKey="dbo.FinEntityMonthly"/>
+			<table key="FIN_ENTITY_QUARTERLY" memberKey="dbo.FinEntityQuarterly"/>
+			<table key="FIN_ENTITY_YEARLY" memberKey="dbo.FinEntityYearly"/>
 		</tables>
 	</dataTableSchema>
 
@@ -56,7 +56,7 @@
 			<column key="AMOUNT" memberKey="Amount" memberType="float"/>
 		</columns>
 		<tables>
-			<table key="FIN_FLOW" memberKey="dbo.TEST_FinFlow"/>
+			<table key="FIN_FLOW" memberKey="dbo.FinFlow"/>
 		</tables>
 	</dataTableSchema>
 
@@ -70,11 +70,11 @@
 			<column key="PERIOD_DATE" memberKey="PeriodDate" memberType="date"/>
 		</columns>
 		<tables>
-			<table key="FIN_FLOW_DAILY" memberKey="dbo.TEST_FinFlowDaily"/>
-			<table key="FIN_FLOW_WEEKLY" memberKey="dbo.TEST_FinFlowWeekly"/>
-			<table key="FIN_FLOW_MONTHLY" memberKey="dbo.TEST_FinFlowMonthly"/>
-			<table key="FIN_FLOW_QUARTERLY" memberKey="dbo.TEST_FinFlowQuarterly"/>
-			<table key="FIN_FLOW_YEARLY" memberKey="dbo.TEST_FinFlowYearly"/>
+			<table key="FIN_FLOW_DAILY" memberKey="dbo.FinFlowDaily"/>
+			<table key="FIN_FLOW_WEEKLY" memberKey="dbo.FinFlowWeekly"/>
+			<table key="FIN_FLOW_MONTHLY" memberKey="dbo.FinFlowMonthly"/>
+			<table key="FIN_FLOW_QUARTERLY" memberKey="dbo.FinFlowQuarterly"/>
+			<table key="FIN_FLOW_YEARLY" memberKey="dbo.FinFlowYearly"/>
 		</tables>
 	</dataTableSchema>
 
@@ -82,7 +82,7 @@
 		<columns>
 		</columns>
 		<tables>
-			<table key="FIN_LINK" memberKey="dbo.TEST_Transactions"/>
+			<table key="FIN_LINK" memberKey="dbo.Transactions"/>
 		</tables>
 	</dataTableSchema>
 
@@ -96,7 +96,7 @@
 			<column key="CLUSTER_SUMMARY_STAT" memberKey="Stat" memberType="float"/>
 		</columns>
 		<tables>
-			<table key="CLUSTER_SUMMARY" memberKey="dbo.TEST_ClusterSummary"/>
+			<table key="CLUSTER_SUMMARY" memberKey="dbo.ClusterSummary"/>
 		</tables>
 	</dataTableSchema>
 
@@ -106,7 +106,7 @@
 			<column key="CLUSTER_SUMMARY_ENTITY_ID" memberKey="EntityId" memberType="string"/>
 		</columns>
 		<tables>
-			<table key="CLUSTER_SUMMARY_MEMBERS" memberKey="dbo.TEST_ClusterSummaryMembers"/>
+			<table key="CLUSTER_SUMMARY_MEMBERS" memberKey="dbo.ClusterSummaryMembers"/>
 		</tables>
 	</dataTableSchema>
 
@@ -118,17 +118,17 @@
 			<column key="SUMMARY_VALUE" memberKey="SummaryValue" memberType="string"/>
 		</columns>
 		<tables>
-			<table key="DATA_SUMMARY" memberKey="dbo.TEST_DataSummary"/>
+			<table key="DATA_SUMMARY" memberKey="dbo.DataSummary"/>
 		</tables>
 	</dataTableSchema>
 
 	<dataTableSchema key="PartnerBrokers">
 		<columns>
-			<column key="BrokerEntityId" memberKey="BrokerEntityId" memberType="string"/>
-			<column key="PartnerEntityId" memberKey="PartnerEntityId" memberType="string"/>
+			<column key="BrokerEntityId" memberKey="BrokerId" memberType="string"/>
+			<column key="PartnerEntityId" memberKey="PartnerId" memberType="string"/>
 		</columns>
 		<tables>
-			<table key="PartnerBrokers" memberKey="dbo.TEST_PartnerBrokers"/>
+			<table key="PartnerBrokers" memberKey="dbo.PartnerBrokers"/>
 		</tables>
 	</dataTableSchema>
 </specification>

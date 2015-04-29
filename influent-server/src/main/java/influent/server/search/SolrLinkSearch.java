@@ -27,7 +27,7 @@
 package influent.server.search;
 
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.idlhelper.SingletonRangeHelper;
 import influent.server.configuration.ApplicationConfiguration;
 import influent.server.dataaccess.DataNamespaceHandler;
@@ -63,7 +63,12 @@ public class SolrLinkSearch extends DataViewLinkSearch implements FL_LinkSearch 
 	) {
 		super(config, connectionPool, namespaceHandler, sqlBuilder, clusterDataAccess);
 
-		_solr = new HttpSolrServer(config.getString("influent.midtier.solr.url", "http://localhost:8983"));
+		String url = config.getString("influent.midtier.solr.links.url", null);
+		if (url == null) {
+			url = config.getString("influent.midtier.solr.url", "http://localhost:8983");
+		}
+
+		_solr = new HttpSolrServer(url);
 		_config = config;
 	}
 
@@ -140,7 +145,7 @@ public class SolrLinkSearch extends DataViewLinkSearch implements FL_LinkSearch 
 			}
 
 			// form a union of sort by fields for all types
-			orderBy = DataPropertyDescriptorHelper.mapOrderBy(orderBy, getDescriptors().getProperties(), termMap.keySet());
+			orderBy = PropertyDescriptorHelper.mapOrderBy(orderBy, getDescriptors().getProperties(), termMap.keySet());
 
 			if (orderBy != null) {
 				for (FL_OrderBy ob : orderBy) {

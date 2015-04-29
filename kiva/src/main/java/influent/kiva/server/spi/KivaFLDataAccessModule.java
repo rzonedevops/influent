@@ -36,6 +36,7 @@ import influent.idl.FL_EntitySearch;
 import influent.kiva.server.dataaccess.KivaDataAccess;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.MSSQLDataNamespaceHandler;
+import influent.server.sql.SQLBuilder;
 import influent.server.utilities.SQLConnectionPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +69,8 @@ public class KivaFLDataAccessModule extends AbstractModule {
 		@Named("aperture.server.config") Properties config,
 		SQLConnectionPool connectionPool,
 		FL_EntitySearch search,
-		DataNamespaceHandler namespaceHandler
+		DataNamespaceHandler namespaceHandler,
+		SQLBuilder sqlBuilder
 	) {
 
 		try {
@@ -76,7 +78,8 @@ public class KivaFLDataAccessModule extends AbstractModule {
 				config,
 				connectionPool,
 				search,
-				namespaceHandler
+				namespaceHandler,
+				sqlBuilder
 			);
 		} catch (Exception e) {
 			addError("Failed to load Data Access", e);

@@ -35,6 +35,7 @@ import influent.midtier.kiva.data.KivaTypes;
 import influent.server.dataaccess.DataAccessHelper;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.DataViewDataAccess;
+import influent.server.sql.SQLBuilder;
 import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.InfluentId;
 
@@ -64,8 +65,6 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 
 	// --- Brokers ---
 	public static final String PARTNER_BROKERS 		= "PartnerBrokers";
-	
-	private final static boolean USE_PREPARED_STATEMENTS = false;
 
 
 
@@ -74,9 +73,10 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 		Properties config,
 		SQLConnectionPool connectionPool,
 		FL_EntitySearch search,
-		DataNamespaceHandler namespaceHandler
+		DataNamespaceHandler namespaceHandler,
+		SQLBuilder sqlBuilder
 	) throws ClassNotFoundException, SQLException, JSONException {
-		super(config, connectionPool, search, namespaceHandler);
+		super(config, connectionPool, search, namespaceHandler, sqlBuilder);
 	}
 
 
@@ -86,20 +86,7 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 	public Map<String, List<FL_Entity>> getAccounts(
 			List<String> entities
 		) throws AvroRemoteException {
-		
-		if (USE_PREPARED_STATEMENTS) {
-			return getAccountsPrepared(entities);
-		} else {
-			return getAccountsNoPrepared(entities);
-		}
-	}
 
-
-
-
-	public Map<String, List<FL_Entity>> getAccountsNoPrepared(
-			List<String> entities
-	) throws AvroRemoteException {
 		final List<String> ns_entities = InfluentId.typedFromInfluentIds(entities);
 		Map<String, List<FL_Entity>> map = new HashMap<String, List<FL_Entity>>();
 
@@ -115,10 +102,10 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 
 			// lookup partner accounts for partner entities
 			String sql = "SELECT " +
-				brokerColumn + ", " +
-				partnerColumn + " " +
-				"FROM " + partnerBrokersTable + " " +
-				"WHERE " + partnerColumn + " IN " + DataAccessHelper.createInClause(ns_entities);
+					brokerColumn + ", " +
+					partnerColumn + " " +
+					"FROM " + partnerBrokersTable + " " +
+					"WHERE " + partnerColumn + " IN " + DataAccessHelper.createInClause(ns_entities);
 
 			List<String> accounts = new LinkedList<String>();
 
@@ -153,101 +140,5 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 			}
 		}
 		return map;
-	}
-
-
-
-
-	public Map<String, List<FL_Entity>> getAccountsPrepared(
-		List<String> entities
-	) throws AvroRemoteException {
-
-		final List<String> ns_entities = InfluentId.nativeFromInfluentIds(entities);
-		Map<String, List<FL_Entity>> map = new HashMap<String, List<FL_Entity>>();
-		
-		if (ns_entities.isEmpty()) return map;
-		Connection connection = null;
-		try {
-			List<String> accounts = new LinkedList<String>();
-			
-			connection = _connectionPool.getConnection();
-			
-			String partnerBrokersTable = _applicationConfiguration.getTable("PartnerBrokers", "PartnerBrokers");
-			String brokerColumn = _applicationConfiguration.getColumn("PartnerBrokers", "BrokerEntityId");
-			String partnerColumn = _applicationConfiguration.getColumn("PartnerBrokers", "PartnerEntityId");
-			
-			String preparedStatementString = buildPreparedStatementForGetAccounts(
-				ns_entities.size(),
-				partnerBrokersTable,
-				brokerColumn,
-				partnerColumn
-			);
-			PreparedStatement stmt = connection.prepareStatement(preparedStatementString);
-			
-			int index = 1;
-			
-			for (int i = 0; i < ns_entities.size(); i++) {
-				stmt.setString(index++, getNamespaceHandler().toSQLId(ns_entities.get(i), null));
-			}
-
-			ResultSet rs = stmt.executeQuery();
-			while (rs.next()) {
-				String id = rs.getString(brokerColumn);
-				String accountId = InfluentId.ACCOUNT + "." + id;
-				accounts.add(accountId);
-			}
-
-			
-			for (FL_Entity entity : getEntities(accounts, FL_LevelOfDetail.SUMMARY) ) {
-				String ownerId = InfluentId.ACCOUNT_OWNER + "." + (String)EntityHelper.getFirstPropertyByTag(entity, FL_PropertyTag.ACCOUNT_OWNER).getValue();
-
-				if (!map.containsKey(ownerId)) {
-					map.put(ownerId, new LinkedList<FL_Entity>());
-				}
-				map.get(ownerId).add(entity);
-			}
-			
-			stmt.close();
-			connection.close();
-		}
-		catch (Exception e) {
-			throw new AvroRemoteException(e);
-		} finally {
-			try {
-				connection.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		}
-		return map;
-	}
-	
-	
-	
-	
-	private String buildPreparedStatementForGetAccounts(
-		int numIds,
-		String partnerBrokersTable,
-	    String brokerColumn,
-	    String partnerColumn
-	) {
-		if (numIds < 1 || 
-			partnerBrokersTable == null
-		) {
-			s_logger.error("buildPreparedStatementForGetAccounts: Invalid parameter");
-			return null;
-		}
-
-		StringBuilder sb = new StringBuilder();
-		
-		sb.append("SELECT " + brokerColumn + ", " + partnerColumn + " ");
-		sb.append("FROM " + partnerBrokersTable + " ");
-		sb.append("WHERE " + partnerColumn + " IN (");
-		for (int i = 1; i < numIds; i++) {
-			sb.append("?, ");
-		}
-		sb.append("?) ");
-		
-		return sb.toString();
 	}
 }

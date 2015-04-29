@@ -27,12 +27,10 @@
 package influent.server.dataaccess;
 
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
-import influent.idlhelper.EntityHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.configuration.ApplicationConfiguration;
-import influent.server.utilities.Pair;
-import influent.server.utilities.PropertyField;
+import influent.server.data.PropertyMatchBuilder;
+import influent.server.sql.SQLBuilder;
 import influent.server.utilities.SQLConnectionPool;
 import influent.server.utilities.InfluentId;
 import org.apache.avro.AvroRemoteException;
@@ -42,9 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import oculus.aperture.spi.common.Properties;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Reader;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
@@ -61,6 +56,8 @@ public class DataViewDataAccess implements FL_DataAccess {
 	private final DataNamespaceHandler _namespaceHandler;
 	private final boolean _isMultiType;
 	protected final ApplicationConfiguration _applicationConfiguration;
+	protected final SearchSQLHelper _sqlHelper;
+	protected final SQLBuilder _sqlBuilder;
 
 	private static Pattern COLUMN_PATTERN = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*", 0);
 
@@ -76,7 +73,8 @@ public class DataViewDataAccess implements FL_DataAccess {
 		Properties config,
 		SQLConnectionPool connectionPool,
 		FL_EntitySearch search,
-		DataNamespaceHandler namespaceHandler
+		DataNamespaceHandler namespaceHandler,
+		SQLBuilder sqlBuilder
 	) throws ClassNotFoundException, SQLException {
 
 		// TODO: ehCacheConfig!!
@@ -84,7 +82,14 @@ public class DataViewDataAccess implements FL_DataAccess {
 		_search = search;
 		_namespaceHandler = namespaceHandler;
 		_applicationConfiguration = ApplicationConfiguration.getInstance(config);
-		_isMultiType = (_applicationConfiguration.getEntityDescriptors().getTypes().size() > 1);
+		_isMultiType = _applicationConfiguration.hasMultipleEntityTypes();
+		_sqlBuilder = sqlBuilder;
+		_sqlHelper = new SearchSQLHelper(
+				_sqlBuilder,
+				_connectionPool,
+				_applicationConfiguration,
+				FL_Entity.class
+		);
 	}
 
 
@@ -101,12 +106,6 @@ public class DataViewDataAccess implements FL_DataAccess {
 		return _applicationConfiguration.getEntityDescriptors();
 	}
 
-
-
-
-	public PropertyField.Provider getPropertyFieldProvider() {
-		return _applicationConfiguration;
-	}
 
 
 	private ApplicationConfiguration.SystemColumnType _getIdColumnType() {
@@ -159,294 +158,37 @@ public class DataViewDataAccess implements FL_DataAccess {
 			return results;
 		}
 
-		FL_PropertyDescriptors descriptors = getDescriptors();
-		Map<String, List<String>> entitiesByType = _namespaceHandler.entitiesByType(entities);
+		StringBuilder sb = new StringBuilder();
+		sb.append(FL_RequiredPropertyKey.ENTITY.name() + ":\"");
+		for (String id : entities) {
+			sb.append(id);
+			sb.append(",");
+		}
+		sb.deleteCharAt(sb.length() - 1);
+		sb.append("\" ");
 
-		try {
+		final PropertyMatchBuilder terms = new PropertyMatchBuilder(sb.toString(), getDescriptors(), false, _isMultiType);
+		Map<String, List<FL_PropertyMatchDescriptor>> termMap = terms.getDescriptorMap();
 
-			Connection connection = _connectionPool.getConnection();
+		List<Object> objects = _sqlHelper.getObjectsFromTerms(termMap, null, levelOfDetail, false);
+		for (Object object : objects) {
+			FL_Entity entity = (FL_Entity)object;
 
-			for (Map.Entry<String, List<String>> entry : entitiesByType.entrySet()) {
-
-				String entityType = entry.getKey();
-				List<String> entitySubgroup = entry.getValue();
-
-				if (entitySubgroup == null || entitySubgroup.isEmpty()) {
-					continue;
-				}
-
-				String finEntityTable = _applicationConfiguration.getTable(entityType, FIN_ENTITY.name(), FIN_ENTITY.name());
-				String finEntityEntityId = _applicationConfiguration.getColumn(entityType, FIN_ENTITY.name(), ENTITY_ID.name());
-
-				// process entities in batches
-				List<String> idsCopy = new ArrayList<String>(entitySubgroup); // copy the ids as we will take 1000 at a time to process and the take method is destructive
-				while (idsCopy.size() > 0) {
-					List<String> tempSubList = (idsCopy.size() > 1000) ? idsCopy.subList(0, 999) : idsCopy; // get the next 1000
-					List<String> subIds = new ArrayList<String>(tempSubList); // copy as the next step is destructive
-					tempSubList.clear(); // this clears the IDs from idsCopy as tempSubList is backed by idsCopy
-					String ids = createIdListFromCollection(subIds);
-
-					StringBuilder sb = new StringBuilder();
-					sb.append("SELECT ");
-					for (FL_PropertyDescriptor prop : descriptors.getProperties()) {
-						for (FL_TypeMapping map : prop.getMemberOf()) {
-							if (map.getType().equalsIgnoreCase(entityType)) {
-
-								// non-primitive objects need decomposition
-								if (prop.getPropertyType() == FL_PropertyType.GEO) {
-									List<PropertyField> fields = getPropertyFieldProvider().getFields(prop.getKey());
-
-									if (fields != null) {
-										for (PropertyField field : fields) {
-											final String fieldKey = DataPropertyDescriptorHelper.getFieldname(field.getProperty(), entry.getKey(), null);
-
-											if (fieldKey != null) {
-												sb.append(fieldKey + ", ");
-											}
-										}
-									}
-
-								} else {
-									sb.append(map.getMemberKey() + ", ");
-								}
-							}
-						}
-					}
-					sb.replace(sb.length() - 2, sb.length(), " ");
-
-					sb.append("FROM " + finEntityTable + " ");
-					sb.append("WHERE " + finEntityEntityId + " IN (" + ids + ")");
-
-					Statement stmt = connection.createStatement();
-
-					ResultSet rs = stmt.executeQuery(sb.toString());
-					while (rs.next()) {
-
-						List<FL_Property> props = new ArrayList<FL_Property>();
-
-						for (FL_PropertyDescriptor prop : descriptors.getProperties()) {
-							// Test to see if the property is set hidden, or if it's hidden by Level of Detail
-							boolean isHidden = prop.getLevelOfDetail().equals(FL_LevelOfDetail.HIDDEN) ||
-									(levelOfDetail.equals(FL_LevelOfDetail.SUMMARY) && prop.getLevelOfDetail().equals(FL_LevelOfDetail.FULL));
-
-							List<Object> dataList = new ArrayList<Object>();
-
-							if (prop.getPropertyType() == FL_PropertyType.GEO) {
-								// Handle GEO composite properties
-								List<Object> textValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "text");
-								List<Object> ccValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "cc");
-								List<Object> latValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "lat");
-								List<Object> lonValues = getCompositeFieldValues(rs, prop.getKey(), entityType, "lon");
-
-								// Assume we have the same number of values in all lists.
-								for (int i = 0; i < latValues.size(); i++) {
-
-									FL_GeoData.Builder geoDataBuilder = FL_GeoData.newBuilder()
-											.setText(textValues != null ? (String) textValues.get(i)    : null)
-											.setCc(ccValues     != null ? (String) ccValues.get(i)      : null)
-											.setLat(latValues   != null ? parseLatLon(latValues.get(i)) : null)
-											.setLon(lonValues   != null ? parseLatLon(lonValues.get(i)) : null);
-
-									dataList.add(geoDataBuilder.build());
-								}
-
-							} else {
-								// Handle everything else
-								dataList = getPropertyValuesFromResults(rs, prop, entityType);
-							}
-
-							if (dataList == null || dataList.isEmpty()) {
-								continue;
-							}
-
-							Object range;
-							// Create a list range, or a singleton range depending on how many values we got
-							if (dataList.size() > 1) {
-								range =	FL_ListRange.newBuilder()
-										.setType(prop.getPropertyType())
-										.setValues(dataList)
-										.build();
-							} else {
-								range =	FL_SingletonRange.newBuilder()
-										.setType(prop.getPropertyType())
-										.setValue(dataList.get(0))
-										.build();
-							}
-
-							// Add the property
-							props.add(
-									new PropertyHelper(
-											prop.getKey(),
-											prop.getFriendlyText(),
-											null,
-											null,
-											prop.getTags(),
-											isHidden,
-											range
-									)
-							);
-						}
-
-						FL_Property idProp = PropertyHelper.getPropertyByKey(props, FL_RequiredPropertyKey.ID.name());
-						String idVal = idProp != null ? PropertyHelper.getValue(idProp).toString() : null;
-
-						char entityClass = getEntityClass(subIds, entityType, idVal);
-
-						FL_Entity entity = createEntity(
-							idVal,
-							entityClass,
-							entityType,
-							props
-						);
-
-						results.add(entity);
-					}
-					rs.close();
-
-					stmt.close();
+			// Match incoming entity class
+			InfluentId infId = InfluentId.fromInfluentId(entity.getUid());
+			for (String id : entities) {
+				InfluentId infId2 = InfluentId.fromInfluentId(id);
+				if (infId.getTypedId().equals(infId2.getTypedId())) {
+					entity.setUid(infId2.toString());
 				}
 			}
 
-			connection.close();
-			return results;
-
-		} catch (Exception e) {
-			throw new AvroRemoteException(e);
+			results.add((FL_Entity)object);
 		}
+
+		return results;
 	}
 
-
-
-
-	private Double parseLatLon(Object value) {
-		// Lat/Lon conversion helper function
-
-		if (value instanceof Float) {
-			Float f = (Float) value;
-			return f.doubleValue();
-		} else if (value instanceof String) {
-			return Double.parseDouble(value.toString());
-		}
-
-		return (Double)value;
-	}
-
-
-
-
-	protected List<Object> getCompositeFieldValues(ResultSet rs, String key, String type, String fieldName) throws AvroRemoteException {
-		// Get values for fields in composite properties
-
-		PropertyField pf = getPropertyFieldProvider().getField(key, fieldName);
-		FL_PropertyDescriptor pd = pf.getProperty();
-
-		if (pf != null) {
-			final String mappedKey = DataPropertyDescriptorHelper.getFieldname(pd, type, null);
-
-			if (mappedKey != null) {
-				return getPropertyValuesFromResults(rs, pd, type);
-			}
-		}
-
-		return null;
-	}
-
-	private char getEntityClass(List<String> influentIds, String type, String rawId) {
-		String unclassedId = influentIDFromRaw(InfluentId.ACCOUNT, type, rawId).toString();
-		for (String influentId : influentIds) {
-			if (influentId.substring(2).equals(unclassedId.substring(2))) {
-				return influentId.charAt(0);
-			}
-		}
-		return InfluentId.ACCOUNT;
-	}
-
-
-	protected List<Object> getPropertyValuesFromResults(ResultSet rs, FL_PropertyDescriptor pd, String type) throws AvroRemoteException {
-		// Get values for a property from the results set
-
-		boolean isMultiValue = pd.getMultiValue();
-		String key = null;
-		for (FL_TypeMapping typeMapping : pd.getMemberOf()) {
-			if (typeMapping.getType().equals(type)) {
-				key = typeMapping.getMemberKey();
-				break;
-			}
-		}
-
-		if (key == null) {
-			return null;
-		}
-
-		final FL_PropertyType dataType = pd.getPropertyType();
-		List<Object> values = new ArrayList<Object>();
-		Object value;
-
-		try {
-			value = rs.getObject(key);
-
-			// If the value was a clob, convert it to a string first
-			if (value instanceof Clob) {
-				StringBuilder sb = new StringBuilder();
-				Clob clob = (Clob) (value);
-				Reader reader = clob.getCharacterStream();
-				BufferedReader bufferedReader = new BufferedReader(reader);
-
-				String line;
-				while (null != (line = bufferedReader.readLine())) {
-					sb.append(line);
-				}
-				bufferedReader.close();
-				value = sb.toString();
-			}
-		} catch (Exception e) {
-			throw new AvroRemoteException(e);
-		}
-
-		if (isMultiValue) {
-			// Multivalue properties should always be strings. Split them up.
-			values.addAll(Arrays.asList(value.toString().split(",")));
-		} else {
-			if (value != null) {
-				values.add(value);
-			}
-		}
-
-		if (values.isEmpty()) {
-			return null;
-		}
-
-		for (int i = 0; i < values.size(); i++) {
-			Object val = values.get(i);
-
-			switch (dataType) {
-				case DATE:
-					Timestamp dateValue;
-					if (val instanceof Long) {
-						dateValue = new Timestamp((Long)val);
-					} else {
-						dateValue = (Timestamp) val;
-					}
-
-					val = dateValue.getTime();
-					break;
-				case STRING:
-					val = val.toString();
-					break;
-			}
-
-			values.set(i, val);
-		}
-
-		return values;
-
-	}
-
-	protected FL_Entity createEntity(String id, char entityClass, String entityType, List<FL_Property> props) {
-		String uid = influentIDFromRaw(entityClass, entityType, id).toString();
-		return new EntityHelper(uid, entityType, Collections.singletonList(FL_EntityTag.ACCOUNT), null, null, props);
-
-	}
 
 
 	@Override

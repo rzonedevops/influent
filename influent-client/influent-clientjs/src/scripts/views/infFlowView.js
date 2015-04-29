@@ -4056,7 +4056,7 @@ define(
 								if (icon) {
 									var visualIconSpec = {
 										type: tag,
-										imgUrl: icon.url || aperture.palette.icon(icon.icon),
+										imgUrl: icon.icon? aperture.palette.icon(icon.icon) : icon.css? ('class:' + icon.css) : icon.url,
 										title: score === null ? icon.title : (icon.title + '(' + score + ')'),
 										friendlyName: property.friendlyText
 									};

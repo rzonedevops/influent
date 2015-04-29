@@ -47,6 +47,12 @@ define([
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _startViews = function() {
+			_UIObjectState.subscriberTokens = {};
+			_UIObjectState.subscriberTokens[appChannel.VIEW_REGISTERED] = aperture.pubsub.subscribe(appChannel.VIEW_REGISTERED, _onViewRegistered);
+			_UIObjectState.subscriberTokens[appChannel.ALL_MODULES_STARTED] = aperture.pubsub.subscribe(appChannel.ALL_MODULES_STARTED, _initViews);
+			_UIObjectState.subscriberTokens[appChannel.VIEW_PARAMS_CHANGED] = aperture.pubsub.subscribe(appChannel.VIEW_PARAMS_CHANGED, _onViewParametersChanged);
+			_UIObjectState.subscriberTokens[appChannel.SEARCH_PARAMS_EVENT] = aperture.pubsub.subscribe(appChannel.SEARCH_PARAMS_EVENT, _onSearchParams);
+
 			var views = plugins.get('views');
 			aperture.util.forEach(views, function(view) {
 
@@ -235,17 +241,10 @@ define([
 			}
 
 			aperture.util.forEach(_UIObjectState.views, function(view) {
+				view.init(view.canvas);
 				aperture.pubsub.publish(appChannel.VIEW_INITIALIZED, {name: view.key});
 			});
 		};
-
-		//--------------------------------------------------------------------------------------------------------------
-
-		_UIObjectState.subscriberTokens = {};
-		_UIObjectState.subscriberTokens[appChannel.VIEW_REGISTERED] = aperture.pubsub.subscribe(appChannel.VIEW_REGISTERED, _onViewRegistered);
-		_UIObjectState.subscriberTokens[appChannel.ALL_MODULES_STARTED] = aperture.pubsub.subscribe(appChannel.ALL_MODULES_STARTED, _initViews);
-		_UIObjectState.subscriberTokens[appChannel.VIEW_PARAMS_CHANGED] = aperture.pubsub.subscribe(appChannel.VIEW_PARAMS_CHANGED, _onViewParametersChanged);
-		_UIObjectState.subscriberTokens[appChannel.SEARCH_PARAMS_EVENT] = aperture.pubsub.subscribe(appChannel.SEARCH_PARAMS_EVENT, _onSearchParams);
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Public

@@ -164,8 +164,14 @@ define(
 								}
 							} else {
 								icon = iconUtil.getIconForProperty(property);
-								
-								column.image = (icon) ? icon.imgUrl : null;
+								column.image = null;
+								if (icon) {
+									if (icon.imgUrl && icon.imgUrl.substr(0,6) === 'class:') {
+										column.cssicon = icon.imgUrl.substr(6);
+									} else {
+										column.image = icon.imgUrl;
+									}
+								}
 								column.text = tagUtil.getFormattedValue(property);
 							}
 						}

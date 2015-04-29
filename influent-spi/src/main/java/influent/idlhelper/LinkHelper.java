@@ -104,7 +104,7 @@ public class LinkHelper extends FL_Link {
 	}
 	
 	public static FL_Property getPropertyByUnmappedKey(FL_Link link, String key, List<FL_PropertyDescriptor> defns) {
-		key = DataPropertyDescriptorHelper.mapKey(key, defns, link.getType());
+		key = PropertyDescriptorHelper.mapKey(key, defns, link.getType());
 
 		return PropertyHelper.getPropertyByKey(link.getProperties(), key);
 	}

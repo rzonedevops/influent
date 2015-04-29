@@ -337,7 +337,7 @@ public class PropertyHelper extends FL_Property {
 	}
 
 	public static Object getValueByUnmappedKey(String key, List<FL_Property> props, List<FL_PropertyDescriptor> defns, String type) {
-		key = DataPropertyDescriptorHelper.mapKey(key, defns, type);
+		key = PropertyDescriptorHelper.mapKey(key, defns, type);
 
 		return getValue(getPropertyByKey(props, key));
 	}

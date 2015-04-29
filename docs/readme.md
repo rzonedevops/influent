@@ -1,11 +1,13 @@
 # Building Aperture Sites with Jekyll
 
-Oculus Info's Aperture websites (Aperture JS, Aperture Tiles and Influent) contain detailed documentation for both developers and end users. Each site is built using [Jekyll](http://jekyllrb.com/), a static website generator. All of the website content is written in Markdown (*.md), a plain text formatting syntax, and stored separately from the website layout (HTML) and styles (Sass/CSS). Jekyll generates the sites by parsing the Markdown contents, converting them to HTML and inserting them into the appropriate layout.
+**NOTE**: This topic describes how to build the Influent website. To view the Influent website content, visit <http://community.influent.org> or see the [src/](src/) folder.
+
+Uncharted's Aperture websites (Aperture JS, Aperture Tiles and Influent) contain detailed documentation for both developers and end users. Each site is built using [Jekyll](http://jekyllrb.com/), a static website generator. All of the website content is written in Markdown (*.md), a plain text formatting syntax, and stored separately from the website layout (HTML) and styles (Sass/CSS). Jekyll generates the sites by parsing the Markdown contents, converting them to HTML and inserting them into the appropriate layout.
 
 You can use Jekyll to build the website source files if you want to:
 
 - Create a local instance of an Aperture website (e.g., if your users do not have access to the Internet)
-- Modify the documentation to reflect the functionality of your Influent deployment
+- Modify the documentation to reflect the functionality of your custom Influent deployment
 - Update the look and feel of the website to match your existing style
 
 Note that the latest versions of the pre-built Aperture website are available for browsing at the following locations:
@@ -20,24 +22,24 @@ Before you attempt to build an Aperture site, you should install the following p
 
 - **Operating System**: Linux, Unix or Mac OS X. (Windows support with [Cygwin](https://www.cygwin.com/) version 1.7.30)
 - **Language**:	[Ruby](https://www.ruby-lang.org/) (version 1.9.3)
-    - **Package Manager**: [RubyGems](https://rubygems.org/) (version 1.8.28)
+	- **Package Manager**: [RubyGems](https://rubygems.org/) (version 1.8.28)
 - **Gems**:
-    - **Site Generator**: [Jekyll](http://jekyllrb.com/) (version 2.5.1)
-    - **Syntax Highlighter**: [Rouge](https://github.com/jneen/rouge) (version 1.6.1)
+	- **Site Generator**: [Jekyll](http://jekyllrb.com/) (version 2.5.1)
+	- **Syntax Highlighter**: [Rouge](https://github.com/jneen/rouge) (version 1.6.1)
 
 ## Building the Site
 
 To build an Aperture site, run the following command in its source docs folder (which contains a *_config.yml* file):
 
-    jekyll build
+	jekyll build
 
 By default, Jekyll will compile the site into a `_site` folder one level above the source docs folder. You can change the destination directory using the following command:
 
-    jekyll build –destination <destination>
+	jekyll build –destination <destination>
 
 To test the site before deploying it, you can run the following command, which will build a preview site at http://localhost:4000/:
 
-    jekyll serve
+	jekyll serve
 
 ## Aperture Website Configuration
 
@@ -52,8 +54,8 @@ Each Markdown file (*.md) covers a single topic representing a page on the Apert
 
 All Markdown files must contain a frontmatter section so Jekyll will recognize that they should be converted to HTML. The frontmatter must appear at the top of the file between a set of triple-dashed lines as follows:
 
-    ---
-    ---
+	---
+	---
 
 Between these lines, you can define any number of page-specific variables (NOTE: try to keep the variables to a minimum if possible; they are visible at the top of the page in the GitHub repository). The page-specific variables are invoked in the layouts using the [Liquid templating language](http://docs.shopify.com/themes/liquid-basics). 
 
@@ -70,7 +72,7 @@ section		(Required)
 	-	Determining the navigation bar context
 	-	Retrieving the sidebar content
 
-subtitle	 (Required for pages with submenus)
+subsection	 (Required for pages with submenus)
 
 	Name of the subsection to which the page belongs. Must match the name of one
 	of the links in the section-specific submenu (see callout 2 in the following
@@ -83,7 +85,13 @@ subtitle	 (Required for pages with submenus)
 chapter		(Required for pages in a submenu that represent a chapter)
 
 	Name of the chapter to which the page belongs. Should match the name of one
-	of the links in the submenu-specific table of contents (see callout 3 in the
+	of the headings in the submenu-specific table of contents (see callout 3 in 
+	the	following figure).
+
+topic		(Required for with a submenu-specific table of contents)
+
+	Name of the topic which the page describes. Should match the name of one
+	of the links in the submenu-specific table of contents (see callout 4 in the
 	following figure).
 
 permalink	 (Required)
@@ -115,21 +123,21 @@ _config.yml
 	- A product	variable used to display the correct logo and set part of the
 	page title (as it appears in the browser window or tab).
 	- A baseurl variable that indicates where the root site folder is located.
-      You do not need to set this variable if you are deploying to your server's 
+	  You do not need to set this variable if you are deploying to your server's 
 	  root folder
 
 _data
 
-	Folder containing a YAML file (**menuItems.yaml**) that lists each of the 
-	items that should appear in the main navigation bar and each of the section-
-	specific submenu navigation bars.
+	Folder containing YAML files (**\*.yaml**) that list the items that should 
+	appear in the main navigation bar, each of the section-specific submenu
+	navigation bars and the submenu-specific table of contents.
 
 	Items in the main website header menu should be listed in an array named 
 	"main", with each item having a label and a path (with the base URL omitted):
 
-				main:
+		main:
 		  - label: Tour
-	   	    path: tour/
+			path: tour/
 
 		  - label: Docs
 			path: docs/development/
@@ -150,7 +158,7 @@ _data
 			path: docs/development/
 
 		  - label: User Guide
-			path: docs/userguide/
+			path: docs/user-guide/
 	
 	Note that the filename should end in *s* (e.g., *menuItems*). To
 	reference a single item in a file, call the non-pluralized version of the
@@ -195,7 +203,7 @@ _layouts
 
 _sass
 
-    Contains partial Sass files used to build the final CSS files that apply to
+	Contains partial Sass files used to build the final CSS files that apply to
 	your site.
 
 _site

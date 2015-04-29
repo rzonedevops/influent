@@ -658,8 +658,9 @@ define(
 					if (prop.key == null) {
 						prop.key = key;
 					}
-					
-					if (prop.displayOrder >= 0) {
+
+					//Don't display hidden properties
+					if (prop.displayOrder >= 0 && !prop.isHidden) {
 						propertyArray.push(prop);
 					}
 				}

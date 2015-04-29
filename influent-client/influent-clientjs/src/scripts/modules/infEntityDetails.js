@@ -305,11 +305,17 @@ define(
 
 						var imgUrl = icon.imgUrl;
 
-						// ick.
-						imgUrl = imgUrl.replace(/iconWidth=[0-9]+/, 'iconWidth=28')
-							.replace(/iconHeight=[0-9]+/, 'iconHeight=28');
+						if (imgUrl) {
+							if (imgUrl.substr(0, 6) === 'class:') {
+								propertyBlockContext.cssicon = imgUrl.substr(6);
+							} else {
+								// ick.
+								propertyBlockContext.image =
+									imgUrl.replace(/iconWidth=[0-9]+/, 'iconWidth=28')
+										.replace(/iconHeight=[0-9]+/, 'iconHeight=28');
+							}
+						}
 
-						propertyBlockContext.source = imgUrl;
 						propertyBlockContext.value = icon.title;
 
 						var score = '' + Math.round(icon.score * 100) + '%';
@@ -345,9 +351,17 @@ define(
 				ishtml = true;
 			}
 
+			var label = {name: friendlyText, value: value, isHTML: ishtml};
 			var icon = iconUtil.getIconForProperty(property, {width: 20, height: 20});
 
-			return {name: friendlyText, value: value, icon: icon? icon.imgUrl : null, isHTML: ishtml};
+			if (icon) {
+				if (icon.imgUrl && icon.imgUrl.substr(0, 6) === 'class:') {
+					label.cssicon = icon.imgUrl.substr(6);
+				} else {
+					label.image = icon.imgUrl;
+				}
+			}
+			return label;
 		};
 
 		//--------------------------------------------------------------------------------------------------------------

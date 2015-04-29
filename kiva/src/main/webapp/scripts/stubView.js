@@ -40,12 +40,6 @@ define(
 		return {
 			onView : function (type, propertyMatchDescriptors, container) {
 				var elem = $(container.canvas).find('.infSearchResultScroll');
-				if (elem.length === 0) {
-					elem = $('<div></div>');
-					elem.addClass('infSearchResultScroll');
-					$(container.canvas).append(elem);
-				}
-
 				$(elem).append('<div><h4>View called with following parameters:<h4></div>');
 				$(elem).append('<div>type: ' + type + ' pmd: ' + JSON.stringify(propertyMatchDescriptors) + '</div>');
 
@@ -54,17 +48,27 @@ define(
 						$(elem).append('<div><h4>Entities search result:<h4></div>');
 						$(elem).append('<div><b>success:</b> ' + restInfo.success + '</div>');
 						$(elem).append('<div><b>response:</b> ' + JSON.stringify(response) + '</div>');
-					});
+					}, '', '', 'FULL');
 				}
 				if (type === 'links') {
 					container.search.links(propertyMatchDescriptors, function (response, restInfo) {
 						$(elem).append('<div><h4>Entities search result:<h4></div>');
 						$(elem).append('<div><b>success:</b> ' + restInfo.success + '</div>');
 						$(elem).append('<div><b>response:</b> ' + JSON.stringify(response) + '</div>');
-					});
+					}, '', '', 'FULL');
 				}
 
 				container.events.stateChange(propertyMatchDescriptors);
+			},
+
+			onInit : function (container) {
+				var elem = $(container).find('.infSearchResultScroll');
+				if (elem.length === 0) {
+					elem = $('<div></div>');
+					elem.addClass('infSearchResultScroll');
+					$(container).append(elem);
+				}
+				$(elem).append('<div><h3>Stub view initialized!!<h3></div>');
 			}
 		};
 	}

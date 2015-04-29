@@ -27,7 +27,7 @@
 package influent.server.search;
 
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.server.configuration.ApplicationConfiguration;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.utilities.PropertyField;
@@ -78,10 +78,10 @@ public class SolrLinkSearchIterator extends SolrBaseSearchIterator {
 	private String getTarget(SolrDocument sd) {
 		FL_PropertyDescriptors linkDescriptors = _applicationConfiguration.getLinkDescriptors();
 		FL_PropertyDescriptors entityDescriptors = _applicationConfiguration.getEntityDescriptors();
-		
-		String type = (String)sd.getFieldValue("type"); // TODO: This should ideally be FL_RequiredPropertyKey.TYPE.name()
-		
-		Object oTarget = sd.getFieldValue(DataPropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.TO.name(), linkDescriptors.getProperties(), type));
+
+		final String type = getTypeFromDocument(sd, linkDescriptors);
+
+		Object oTarget = sd.getFieldValue(PropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.TO.name(), linkDescriptors.getProperties(), type));
 		String sTarget = oTarget instanceof String ? (String)oTarget : oTarget instanceof Integer ? Integer.toString((Integer)oTarget) : null;
 		
 		Boolean isMultitype = (entityDescriptors.getTypes().size() > 1);
@@ -114,16 +114,16 @@ public class SolrLinkSearchIterator extends SolrBaseSearchIterator {
 
 		FL_Link.Builder linkBuilder = FL_Link.newBuilder();
 
-		String type = (String)sd.getFieldValue("type"); // TODO: This should ideally be FL_RequiredPropertyKey.TYPE.name()
-
 		FL_PropertyDescriptors linkDescriptors = _applicationConfiguration.getLinkDescriptors();
 		FL_PropertyDescriptors entityDescriptors = _applicationConfiguration.getEntityDescriptors();
 
+		final String type = getTypeFromDocument(sd, linkDescriptors);
+
 		Boolean isMultitype = (entityDescriptors.getTypes().size() > 1);
 
-		String uid = sd.getFieldValue(DataPropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.ID.name(), linkDescriptors.getProperties(), type)).toString();
+		String uid = sd.getFieldValue(PropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.ID.name(), linkDescriptors.getProperties(), type)).toString();
 
-		Object oSource = sd.getFieldValue(DataPropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.FROM.name(), linkDescriptors.getProperties(), type));
+		Object oSource = sd.getFieldValue(PropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.FROM.name(), linkDescriptors.getProperties(), type));
 		String sSource = oSource instanceof String ? (String)oSource : oSource instanceof Integer ? Integer.toString((Integer)oSource) : null;
 
 		linkBuilder.setProvenance(null);
@@ -164,7 +164,7 @@ public class SolrLinkSearchIterator extends SolrBaseSearchIterator {
 		FL_Link link = buildResultFromDocument(dl.get(0));
 
 		// Get the nodetype
-		String targetField = DataPropertyDescriptorHelper.mapKey(
+		String targetField = PropertyDescriptorHelper.mapKey(
 			FL_RequiredPropertyKey.TO.name(),
 			_applicationConfiguration.getLinkDescriptors().getProperties(),
 			link.getType()

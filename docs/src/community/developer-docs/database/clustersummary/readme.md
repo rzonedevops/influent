@@ -199,4 +199,4 @@ The ClusterSummaryMembers table stores a list of entities that belong to each ac
 
 The following entity relationship diagram illustrates the order in which the ClusterSummary tables are built using the information in your source dataset. As each table is essentially a summary of your original data, each table is linked to every other table through the unique entity IDs in your dataset.
 
-<img src="../../../../img/resources/transaction-db-clustersummary.png" class="screenshot" alt="ClusterSummary Tables" />
+<img src="../../../../img/resources/db-clustersummary-tables.png" class="screenshot" alt="ClusterSummary Tables" />

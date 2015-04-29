@@ -82,7 +82,7 @@ public class PropertyMatchBuilder {
 	static final Pattern boostPattern =         Pattern.compile("\\^([\\.0-9]+)$");
 	static final Pattern quotePattern =         Pattern.compile("((?<![\\\\])\")((?:.(?!(?<![\\\\])\\1))*.?)\\1");
 	static final Pattern rangePattern =         Pattern.compile("\\[(.*)?\\s(?:TO|to)\\s(.*)?\\]");
-	static final Pattern similarityPattern =    Pattern.compile("(.+)~([\\.0-9]+)?$");
+	static final Pattern similarityPattern =    Pattern.compile("~([\\.0-9]+)?$");
 
 	static final DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
@@ -367,7 +367,7 @@ public class PropertyMatchBuilder {
 		// Fuzzy matching
 		Matcher similarityMatch = similarityPattern.matcher(termValue);
 		if (similarityMatch.find()) {
-			String similarityStr = similarityMatch.group(2);
+			String similarityStr = similarityMatch.group(1);
 
 			try {
 				Float similarity = similarityStr == null ? 0.5f : Float.valueOf(similarityStr);

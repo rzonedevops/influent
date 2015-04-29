@@ -146,7 +146,7 @@ public class EntityHelper extends FL_Entity {
 	}
 	
 	public static FL_Property getPropertyByUnmappedKey(FL_Entity entity, String key, List<FL_PropertyDescriptor> defns) {
-		key = DataPropertyDescriptorHelper.mapKey(key, defns, entity.getType());
+		key = PropertyDescriptorHelper.mapKey(key, defns, entity.getType());
 
 		return PropertyHelper.getPropertyByKey(entity.getProperties(), key);
 	}

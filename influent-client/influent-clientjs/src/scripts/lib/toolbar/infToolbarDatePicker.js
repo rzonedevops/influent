@@ -169,6 +169,11 @@ define(
 				var startString = moment(localStart).format(constants.DATE_FORMAT);
 				var endString = moment(localEnd).format(constants.DATE_FORMAT);
 				_$('.dropdown-toggle').html(startString + ' to ' + endString + '<span class="caret" style="margin-left:8px"></span>');
+
+				// If the dropdown is open, close it.
+				if (_$('.btn-group').hasClass('open')) {
+					_$('.dropdown-toggle').dropdown('toggle');
+				}
 			};
 
 			//--------------------------------------------------------------------------------------------------------------
@@ -367,16 +372,16 @@ define(
 				_$('#datepicker-from').datepicker({
 					format: constants.BOOTSTRAP_DATE_FORMAT,
 					autoclose: true,
-					forceParse: false
+					forceParse: false,
+					multidateSeparator: ';'
 				})
 				.on('changeDate', function () {
 					_updateDropdownFromPickers();
-					$(this).datepicker('hide');
 				})
 				.on('show', function() {
 					$('.datepicker-dropdown').click( function(event) {
-
 						// fixme: currently applies to all datepickers
+						// Don't close datepicker widget by clicking through to the workspace
 						event.stopPropagation();
 					});
 				});
@@ -385,16 +390,16 @@ define(
 				_$('#datepicker-to').datepicker({
 					format: constants.BOOTSTRAP_DATE_FORMAT,
 					autoclose: true,
-					forceParse: false
+					forceParse: false,
+					multidateSeparator: ';'
 				})
 				.on('changeDate', function () {
 					_updateDropdownFromPickers();
-					$(this).datepicker('hide');
 				})
 				.on('show', function() {
 					$('.datepicker-dropdown').click( function(event) {
-
 						// fixme: currently applies to all datepickers
+						// Don't close datepicker widget by clicking through to the workspace
 						event.stopPropagation();
 					});
 				});

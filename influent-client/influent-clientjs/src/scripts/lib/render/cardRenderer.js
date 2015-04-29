@@ -73,10 +73,20 @@ define(
 			iconContainer.css('left',left);
 
 			// Insert image into icon container
-			var imageContainer = $('<img/>');
-			imageContainer.attr('src', imgUrl);
-            xfUtil.makeTooltip(imageContainer, title, 'card icon');
+			var imageContainer = $('<div></div>');
+			imageContainer.addClass('cardIconBlock');
+			if (imgUrl.substr(0,6) === 'class:') {
+				$('<span></span>').addClass(imgUrl.substr(6)).appendTo(imageContainer);
+			} else {
+				imageContainer.css('background-image', 'url("'+ imgUrl+ '")');
+			}
+			xfUtil.makeTooltip(imageContainer, title, 'card icon');
 			iconContainer.append(imageContainer);
+
+			//var imageContainer = $('<img/>');
+			//imageContainer.attr('src', imgUrl);
+            //xfUtil.makeTooltip(imageContainer, title, 'card icon');
+			//iconContainer.append(imageContainer);
 
 			// Create a bar chart based on score
 			if ( score != null ) {

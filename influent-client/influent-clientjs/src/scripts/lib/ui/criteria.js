@@ -178,8 +178,6 @@ define(
 						}
 					}
 
-					// TODO:  datepicker here should be replaced with bootstrap widgets.   This is jqUI
-
 					var start, end;
 					var _createElements = function() {
 						start = end = undefined;
@@ -192,7 +190,9 @@ define(
 								start = $('<input class="criteria-datepicker-start" type="text">');
 								start.datepicker({
 									format: constants.BOOTSTRAP_DATE_FORMAT,
-									autoclose: true
+									autoclose: true,
+									forceParse: false,
+									multidateSeparator: ';'
 								});
 								start.appendTo(parent);
 							} else {
@@ -210,7 +210,9 @@ define(
 								end = $('<input class="criteria-datepicker-end" type="text">');
 								end.datepicker({
 									format: constants.BOOTSTRAP_DATE_FORMAT,
-									autoclose: true
+									autoclose: true,
+									forceParse: false,
+									multidateSeparator: ';'
 								});
 								end.appendTo(parent);
 							} else {

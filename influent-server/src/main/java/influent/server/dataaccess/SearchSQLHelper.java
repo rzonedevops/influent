@@ -29,18 +29,32 @@ package influent.server.dataaccess;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.EntityHelper;
+import influent.idlhelper.LinkHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
+import influent.idlhelper.PropertyHelper;
 import influent.idlhelper.PropertyMatchDescriptorHelper;
+import influent.server.configuration.ApplicationConfiguration;
 import influent.server.sql.*;
+import influent.server.utilities.InfluentId;
+import influent.server.utilities.PropertyField;
 import influent.server.utilities.SQLConnectionPool;
+import org.apache.avro.AvroRemoteException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.Reader;
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.*;
+
+import static influent.server.configuration.ApplicationConfiguration.SystemPropertyKey.FIN_ENTITY;
+import static influent.server.configuration.ApplicationConfiguration.SystemPropertyKey.FIN_LINK;
 
 /**
  * Helper class to help create a SQL statement from a list of {@link FL_PropertyMatchDescriptor}s.
@@ -61,9 +75,10 @@ public class SearchSQLHelper {
 
 	protected final SQLBuilder _sqlBuilder;
 	private final SQLConnectionPool _connectionPool;
-	private final DataNamespaceHandler _namespaceHandler;
-	private final FL_PropertyDescriptors _propertyDescriptors;
-	private boolean _isLink;
+	private final ApplicationConfiguration _applicationConfiguration;
+	private Class<?> _helperType;
+	private final boolean _isMultiType;
+
 	//----------------------------------------------------------------------
 
 
@@ -71,23 +86,16 @@ public class SearchSQLHelper {
 	public SearchSQLHelper(
 			SQLBuilder sqlBuilder,
 			SQLConnectionPool connectionPool,
-			DataNamespaceHandler namespaceHandler,
-			FL_PropertyDescriptors propertyDescriptors
+			ApplicationConfiguration applicationConfiguration,
+	        Class<?> helperType
 	) {
 		_sqlBuilder = sqlBuilder;
 		_connectionPool = connectionPool;
-		_namespaceHandler = namespaceHandler;
-		_propertyDescriptors = propertyDescriptors;
+		_applicationConfiguration = applicationConfiguration;
+		_helperType = helperType;
+		_isMultiType = _applicationConfiguration.hasMultipleEntityTypes();
 	}
 
-	public SearchSQLHelper isLinkHelper(boolean isLinkHelper) {
-		_isLink= isLinkHelper;
-		
-		return this;
-	}
-	public boolean isLinkHelper() {
-		return _isLink;
-	}
 
 	protected Logger getLogger() {
 		return s_logger;
@@ -98,12 +106,20 @@ public class SearchSQLHelper {
 		return _sqlBuilder;
 	}
 
+	private FL_PropertyDescriptors getDescriptors() {
+		if (_helperType == FL_Entity.class) {
+			return _applicationConfiguration.getEntityDescriptors();
+		} else {
+			return _applicationConfiguration.getLinkDescriptors();
+		}
+	}
+
 	private String _mapKey(String key, String type) {
-		return DataPropertyDescriptorHelper.mapKey(key, _propertyDescriptors.getProperties(), type);
+		return PropertyDescriptorHelper.mapKey(key, getDescriptors().getProperties(), type);
 	}
 
 	private List<FL_OrderBy> _mapOrderBy(List<FL_OrderBy> orderBy, String type) {
-		return DataPropertyDescriptorHelper.mapOrderBy(orderBy, _propertyDescriptors.getProperties(), type);
+		return PropertyDescriptorHelper.mapOrderBy(orderBy, getDescriptors().getProperties(), type);
 	}
 
 
@@ -145,7 +161,7 @@ public class SearchSQLHelper {
 	 * @return
 	 */
 	public boolean isIdField(String field) {
-		if (_isLink) {
+		if (_helperType == FL_Link.class) {
 			return  field.equals(FL_RequiredPropertyKey.FROM.name()) ||
 					field.equals(FL_RequiredPropertyKey.TO.name()) ||
 					field.equals(FL_RequiredPropertyKey.ENTITY.name()) ||
@@ -276,7 +292,7 @@ public class SearchSQLHelper {
 		return isSpecialDescriptor(property.getKey());
 	}
 	protected boolean isSpecialDescriptor(String key) {
-		return _isLink && (
+		return _helperType == FL_Link.class && (
 			key.equals(FL_RequiredPropertyKey.ENTITY.name()) ||
 			key.equals(FL_RequiredPropertyKey.LINKED.name())
 		);
@@ -309,25 +325,6 @@ public class SearchSQLHelper {
 		filter.addFilter(buildListOfFilters(andTerms, type, _sqlBuilder.and()));
 		return filter;
 	}
-	
-	/***
-	 * Fetch the specified columns per matching top 1000 rows in database using
-	 * filter term criteria.
-	 *
-	 * @param table
-	 * @param columns
-	 * @param terms
-	 * @param type
-	 * @return
-	 */
-	public List<Map<String, Object>> fetchColumnsForTerms(
-			String table,
-			List<String> columns,
-			List<FL_PropertyMatchDescriptor> terms,
-			String type) {
-
-		return fetchColumnsForTerms(table, columns, terms, type, null);
-	}
 
 	/***
 	 * Fetch the specified columns per matching top 1000 rows in database using
@@ -340,16 +337,17 @@ public class SearchSQLHelper {
 	 * @param orderBy
 	 * @return
 	 */
-	public List<Map<String, Object>> fetchColumnsForTerms(
+	public List<List<Object>> fetchColumnsForTerms(
 			String table,
 			List<String> columns,
 			List<FL_PropertyMatchDescriptor> terms,
 			String type,
-			List<FL_OrderBy> orderBy
+			List<FL_OrderBy> orderBy,
+	        boolean limitResults
 	) {
 
 		Connection connection = null;
-		List<Map<String, Object>> results = new ArrayList<Map<String, Object>>();
+		List<List<Object>> results = new ArrayList<List<Object>>();
 
 		if (terms.size() == 0) {
 			return results;
@@ -360,8 +358,10 @@ public class SearchSQLHelper {
 
 			SQLSelect query = _sqlBuilder.select();
 
-			//uses top 1000 to be quicker, but doesn't allow proper pagination
-			query.top(1000);
+			if (limitResults) {
+				//uses top 1000 to be quicker, but doesn't allow proper pagination
+				query.top(1000);
+			}
 
 			for (String column : columns) {
 				query.column(_sqlBuilder.escape(column));
@@ -400,14 +400,14 @@ public class SearchSQLHelper {
 				while (rs.next()) {
 
 					// Map the results against the requested columns
-					Map<String, Object> resultMap = new HashMap<String, Object>();
+					List<Object> resultList = new ArrayList<Object>();
 					for (String column : columns) {
 						String columnName = _sqlBuilder.unescape(column);
 						Object obj = rs.getObject(columnName);
 
-						resultMap.put(column, obj);
+						resultList.add(obj);
 					}
-					results.add(resultMap);
+					results.add(resultList);
 				}
 			}
 
@@ -424,7 +424,321 @@ public class SearchSQLHelper {
 
 		return results;
 	}
-	
+
+
+	private InfluentId influentIDFromRaw(char entityClass, String rawId, Class<?> objectType) {
+		FL_PropertyDescriptors descriptors = objectType == FL_Entity.class ?
+				_applicationConfiguration.getEntityDescriptors() :
+				_applicationConfiguration.getLinkDescriptors();
+
+		if (descriptors.getTypes().size() > 1) {
+			return InfluentId.fromTypedId(entityClass, rawId);
+		} else {
+			String type = descriptors.getTypes().get(0).getKey();
+			return InfluentId.fromNativeId(entityClass, type, rawId);
+		}
+	}
+
+	private FL_Property propertyFromQueryResult(
+			FL_PropertyDescriptor pd,
+			List<Object> valueList,
+			FL_LevelOfDetail levelOfDetail) {
+
+		// Test to see if the property is set hidden, or if it's hidden by Level of Detail
+		boolean isHidden = pd.getLevelOfDetail().equals(FL_LevelOfDetail.HIDDEN) ||
+				(levelOfDetail.equals(FL_LevelOfDetail.SUMMARY) && pd.getLevelOfDetail().equals(FL_LevelOfDetail.FULL));
+
+		Object range;
+		// Create a list range, or a singleton range depending on how many values we got
+		if (valueList.size() > 1) {
+			range = FL_ListRange.newBuilder()
+					.setType(pd.getPropertyType())
+					.setValues(valueList)
+					.build();
+		} else {
+			range = FL_SingletonRange.newBuilder()
+					.setType(pd.getPropertyType())
+					.setValue(valueList.get(0))
+					.build();
+		}
+
+		return new PropertyHelper(
+			pd.getKey(),
+			pd.getFriendlyText(),
+			null,
+			null,
+			pd.getTags(),
+			isHidden,
+			range
+		);
+	}
+
+
+
+	public List<Object> getObjectsFromTerms(
+			Map<String, List<FL_PropertyMatchDescriptor>> termMap,
+			List<FL_OrderBy> orderBy,
+			FL_LevelOfDetail levelOfDetail,
+	        boolean limitResults
+	) throws AvroRemoteException {
+
+
+		List<Object> results = new ArrayList<Object>();
+
+		for (Map.Entry<String, List<FL_PropertyMatchDescriptor>> entry : termMap.entrySet()) {
+
+			String type = entry.getKey();
+			String table;
+			if (_helperType == FL_Entity.class) {
+				table = _applicationConfiguration.getTable(type, FIN_ENTITY.name(), FIN_ENTITY.name());
+			} else {
+				table = _applicationConfiguration.getTable(type, FIN_LINK.name(), FIN_LINK.name());
+			}
+
+			List<String> columns = new ArrayList<String>();
+			Map<String, FL_PropertyDescriptor> columnMap = new HashMap<String, FL_PropertyDescriptor>();
+			List<FL_PropertyDescriptor> composites = new ArrayList<FL_PropertyDescriptor>();
+
+			for (FL_PropertyDescriptor prop : getDescriptors().getProperties()) {
+				if (prop.getKey().equalsIgnoreCase(FL_RequiredPropertyKey.ENTITY.name()) ||
+					prop.getKey().equalsIgnoreCase(FL_RequiredPropertyKey.LINKED.name())) {
+					continue;
+				}
+
+				for (FL_TypeMapping map : prop.getMemberOf()) {
+					if (map.getType().equalsIgnoreCase(entry.getKey())) {
+						// non-primitive objects need decomposition
+						if (_applicationConfiguration.isCompositeProperty(prop.getKey())) {
+							List<PropertyField> fields = _applicationConfiguration.getFields(prop.getKey());
+							if (fields != null) {
+								for (PropertyField field : fields) {
+									final String fieldKey = PropertyDescriptorHelper.getFieldname(field.getProperty(), entry.getKey(), null);
+
+									if (fieldKey != null) {
+										if (!columns.contains(fieldKey)) {
+											columns.add(fieldKey);
+											columnMap.put(fieldKey, prop);
+										}
+									}
+								}
+							}
+							composites.add(prop);
+						} else {
+							if (!columns.contains(map.getMemberKey())) {
+								String memberKey = map.getMemberKey();
+								columns.add(memberKey);
+								columnMap.put(memberKey, prop);
+							}
+						}
+					}
+				}
+			}
+
+			List<List<Object>> queryResults = fetchColumnsForTerms(table, columns, entry.getValue(), entry.getKey(), orderBy, limitResults);
+			List<Object> valueList;
+
+			for (List<Object> result : queryResults) {
+				List<FL_Property> props = new ArrayList<FL_Property>();
+
+				// Process columns
+				for (int colIdx = 0; colIdx < result.size(); colIdx++) {
+					Object columnObj = result.get(colIdx);
+					String memberKey = columns.get(colIdx);
+					FL_PropertyDescriptor pd = columnMap.get(memberKey);
+
+					// Skip composites, those are handled separately
+					if (composites.contains(pd)) {
+						continue;
+					}
+
+					valueList = getPropertyValuesFromColumn(columnObj, pd);
+
+					if (valueList == null || valueList.isEmpty()) {
+						continue;
+					}
+
+					// Add the property
+					props.add(propertyFromQueryResult(pd, valueList, levelOfDetail));
+				}
+
+				// Handle composite properties
+
+				for (FL_PropertyDescriptor pd : composites) {
+
+					if (pd.getPropertyType() == FL_PropertyType.GEO) {
+						valueList = new ArrayList<Object>();
+						List<Object> textValues = getCompositeFieldValues(pd, result, columns, type, "text");
+						List<Object> ccValues = getCompositeFieldValues(pd, result, columns, type, "cc");
+						List<Object> latValues = getCompositeFieldValues(pd, result, columns, type, "lat");
+						List<Object> lonValues = getCompositeFieldValues(pd, result, columns, type, "lon");
+
+						// Assume we have the same number of values in all lists.
+						for (int i = 0; i < latValues.size(); i++) {
+
+							FL_GeoData.Builder geoDataBuilder = FL_GeoData.newBuilder()
+									.setText(textValues != null ? (String) textValues.get(i) : null)
+									.setCc(ccValues != null ? (String) ccValues.get(i) : null)
+									.setLat(latValues != null ? parseLatLon(latValues.get(i)) : null)
+									.setLon(lonValues != null ? parseLatLon(lonValues.get(i)) : null);
+
+							valueList.add(geoDataBuilder.build());
+						}
+
+						// Add the property
+						props.add(propertyFromQueryResult(pd, valueList, levelOfDetail));
+
+					} else {
+						throw new UnsupportedOperationException("Unhandled composite type: " + pd.getPropertyType().name());
+					}
+				}
+
+				String uid = getUIDFromProperties(props, FL_RequiredPropertyKey.ID, _helperType);
+
+				if (_helperType == FL_Entity.class) {
+
+					results.add(new EntityHelper(uid, type, Collections.singletonList(FL_EntityTag.ACCOUNT), null, null, props));
+				} else {
+
+					String fromId = getUIDFromProperties(props, FL_RequiredPropertyKey.FROM, FL_Entity.class);
+					String toId = getUIDFromProperties(props, FL_RequiredPropertyKey.TO, FL_Entity.class);
+					String linkType = InfluentId.fromInfluentId(uid).getIdType();
+					results.add(new LinkHelper(uid, fromId, toId, linkType, props, null));
+				}
+			}
+		}
+
+		return results;
+	}
+
+
+
+	String getUIDFromProperties(List<FL_Property> propList, FL_RequiredPropertyKey key, Class<?> objectType) {
+		FL_Property idProp = PropertyHelper.getPropertyByKey(propList, key.name());
+		String idVal = idProp != null ? PropertyHelper.getValue(idProp).toString() : null;
+		return influentIDFromRaw(InfluentId.ACCOUNT, idVal, objectType).toString();
+	}
+
+
+
+	private Double parseLatLon(Object value) {
+		// Lat/Lon conversion helper function
+
+		if (value instanceof Float) {
+			Float f = (Float) value;
+			return f.doubleValue();
+		} else if (value instanceof String) {
+			return Double.parseDouble(value.toString());
+		}
+
+		return (Double)value;
+	}
+
+
+
+	protected List<Object> getCompositeFieldValues(
+			FL_PropertyDescriptor pd,
+			List<Object> result,
+			List<String> colMap,
+			String type,
+			String fieldName
+	) throws AvroRemoteException {
+		// Get values for fields in composite properties
+
+		PropertyField pf = _applicationConfiguration.getField(pd.getKey(), fieldName);
+		if (pf != null) {
+			FL_PropertyDescriptor linkedProperty = pf.getProperty();
+
+			final String memberKey = PropertyDescriptorHelper.getFieldname(linkedProperty, type, null);
+
+			if (memberKey != null) {
+
+				Object column = null;
+				for (int i = 0; i < colMap.size(); i++) {
+					if (colMap.get(i).equals(memberKey)) {
+						column = result.get(i);
+					}
+				}
+				return getPropertyValuesFromColumn(column, linkedProperty);
+			}
+		}
+
+		return null;
+	}
+
+	protected List<Object> getPropertyValuesFromColumn(
+			Object column,
+			FL_PropertyDescriptor pd
+	) throws AvroRemoteException {
+		// Get values for a property from the results set
+
+		if (column == null) {
+			return null;
+		}
+
+		boolean isMultiValue = pd.getMultiValue();
+
+		final FL_PropertyType dataType = pd.getPropertyType();
+		List<Object> values = new ArrayList<Object>();
+
+		try {
+			// If the column is a clob, convert it to a string first
+			if (column instanceof Clob) {
+				StringBuilder sb = new StringBuilder();
+				Clob clob = (Clob) (column);
+				Reader reader = clob.getCharacterStream();
+				BufferedReader bufferedReader = new BufferedReader(reader);
+
+				String line;
+				while (null != (line = bufferedReader.readLine())) {
+					sb.append(line);
+				}
+				bufferedReader.close();
+				column = sb.toString();
+			}
+		} catch (Exception e) {
+			throw new AvroRemoteException(e);
+		}
+
+		if (isMultiValue) {
+			// Multivalue properties should always be strings. Split them up.
+			values.addAll(Arrays.asList(column.toString().split(",")));
+		} else {
+			values.add(column);
+		}
+
+		if (values.isEmpty()) {
+			return null;
+		}
+
+		for (int i = 0; i < values.size(); i++) {
+			Object val = values.get(i);
+
+			switch (dataType) {
+				case DATE:
+					Timestamp dateValue;
+					if (val instanceof Long) {
+						dateValue = new Timestamp((Long)val);
+					} else {
+						dateValue = (Timestamp) val;
+					}
+
+					val = dateValue.getTime();
+					break;
+				case STRING:
+					val = val.toString();
+					break;
+			}
+
+			values.set(i, val);
+		}
+
+		return values;
+
+	}
+
+
+
+
 	// Create a sub query around batched terms
 	private SQLSelect _createSubQuery(String type, String table, List<String> columns, List<FL_PropertyMatchDescriptor> terms) {
 		SQLSelect groupQuery = _sqlBuilder.select();
@@ -464,6 +778,8 @@ public class SearchSQLHelper {
 		
 		return typeQuery;
 	}
+
+
 
 	private boolean _buildSpecialIdPairs(Iterable<FL_PropertyMatchDescriptor> terms, String type, SQLFilterGroup group) {
 		FL_PropertyMatchDescriptor entityIDTerm = null;
@@ -528,6 +844,8 @@ public class SearchSQLHelper {
 
 		return false;
 	}
+
+
 
 	// Group filter terms into batches for faster execution
 	private List<List<FL_PropertyMatchDescriptor>> _groupFilterTerms(List<FL_PropertyMatchDescriptor> filterTerms) {
@@ -641,7 +959,9 @@ public class SearchSQLHelper {
 
 		return groupedFilterTerms;
 	}
-	
+
+
+
 	private String formatColumnValue(FL_PropertyType type, String value) {
 		if (type.equals(FL_PropertyType.DOUBLE) || type.equals(FL_PropertyType.FLOAT) || type.equals(FL_PropertyType.INTEGER) || type.equals(FL_PropertyType.LONG)) {
 			return value;

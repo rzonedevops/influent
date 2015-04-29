@@ -1,6 +1,45 @@
 # Influent Release Notes
 The following is a detailed summary of changes released with each build version.
 
+## Release 2.0
+Version 2.0 contains major new features, including multi-view tabbed display, enhanced search capabilities, streamlined date selection, new example applications, simplified property file configuration, and improved utility for communications data.
+
+### Feature Highlights
+Highlights of the version 2.0.* releases include the following features. Minor release numbers are reserved for high priority hot fixes.
+
+**Multi-View Tabbed Display**
++ A new Summary tab introduces high-level characteristics of the data and provides a friendly landing page for new users.
+
++ Entity search capabilities have been moved from the Flow workspace to a separate Accounts tab, providing a familiar search experience for casual users, as well as richer search result display capabilities afforded by more screen real estate.
+
++ A new Container API allows for the implementation of custom views (e.g., maps) alongside the standard tabs.
+
+**Account Search Capabilities**
++ Support for specifying sort order has been added to give users greater control over search results.
+
++ Account search results can now be exported to a CSV file for use in other applications or inclusion in reports.
+
+**Transaction Search Capabilities**
++ A new Transactions tab adds search capabilities and support for rich transaction display afforded by more screen real estate.
+
++ Advanced search capabilities simplify the process of finding transactions within a particular date range or involving specific entities.
+
++ Improves utility for communications data like email or call data. Free text fields (e.g., email bodies) can now be indexed and searched.
+
+**Date Selection**
++ The date selection in the Flow workspace has been simplified to automatically suggest matching time windows based on the dates you specify.
+
+**Property File Configuration**
+
++ Influent applications can be configured and implemented solely through a set of property files, eliminating the requirement to author custom Java code for new dataset-specific deployments. For examples, see the *src/main/resources/* directory of any of the example applications [Influent App](influent-app/src/main/resources/), [Bitcoin](bitcoin/src/main/resources/), [Kiva](kiva/src/main/resources/) or [Walker](walker/src/main/resources/).
+
+**New Example Applications**
+
++ Two new example applications have been included in the source code:
+
+	+ [Influent App](influent-app/) is a generic financial activity application that can serve as a template for new applications.
+	+ [Walker](walker/) examines unsealed and publicly published emails that were part of an investigation of the activities of an American politician's campaign for office.
+
 ## Release 1.3.*
 Version 1.3 includes significant user experience refinements along with new import and export capabilities for saving and sharing work, logging improvements and additional flexibility for integration into different environments. Below is a highlight of its features, a detailed issue list by minor release number and outstanding issues.
 

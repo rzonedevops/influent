@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<graphML xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0.0-SNAPSHOT">
+<graphML xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0.0">
    <graph edgedefault="directed" id="workspace_D92223B9-B58B-FCD9-4EF6-AD8C1DEA9165">
       <key attr.type="int" attr.name="fileColumn" for="node" id="column"/>
       <key attr.type="int" attr.name="fileRow" for="node" id="row"/>

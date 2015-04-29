@@ -86,7 +86,6 @@ public class EntityLookupResource extends ApertureServerResource{
 			}
 			
 			final String contextid = request.getString("contextid", null);
-			final Boolean details = request.getBoolean("details", false);
 			
 			// get the root node ID from the form
 			List<String> entityIds = Lists.newArrayList(request.getStrings("entities"));
@@ -113,8 +112,7 @@ public class EntityLookupResource extends ApertureServerResource{
 				}
 			}
 		
-			List<FL_Entity> entityResults = service.getEntities(accountIds, 
-					details? FL_LevelOfDetail.FULL: FL_LevelOfDetail.SUMMARY);
+			List<FL_Entity> entityResults = service.getEntities(accountIds, FL_LevelOfDetail.FULL);
 
 			JSONArray ja = new JSONArray();
 			

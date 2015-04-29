@@ -1,18 +1,43 @@
 <!DOCTYPE web-app PUBLIC "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN" "http://java.sun.com/dtd/web-app_2_3.dtd" >
 <web-app>
-	<!-- This web.xml override specifies development settings where all caching is disabled -->
+	<!-- Module Configuration -->
+	<context-param>
+		<param-name>guice-modules</param-name>
+
+		<param-value>
+			influent.server.RestConfigModule:
+
+			oculus.aperture.capture.PhantomCaptureModule:
+			oculus.aperture.cms.EhCacheCmsModule:
+			oculus.aperture.icons.BaseIconModule:
+			oculus.aperture.parchment.ParchmentModule:
+
+			influent.server.auth.ShiroAuthModule:
+			influent.server.auth.SimpleShiroAuthModule:
+
+			influent.server.spi.BasicCachedPersistenceModule:
+			influent.server.spi.BasicCountryGeocodingModule:
+			influent.server.spi.BasicFLDynamicClusteringModule:
+			influent.server.spi.SolrFLTransactionsSearchModule:
+			influent.server.spi.GenericEntityPropertiesViewModule:
+			influent.server.spi.StandardSQLBuilderModule:
+			influent.server.spi.RestPatternSearchModule:
+			influent.server.spi.SQLConnectionPoolModule:
+
+			influent.kiva.server.spi.KivaFLDataAccessModule:
+			influent.kiva.server.spi.KivaFLEntitySearchModule:
+		</param-value>
+	</context-param>
 
 	<!-- Config File Location -->
-	<!-- context-param>
-		<param-name>apertureConfig</param-name>
+	<context-param>
+		<param-name>apertureConfigOverrides</param-name>
 		<param-value>res:///dev-server.config</param-value>
-	</context-param -->
+	</context-param>
 
 	<!-- ehcache Config File Location -->
-	<!-- Turns off ehcache -->
 	<context-param>
 		<param-name>ehcacheConfig</param-name>
 		<param-value>src/main/config/dev-ehcache.xml</param-value>
 	</context-param>
-
 </web-app>

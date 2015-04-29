@@ -39,7 +39,7 @@ define(
 			 * @param limit
 			 * @param orderBy
 			 */
-			entities: function (descriptors, callback, limit, orderBy) {
+			entities: function (descriptors, callback, limit, orderBy, levelOfDetail) {
 				aperture.io.rest(
 					'/search',
 					'POST',
@@ -51,7 +51,8 @@ define(
 							sessionId: infWorkspace.getSessionId(),
 							descriptors: descriptors,
 							limit: limit,
-							orderBy: orderBy
+							orderBy: orderBy,
+							levelOfDetail: levelOfDetail
 						},
 						contentType: 'application/json'
 					}
@@ -65,7 +66,7 @@ define(
 			 * @param limit
 			 * @param orderBy
 			 */
-			links: function (descriptors, callback, limit, orderBy) {
+			links: function (descriptors, callback, limit, orderBy, levelOfDetail) {
 				aperture.io.rest(
 					'/searchlinks',
 					'POST',
@@ -77,7 +78,8 @@ define(
 							sessionId : infWorkspace.getSessionId(),
 							descriptors: descriptors,
 							limit: limit,
-							orderBy: orderBy
+							orderBy: orderBy,
+							levelOfDetail: levelOfDetail
 						},
 						contentType: 'application/json'
 					}

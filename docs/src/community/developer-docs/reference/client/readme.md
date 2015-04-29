@@ -321,7 +321,7 @@ The search properties let you control how Influent performs searches on entities
 			<tr>
 				<td class="description" rowspan="3">pattern</td>
 				<td class="property">usePatternSearchInFlowView</td>
-				<td class="description">Indicates whether pattern searching is enabled in the Flow view. Influent is designed to support behavioral query by example searches using services such as MIT Lincoln Labs Graph QuBE. Defaults to <i>false</i>.</td>
+				<td class="description">Indicates whether pattern searching is enabled in the Flow view. Influent is designed to support behavioral query by example searches using services such as [Graph QuBE](https://github.com/mitll/graph-qube) created by MIT Lincoln Labs in collaboration with Giant Oak. Defaults to <i>false</i>.</td>
 			</tr>
 		</tbody>
 	</table>

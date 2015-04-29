@@ -267,20 +267,12 @@ public class UISerializationHelper {
 	}
 	
 	public static JSONObject toUIJson(FL_Property prop, int displayIndex) throws JSONException {
-		if (prop.getIsHidden()) {
-			return null;
-		}
-
 		JSONObject obj = toUIJson(prop);
 		obj.put("displayOrder", displayIndex);
 		return obj;
 	}
 	
 	public static JSONObject toUIJson(FL_Property prop) throws JSONException {
-		if (prop.getIsHidden()) {
-			return null;
-		}
-
 		JSONObject json = new JSONObject();
 		json.put("friendlyText", prop.getFriendlyText());
 		
@@ -304,6 +296,7 @@ public class UISerializationHelper {
 		json.put("key", prop.getKey());
 		json.put("displayOrder", 0);
 		json.put("uncertainty", prop.getUncertainty());
+		json.put("isHidden", prop.getIsHidden());
 		json.put("tags", prop.getTags());
 		
 		return json;

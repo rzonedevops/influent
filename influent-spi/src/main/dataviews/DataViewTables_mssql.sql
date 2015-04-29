@@ -25,330 +25,775 @@
  * SOFTWARE.
  */
 
--- -----------------------------
--- Influent Data Views 1.2 DRAFT
--- -----------------------------
-
---
--- FINANCIAL FLOW - ALL
---  Used to build the aggregate flow diagrams
---   
---   FromEntityId - entity UID that is the source of the transactions
---   FromEntityType - type of src entity: O = owner summary, A = account, S = cluster summary entity
---   ToEntityId - entity UID that is the target of the transactions
---   ToEntityType - type of dst entity: O = owner summary, A = account, S = cluster summary entity
---   FirstTransaction - datetime of first transaction
---   LastTransaction - datetime of last transaction
---   Amount - aggregate amount
---
-create table FinFlow (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), FirstTransaction datetime, LastTransaction datetime, Amount float, CONSTRAINT pk_FF_ID PRIMARY KEY (FromEntityId, ToEntityId));
-
-create table FinEntity(EntityId varchar(100) PRIMARY KEY, InboundDegree int, UniqueInboundDegree int,  OutboundDegree int, UniqueOutboundDegree int, NumTransactions int, MaxTransaction float, AvgTransaction float, StartDate datetime, EndDate datetime);
-
---
--- FINANCIAL FLOW - AGGREGATED BY TIME
---  Used to build the aggregate flow diagrams (aggregated by time)
---  and used to build the highlighted sub-section of the time series charts on entities.
---   
---   FromEntityId - entity UID that is the source of the transactions
---   FromEntityType - type of src entity: O = owner summary, A = account, S = cluster summary entity
---   ToEntityId - entity UID that is the target of the transactions
---   ToEntityType - type of dst entity: O = owner summary, A = account, S = cluster summary entity
---   Amount - aggregate amount for this time period
---   Date - start of the time period
---
-create table FinFlowDaily     (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFD_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table FinFlowWeekly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFW_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table FinFlowMonthly   (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFM_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table FinFlowQuarterly (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFQ_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-create table FinFlowYearly    (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), Amount float, PeriodDate datetime, CONSTRAINT pk_FFY_ID PRIMARY KEY (FromEntityId, ToEntityId, PeriodDate));
-
---
--- FINANCIAL ENTITY SUMMARY
---  Used to build the time series charts on entities (aggregated by time).
---   
---   EntityId - entity UID
---   Date - start of the time period
---   InboundAmount - aggregate credits for this time period
---   InboundDegree - unique inbound transactions by entity
---   OutboundAmount - aggregate debits for this time period
---   OutboundDegree - unique outbound transactions by entity
---   Balance - aggregate credits - debits up until this time period
---
-create table FinEntityDaily     (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FED_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityWeekly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEW_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityMonthly   (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEM_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityQuarterly (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEQ_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEY_ID PRIMARY KEY (EntityId, PeriodDate));
-
---
--- CLUSTER SUMMARY
---  Used to summarize an entity with a large number of associated entities (e.g. account owner with a large number of accounts)
---   It is up to each application to determine what cluster summaries to generate based on the size of data
---
---   EntityId - entity UID of cluster entity
---   Property - name of summary property
---   Tag - Property_Tag to associate with property
---   Type - FL_PropertyType data type of property value (DOUBLE, LONG, BOOLEAN, STRING, DATE, GEO, OTHER)
---   Value - the string representation of the property value
---   Stat - an associated stat for the property value such as frequency or weight
---
---   NOTES:  Cluster summaries that represent an account owner should have an account owner property that associates the entity id of the account owner to the cluster summary:
---                 Ex: EnitityId = 'cluster123', Property = 'ownerId', Tag = 'ACCOUNT_OWNER', Type = 'String', Value = 'partner123', Stat = 0
---           Cluster summaries that do not support branching should have a property of UNBRANCHABLE (by default all cluster summaries are branchable)
---                 Ex: EnitityId = 'cluster123', Property = 'UNBRANCHABLE', Tag = 'ENTITY_TYPE', Type = 'BOOLEAN', Value = 'true', Stat = 0
-create table ClusterSummary	(EntityId varchar(100), Property varchar(50), Tag varchar(50), Type varchar(50), Value varchar(200), Stat float, CONSTRAINT pk_CS_ID PRIMARY KEY (EntityId, Property, Value));
-
---
--- CLUSTER SUMMARY MEMBERS
---  Used to keep track of entities that are members of a cluster summary
---   It is up to each application to determine what cluster summaries to generate based on the size of data
---
---   SummaryId - UID of cluster summary
---   EntityId - member entity UID
---
-create table ClusterSummaryMembers (SummaryId varchar(100), EntityId varchar(100), CONSTRAINT pk_CSM_ID PRIMARY KEY (SummaryId, EntityId));
-
---
--- DATA VIEW DRIVERS
---  These scripts will populate the data views above.
+-- ------------------------------------------------------------------------------
+-- Influent Data View Script
+--     Run the following script in steps. At each step, please ensure that you
+--     modify the script to reflect your own data and the type of Influent
+--     installation you would like.
+-- ------------------------------------------------------------------------------
 
 
 
---  --
---  Step 1. Modify this to pull data from your raw data.  Add any transactions to cluster summaries as well.
---  
-
-
-
-insert into FinFlowDaily
- SELECT [source_id], 'A', [dest_id], 'A', sum([amount]), convert(varchar(50), [dt], 101)
-  FROM YOUR_RAW_DATA
-  group by [source_id], [dest_id], convert(varchar(50), [dt], 101)
-
---  create FinFlowDaily indices
-create index ix_ffd_from on FinFlowDaily     (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffd_to   on FinFlowDaily     (ToEntityId,   PeriodDate, FromEntityId, Amount);
-
--- build FinEntity
-insert into FinEntity
-Select t1.EntityId, inboundDegree, uniqueInboundDegree, outboundDegree, uniqueOutboundDegree, NumTransactions, MaxTransactions, AvgTransactions, StartDate, EndDate
-From (
-	select EntityId, sum(inboundDegree) as inboundDegree, sum(uniqueInboundDegree) as uniqueInboundDegree, sum(outboundDegree) as outboundDegree, sum(uniqueOutboundDegree) as uniqueOutboundDegree
-	from (
-		select FromEntityId as EntityId, 0 as inboundDegree, 0 as uniqueInboundDegree, count(ToEntityId) as outboundDegree, count( distinct ToEntityId ) as uniqueOutboundDegree
-		from FinFlowDaily
-		where ToEntityType = 'A'
-		group by FromEntityId
-		union
-		select ToEntityId as EntityId, count(FromEntityId) as inboundDegree, count( distinct FromEntityId ) as uniqueInboundDegree, 0 as outboundDegree, 0 as uniqueOutboundDegree
-		from FinFlowDaily
-		where FromEntityType = 'A'
-		group by ToEntityId
-	) q
-	group by EntityId
-) t1
-left join
-(
-	Select EntityId, sum(numTransactions) as NumTransactions, max(MaxTransaction) as MaxTransactions, sum(TotalTransactions) / sum(numTransactions) as AvgTransactions, min(StartDate) as StartDate, max(EndDate) as EndDate
-	From (
-		select [dest_id] as EntityId, count([dest_id]) as numTransactions, max([amount]) as MaxTransaction, sum([amount]) as TotalTransactions, min([dt]) as StartDate, max([dt]) as EndDate  from YOUR_RAW_DATA
-		group by [dest_id]
-		UNION
-		select [source_id] as EntityId, count([source_id]) as numTransactions, max([amount]) as MaxTransaction, sum([amount]) as TotalTransactions, min([dt]) as StartDate, max([dt]) as EndDate from YOUR_RAW_DATA
-		group by [source_id]
-	)q
-	group by EntityId
-) t2
-on t2.EntityId = t1.EntityId
-
-create index ix_ff_id on FinEntity (EntityId);
+-- ------------------------------------------------------------------------------
+-- STEP 1: No modifications required
+--     
+--    Run the following scripts to create link flow tables
+-- ------------------------------------------------------------------------------
 
 
 
 --
---  Step 2. The rest of the script will collect data from FinFlowDaily.
---          Execute the rest of this script "as-is".
---  
+-- FLOW AGGREGATION TABLE
+--     Used to build the aggregate flow diagrams
+-- 
+-- Columns:  
+--     FromEntityId     - entity UID that is the source of the aggregated 
+--                        transactions
+--     FromEntityType   - type of src entity: O = owner summary, A = account, 
+--                        S = cluster summary entity
+--     ToEntityId       - entity UID that is the target of the aggregated 
+--                        transactions
+--     ToEntityType     - type of dst entity: O = owner summary, A = account, 
+--                        S = cluster summary entity
+--     FirstTransaction - datetime of first transaction
+--     LastTransaction  - datetime of last transaction
+--     Amount           - aggregate amount
+--
+create table LinkFlow(
+	FromEntityId varchar(100), 
+	FromEntityType varchar(1), 
+	ToEntityId varchar(100), 
+	ToEntityType varchar(1), 
+	FirstTransaction datetime, 
+	LastTransaction datetime, 
+	Amount float, 
+	constraint pk_lf_from_to primary key (FromEntityId, ToEntityId)
+);
+
+--
+-- TIME SERIES FLOW AGGREGATION TABLES
+--     Used to build the aggregate flow diagrams (aggregated by time)
+--     and used to build the highlighted sub-section of the time series 
+--     charts on entities.
+-- 
+-- Columns:  
+--     FromEntityId - entity UID that is the source of the aggregated 
+--                    transactions
+--     FromEntityType - type of src entity: O = owner summary, 
+--                      A = account, S = cluster summary entity
+--     ToEntityId - entity UID that is the target of the aggregated transactions
+--     ToEntityType - type of dst entity: O = owner summary, A = account, 
+--                    S = cluster summary entity
+--     Amount - aggregate amount for this time period
+--     PeriodDate - start of the time period
+--
+create table LinkFlowDaily(
+	FromEntityId varchar(100), 
+	FromEntityType varchar(1), 
+	ToEntityId varchar(100), 
+	ToEntityType varchar(1), 
+	Amount float, 
+	PeriodDate datetime, 
+	constraint pk_lfd_from_to_date primary key (FromEntityId, ToEntityId, PeriodDate)
+);
+create table LinkFlowWeekly(
+	FromEntityId varchar(100), 
+	FromEntityType varchar(1), 
+	ToEntityId varchar(100), 
+	ToEntityType varchar(1), 
+	Amount float, 
+	PeriodDate datetime, 
+	constraint pk_lfw_from_to_date primary key (FromEntityId, ToEntityId, PeriodDate)
+);
+create table LinkFlowMonthly(
+	FromEntityId varchar(100), 
+	FromEntityType varchar(1), 
+	ToEntityId varchar(100), 
+	ToEntityType varchar(1), 
+	Amount float, 
+	PeriodDate datetime, 
+	constraint pk_lfm_from_to_date primary key (FromEntityId, ToEntityId, PeriodDate)
+);
+create table LinkFlowQuarterly(
+	FromEntityId varchar(100), 
+	FromEntityType varchar(1), 
+	ToEntityId varchar(100), 
+	ToEntityType varchar(1), 
+	Amount float, 
+	PeriodDate datetime, 
+	constraint pk_lfq_from_to_date primary key (FromEntityId, ToEntityId, PeriodDate)
+);
+create table LinkFlowYearly(
+	FromEntityId varchar(100), 
+	FromEntityType varchar(1), 
+	ToEntityId varchar(100), 
+	ToEntityType varchar(1), 
+	Amount float, 
+	PeriodDate datetime, 
+	constraint pk_lfy_from_to_date primary key (FromEntityId, ToEntityId, PeriodDate)
+);
 
 
 
---  build the rest of the FinFlow aggregations
-insert into FinFlowWeekly
- select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101)
-  from FinFlowDaily
-  group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101);
-  
-insert into FinFlowMonthly
- select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101)
-  from FinFlowDaily
-  group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101);
-  
-insert into FinFlowQuarterly
- select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101)
-  from FinFlowMonthly
-  group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101);
-  
-insert into FinFlowYearly
- select FromEntityId, FromEntityType, ToEntityId, ToEntityType, sum(Amount), CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101)
-  from FinFlowMonthly
-  group by FromEntityId, FromEntityType, ToEntityId, ToEntityType, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101);
+-- ------------------------------------------------------------------------------
+-- STEP 2: Modifications required
+--     
+--     Modify this to pull data from your raw data.  Add any transactions to 
+--     cluster summaries as well.
+-- ------------------------------------------------------------------------------
 
---  create FinFlow indices
-create index ix_ffd_from on FinFlowDaily     (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffd_to   on FinFlowDaily     (ToEntityId,   PeriodDate, FromEntityId, Amount);
-create index ix_ffw_from on FinFlowWeekly    (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffw_to   on FinFlowWeekly    (ToEntityId,   PeriodDate, FromEntityId, Amount);
-create index ix_ffm_from on FinFlowMonthly   (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffm_to   on FinFlowMonthly   (ToEntityId,   PeriodDate, FromEntityId, Amount);
-create index ix_ffq_from on FinFlowQuarterly (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffq_to   on FinFlowQuarterly (ToEntityId,   PeriodDate, FromEntityId, Amount);
-create index ix_ffy_from on FinFlowYearly    (FromEntityId, PeriodDate, ToEntityId,   Amount);
-create index ix_ffy_to   on FinFlowYearly    (ToEntityId,   PeriodDate, FromEntityId, Amount);
 
---  build FinFlow
-insert into FinFlow 
- select FromEntityId, FromEntityType, ToEntityId, ToEntityType, min(PeriodDate), max(PeriodDate), sum(Amount)
-  from FinFlowDaily
-  group by FromEntityId, FromEntityType, ToEntityId, ToEntityType;
 
-create index ix_ff_to_from on FinFlow (ToEntityId, FromEntityId);
-create index ix_ff_from_to on FinFlow (FromEntityId, ToEntityId);
+-- 
+-- you will need to modify the following:
+--
+--     source_id     - the column in your raw data table that corresponds to the 
+--                     source entity id
+--     dest_id       - the column in your raw data table that corresponds to the 
+--                     target entity id
+--     amount        - the column in your raw data table that corresponds to the
+--                     transaction amount
+--     dt            - the column in your raw data table that corresponds to the 
+--                     transaction timestamp
+--     YOUR_RAW_DATA - the name of your raw transaction data table
+-- 
+insert into LinkFlowDaily
+select 
+	[source_id], 
+	'A', 
+	[dest_id], 
+	'A', 
+	sum([amount]), 
+	convert(varchar(50), [dt], 101)
+from YOUR_RAW_DATA
+group by [source_id], [dest_id], convert(varchar(50), [dt], 101)
 
---  build FinEntityDaily
+-- create LinkFlowDaily indices
+create index ix_lfd_from_date_to_amount on LinkFlowDaily (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_lfd_to_date_from_amount on LinkFlowDaily (ToEntityId,   PeriodDate, FromEntityId, Amount);
+
+
+
+-- ------------------------------------------------------------------------------
+-- STEP 3: Modifications required
+--     
+--    Run the following scripts to create entity tables. If you are building
+--    a multi-type installation, you are required to repeat this step for each
+--    entity type
+-- ------------------------------------------------------------------------------
+
+
+
+--
+-- ENTITY AGGREGATION TABLE
+--     Used to build the  and 
+-- 
+-- Columns:
+--     EntityId            - entity UID 
+--     IncomingLinks       - the number of incoming links to this entity
+--     UniqueIncomingLinks - the number of entities that have outgoing links to
+--                           this entity
+--     OutgoingLinks       - the number of outgoing links from this entity
+--     UniqueOutgoingLinks - the number of entities that have incoming links
+--                           from this entity
+--     NumLinks            - the total number of links to and from this entity
+--     MaxTransaction      - the maximum transaction size to or from this entity
+--     AvgTransaction      - the average transaction size to and from this entity
+--     StartDate           - the earliest transaction to or from this entity
+--     EndDate             - the latest transaction to or from this entity
+
+-- 
+-- you will need to modify the following:
+--
+--     EntitySummary      - if you are building a multi-type installation, you 
+--                          should rename this table to include the type name 
+--                          (e.g. EntitySummaryMyType)
+--     Additional columns - you can add type specific entity columns that 
+--                          Influent can search on and display.
+create table EntitySummary(
+	EntityId varchar(100) primary key, 
+	IncomingLinks int not null, 
+	UniqueIncomingLinks int not null,  
+	OutgoingLinks int not null, 
+	UniqueOutgoingLinks int not null, 
+	NumLinks int, 
+	MaxTransaction float, 
+	AvgTransaction float, 
+	StartDate datetime, 
+	EndDate datetime
+	-- additional type specific columns added here -- 
+);
+
+--
+-- TIME SERIES FLOW AGGREGATION TABLES
+--     Used to build the time series charts on entities (aggregated by time).
+-- 
+-- Columns:
+--     EntityId       - entity UID
+--     PeriodDate     - start of the time period
+--     InboundAmount  - aggregate credits for this time period
+--     IncomingLinks  - unique inbound transactions by entity
+--     OutboundAmount - aggregate debits for this time period
+--     OutgoingLinks  - unique outbound transactions by entity
+--
+create table EntityDaily(
+	EntityId varchar(100), 
+	PeriodDate datetime, 
+	InboundAmount float, 
+	IncomingLinks int, 
+	OutboundAmount float, 
+	OutgoingLinks int, 
+	constraint pk_ed_id_date primary key (EntityId, PeriodDate)
+);
+create table EntityWeekly(
+	EntityId varchar(100), 
+	PeriodDate datetime, 
+	InboundAmount float, 
+	IncomingLinks int, 
+	OutboundAmount float, 
+	OutgoingLinks int, 
+	constraint pk_ew_id_date primary key (EntityId, PeriodDate)
+);
+create table EntityMonthly(
+	EntityId varchar(100), 
+	PeriodDate datetime, 
+	InboundAmount float, 
+	IncomingLinks int, 
+	OutboundAmount float, 
+	OutgoingLinks int, 
+	constraint pk_em_id_date primary key (EntityId, PeriodDate)
+);
+create table EntityQuarterly(
+	EntityId varchar(100), 
+	PeriodDate datetime, 
+	InboundAmount float, 
+	IncomingLinks int, 
+	OutboundAmount float, 
+	OutgoingLinks int, 
+	constraint pk_eq_id_date primary key (EntityId, PeriodDate)
+);
+create table EntityYearly(
+	EntityId varchar(100), 
+	PeriodDate datetime, 
+	InboundAmount float, 
+	IncomingLinks int, 
+	OutboundAmount float, 
+	OutgoingLinks int, 
+	constraint pk_ey_id_date primary key (EntityId, PeriodDate)
+);
+
+-- 
+-- you will need to modify the following:
+--
+--     EntitySummary - if you are building a multi-type installation, you 
+--                     should rename this table to include the type name 
+--                     (e.g. EntitySummaryMyType)
+--     source_id     - the column in your raw data table that corresponds to the 
+--                     source entity id
+--     dest_id       - the column in your raw data table that corresponds to the 
+--                     target entity id
+--     amount        - the column in your raw data table that corresponds to the
+--                     transaction amount
+--     dt            - the column in your raw data table that corresponds to the 
+--                     transaction timestamp
+--     YOUR_RAW_DATA - the name of your raw transaction data table
+--     where clause  - if you are building a multi-type installation, you should
+--                     uncomment this line and replace 'myType' with the actual
+--                     name of your entity type
+--
+insert into EntitySummary(
+	EntityId, 
+	IncomingLinks, 
+	UniqueIncomingLinks,  
+	OutgoingLinks, 
+	UniqueOutgoingLinks, 
+	NumLinks, 
+	MaxTransaction, 
+	AvgTransaction, 
+	StartDate, 
+	EndDate
+)
+select 
+	EntityId, 
+	sum(IncomingLinks) as IncomingLinks, 
+	sum(UniqueIncomingLinks) as UniqueIncomingLinks, 
+	sum(OutgoingLinks) as OutgoingLinks , 
+	sum(UniqueOutgoingLinks) as UniqueOutgoingLinks, 
+	sum(NumLinks) as NumLinks, 
+	max(MaxTransaction) as MaxTransaction, 
+	sum(TotalTransactions) / sum(NumLinks) as AvgTransaction, 
+	min(StartDate) as StartDate, 
+	max(EndDate) as EndDate
+from (
+	select  [dest_id] as EntityId, 
+			count([source_id]) as IncomingLinks, 
+			count( distinct [source_id] ) as UniqueIncomingLinks, 
+			0 as OutgoingLinks, 
+			0 as UniqueOutgoingLinks, 
+			count([dest_id]) as NumLinks, 
+			max([amount]) as MaxTransaction, 
+			sum([amount]) as TotalTransactions, 
+			min([dt]) as StartDate, 
+			max([dt]) as EndDate  
+	from YOUR_RAW_DATA
+	group by [dest_id]
+	union
+	select [source_id] as EntityId,
+			0 as IncomingLinks,
+			0 as UniqueIncomingLinks,
+			count([dest_id]) as OutgoingLinks,
+			count( distinct [dest_id] ) as UniqueOutgoingLinks,
+			sum( case when [source_id] <> [dest_id] then 1 else 0 end ) as NumLinks, 
+			max([amount]) as MaxTransaction, 
+			sum([amount]) as TotalTransactions, 
+			min([dt]) as StartDate, 
+			max([dt]) as EndDate 
+	from YOUR_RAW_DATA
+	group by [source_id]
+)q
+-- where EntityId like 'myType.%' --
+group by EntityId
+
+-- 
+-- you will need to modify the following:
+--
+--     Additional columns              - if you added additional columns to your 
+--                                       EntitySummary table, you will want to 
+--                                       uncomment and set them in the code below
+--     EntitySummary                   - if you are building a multi-type 
+--                                       installation, you should rename this 
+--                                       table to include the type name 
+--                                       (e.g. EntitySummaryMyType)
+--     ES.EntityId = EP.id -           - you may need to modify this line if the 
+--                                       EntityId and the raw data id differ
+--                                       (i.e. with multi-type installations, the
+--                                       EntityId might look like 'myType.123'
+--                                       whereas the raw data id is '123'. You 
+--                                       will need to account for these 
+--                                       differences)
+--     YOUR_RAW_ENTITY_PROPERTIES_DATA - the name of your raw transaction data 
+--                                       table
+--
+
+--update EntitySummary
+--set 
+--	-- additional type specific columns added here
+--	-- (e.g. EntitySummary.myColumn = YOUR_RAW_ENTITY_PROPERTIES_DATA.myColumn)
+--from EntitySummary ES
+--inner join
+--YOUR_RAW_ENTITY_PROPERTIES_DATA EP
+--on ES.EntityId = EP.id
+
+-- 
+-- you will need to modify the following:
+--
+--     EntitySummary - if you are building a multi-type installation, you 
+--                     should rename this table to include the type name 
+--                     (e.g. EntitySummaryMyType)
+create index ix_es_id on EntitySummary (EntityId);
+
+
+
+-- ------------------------------------------------------------------------------
+-- STEP 4: No modifications required
+--     
+--     The following section will collect data from LinkFlowDaily and requires no
+--     modifications
+-- ------------------------------------------------------------------------------
+
+
+
+-- build LinkFlowWeekly time series aggregation
+insert into LinkFlowWeekly
+select 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	sum(Amount), 
+	convert(varchar(50), (dateadd(dd, @@DATEFIRST - datepart(dw, PeriodDate) - 6, PeriodDate)), 101)
+from LinkFlowDaily
+group by 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	convert(varchar(50), (dateadd(dd, @@DATEFIRST - datepart(dw, PeriodDate) - 6, PeriodDate)), 101);
+
+-- build LinkFlowMonthly time series aggregation
+insert into LinkFlowMonthly
+select 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	sum(Amount), 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + convert(varchar(2), datepart(mm, PeriodDate)) + '/01', 101)
+from LinkFlowDaily
+group by 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + convert(varchar(2), datepart(mm, PeriodDate)) + '/01', 101);
+
+-- build LinkFlowQuarterly time series aggregation	
+insert into LinkFlowQuarterly
+select 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	sum(Amount), 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + case when datepart(q, PeriodDate)=1 then '01' when datepart(q, PeriodDate)=2 then '04' when datepart(q, PeriodDate)=3 then '07' when datepart(q, PeriodDate)=4 then '010' end + '/01', 101)
+from LinkFlowMonthly
+group by 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + case when datepart(q, PeriodDate)=1 then '01' when datepart(q, PeriodDate)=2 then '04' when datepart(q, PeriodDate)=3 then '07' when datepart(q, PeriodDate)=4 then '010' end + '/01', 101);
+
+-- build LinkFlowYearly time series aggregation
+insert into LinkFlowYearly
+select 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	sum(Amount), 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/01/01', 101)
+from LinkFlowMonthly
+group by 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/01/01', 101);
+
+--  create LinkFlow time series aggregation indices
+create index ix_lfw_from_date_to_amount on LinkFlowWeekly (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_lfw_to_date_from_amount on LinkFlowWeekly (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_lfm_from_date_to_amount on LinkFlowMonthly (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_lfm_to_date_from_amount on LinkFlowMonthly (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_lfq_from_date_to_amount on LinkFlowQuarterly (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_lfq_to_date_from_amount on LinkFlowQuarterly (ToEntityId,   PeriodDate, FromEntityId, Amount);
+create index ix_lfy_from_date_to_amount on LinkFlowYearly (FromEntityId, PeriodDate, ToEntityId,   Amount);
+create index ix_lfy_to_date_from_amount on LinkFlowYearly (ToEntityId,   PeriodDate, FromEntityId, Amount);
+
+--  build LinkFlow aggregation table
+insert into LinkFlow 
+select 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType, 
+	min(PeriodDate), 
+	max(PeriodDate), 
+	sum(Amount)
+from LinkFlowDaily
+group by 
+	FromEntityId, 
+	FromEntityType, 
+	ToEntityId, 
+	ToEntityType;
+
+create index ix_lf_to_from on LinkFlow (ToEntityId, FromEntityId);
+create index ix_lf_from_to on LinkFlow (FromEntityId, ToEntityId);
+
+--  build EntityDaily
 create table temp_ids (Entity varchar(100));
 create index tids on temp_ids (Entity);
 
 insert into temp_ids
- select distinct FromEntityId
-  from FinFlowYearly
- union
- select distinct ToEntityId
-  from FinFlowYearly;
+select distinct FromEntityId
+from LinkFlowYearly
+union
+select distinct ToEntityId
+from LinkFlowYearly;
   
-insert into FinEntityDaily select Entity, PeriodDate,
-       sum(case when ToEntityId = Entity and FromEntityType = 'A' then Amount else 0 end),
-       sum(case when ToEntityId = Entity and FromEntityType = 'A' then 1 else 0 end), -- calculate inbound degree
-       sum(case when FromEntityId = Entity and ToEntityType = 'A' then Amount else 0 end),
-       sum(case when FromEntityId = Entity and ToEntityType = 'A' then 1 else 0 end), -- calculate outbound degree
-       0 -- TODO calculate balance
- from temp_ids
- join FinFlowDaily on FromEntityId = Entity or ToEntityId = Entity
- group by Entity, PeriodDate;
+insert into EntityDaily 
+select 
+	Entity, 
+	PeriodDate,
+    sum(case when ToEntityId = Entity and FromEntityType = 'A' then Amount else 0 end),
+    sum(case when ToEntityId = Entity and FromEntityType = 'A' then 1 else 0 end), -- calculate inbound degree
+    sum(case when FromEntityId = Entity and ToEntityType = 'A' then Amount else 0 end),
+    sum(case when FromEntityId = Entity and ToEntityType = 'A' then 1 else 0 end), -- calculate outbound degree
+from temp_ids
+join LinkFlowDaily 
+on FromEntityId = Entity or ToEntityId = Entity
+group by Entity, PeriodDate;
  
 -- cleanup
 drop table temp_ids;
 
--- build the rest of the FinEntity aggregations
-insert into FinEntityWeekly
- select EntityId, CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from FinEntityDaily
-  group by EntityId, CONVERT(varchar(50), (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), 101);
-  
-insert into FinEntityMonthly
- select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from FinEntityDaily
-  group by EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', 101);
-  
-insert into FinEntityQuarterly
- select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from FinEntityMonthly
-  group by EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', 101);
-  
-insert into FinEntityYearly
- select EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
-  from FinEntityQuarterly
-  group by EntityId, CONVERT(varchar(50), convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', 101);
- 
-create index ix_fed on FinEntityDaily     (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_few on FinEntityWeekly    (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_fem on FinEntityMonthly   (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_feq on FinEntityQuarterly (EntityId, PeriodDate, InboundAmount, OutboundAmount);
-create index ix_fey on FinEntityYearly    (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+-- build EntityWeekly time series aggregation
+insert into EntityWeekly
+select 
+	EntityId, 
+	convert(varchar(50), (dateadd(dd, @@DATEFIRST - datepart(dw, PeriodDate) - 6, PeriodDate)), 101), 
+	sum(InboundAmount), 
+	sum(IncomingLinks), 
+	sum(OutboundAmount), 
+	sum(OutgoingLinks), 
+	0
+from EntityDaily
+group by 
+	EntityId, 
+	convert(varchar(50), (dateadd(dd, @@DATEFIRST - datepart(dw, PeriodDate) - 6, PeriodDate)), 101);
 
-create index ix_csum on ClusterSummary	(EntityId);
-create index ix_cmem on ClusterSummaryMembers  (SummaryId);
+-- build EntityMonthly time series aggregation
+insert into EntityMonthly
+select 
+	EntityId, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + convert(varchar(2), datepart(mm, PeriodDate)) + '/01', 101), 
+	sum(InboundAmount), 
+	sum(IncomingLinks), 
+	sum(OutboundAmount), 
+	sum(OutgoingLinks), 
+	0
+from EntityDaily
+group by 
+	EntityId, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + convert(varchar(2), datepart(mm, PeriodDate)) + '/01', 101);
+
+-- build EntityQuarterly time series aggregation	
+insert into EntityQuarterly
+select 
+	EntityId, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + case when datepart(q, PeriodDate)=1 then '01' when datepart(q, PeriodDate)=2 then '04' when datepart(q, PeriodDate)=3 then '07' when datepart(q, PeriodDate)=4 then '010' end + '/01', 101), 
+	sum(InboundAmount), 
+	sum(IncomingLinks), 
+	sum(OutboundAmount), 
+	sum(OutgoingLinks), 
+	0
+from EntityMonthly
+group by 
+	EntityId, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/' + case when datepart(q, PeriodDate)=1 then '01' when datepart(q, PeriodDate)=2 then '04' when datepart(q, PeriodDate)=3 then '07' when datepart(q, PeriodDate)=4 then '010' end + '/01', 101);
+
+-- build EntityYearly time series aggregation
+insert into EntityYearly
+select 
+	EntityId, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/01/01', 101), 
+	sum(InboundAmount), 
+	sum(IncomingLinks), 
+	sum(OutboundAmount), 
+	sum(OutgoingLinks), 
+	0
+from EntityQuarterly
+group by 
+	EntityId, 
+	convert(varchar(50), convert(varchar(4), datepart(yyyy, PeriodDate)) + '/01/01', 101);
+
+--  create Entity time series aggregation indices
+create index ix_ed_id_date_in_out on EntityDaily (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_ew_id_date_in_out on EntityWeekly (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_em_id_date_in_out on EntityMonthly (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_eq_id_date_in_out on EntityQuarterly (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+create index ix_ey_id_date_in_out on EntityYearly (EntityId, PeriodDate, InboundAmount, OutboundAmount);
+
+
+
+-- ------------------------------------------------------------------------------
+-- STEP 5: Modifications required
+--     
+--     The following section will build cluster summary tables. You only need to
+--     run this section if you have a dataset that has the potential for 
+--     extremely large high degree clusters. The cluster summary table will
+--     allow the system to still explore these cluster at a high level but will
+--     limit in-depth exploration
+-- ------------------------------------------------------------------------------
 
 
 
 --
--- Step 3. Create summary stats table
+-- CLUSTER SUMMARY TABLE
+--     Used to summarize an entity with a large number of associated entities 
+--     (e.g. account owner with a large number of accounts) It is up to each 
+--     application to determine what cluster summaries to generate based on the 
+--     size of data
 --
+-- Columns:
+--     EntityId - entity UID of cluster entity
+--     Property - name of summary property
+--     Tag      - Property_Tag to associate with property
+--     Type     - FL_PropertyType data type of property value (DOUBLE, LONG, 
+--                BOOLEAN, STRING, DATE, GEO, OTHER)
+--     Value    - the string representation of the property value
+--     Stat     - an associated stat for the property value such as frequency 
+--                or weight
+--
+-- Note:  
+--     Cluster summaries that represent an account owner should have an account 
+--     owner property that associates the entity id of the account owner to the 
+--     cluster summary. For example:
+--         EnitityId = 'cluster123', 
+--         Property = 'ownerId', 
+--         Tag = 'ACCOUNT_OWNER', 
+--         Type = 'String', 
+--         Value = 'partner123', 
+--         Stat = 0
+--           
+--     Cluster summaries that do not support branching should have a property of 
+--     UNBRANCHABLE (by default all cluster summaries are branchable). For 
+--     example:
+--         EnitityId = 'cluster123', 
+--         Property = 'UNBRANCHABLE', 
+--         Tag = 'ENTITY_TYPE', 
+--         Type = 'BOOLEAN', 
+--         Value = 'true', 
+--         Stat = 0
+--
+create table ClusterSummary	(
+	EntityId varchar(100), 
+	Property varchar(50), 
+	Tag varchar(50), 
+	[Type] varchar(50), 
+	[Value] varchar(200), 
+	Stat float, 
+	constraint pk_cs_id_prop_val primary key (EntityId, Property, [Value])
+);
+
+--
+-- CLUSTER SUMMARY MEMBERS
+--     Used to keep track of entities that are members of a cluster summary
+--     It is up to each application to determine what cluster summaries to 
+--     generate based on the size of data
+--
+--   SummaryId - UID of cluster summary
+--   EntityId  - member entity UID
+--
+create table ClusterSummaryMembers (
+	SummaryId varchar(100), 
+	EntityId varchar(100), 
+	constraint pk_csm_sum_id primary key (SummaryId, EntityId)
+);
+
+--  create cluster summary indices
+create index ix_cs_id on ClusterSummary	(EntityId);
+create index ix_csm_sum on ClusterSummaryMembers  (SummaryId);
+
+
+
+-- ------------------------------------------------------------------------------
+-- STEP 6: Modifications required
+--     
+--     The following section will build summary information on the data for 
+--     display on the summary page
+--
+--     Modify this section as needed to reflect the nature of your dataset.
+--     The first stat in the table should be a description of your dataset. The 
+--     following inserts show an example of typical summary statistics. Note that
+--     you will in most cases want to format the values nicely for reading. The 
+--     script as is here will simply copy most types of values over in their 
+--     default format. UnformattedNumeric and UnformattedDatetime are added to 
+--     provide a reference in case the formatted value corrupts or loses 
+--     valuable information. 
+-- ------------------------------------------------------------------------------
 
 
 
 create table DataSummary (
-	SummaryOrder int NOT NULL,
-	SummaryKey varchar(100) NOT NULL, 
-	SummaryLabel varchar(1000) NULL, 
-	SummaryValue text NULL,
-	UnformattedNumeric float NULL,
-	UnformattedDatetime datetime NULL,
-	CONSTRAINT pk_ds_order PRIMARY KEY (SummaryOrder)
+	SummaryOrder int not null,
+	SummaryKey varchar(100) not null, 
+	SummaryLabel varchar(1000) null, 
+	SummaryValue text null,
+	UnformattedNumeric float null,
+	UnformattedDatetime datetime null,
+	constraint pk_ds_order primary key (SummaryOrder)
 );
 
---
--- Step 4. Populate summary stats table with statistic data
---  
--- Modify this section as needed to reflect the nature of your dataset.
--- The first stat in the table should be a description of your dataset. The following
--- inserts show an example of typical summary statistics. Note that you will in most cases
--- want to format the values nicely for reading. The script as is here will simply
--- copy most types of values over in their default format. UnformattedNumeric
--- and UnformattedDatetime are added to provide a reference in case the formatted
--- value corrupts or loses valuable information. 
-
 -- Modify the following to create a summary description
-insert into DataSummary (SummaryOrder, SummaryKey, SummaryLabel, SummaryValue, UnformattedNumeric, UnformattedDatetime)
+insert into DataSummary(
+	SummaryOrder, 
+	SummaryKey, 
+	SummaryLabel, 
+	SummaryValue, 
+	UnformattedNumeric, 
+	UnformattedDatetime
+)
 values (
 	1,
 	'InfoSummary', 
 	'About',
-	'Some interesting description of your dataset can be written here.'
+	'Some interesting description of your dataset can be written here.',
+	null,
+	null
 );
  
 -- The following calculates the number of accounts in the data
-insert into DataSummary (SummaryOrder, SummaryKey, SummaryLabel, SummaryValue, UnformattedNumeric, UnformattedDatetime)
+insert into DataSummary(
+	SummaryOrder, 
+	SummaryKey, 
+	SummaryLabel, 
+	SummaryValue, 
+	UnformattedNumeric, 
+	UnformattedDatetime
+)
 values (
 	2,
 	'NumAccounts', 
 	'Accounts', 
-	CAST((select count(*) from FinEntity) AS varchar),
-	(select count(*) from FinEntity),
-	NULL
+	cast((select count(*) from EntitySummary) as varchar),
+	(select count(*) from EntitySummary),
+	null
 );
  
 -- The following calculates the number of transactions in the data
-insert into DataSummary (SummaryOrder, SummaryKey, SummaryLabel, SummaryValue, UnformattedNumeric, UnformattedDatetime)
+insert into DataSummary(
+	SummaryOrder, 
+	SummaryKey, 
+	SummaryLabel, 
+	SummaryValue, 
+	UnformattedNumeric, 
+	UnformattedDatetime
+)
 values (
 	3,
-	'NumTransactions', 
+	'NumLinks', 
 	'Transactions', 
-	CAST((select count(*) from YOUR_RAW_DATA) AS varchar),
+	cast((select count(*) from YOUR_RAW_DATA) as varchar),
 	(select count(*) from YOUR_RAW_DATA),
-	NULL
+	null
 );
  
 -- The following calculates the earliest transaction in the data
-insert into DataSummary (SummaryOrder, SummaryKey, SummaryLabel, SummaryValue, UnformattedNumeric, UnformattedDatetime)
+insert into DataSummary(
+	SummaryOrder, 
+	SummaryKey, 
+	SummaryLabel, 
+	SummaryValue, 
+	UnformattedNumeric, 
+	UnformattedDatetime
+)
 values (
 	4,
 	'StartDate', 
 	'Earliest Transaction', 
-	(select CONVERT(varchar, MIN(firstTransaction), 126) from FinFlow),
-	NULL,
-	(select MIN(firstTransaction) from FinFlow)
+	(select convert(varchar, min(firstTransaction), 126) from LinkFlow),
+	null,
+	(select min(firstTransaction) from LinkFlow)
 );
  
 -- The following calculates the latest transaction in the data
-insert into DataSummary (SummaryOrder, SummaryKey, SummaryLabel, SummaryValue, UnformattedNumeric, UnformattedDatetime)
+insert into DataSummary(
+	SummaryOrder, 
+	SummaryKey, 
+	SummaryLabel, 
+	SummaryValue, 
+	UnformattedNumeric, 
+	UnformattedDatetime
+)
 values (
 	5,
 	'EndDate', 
 	'Latest Transaction', 
-	(select CONVERT(varchar, MAX(lastTransaction), 126) from FinFlow),
-	NULL,
-	(select MAX(lastTransaction) from FinFlow)
+	(select convert(varchar, max(lastTransaction), 126) from LinkFlow),
+	null,
+	(select max(lastTransaction) from LinkFlow)
 );
 
 -- Other statistics can be entered in a similar fashion.

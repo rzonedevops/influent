@@ -33,7 +33,7 @@ Aggregated transactional links are presented with clear markers that provide vis
 
 ### Pattern Matching
 
-In addition to enabling users to manually explore custom datasets based on a set of known entity attributes, Influent provides plugin graph pattern matching tools that aid in locating transaction patterns that are similar to a user-defined example. Influent's default pattern matching tool is [Graph Query by Example (QuBE)](https://github.com/mitll/graph-qube) by [MIT Lincoln Laboratory](https://www.ll.mit.edu/), which performs a two-stage query that looks for accounts with similar:
+In addition to enabling users to manually explore custom datasets based on a set of known entity attributes, Influent provides plugin graph pattern matching tools that aid in locating transaction patterns that are similar to a user-defined example. Influent's default pattern matching tool is [Graph Query by Example (QuBE)](https://github.com/mitll/graph-qube) by [MIT Lincoln Laboratory](https://www.ll.mit.edu/) in collaboration with [Giant Oak](http://www.giantoak.com/), which performs a two-stage query that looks for accounts with similar:
 
 1. Individual account activity features, which describe the average behavior of an account's activity with other accounts
 2. Transactional features, which describe the transactions between accounts

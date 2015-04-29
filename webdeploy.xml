@@ -2,6 +2,7 @@
 
 <project name="INFLUENT_DEPLOY" default="deploy" basedir=".">
 
+<!-- SHUT DOWN DEMO SERVER -->
 
 	<target name="shutdown-tomcat-server">
 
@@ -15,9 +16,12 @@
 
 
 
+<!-- DEPLOY WAR FILES TO DEMO SERVER -->
 
 	<target name="deploy-war" depends="shutdown-tomcat-server">
 
+	<!-- COPY KIVA TO DEMO SERVER -->
+	
 		<!-- Delete the old kiva WAR file -->
 		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -rf ${remoteTomcatDir}/webapps/kiva*" failonerror="false"/>
 		
@@ -31,9 +35,7 @@
 		<!-- Copy the WAR snapshot and rename to kiva.war -->
 		<scp file="${toString:kivaWarFile}" remoteTofile="${username}:${password}@${webhost}:${remoteTomcatDir}/webapps/kiva.war" trust="yes"/>
 
-		<!-- Copy the descriptors file and rename to kiva-schema.xml -->
-		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f ${remoteTomcatDir}/conf/kiva-schema.xml" failonerror="false"/>
-		<scp file="kiva/src/main/resources/property-descriptors.xml" remoteToFile="${username}:${password}@${webhost}:${remoteTomcatDir}/conf/kiva-schema.xml" trust="yes"/>
+	<!-- COPY BITCOIN TO DEMO SERVER -->
 
 		<!-- Delete the old bicoin WAR file -->
 		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -rf ${remoteTomcatDir}/webapps/bitcoin*" failonerror="false"/>
@@ -48,9 +50,7 @@
 		<!-- Copy the WAR snapshot and rename to bitcoin.war -->
 		<scp file="${toString:bitcoinWarFile}" remoteTofile="${username}:${password}@${webhost}:${remoteTomcatDir}/webapps/bitcoin.war" trust="yes"/>
 
-		<!-- Copy the descriptors file and rename to bitcoin-schema.xml -->
-		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f ${remoteTomcatDir}/conf/bitcoin-schema.xml" failonerror="false"/>
-		<scp file="bitcoin/src/main/resources/property-descriptors.xml" remoteToFile="${username}:${password}@${webhost}:${remoteTomcatDir}/conf/bitcoin-schema.xml" trust="yes"/>
+	<!-- COPY WALKER TO DEMO SERVER -->
 
 		<!-- Delete the old walker WAR file -->
 		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -rf ${remoteTomcatDir}/webapps/walker*" failonerror="false"/>
@@ -65,14 +65,24 @@
 		<!-- Copy the WAR snapshot and rename to walker.war -->
 		<scp file="${toString:walkerWarFile}" remoteTofile="${username}:${password}@${webhost}:${remoteTomcatDir}/webapps/walker.war" trust="yes"/>
 
-		<!-- Copy the descriptors file and rename to walker-schema.xml -->
-		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -f ${remoteTomcatDir}/conf/walker-schema.xml" failonerror="false"/>
-		<scp file="walker/src/main/resources/property-descriptors.xml" remoteToFile="${username}:${password}@${webhost}:${remoteTomcatDir}/conf/walker-schema.xml" trust="yes"/>
+	<!-- COPY AML TO DEMO SERVER -->
 
+		<!-- Delete the old influent(aml) WAR file -->
+		<sshexec host="${webhost}" trust="yes" username="${username}" password="${password}" command="rm -rf ${remoteTomcatDir}/webapps/influent*" failonerror="false"/>
+
+		<!-- Find the local aml WAR file -->
+		<first id="influentWarFile">
+			<fileset dir="influent-app/target">
+				<include name="influent-*.war"/>
+			</fileset>
+		</first>
+
+		<!-- Copy the WAR snapshot and rename to influent.war -->
+		<scp file="${toString:influentWarFile}" remoteTofile="${username}:${password}@${webhost}:${remoteTomcatDir}/webapps/influent.war" trust="yes"/>
 	</target>
 
 
-
+<!-- START UP DEMO SERVER -->
 
 	<target name="startup-tomcat-server" depends="shutdown-tomcat-server">
 
@@ -85,11 +95,13 @@
 
 
 
+<!-- DEPLOY ALL -->
 
 	<target name="deploy" depends="shutdown-tomcat-server,deploy-war,startup-tomcat-server"/>
 
 
 
+<!-- CREATE KIVA DEMO -->
 
 	<target name="demo">
 
@@ -124,7 +136,7 @@
 		<move file="${demo_dir}/apache-tomcat-${tomcat_version}/webapps/kiva/WEB-INF/web.xml.noshiro" tofile="${demo_dir}/apache-tomcat-${tomcat_version}/webapps/kiva/WEB-INF/web.xml"/>
 
 		<!-- Change the influent URL to point locally -->
-		<replace file="${demo_dir}/apache-tomcat-${tomcat_version}/webapps/ROOT/index.html" token="http://influent.oculusinfo.com/kiva/" value="http://localhost:8080/kiva/"/>
+		<replace file="${demo_dir}/apache-tomcat-${tomcat_version}/webapps/ROOT/index.html" token="http://influent.uncharted.software/kiva/" value="http://localhost:8080/kiva/"/>
 		
 		<!-- Copy entity images	-->
 		<copy todir="${demo_dir}/apache-tomcat-${tomcat_version}/webapps/kiva/img/entities">

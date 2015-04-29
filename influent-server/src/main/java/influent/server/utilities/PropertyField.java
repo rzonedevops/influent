@@ -87,6 +87,15 @@ public class PropertyField {
 	public static interface Provider {
 
 		/**
+		 * Returns true if a property has field mappings
+		 * @param key
+		 *  property key.
+		 * @return
+		 *  boolean
+		 */
+		public boolean isCompositeProperty(String key);
+
+		/**
 		 * Returns a list of field mappings for a property key
 		 * @param key
 		 *  property key.

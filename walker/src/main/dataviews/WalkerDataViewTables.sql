@@ -1,19 +1,21 @@
-/**
- * Copyright (c) 2013 Oculus Info Inc. 
- * http://www.oculusinfo.com/
- * 
+/*
+ * Copyright (C) 2013-2015 Uncharted Software Inc.
+ *
+ * Property of Uncharted(TM), formerly Oculus Info Inc.
+ * http://uncharted.software/
+ *
  * Released under the MIT License.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
  * the Software without restriction, including without limitation the rights to
  * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is furnished to do
  * so, subject to the following conditions:
-
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
-
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -41,7 +43,7 @@
 --
 create table FinFlow (FromEntityId varchar(100), FromEntityType varchar(1), ToEntityId varchar(100), ToEntityType varchar(1), FirstTransaction datetime, LastTransaction datetime, Amount float, CONSTRAINT pk_FF_ID PRIMARY KEY (FromEntityId, ToEntityId));
 
-create table FinEntity(EntityId varchar(100) PRIMARY KEY, InboundDegree int, UniqueInboundDegree int,  OutboundDegree int, UniqueOutboundDegree int);
+create table FinEntity(EntityId varchar(100) PRIMARY KEY, IncomingLinks int, UniqueIncomingLinks int,  OutgoingLinks int, UniqueOutgoingLinks int);
 
 --
 -- FINANCIAL FLOW - AGGREGATED BY TIME
@@ -68,16 +70,16 @@ create table FinFlowYearly    (FromEntityId varchar(100), FromEntityType varchar
 --   EntityId - entity UID
 --   Date - start of the time period
 --   InboundAmount - aggregate credits for this time period
---   InboundDegree - unique inbound transations by entity
+--   IncomingLinks - unique inbound transations by entity
 --   OutboundAmount - aggregate debits for this time period
---   OutboundDegree - unique outbound transations by entity
+--   OutgoingLinks - unique outbound transations by entity
 --   Balance - aggregate credits - debits up until this time period
 --
-create table FinEntityDaily     (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FED_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityWeekly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEW_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityMonthly   (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEM_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityQuarterly (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEQ_ID PRIMARY KEY (EntityId, PeriodDate));
-create table FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, InboundDegree int, OutboundAmount float, OutboundDegree int, Balance float, CONSTRAINT pk_FEY_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityDaily     (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FED_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityWeekly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEW_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityMonthly   (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEM_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityQuarterly (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEQ_ID PRIMARY KEY (EntityId, PeriodDate));
+create table FinEntityYearly    (EntityId varchar(100), PeriodDate datetime, InboundAmount float, IncomingLinks int, OutboundAmount float, OutgoingLinks int, Balance float, CONSTRAINT pk_FEY_ID PRIMARY KEY (EntityId, PeriodDate));
 
 --
 -- CLUSTER SUMMARY
@@ -118,6 +120,40 @@ insert into FinFlowDaily
 	FROM dbo.Transactions
 	WHERE FromAddress != '' AND ToAddress != '' AND SentDate IS NOT NULL
 	group by FromAddress, ToAddress, SentDate
+
+-- build FinEntity
+insert into FinEntity (EntityId, IncomingLinks, UniqueIncomingLinks,  OutgoingLinks, UniqueOutgoingLinks, NumTransactions, MaxTransaction, AvgTransaction, StartDate, EndDate)
+Select EntityId, sum(IncomingLinks) as IncomingLinks, sum(UniqueIncomingLinks) as UniqueIncomingLinks, sum(OutgoingLinks) as OutgoingLinks , sum(UniqueOutgoingLinks) as UniqueOutgoingLinks, sum(numTransactions) as NumTransactions, max(MaxTransaction) as MaxTransactions, sum(TotalTransactions) / sum(numTransactions) as AvgTransactions, min(StartDate) as StartDate, max(EndDate) as EndDate
+From (
+	select  ToAddress as EntityId, 
+			count(FromAddress) as IncomingLinks, 
+			count( distinct FromAddress ) as UniqueIncomingLinks, 
+			0 as OutgoingLinks, 
+			0 as UniqueOutgoingLinks, 
+			count(ToAddress) as numTransactions, 
+			1 as MaxTransaction,						-- TODO what should this be for Walker? 
+			count(ToAddress) as TotalTransactions, 		-- TODO what should this be for Walker?
+			min(SentDate) as StartDate, 
+			max(SentDate) as EndDate  
+	from dbo.Transactions
+	group by ToAddress
+	UNION
+	select FromAddress as EntityId,
+			0 as IncomingLinks,
+			0 as UniqueIncomingLinks,
+			count(ToAddress) as OutgoingLinks,
+			count( distinct ToAddress ) as UniqueOutgoingLinks,
+			sum( case when FromAddress <> ToAddress then 1 else 0 end ) as numTransactions, 
+			1 as MaxTransaction, 						-- TODO what should this be for Walker?
+			count(FromAddress) as TotalTransactions, 	-- TODO what should this be for Walker?
+			min(SentDate) as StartDate, 
+			max(SentDate) as EndDate 
+	from dbo.Transactions
+	group by FromAddress
+)q
+group by EntityId
+  
+create index ix_ff_id on FinEntity (EntityId);
 
 --
 --  Step 2. The rest of the script will collect data from FinFlowDaily.
@@ -167,24 +203,6 @@ insert into FinFlow
 create index ix_ff_to_from on FinFlow (ToEntityId, FromEntityId);
 create index ix_ff_from_to on FinFlow (FromEntityId, ToEntityId);
 
--- build FinEntity
-insert into FinEntity
- select EntityId, sum(inboundDegree), sum(uniqueInboundDegree), sum(outboundDegree), sum(uniqueOutboundDegree)
-  from (
-   select FromEntityId as EntityId, 0 as inboundDegree, 0 as uniqueInboundDegree, count(ToEntityId) as outboundDegree, count( distinct ToEntityId ) as uniqueOutboundDegree
-    from FinFlowDaily
-    where ToEntityType = 'A'
-    group by FromEntityId
-   union
-   select ToEntityId as EntityId, count(FromEntityId) as inboundDegree, count( distinct FromEntityId ) as uniqueInboundDegree, 0 as outboundDegree, 0 as uniqueOutboundDegree
-    from FinFlowDaily
-    where FromEntityType = 'A'
-    group by ToEntityId
-  ) q
-  group by EntityId
-
-create index ix_ff_id on FinEntity (EntityId);
-
 --  build FinEntityDaily
 create table temp_ids (Entity varchar(100));
 create index tids on temp_ids (Entity);
@@ -211,22 +229,22 @@ drop table temp_ids;
 
 -- build the rest of the FinEntity aggregations
 insert into FinEntityWeekly
- select EntityId, (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
+ select EntityId, (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate)), sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
   from FinEntityDaily
   group by EntityId, (DATEADD(dd, @@DATEFIRST - DATEPART(dw, PeriodDate) - 6, PeriodDate));
   
 insert into FinEntityMonthly
- select EntityId,  convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
+ select EntityId,  convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01', sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
   from FinEntityDaily
   group by EntityId, convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + convert(varchar(2), DATEPART(mm, PeriodDate)) + '/01';
   
 insert into FinEntityQuarterly
- select EntityId, convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
+ select EntityId, convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01', sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
   from FinEntityMonthly
   group by EntityId, convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/' + case when DATEPART(q, PeriodDate)=1 then '01' when DATEPART(q, PeriodDate)=2 then '04' when DATEPART(q, PeriodDate)=3 then '07' when DATEPART(q, PeriodDate)=4 then '010' end + '/01';
   
 insert into FinEntityYearly
- select EntityId, convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', sum(InboundAmount), sum(InboundDegree), sum(OutboundAmount), sum(OutboundDegree), 0
+ select EntityId, convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01', sum(InboundAmount), sum(IncomingLinks), sum(OutboundAmount), sum(OutgoingLinks), 0
   from FinEntityQuarterly
   group by EntityId, convert(varchar(4), DATEPART(yyyy, PeriodDate)) + '/01/01';
  

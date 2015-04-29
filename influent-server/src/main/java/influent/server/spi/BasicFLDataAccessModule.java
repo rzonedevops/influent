@@ -35,6 +35,7 @@ import influent.idl.FL_EntitySearch;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.dataaccess.DataViewDataAccess;
 import influent.server.dataaccess.MSSQLDataNamespaceHandler;
+import influent.server.sql.SQLBuilder;
 import influent.server.utilities.SQLConnectionPool;
 import oculus.aperture.spi.common.Properties;
 import org.json.JSONException;
@@ -72,14 +73,16 @@ public class BasicFLDataAccessModule extends AbstractModule {
 		@Named("aperture.server.config") Properties config,
 		SQLConnectionPool connectionPool,
 		FL_EntitySearch search,
-		DataNamespaceHandler namespaceHandler
+		DataNamespaceHandler namespaceHandler,
+		SQLBuilder sqlBuilder
 	) {
 		try {
 			return new DataViewDataAccess(
 				config,
 				connectionPool,
 				search,
-				namespaceHandler
+				namespaceHandler,
+				sqlBuilder
 			);
 		} catch (Exception e) {
 			addError("Failed to load Data Access", e);

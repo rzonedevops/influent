@@ -15,7 +15,7 @@
 		{{#each properties}}
 		<tr>
 			<td class="propertyName">{{name}}</td>
-			<td class="propertyIcon"{{#if icon}} style="background-image: url('{{icon}}');"{{/if}}></td>
+			<td class="propertyIcon"{{#if image}} style="background-image: url('{{image}}');"{{/if}}>{{#if cssicon}}<span class="{{cssicon}}"></span>{{/if}}</td>
 			<td class="propertyValue">{{#if isHTML}}{{{value}}}{{else}}{{value}}{{/if}}</td>
 		</tr>
 		{{/each}}
@@ -32,7 +32,7 @@
                 <div class="detailsBlockHeader">{{header}}</div>
                 <div class="detailsBlockBody">
                     <div class="detailsValueBlock">
-                        <div class="detailsValueIcon"><img src="{{source}}" title="{{title}}"></div>
+                        <div class="detailsValueIcon">{{#if image}}<img src="{{image}}"/>{{else}}<span class="{{cssicon}}"></span>{{/if}}</div>
                         <div class="detailsValueValue">{{value}}</div>
                         <div class="detailsValueScoreBar" title="{{scoreBarTitle}}">
                             <div class="scoreBarBackground" style="width: {{backgroundWidth}}px; height: {{backgroundHeight}}px;"></div>
@@ -57,7 +57,7 @@
             <div class="detailsBlockHeader">{{header}}</div>
             <div class="detailsBlockBody">
                 <div class="detailsValueBlock">
-                    <div class="detailsValueIcon"><img src="{{source}}" title="{{title}}"></div>
+                    <div class="detailsValueIcon">{{#if image}}<img src="{{image}}"/>{{else}}<span class="{{cssicon}}"></span>{{/if}}</div>
                     <div class="detailsValueValue">{{value}}</div>
                     <div class="detailsValueScoreBar" title="{{scoreBarTitle}}">
                         <div class="scoreBarBackground" style="width: {{backgroundWidth}}px; height: {{backgroundHeight}}px;"></div>

@@ -28,7 +28,7 @@ package influent.server.search;
 
 
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.configuration.ApplicationConfiguration;
 import influent.server.dataaccess.DataNamespaceHandler;
@@ -247,7 +247,6 @@ public abstract class SolrBaseSearchIterator implements Iterator<FL_SearchResult
 
 		//Read and build properties.
 		Map<String, Collection<Object>> docValues = sd.getFieldValuesMap();
-		FL_Property.Builder propBuilder;
 
 		for (FL_PropertyDescriptor prop : descriptors) {
 			String propKey = prop.getKey();
@@ -368,7 +367,7 @@ public abstract class SolrBaseSearchIterator implements Iterator<FL_SearchResult
 	    FL_PropertyDescriptor pd = pf.getProperty();
 
         if (pf != null) {
-            final String mappedKey = DataPropertyDescriptorHelper.getFieldname(pd, type, null);
+            final String mappedKey = PropertyDescriptorHelper.getFieldname(pd, type, null);
 
             if (mappedKey != null) {
 	            return getPropertyValuesFromDocument(values, pd, type);
@@ -439,6 +438,20 @@ public abstract class SolrBaseSearchIterator implements Iterator<FL_SearchResult
 		}
 
 		return solrValues;
+	}
+
+	protected String getTypeFromDocument(SolrDocument sd, FL_PropertyDescriptors propertyDescriptors) {
+		String type = (String)sd.getFieldValue("type"); // TODO: This should ideally be FL_RequiredPropertyKey.TYPE.name()
+
+		if (type == null) {
+			if (propertyDescriptors.getTypes().size() == 1) {
+				type = propertyDescriptors.getTypes().get(0).getKey();
+			} else if (propertyDescriptors.getTypes().size() > 1) {
+				throw new RuntimeException("Solr results must include a type field if there is more than one possibility.");
+			}
+		}
+
+		return type;
 	}
 
 	protected abstract Object buildResultFromDocument(SolrDocument sd);

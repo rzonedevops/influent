@@ -27,7 +27,7 @@
 package influent.server.search;
 
 import influent.idl.*;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.server.configuration.ApplicationConfiguration;
 import influent.server.dataaccess.DataNamespaceHandler;
 import influent.server.utilities.PropertyField;
@@ -79,11 +79,11 @@ public class SolrEntitySearchIterator extends SolrBaseSearchIterator {
 		
 		FL_Entity.Builder entityBuilder = FL_Entity.newBuilder();
 
-		String type = (String)sd.getFieldValue("type"); // TODO: This should ideally be FL_RequiredPropertyKey.TYPE.name()
-
 		FL_PropertyDescriptors entityDescriptors = _applicationConfiguration.getEntityDescriptors();
 
-		String uid = sd.getFieldValue(DataPropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.ID.name(), entityDescriptors.getProperties(), type)).toString();
+		final String type = getTypeFromDocument(sd, entityDescriptors);
+
+		String uid = sd.getFieldValue(PropertyDescriptorHelper.mapKey(FL_RequiredPropertyKey.ID.name(), entityDescriptors.getProperties(), type)).toString();
 
 		// if multitype system, we parse the typed id to get the native id
 		if (entityDescriptors.getTypes().size() > 1) {

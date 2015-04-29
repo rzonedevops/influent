@@ -91,9 +91,7 @@ define(
 			} else {
 				_transactionsState.noDates = false;
 			}
-
-			if (_transactionsState.table.css('visibility') !== 'hidden' || $('#chartTab').css('visibility') !== 'hidden' &&
-					_transactionsState.curEntity && _transactionsState.startDate && _transactionsState.endDate) {
+			if (data && data.uiType === constants.MODULE_NAMES.ENTITY && _transactionsState.table.css('visibility') !== 'hidden' && $('#tableTab').hasClass('active')) {
 				_getTransactions(0);
 			}
 		};

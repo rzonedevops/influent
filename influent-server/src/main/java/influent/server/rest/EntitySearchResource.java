@@ -39,7 +39,7 @@ import influent.idl.FL_PropertyDescriptors;
 import influent.idl.FL_PropertyMatchDescriptor;
 import influent.idl.FL_SearchResult;
 import influent.idl.FL_SearchResults;
-import influent.idlhelper.DataPropertyDescriptorHelper;
+import influent.idlhelper.PropertyDescriptorHelper;
 import influent.idlhelper.PropertyHelper;
 import influent.server.configuration.ApplicationConfiguration;
 import influent.server.data.PropertyMatchBuilder;
@@ -103,7 +103,7 @@ public class EntitySearchResource extends ApertureServerResource{
 	private Map<String, List<Object>> groupEntitiesBy(String groupByKey, Map<String, Double> matchScores, List<FL_Entity> entities) {
 		Map<String, List<Object>> groupedEntities = new LinkedHashMap<String, List<Object>>();
 
-		final FL_PropertyDescriptor pd = DataPropertyDescriptorHelper.find(groupByKey, _searchDescriptors.getProperties());
+		final FL_PropertyDescriptor pd = PropertyDescriptorHelper.find(groupByKey, _searchDescriptors.getProperties());
 
 		if (pd != null || (groupByKey.equals("MATCH") && matchScores.size() != 0)) {
 			for (FL_Entity entity : entities) {
@@ -206,6 +206,14 @@ public class EntitySearchResource extends ApertureServerResource{
 			// Determine the start index.
 			final int startIndex = request.getInteger("start", 0);
 			
+			//Determine level of detail, default to summary
+			FL_LevelOfDetail levelOfDetail;
+			try {
+				levelOfDetail = FL_LevelOfDetail.valueOf(request.getString("levelOfDetail", "SUMMARY"));
+			} catch (Exception e) {
+				levelOfDetail = FL_LevelOfDetail.SUMMARY;
+			}
+			
 			// Get the descriptors if we don't have them yet
 			if (_searchDescriptors == null) {
 				_searchDescriptors = _entitySearcher.getDescriptors();
@@ -234,7 +242,7 @@ public class EntitySearchResource extends ApertureServerResource{
 
 			
 			// Execute the search
-			FL_SearchResults sResponse = _entitySearcher.search(termMap, orderBy, (long)startIndex, (long)resultLimit);
+			FL_SearchResults sResponse = _entitySearcher.search(termMap, orderBy, (long)startIndex, (long)resultLimit, levelOfDetail);
 
 			for (FL_SearchResult sResult : sResponse.getResults()) {
 				FL_Entity entity = (FL_Entity)sResult.getResult();
