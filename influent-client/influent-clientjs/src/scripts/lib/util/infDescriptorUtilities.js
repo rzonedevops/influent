@@ -93,9 +93,9 @@ define([], function() {
 					if (descriptors.hasOwnProperty(type)) {
 						for (var i = 0; i < descriptors[type].length; i++) {
 							var desc = descriptors[type][i];
-							query += desc.key + ':"' + desc.range.value;
+							query += ' ' + desc.key + ':"' + desc.range.value + '"';
 							if (isMultitype) {
-								query += '" TYPE:' + type + ' ';
+								query += ' TYPE:' + type + ' ';
 							}
 						}
 					}
