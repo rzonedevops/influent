@@ -3,9 +3,11 @@
     </div>
 	<div id="transactions">
 		<div class="detailsButton">
-			<button id="transactions-button" class="btn btn-default btn-operationsBar navbar-btn" title="{{transactionsTitle}}" switchesto="{{transactionsSwitchesTo}}">
-				<span class="{{transactionsIconClass}}">{{transactionsText}}</span>
-			</button>
+			{{#each buttons}}
+				<button id="{{switchesTo}}" class="btn btn-default btn-operationsBar navbar-btn" title="{{title}}" switchesto="{{switchesTo}}">
+					<span class="{{icon}}"></span>
+				</button>
+			{{/each}}
 		</div>
 		<div id="tab-container">
 			<ul class="nav nav-tabs" id="transaction-tabs" data-tabs="tabs">

@@ -38,8 +38,16 @@ define(
 
 		// return the module to the plugin in config.js
 		return {
-			onView : function (type, propertyMatchDescriptors, container) {
+			onData : function (type, propertyMatchDescriptors, container) {
+
 				var elem = $(container.canvas).find('.infSearchResultScroll');
+
+				if ($(container.canvas).is(':visible')) {
+					$(elem).append('<div><h3>onData: Container visible!!<h3></div>');
+				} else {
+					$(elem).append('<div><h3>onData: Container not visible!!<h3></div>');
+				}
+
 				$(elem).append('<div><h4>View called with following parameters:<h4></div>');
 				$(elem).append('<div>type: ' + type + ' pmd: ' + JSON.stringify(propertyMatchDescriptors) + '</div>');
 
@@ -69,6 +77,49 @@ define(
 					$(container).append(elem);
 				}
 				$(elem).append('<div><h3>Stub view initialized!!<h3></div>');
+				if ($(container).is(':visible')) {
+					$(elem).append('<div><h3>onInit: Container visible!!<h3></div>');
+				} else {
+					$(elem).append('<div><h3>onInit: Container not visible!!<h3></div>');
+				}
+
+//				if ($(container).is(':hidden')) {
+//					$(elem).append('<div><h3>onInit: Container hidden!!<h3></div>');
+//				} else {
+//					$(elem).append('<div><h3>onInit: Container not hidden!!<h3></div>');
+//				}
+			},
+
+			onShow : function (container) {
+				var elem = $(container).find('.infSearchResultScroll');
+
+				if ($(container).is(':visible')) {
+					$(elem).append('<div><h3>onShow: Container visible!!<h3></div>');
+				} else {
+					$(elem).append('<div><h3>onShow: Container not visible!!<h3></div>');
+				}
+
+//				if ($(container).is(':hidden')) {
+//					$(elem).append('<div><h3>onShow: Container hidden!!<h3></div>');
+//				} else {
+//					$(elem).append('<div><h3>onShow: Container not hidden!!<h3></div>');
+//				}
+			},
+
+			onHide : function (container) {
+				var elem = $(container).find('.infSearchResultScroll');
+
+				if ($(container).is(':visible')) {
+					$(elem).append('<div><h3>onHide: Container visible!!<h3></div>');
+				} else {
+					$(elem).append('<div><h3>onHide: Container not visible!!<h3></div>');
+				}
+
+//				if ($(container).is(':hidden')) {
+//					$(elem).append('<div><h3>onHide: Container hidden!!<h3></div>');
+//				} else {
+//					$(elem).append('<div><h3>onHide: Container not hidden!!<h3></div>');
+//				}
 			}
 		};
 	}

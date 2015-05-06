@@ -59,7 +59,7 @@ Results are returned as a paginated list of accounts that match your criteria.
 
 <img src="../../../../img/screenshots/account-search-results.png" class="screenshot" alt="Account Search Results" />
 
-Click **more** in the results to view more details about an account. The expanded result lists additional account attributes and complete transaction history chart.
+Click the **more** button ![More button](../../../../img/screenshots/buttons/more.png) in the results to view more details about an account. The expanded result lists additional account attributes and complete transaction history chart.
 
 <img src="../../../../img/screenshots/account-search-details.png" class="screenshot" alt="Account Details View" />
 

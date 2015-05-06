@@ -1,9 +1,11 @@
-{{#if entityDetails}}
 <div class="detailsButton">
-	<button id="accountsViewButton" class="btn btn-default btn-operationsBar navbar-btn" title="{{button.title}}" switchesto="{{button.switchesTo}}">
-	<span class="{{button.icon}}"></span>
-	</button>
+	{{#each buttons}}
+		<button id="{{switchesTo}}" class="btn btn-default btn-operationsBar navbar-btn" title="{{title}}" switchesto="{{switchesTo}}">
+			<span class="{{icon}}"></span>
+		</button>
+	{{/each}}
 </div>
+{{#if entityDetails}}
 <div class="detailsHeader">
 	<div class="detailsHeaderContent">
 		<span class="detailsTitle">{{title}}</span>: <span class="detailsEntityLabel">{{label}}</span>

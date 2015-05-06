@@ -180,6 +180,14 @@ public class DataViewDataAccess implements FL_DataAccess {
 				InfluentId infId2 = InfluentId.fromInfluentId(id);
 				if (infId.getTypedId().equals(infId2.getTypedId())) {
 					entity.setUid(infId2.toString());
+
+					if (infId2.getIdClass() == InfluentId.ACCOUNT_OWNER) {
+						List<FL_EntityTag> tags = entity.getTags();
+						tags.remove(FL_EntityTag.ACCOUNT);
+						tags.add(FL_EntityTag.ACCOUNT_OWNER);
+						entity.setTags(tags);
+					}
+
 				}
 			}
 

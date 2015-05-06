@@ -12,9 +12,7 @@ Getting Started
 
 This topic presents an example Influent workflow to help new users quickly understand the application. This example is based on synthesized banking transaction data.
 
-For a walkthrough of this example, see the following video:
-
-<iframe width="628" height="353" src="https://www.youtube.com/embed/VuvZZat1-W8" frameborder="0" allowfullscreen></iframe>
+For a video demonstration of this example, see our Influent AML and Banking product site, <http://influent.io>.
 
 ## <a name="analytic-scenario"></a> Analytic Scenario ##
 

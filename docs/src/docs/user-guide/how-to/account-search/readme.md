@@ -180,7 +180,7 @@ Individual results are listed in an abbreviated format to show only key account 
 
 <h6 class="procedure">To view more details about an individual result</h6>
 
-Click the **[more]** link at the bottom of the entry.
+Click the **more** button ![More Button](../../../../img/screenshots/buttons/more.png) in the account overview.
 
 <img src="../../../../img/screenshots/account-search-details.png" class="screenshot" alt="Account Search Result Details" />
 

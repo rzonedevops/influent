@@ -11,9 +11,9 @@ Influentâ„¢ is an active open source product developed and managed by Unchartedâ
 
 <info@uncharted.software>
 
-For assistance in creating custom transaction flow applications to examine other types of information flow (such as email) and/or integrate with your enterprise systems, please visit our commercial site at:
+For assistance in creating custom transaction flow applications to examine other types of information flow (such as email) and/or integrate with your enterprise systems, please visit our Influent AML and Banking product site at:
 
-[influent.io](http://influent.io/)
+[http://influent.io/](http://influent.io/)
 
 Technical suggestions and contributions are also welcome. Please post your feedback or questions to:
 

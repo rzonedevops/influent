@@ -37,11 +37,13 @@ define([
 		infView,
 		search,
 		descriptorUtil
-	) {
+		) {
+
 		var _UIObjectState = {
 			subscriberTokens : null,
 			views : {},
-			searchParams : {}
+			searchParams : {},
+			visibleView : null
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -52,6 +54,7 @@ define([
 			_UIObjectState.subscriberTokens[appChannel.ALL_MODULES_STARTED] = aperture.pubsub.subscribe(appChannel.ALL_MODULES_STARTED, _initViews);
 			_UIObjectState.subscriberTokens[appChannel.VIEW_PARAMS_CHANGED] = aperture.pubsub.subscribe(appChannel.VIEW_PARAMS_CHANGED, _onViewParametersChanged);
 			_UIObjectState.subscriberTokens[appChannel.SEARCH_PARAMS_EVENT] = aperture.pubsub.subscribe(appChannel.SEARCH_PARAMS_EVENT, _onSearchParams);
+			_UIObjectState.subscriberTokens[appChannel.SWITCH_VIEW] = aperture.pubsub.subscribe(appChannel.SWITCH_VIEW, _onSwitchView);
 
 			var views = plugins.get('views');
 			aperture.util.forEach(views, function(view) {
@@ -124,12 +127,21 @@ define([
 					};
 
 					if (view.stateless) {
-						view.query = descriptorUtil.getQueryFromDescriptors(getDescriptors(), type, _UIObjectState.searchParams);
 						selectViewData.queryParams = {
-							query: view.query
+							query: descriptorUtil.getQueryFromDescriptors(getDescriptors(), type, _UIObjectState.searchParams)
 						};
+					} else {
+						setTimeout(
+							function () {
+								if (typeof view.onShow === 'function') {
+									view.onShow(view.canvas);
+								}
+								view.onData(type, getDescriptors(), containerAPI);
+							},
+							0
+						);
 					}
-					view.view(type, getDescriptors(), containerAPI);
+
 					aperture.pubsub.publish(appChannel.SELECT_VIEW, selectViewData);
 				}
 			});
@@ -167,6 +179,37 @@ define([
 
 		//--------------------------------------------------------------------------------------------------------------
 
+		var _onSwitchView = function(eventChannel, data) {
+			if (eventChannel !== appChannel.SWITCH_VIEW) {
+				aperture.log.error('_onSwitchView: function called with illegal event channel');
+				return false;
+			}
+
+			if (data == null || data.title == null) {
+				aperture.log.error('_onSwitchView: function called with invalid data');
+				return false;
+			}
+
+			if (_UIObjectState.visibleView !== null && _UIObjectState.visibleView.key !== data.title) {
+				_UIObjectState.visibleView.onHide(_UIObjectState.visibleView.canvas);
+			}
+
+			aperture.util.forEach(_UIObjectState.views, function(view) {
+				if (view.key === data.title) {
+					_UIObjectState.visibleView = view;
+					if (typeof view.onShow === 'function') {
+						view.onShow(view.canvas);
+					}
+
+					return false;
+				}
+			});
+
+			if (_UIObjectState.visibleView !== null && _UIObjectState.visibleView.key !== data.title) {
+				_UIObjectState.visibleView = null;
+			}
+		};
+
 		/**
 		 *
 		 * @param eventChannel
@@ -190,20 +233,26 @@ define([
 
 			aperture.util.forEach(_UIObjectState.views, function(view) {
 				if (view.key === data.title) {
-					if (!data.all.query || !view.stateless) {
-						return false;
-					}
-
 					if (data.all.query !== view.query) {
 						view.query = data.all.query;
-						var descriptorObj = descriptorUtil.getDescriptorsFromQuery(view.query, _UIObjectState.searchParams);
-						view.view(descriptorObj.searchType, descriptorObj.matchDescriptorMap,  _buildContainerAPI(view, descriptorObj.searchType));
+						_UIObjectState.visibleView = view;
+
+						setTimeout(
+							function () {
+								if (typeof view.onShow === 'function') {
+									view.onShow(view.canvas);
+								}
+								view.query = data.all.query;
+								var descriptorObj = descriptorUtil.getDescriptorsFromQuery(view.query, _UIObjectState.searchParams);
+								view.onData(descriptorObj.searchType, descriptorObj.matchDescriptorMap, _buildContainerAPI(view, descriptorObj.searchType));
+							},
+							0
+						);
 					}
+
 					return false;
 				}
 			});
-
-			return false;
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -241,7 +290,9 @@ define([
 			}
 
 			aperture.util.forEach(_UIObjectState.views, function(view) {
-				view.init(view.canvas);
+				if (typeof view.onInit === 'function') {
+					view.onInit(view.canvas);
+				}
 				aperture.pubsub.publish(appChannel.VIEW_INITIALIZED, {name: view.key});
 			});
 		};

@@ -154,10 +154,7 @@ public class PropertyMatchBuilder {
 					//TODO handle list range
 					JSONObject rangeObj = jObj.getJSONObject("range");
 					
-					termBuilder.setRange(FL_SingletonRange.newBuilder()
-							.setType(FL_PropertyType.valueOf(rangeObj.getString("type")))
-							.setValue(rangeObj.getString("value"))
-							.build());
+					String key = jObj.getString("key");
 					
 					List<FL_TypeMapping> typeMaps = new ArrayList<FL_TypeMapping>();
 					//We should only have one type map here
@@ -169,7 +166,40 @@ public class PropertyMatchBuilder {
 						typeMapBuilder.setType(typeMap.getString("type"));
 						typeMaps.add(typeMapBuilder.build());
 					}
+					
+					if (typeMaps.size() < 1) {
+						continue;
+					}
+						
 					termBuilder.setTypeMappings(typeMaps);
+					
+					List<Object> values = new ArrayList<Object>(Arrays.asList(rangeObj.getString("value")));
+					
+					if (key.equals(FL_RequiredPropertyKey.FROM.name()) ||
+						key.equals(FL_RequiredPropertyKey.TO.name()) ||
+						key.equals(FL_RequiredPropertyKey.ENTITY.name()) ||
+						key.equals(FL_RequiredPropertyKey.ID.name()) ||
+						key.equals(FL_RequiredPropertyKey.LINKED.name())) {
+						
+						values = processIds(values, typeMaps.get(0));
+
+					}
+					
+					if (values.size() == 0) {
+						// Stripped out all the values? Throw it out
+						continue;
+					} else if (values.size() == 1) {
+						// Singletons
+						termBuilder.setRange(FL_SingletonRange.newBuilder()
+								.setType(FL_PropertyType.valueOf(rangeObj.getString("type")))
+								.setValue(values.get(0))
+								.build());
+					} else {
+						// Lists
+						termBuilder.setRange(FL_ListRange.newBuilder()
+								.setType(FL_PropertyType.valueOf(rangeObj.getString("type")))
+								.setValues(new ArrayList<Object>(values)).build());
+					}
 				}
 
 				//Populate the rest of the term, using default values if needed
@@ -319,6 +349,52 @@ public class PropertyMatchBuilder {
 		}
 
 		return true;
+	}
+	
+	private List<Object> processIds(List<Object> values, FL_TypeMapping typeMapping) {
+		// Expand any leaf ids for transactions
+		if (_isLinkSearch &&_clusterDataAccess != null) {
+
+			int idListSize = values.size();
+			for (int i = 0; i < idListSize; i++) {
+
+				List<String> leafIds = null;
+				String uid = (String)values.get(i);
+				try {
+					leafIds = _clusterDataAccess.getLeafIds(Collections.singletonList(uid), null, true);
+
+					for (String id : leafIds) {
+						if (!id.equals(uid)) {
+							values.add(id);
+						}
+					}
+				} catch (AvroRemoteException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+		for (ListIterator<Object> it = values.listIterator(); it.hasNext(); ) {
+			String uid = (String)it.next();
+			InfluentId tId = InfluentId.fromInfluentId(uid);
+			String type = null;
+
+			if (!_isLinkSearch) {
+				type = tId.getIdType();
+			}
+			
+			if (type == null || type.equals(typeMapping.getType())) {
+				// This ID should be searched.
+				if (_isMultiType) {
+					it.set(tId.getTypedId());
+				} else {
+					it.set(tId.getNativeId());
+				}
+			} else {
+				it.remove();
+			}
+		}
+		return values;
 	}
 
 
@@ -481,49 +557,9 @@ public class PropertyMatchBuilder {
 							pd.getKey().equals(FL_RequiredPropertyKey.TO.name()) ||
 							pd.getKey().equals(FL_RequiredPropertyKey.ENTITY.name()) ||
 							pd.getKey().equals(FL_RequiredPropertyKey.LINKED.name())) {
+							
+							values = processIds(values, td);
 
-							// Expand any leaf ids for transactions
-							if (_isLinkSearch &&_clusterDataAccess != null) {
-
-								int idListSize = values.size();
-								for (int i = 0; i < idListSize; i++) {
-
-									List<String> leafIds = null;
-									String uid = (String)values.get(i);
-									try {
-										leafIds = _clusterDataAccess.getLeafIds(Collections.singletonList(uid), null, true);
-
-										for (String id : leafIds) {
-											if (!id.equals(uid)) {
-												values.add(id);
-											}
-										}
-									} catch (AvroRemoteException e) {
-										e.printStackTrace();
-									}
-								}
-							}
-
-							for (ListIterator<Object> it = values.listIterator(); it.hasNext(); ) {
-								String uid = (String)it.next();
-								InfluentId tId = InfluentId.fromInfluentId(uid);
-								String type = null;
-
-								if (!_isLinkSearch) {
-									type = tId.getIdType();
-								}
-
-								if (type == null || type.equals(td.getType())) {
-									// This ID should be searched.
-									if (_isMultiType) {
-										it.set(tId.getTypedId());
-									} else {
-										it.set(tId.getNativeId());
-									}
-								} else {
-									it.remove();
-								}
-							}
 						}
 
 						if (values.size() == 0) {

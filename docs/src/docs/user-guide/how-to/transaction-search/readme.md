@@ -24,13 +24,13 @@ If you have already used the Accounts or Flow tabs to identify the accounts that
 1. Select the checkboxes for the accounts that you want to investigate.
 2. Click the **View transactions for selected accounts** button.
 
-<img src="../../../img/screenshots/view-transactions.png" class="screenshot" alt="View Transactions for Selected Account" />
+<img src="../../../../img/screenshots/view-transactions.png" class="screenshot" alt="View Transactions for Selected Account" />
 
 <h6 class="procedure">To access the transactions list from the Flow tab</h6>
 
 1. Click the card or stack that you want to investigate to open the [Details pane](../interface/#details-pane).
 2. Review the Transaction Table, which lists the transactions involving the selected entity over the specified Transaction Flow Period. <p class="list-paragraph"><strong>NOTE</strong>: This view of the transactions omits the source and destination entity information.</p>
-3. To view the source and destination entities, click the **View Transactions** button.<img src="../../../img/screenshots/view-trans-from-flow.png" class="screenshot" alt="View Transactions for Selected Entity" />
+3. To view the source and destination entities, click the **View Transactions** button.<img src="../../../../img/screenshots/view-trans-from-flow.png" class="screenshot" alt="View Transactions for Selected Entity" />
 4. Alternatively, click a single row in the Transaction Table to view only that transaction on the Transactions tab.
 
 ## <a name="perform-searches"></a> Performing Searches ##
@@ -115,14 +115,14 @@ You can also use the Transactions tab to identify accounts of interest by search
 	<li>Click <strong>Search</strong>.</li>
 </ol>
 
-<img src="../../../img/screenshots/transaction-search.png" class="screenshot" alt="Transaction Search" />
+<img src="../../../../img/screenshots/transaction-search.png" class="screenshot" alt="Transaction Search" />
 
 ### <a name="advanced-search"></a> Advanced Searches ###
 
 <h6 class="procedure">To execute an advanced search using other transaction details</h6>
 
 <ol>	
-	<li>Click the <strong>Advanced Search</strong> <img src="../../../img/screenshots/buttons/advanced-search.png" alt="Advanced Search" /> button.<img src="../../../img/screenshots/advanced-transaction-search.png" class="screenshot" alt="Advanced Search Dialog" /></li>
+	<li>Click the <strong>Advanced Search</strong> <img src="../../../../img/screenshots/buttons/advanced-search.png" alt="Advanced Search" /> button.<img src="../../../../img/screenshots/advanced-transaction-search.png" class="screenshot" alt="Advanced Search Dialog" /></li>
 	<li>Determine whether you want Influent to return only results that match <strong>All</strong> of your search criteria or results that match <strong>Any</strong> subset of your criteria.</li>
 	<li>Configure your search criteria:
 		<ol type="a">
@@ -206,7 +206,7 @@ You can also use the Transactions tab to identify accounts of interest by search
 
 By default, the Transactions tab retrieves a list of the top 50 results for the search terms that you entered. Initially, only 12 results are displayed. You can expand the list at any time to view more of the top results.
 
-<img src="../../../img/screenshots/transaction-search-results.png" class="screenshot" alt="Transaction Search Results" />
+<img src="../../../../img/screenshots/transaction-search-results.png" class="screenshot" alt="Transaction Search Results" />
 
 The Transactions tab operations bar lists the total number of accounts that match your search criteria; if this number larger than 50, it may be helpful to narrow your search by entering additional criteria in the Advanced Search dialog.
 
@@ -219,7 +219,7 @@ Results are grouped by a configurable transaction detail, such as the unique IDs
 1. Scroll to the bottom of the results list and click the **Show More Results** button to display 12 more results.
 2. Repeat step 1 as necessary until you reach the results limit.
 
-<img src="../../../img/screenshots/show-more-results-trans.png" class="screenshot" alt="Show More Results" />
+<img src="../../../../img/screenshots/show-more-results-trans.png" class="screenshot" alt="Show More Results" />
 
 ### Reviewing Results ###
 
@@ -231,9 +231,9 @@ Individual results are listed in an abbreviated format to show the key transacti
 
 <h6 class="procedure">To view more details about an individual result</h6>
 
-Click the **[more]** link at the bottom of the entry.
+Click the **more** button ![More Button](../../../../img/screenshots/buttons/more.png) in the transaction overview.
 
-<img src="../../../img/screenshots/show-trans-details.png" class="screenshot" alt="Show Transaction Details" />
+<img src="../../../../img/screenshots/show-trans-details.png" class="screenshot" alt="Show Transaction Details" />
 
 ### Selecting Results for Further Investigation ###
 
@@ -244,14 +244,14 @@ Any search result can be viewed on the Accounts or Flow tabs for further investi
 1. Select the checkbox next to the results you want to investigate.
 2. Click the **View accounts for selected transactions** button.
 
-<img src="../../../img/screenshots/view-accounts-from-trans.png" class="screenshot" alt="View Accounts for Selected Transactions" />
+<img src="../../../../img/screenshots/view-accounts-from-trans.png" class="screenshot" alt="View Accounts for Selected Transactions" />
 
 <h6 class="procedure">To interact with a visualization of accounts that participated in a transaction</h6>
 
 1. Select the checkbox next to the results you want to investigate.
 2. Click the **View selected accounts in Flow View** button.
 
-<img src="../../../img/screenshots/view-flow-from-trans.png" class="screenshot" alt="View Selected Accounts in Flow View" />
+<img src="../../../../img/screenshots/view-flow-from-trans.png" class="screenshot" alt="View Selected Accounts in Flow View" />
 
 ## Next Steps
 

@@ -35,6 +35,9 @@ define(
 		'lib/util/infTagUtilities',
 		'lib/util/iconUtil',
 		'lib/plugins',
+		'lib/viewPlugins',
+		'lib/util/infDescriptorUtilities',
+		'modules/infWorkspace',
 		'hbs!templates/footer/infEntityDetails'
 	],
 
@@ -47,6 +50,9 @@ define(
 		tagUtil,
 		iconUtil,
 		plugins,
+		viewPlugins,
+		descriptorUtil,
+		infWorkspace,
 		entityDetailsTemplate
 		) {
 
@@ -62,7 +68,9 @@ define(
 			parentId : '',
 			subscriberTokens : null,
 			lastRequestedObject : null,
-			canvas : null
+			canvas : null,
+			buttonSpecList : null,
+			searchParams : null
 		};
 
 		var _renderDefaults = {
@@ -124,7 +132,8 @@ define(
 					.then( function (response) {
 
 						_createEntityDetails(data.xfId, data.spec, response);
-					});
+					}
+				);
 			} else if (data.spec.hasOwnProperty('ownerId') && data.spec.ownerId !== '') {
 
 				// get details for entity here
@@ -134,9 +143,23 @@ define(
 					.then( function (response) {
 
 						_createEntityDetails(data.xfId, data.spec, response, true);
-					});
+					}
+				);
 			} else {
-				_createClusterDetails(data.xfId, data.uiType, data.spec);
+				// get the entities that make up the cluster
+				infRest.request( '/containedentities' ).inContext( data.contextId ).withData({
+
+					sessionId : infWorkspace.getSessionId(),
+					queryId: (new Date()).getTime(),
+					entitySets : [{
+						contextId : data.contextId,
+						entities : [data.spec.dataId]
+					}],
+					details : true
+
+				}).then(function (response) {
+					_createClusterDetails(data.xfId, data.uiType, data.spec, response);
+				});
 			}
 		};
 
@@ -155,17 +178,42 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
+		var _onSearchParams = function(eventChannel, data) {
+			if (eventChannel !== appChannel.SEARCH_PARAMS_EVENT) {
+				aperture.log.error('_onSearchParams: function called with illegal event channel');
+				return false;
+			}
+
+			if (data.paramsType === 'entities') {
+				_UIObjectState.searchParams = data.searchParams;
+			}
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
 		var _getEntityDetailsContext = function(xfId, spec, response, imageUrls, properties, includeClusterSummary) {
 			var context = {};
 
 			context.entityDetails = true;
-			context.button = {};
-			context.button.title = 'View accounts for selected entity';
-			context.button.switchesTo = constants.VIEWS.ACCOUNTS.NAME;
-			context.button.icon = constants.VIEWS.ACCOUNTS.ICON;
+
+			_UIObjectState.buttonSpecList = [
+				{
+					icon : constants.VIEWS.ACCOUNTS.ICON,
+					title : 'View accounts for selected entity',
+					switchesTo : constants.VIEWS.ACCOUNTS.NAME,
+					callback : function() {
+						_onAccountsView(response.uid);
+					}
+				}
+			];
+
+			Array.prototype.push.apply(_UIObjectState.buttonSpecList, viewPlugins.getOpsBarButtonSpecForView({entities: true}, function () {
+				return descriptorUtil.getIdDescriptors([{dataId : response.uid, type : response.type}], _UIObjectState.searchParams, 'ENTITY');
+			}));
+
+			context.buttons = _UIObjectState.buttonSpecList;
 
 			context.title = 'Account';
-			//context.label = tagUtil.getValueByTag(response, 'LABEL');
 
 			var label = tagUtil.getValueByTag(response, 'LABEL');
 
@@ -197,7 +245,7 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _addEventHandlers = function(imageUrls, properties, dataId, response, includeClusterSummary) {
+		var _addEventHandlers = function(properties, includeClusterSummary) {
 			if (includeClusterSummary) {
 				_UIObjectState.canvas.find('.detailsValueBlock').each(function() {
 					xfUtil.makeTooltip($(this).find('.detailsValueIcon img'), $(this).find('.detailsValueValue').html());
@@ -205,8 +253,10 @@ define(
 				});
 			}
 
-			_UIObjectState.canvas.find('#accountsViewButton').click(function() {
-				_onAccountsView(dataId);
+			aperture.util.forEach(_UIObjectState.buttonSpecList, function(button) {
+				_UIObjectState.canvas.find('#' + button.switchesTo).click(function() {
+					button.callback();
+				});
 			});
 
 			_UIObjectState.canvas.find('.detailsIcon').each(function() {
@@ -217,6 +267,11 @@ define(
 				if (i > 0) {	//ignore first row (uid)
 					_addPropertyTableRowHandlers($(this), properties[i - 1]);
 				}
+			});
+
+			_UIObjectState.canvas.find('.detailsValueBlock').each(function() {
+				xfUtil.makeTooltip($(this).find('.detailsValueIcon img'), $(this).find('.detailsValueValue').html());
+				xfUtil.makeTooltip($(this).find('.detailsValueScoreBar'), $(this).find('.detailsValueScore').html(), 'entity details score bar');
 			});
 		};
 
@@ -229,7 +284,7 @@ define(
 
 			_UIObjectState.canvas.append(entityDetailsTemplate(context));
 
-			_addEventHandlers(imageUrls, properties, spec.dataId, response, includeClusterSummary);
+			_addEventHandlers(properties, includeClusterSummary);
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -260,8 +315,23 @@ define(
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		var _createClusterDetails = function(xfId, uiType, spec) {
+		var _createClusterDetails = function(xfId, uiType, spec, response) {
 			var context = {};
+
+			var entities = [];
+			var i;
+			if (response.data.length > 0) {
+				for (i = 0; i < response.data[0].entities.length; i++) {
+					entities.push({dataId: response.data[0].entities[i].uid, type: response.data[0].entities[i].type});
+				}
+
+				_UIObjectState.buttonSpecList = viewPlugins.getOpsBarButtonSpecForView({entities: true}, function () {
+					return descriptorUtil.getIdDescriptors(entities, _UIObjectState.searchParams, 'ENTITY');
+				});
+
+				context.buttons = _UIObjectState.buttonSpecList;
+			}
+
 			context.clusterDetails = {};
 
 			context.clusterDetails.title = 'Cluster';
@@ -278,16 +348,13 @@ define(
 			var iconClassMap = aperture.config.get()['influent.config'].iconMap;
 
 			context.clusterDetails.detailsBlocks = [];
-			for(var i = 0; i < iconClassOrder.length; i++) {
+			for(i = 0; i < iconClassOrder.length; i++) {
 				context.clusterDetails.detailsBlocks = context.clusterDetails.detailsBlocks.concat(_getPropertyBlock(iconClassOrder[i], iconClassMap, spec));
 			}
 
 			_UIObjectState.canvas.append(entityDetailsTemplate(context));
 
-			_UIObjectState.canvas.find('.detailsValueBlock').each(function() {
-				xfUtil.makeTooltip($(this).find('.detailsValueIcon img'), $(this).find('.detailsValueValue').html());
-				xfUtil.makeTooltip($(this).find('.detailsValueScoreBar'), $(this).find('.detailsValueScore').html(), 'entity details score bar');
-			});
+			_addEventHandlers(null, false);
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -436,6 +503,7 @@ define(
 					subTokens[appChannel.SEARCH_REQUEST] = aperture.pubsub.subscribe(appChannel.SEARCH_REQUEST, _onSearch);
 					subTokens[appChannel.ENTITY_DETAILS_INFORMATION] = aperture.pubsub.subscribe(appChannel.ENTITY_DETAILS_INFORMATION, _onUpdate);
 					subTokens[appChannel.START_FLOW_VIEW] = aperture.pubsub.subscribe(appChannel.START_FLOW_VIEW, _initializeModule);
+					subTokens[appChannel.SEARCH_PARAMS_EVENT] = aperture.pubsub.subscribe(appChannel.SEARCH_PARAMS_EVENT, _onSearchParams);
 					_UIObjectState.subscriberTokens = subTokens;
 				},
 				end : function(){

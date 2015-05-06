@@ -29,7 +29,7 @@ Influent displays summaries of seven accounts that match all our search criteria
 
 <h6 class="procedure">To review an individual result</h6> 
 
-- Click the **more** link under each of the results named *Jason Walker* result to reveal account attributes that answer the following questions:
+- Click the **more** button ![More button](../../../../img/screenshots/buttons/more.png) under each of the results named *Jason Walker* result to reveal account attributes that answer the following questions:
 	- **When were the accounts active?**
 		<ol type="a">
 			<li>Scroll to the <strong>Earliest Transaction</strong> and <strong>Latest Transaction</strong> attributes.</li>

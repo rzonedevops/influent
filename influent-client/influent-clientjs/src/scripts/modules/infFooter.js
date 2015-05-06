@@ -27,22 +27,28 @@
 
 define(
 	[
+		'modules/infRest',
 		'lib/module',
 		'lib/communication/applicationChannels',
 		'lib/constants',
 		'lib/plugins',
 		'views/infFlowView',
-		'hbs!templates/footer/footer',
-		'moment'
+		'lib/viewPlugins',
+		'lib/util/infDescriptorUtilities',
+		'moment',
+		'hbs!templates/footer/footer'
 	],
 	function(
+		infRest,
 		modules,
 		appChannel,
 		constants,
 		plugins,
 		infFlowView,
-		footerTemplate,
-		moment
+		viewPlugins,
+		descriptorUtil,
+		moment,
+		footerTemplate
 	) {
 
 		var transactionsConstructor = function(sandbox) {
@@ -56,7 +62,10 @@ define(
 				curEntity: null,
 				focusEntity: null,
 				startDate: null,
-				endDate: null
+				endDate: null,
+				buttonSpecList : null,
+				searchParams : null,
+				linkType : null
 			};
 
 			//----------------------------------------------------------------------------------------------------------
@@ -95,7 +104,6 @@ define(
 			//----------------------------------------------------------------------------------------------------------
 
 			var _onUpdate = function(channel, data) {
-
 				var footerContentDiv = $('#footer-content');
 				_transactionsState.curEntity = data && data.dataId;
 
@@ -232,19 +240,59 @@ define(
 
 			//----------------------------------------------------------------------------------------------------------
 
+			var _onSearchParams = function(eventChannel, data) {
+				if (eventChannel !== appChannel.SEARCH_PARAMS_EVENT) {
+					aperture.log.error('_onSearchParams: function called with illegal event channel');
+					return false;
+				}
+
+				if (data.paramsType === 'links') {
+					_transactionsState.searchParams = data.searchParams;
+
+					//Hack to get the type.
+					var typeMap = _transactionsState.searchParams.getTypeMap();
+					for (var typeKey in typeMap) {
+						if (typeMap.hasOwnProperty(typeKey)) {
+							_transactionsState.linkType = typeMap[typeKey].key;
+						}
+					}
+				}
+			};
+
+			//----------------------------------------------------------------------------------------------------------
+
 			var initialize = function() {
 				var footer = $('#footer');
-				var buttonContext = {
-					transactionsIconClass : constants.VIEWS.TRANSACTIONS.ICON,
-					transactionsSwitchesTo : constants.VIEWS.TRANSACTIONS.NAME,
-					transactionsTitle : 'View transactions for selected entity'
-				};
-				footer.append(footerTemplate(buttonContext));
 
-				var transactionsButtonElement = footer.find('#transactions-button');
+				_transactionsState.buttonSpecList = [
+					{
+						icon : constants.VIEWS.TRANSACTIONS.ICON,
+						title : 'View transactions for selected entity',
+						switchesTo : constants.VIEWS.TRANSACTIONS.NAME,
+						callback : function() {
+							_onTransactionsView();
+						}
+					}
+				];
 
-				transactionsButtonElement.click(function() {
-					_onTransactionsView();
+				Array.prototype.push.apply(_transactionsState.buttonSpecList, viewPlugins.getOpsBarButtonSpecForView({links: true}, function () {
+					//return descriptorUtil.getIdDescriptors([{dataId : _transactionsState.detailsResponse.uid, type : _transactionsState.detailsResponse.type}], _transactionsState.searchParams, 'ENTITY');
+
+					return descriptorUtil.getLinkIdDescriptors([{dataId : _transactionsState.curEntity, type : _transactionsState.linkType}], _transactionsState.searchParams);
+				}));
+
+				footer.append(footerTemplate({buttons : _transactionsState.buttonSpecList}));
+
+				aperture.util.forEach(_transactionsState.buttonSpecList, function(button) {
+					$('#' + button.switchesTo).click(function() {
+						button.callback();
+					});
+				});
+
+				aperture.util.forEach(_transactionsState.buttonSpecList, function(button) {
+					footer.find('#transactions-button').click(function() {
+						button.callback();
+					});
 				});
 
 				$('#transaction-tabs a').click(function (e) {
@@ -290,6 +338,7 @@ define(
 				subTokens[appChannel.FOOTER_STATE_REQUEST] = aperture.pubsub.subscribe(appChannel.FOOTER_STATE_REQUEST, _onStateRequest);
 				subTokens[appChannel.FILTER_DATE_PICKER_CHANGE_EVENT] = aperture.pubsub.subscribe(appChannel.FILTER_DATE_PICKER_CHANGE_EVENT, _onFilter);
 				subTokens[appChannel.TRANSACTIONS_FILTER_EVENT] = aperture.pubsub.subscribe(appChannel.TRANSACTIONS_FILTER_EVENT, _onFilterHighlight);
+				subTokens[appChannel.SEARCH_PARAMS_EVENT] = aperture.pubsub.subscribe(appChannel.SEARCH_PARAMS_EVENT, _onSearchParams);
 
 				_transactionsState.subscriberTokens = subTokens;
 			};

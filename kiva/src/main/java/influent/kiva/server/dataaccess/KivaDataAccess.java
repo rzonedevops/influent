@@ -87,7 +87,7 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 			List<String> entities
 		) throws AvroRemoteException {
 
-		final List<String> ns_entities = InfluentId.typedFromInfluentIds(entities);
+		final List<String> ns_entities = InfluentId.nativeFromInfluentIds(entities);
 		Map<String, List<FL_Entity>> map = new HashMap<String, List<FL_Entity>>();
 
 		if (ns_entities.isEmpty()) return map;
@@ -113,7 +113,7 @@ public class KivaDataAccess extends DataViewDataAccess implements FL_DataAccess 
 				ResultSet rs = stmt.getResultSet();
 				while (rs.next()) {
 					String id = rs.getString(brokerColumn);
-					String accountId = InfluentId.ACCOUNT + "." + id;
+					String accountId = InfluentId.ACCOUNT + ".partner." + id;
 					accounts.add(accountId);
 				}
 			}

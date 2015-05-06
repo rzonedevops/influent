@@ -26,10 +26,30 @@
  */
 define([], function() {
 
+		var createDescriptor = function(descriptors, prop, key, dataId) {
+			var typeMappings = [];
+			typeMappings.push({
+				type: dataId.type,
+				memberKey: prop.typeMappings[dataId.type]
+			});
+
+			var matchDescriptor = {
+				key : key,
+				range : {
+					value: dataId.dataId,
+					type: prop.propertyType
+				},
+				typeMappings : typeMappings
+			};
+			if (!descriptors.hasOwnProperty(dataId.type)) {
+				descriptors[dataId.type] = [];
+			}
+			descriptors[dataId.type].push(matchDescriptor);
+		};
+
 		return {
 			getIdDescriptors: function(dataIds, searchParams, key) {
 				var descriptors = {};
-				var matchDescriptor;
 				var matchKey;
 				var prop;
 
@@ -43,25 +63,24 @@ define([], function() {
 				}
 
 				for (var i = 0; i < dataIds.length; i++) {
-					var typeMappings = [];
-					typeMappings.push({
-						type: dataIds[i].type,
-						memberKey: prop.typeMappings[dataIds[i].type]
-					});
+					createDescriptor(descriptors, prop, matchKey, dataIds[i]);
+				}
 
-					matchDescriptor = {
-						key : matchKey,
-						range : {
-							value: dataIds[i].dataId,
-							type: prop.propertyType
-						},
-						typeMappings : typeMappings
-					};
-					if (!descriptors.hasOwnProperty(dataIds[i].type)) {
-						descriptors[dataIds[i].type] = [];
-					}
-					descriptors[dataIds[i].type].push(matchDescriptor);
+				return descriptors;
+			},
 
+			getLinkIdDescriptors: function(dataIds, searchParams) {
+				var descriptors = {};
+
+				var fromProp = searchParams.getProperty('FROM');
+				var toProp = searchParams.getProperty('TO');
+				if (!fromProp || !toProp) {
+					return {};
+				}
+
+				for (var i = 0; i < dataIds.length; i++) {
+					createDescriptor(descriptors, fromProp, fromProp.key, dataIds[i]);
+					createDescriptor(descriptors, toProp, toProp.key, dataIds[i]);
 				}
 
 				return descriptors;

@@ -71,8 +71,8 @@ Where:
 		<table class="summaryTable" width="100%">
 			<thead>
 				<tr>
-					<th scope="col" width="35%">Property</th>
-					<th scope="col" width="65%">Description</th>
+					<th scope="col" width="15%">Property</th>
+					<th scope="col" width="85%">Description</th>
 				</tr>
 			</thead>
 			<tbody>

@@ -1234,6 +1234,7 @@ define(
 			var entityDetailsInformation = {
 				xfId: uiObject.getXfId(),
 				uiType: uiObject.getUIType(),
+				contextId: xfUtil.getContextByUIObject(uiObject).getXfId(),
 				spec: specs[0]
 			};
 
