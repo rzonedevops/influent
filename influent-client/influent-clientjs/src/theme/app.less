@@ -420,7 +420,7 @@ button#influent-flow-drop-menu-file-close {
 
 .infResultClusterAccordionControl {
 	float: right;
-	margin-top: -6px;
+	margin-top: -10px;
 }
 
 .infResultClusterAccordionButton {
@@ -448,10 +448,20 @@ button#influent-flow-drop-menu-file-close {
 	background-repeat: no-repeat;
 	display: inline-block;
 	height : 28px;
-	width: 30px;
+	width: 28px;//30px; ??
 	vertical-align: middle;
 	text-align: center;
-	font-size: 22px;
+}
+
+.infSearchResultFontIcon {
+	background: #333;
+  	border-radius: 14px;
+}
+
+.infSearchResultIcon>span {
+  line-height: 28px;
+  font-size: 16px;
+  color: white;
 }
 
 .summaryColumnText {
@@ -507,8 +517,18 @@ td.selectSingleResult {
 	width: 29px;
 	min-width: 29px;
 }
+
+td.resultDetails {
+  padding-top: 0px !important;
+  border-top: none !important;
+}
+
 .infSearchResultFirstRow {
   height: 1px;
+}
+
+.infSearchResultSecondRow {
+  border-bottom: 1px solid #ddd;
 }
 
 .infSearchResultImageCell {
@@ -600,25 +620,13 @@ td.selectSingleResult {
 
 .simpleSearchResultText {
 	color: @influent-search-result-value;
-	margin-left: @influent-simple-search-result-text-margin;
+  	width: 100%;
+  	font-size: 12px;
 }
 
 .detailedSearchResultText {
 	color: #333;
-//	margin-left: @influent-simple-search-result-text-margin;
-}
-
-.simpleSearchResultIconRow {
-	position: relative;
-	margin-left : @influent-simple-search-result-text-margin;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-	overflow: hidden;
-	padding-top: 5px;
-	padding-bottom: 2px;
-	color: #CE5200;
-	font-size: @influent-font-size;
-	font-family: @influent-font-family;
+	width: 100%;
 }
 
 .simpleSearchResultIconBullet {
@@ -627,9 +635,16 @@ td.selectSingleResult {
 
 .infSearchResultStateToggle {
 	margin-left: @influent-simple-search-result-text-margin;
-	color: @influent-simple-search-result-link-text-color;
+//	color: @influent-simple-search-result-link-text-color;
 	padding-bottom: 3px;
 	cursor: pointer;
+    font-size: 22px;
+    position: absolute;
+}
+
+.infSearchResultTextContainer {
+	display: block;
+    margin-left: 20px;
 }
 
 .infSearchResultOverlay {
@@ -656,20 +671,14 @@ td.selectSingleResult {
 
 .infSearchResultPropertyTableTitle {
 	font-weight: bold;
-	font-size: 16px;
 	padding: 4px;
 	color: rgb(140, 52, 0);
-}
-
-.infSearchResultTransactionGraph, .infSearchResultProperties {
-	background: rgb(250, 249, 245);
-	border: 1px solid rgb(232, 231, 226);
 }
 
 .infSearchResultPropertyTable {
 	border-spacing: 3px;
 	border-collapse: separate;
-	margin: 6px;
+  	font-size: 12px;
 }
 
 .infSearchResultTransactionGraph {
@@ -749,6 +758,7 @@ td.selectSingleResult {
   background-size: contain;
   background-position: center center;
   background-repeat: no-repeat;
+  text-align: center;
 }
 
 #detailsBody .propertyTable .propertyValue {
@@ -1098,7 +1108,18 @@ td.selectSingleResult {
 .cardIconBlock {
 	width: 24px;
 	height: 24px;
-	font-size: 22px;
+}
+
+.cardFontIcon {
+	background-repeat: no-repeat;
+	background: #333;
+	font-size: 16px;
+	text-align: center;
+	border-radius: 12px;
+  	color: white;
+}
+.cardFontIcon>span {
+  line-height: 24px;
 }
 
 .scoreBarBackground {

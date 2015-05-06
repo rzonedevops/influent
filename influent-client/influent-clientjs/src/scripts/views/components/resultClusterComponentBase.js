@@ -45,7 +45,7 @@ define(
 				visibilityChangeChannel : visibilityChangeChannel
 			};
 
-			clusterData['clusterState'] = 'up';
+			clusterData['clusterState'] = 'down';
 
 			var template = searchResultCluster({
 				xfId : xfId,
@@ -92,14 +92,14 @@ define(
 				if ($(cluster).hasClass('in')) {
 					$(cluster).removeClass('in');
 					icon = $(this).find('.infResultClusterAccordionButtonIcon');
-					icon.removeClass('glyphicon-chevron-up');
-					icon.addClass('glyphicon-chevron-down');
+					icon.removeClass('fa-caret-down');
+					icon.addClass('fa-caret-right');
 					expanded = false;
 				} else {
 					$(cluster).addClass('in');
 					icon = $(this).find('.infResultClusterAccordionButtonIcon');
-					icon.removeClass('glyphicon-chevron-down');
-					icon.addClass('glyphicon-chevron-up');
+					icon.removeClass('fa-caret-right');
+					icon.addClass('fa-caret-down');
 				}
 
 				//signal event for cluster that changed

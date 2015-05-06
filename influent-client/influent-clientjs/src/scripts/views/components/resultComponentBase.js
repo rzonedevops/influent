@@ -76,7 +76,7 @@ define(
 		//--------------------------------------------------------------------------------------------------------------
 
 		var _addDetailsClickHandler = function(state) {
-			state.detailsCanvas.find('#infSearchResultShowDetails').click(function() {
+			state.detailsCanvas.find('#infSearchResultDetailsToggle').click(function() {
 				//signal event for a change in detail level
 				aperture.pubsub.publish(state.entityDetailsChangeChannel, {
 					xfId : state.xfId,

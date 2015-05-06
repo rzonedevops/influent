@@ -76,6 +76,7 @@ define(
 			var imageContainer = $('<div></div>');
 			imageContainer.addClass('cardIconBlock');
 			if (imgUrl.substr(0,6) === 'class:') {
+				imageContainer.addClass('cardFontIcon');
 				$('<span></span>').addClass(imgUrl.substr(6)).appendTo(imageContainer);
 			} else {
 				imageContainer.css('background-image', 'url("'+ imgUrl+ '")');

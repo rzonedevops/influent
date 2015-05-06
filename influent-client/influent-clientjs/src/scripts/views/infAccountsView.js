@@ -290,7 +290,9 @@ define(
 		var _hideFullDetails = function(container) {
 			container.find('.simpleSearchResultText').css('display','block');
 			container.find('.detailedSearchResultText').css('display','none');
-			container.find('#infSearchResultShowDetails').html('[more]');
+			var icon = container.find('#infSearchResultDetailsToggle');
+			icon.removeClass('fa-caret-down');
+			icon.addClass('fa-caret-right');
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -371,13 +373,6 @@ define(
 				}
 			}
 			appendDiv.append(expandedSearchResultsTemplate(context));
-
-			appendDiv.find('#infSearchResultHideDetails').click(function() {
-				_hideFullDetails(appendDiv.parent());
-			});
-//			appendDiv.find('.moreLink').click(function() {
-//				$(this).parent().html($(this).parent().attr('longValue'));
-//			});
 
 			var propRows = appendDiv.find('.infSearchResultProperty');
 			for (var i = 0; i < context.results.length; i++) {
@@ -1067,10 +1062,10 @@ define(
 		 * @param data
 		 * @private
 		 */
-		var _onEntityFullDetailsShow = function(eventChannel, data) {
+		var _onToggleDetails = function(eventChannel, data) {
 
 			if (eventChannel !== accountsChannel.RESULT_ENTITY_FULL_DETAILS_SHOW) {
-				aperture.log.error('_onEntityDetailsChange: function called with illegal event channel');
+				aperture.log.error('_onToggleDetails: function called with illegal event channel');
 				return false;
 			}
 
@@ -1078,17 +1073,33 @@ define(
 				data.xfId == null ||
 				data.container == null
 			) {
-				aperture.log.error('_onEntityDetailsChange: function called with invalid data');
+				aperture.log.error('_onToggleDetails: function called with invalid data');
 				return false;
 			}
 
+			var icon = data.container.find('#infSearchResultDetailsToggle');
+			if (icon.hasClass('fa-caret-right')) {
+				_showFullDetails(data);
+			} else if (icon.hasClass('fa-caret-down')) {
+				_hideFullDetails(data.container);
+			} else {
+				aperture.log.error('_onToggleDetails: unable to toggle details');
+				return false;
+			}
+		};
 
+		//--------------------------------------------------------------------------------------------------------------
+
+		var _showFullDetails = function(data) {
 			var container = data.container.find('.detailedSearchResultText');
 
 			var displayFullDetails = function() {
 				data.container.find('.simpleSearchResultText').css('display','none');
 				container.css('display','block');
-				data.container.find('#infSearchResultShowDetails').html('');
+				var icon = data.container.find('#infSearchResultDetailsToggle');
+				icon.removeClass('fa-caret-right');
+				icon.addClass('fa-caret-down');
+				icon.css('display', '');
 			};
 
 			// Generate the details if we haven't already
@@ -1105,7 +1116,7 @@ define(
 					var loading = $(loadingTemplate({height: '32px'})).appendTo(container);
 
 					// disable this until details come back.
-					data.container.find('#infSearchResultShowDetails').html('');
+					data.container.find('#infSearchResultDetailsToggle').css('display','none');
 
 					_getEntityDetails(result, function(entity, status) {
 						loading.remove();
@@ -1173,7 +1184,7 @@ define(
 					subTokens[appChannel.VIEW_REGISTERED] = aperture.pubsub.subscribe(appChannel.VIEW_REGISTERED, _onViewRegistered);
 					subTokens[appChannel.EXPORT_ACCOUNTS_REQUEST] = aperture.pubsub.subscribe(appChannel.EXPORT_ACCOUNTS_REQUEST, _onExport);
 
-					subTokens[accountsChannel.RESULT_ENTITY_FULL_DETAILS_SHOW] = aperture.pubsub.subscribe(accountsChannel.RESULT_ENTITY_FULL_DETAILS_SHOW, _onEntityFullDetailsShow);
+					subTokens[accountsChannel.RESULT_ENTITY_FULL_DETAILS_SHOW] = aperture.pubsub.subscribe(accountsChannel.RESULT_ENTITY_FULL_DETAILS_SHOW, _onToggleDetails);
 					subTokens[accountsChannel.RESULT_SELECTION_CHANGE] = aperture.pubsub.subscribe(accountsChannel.RESULT_SELECTION_CHANGE, _onSelectionChange);
 					subTokens[accountsChannel.RESULT_SORT_ORDER_CHANGE] = aperture.pubsub.subscribe(accountsChannel.RESULT_SORT_ORDER_CHANGE, _onSortOrderChange);
 					subTokens[accountsChannel.RESULT_VISIBILITY_CHANGE] = aperture.pubsub.subscribe(accountsChannel.RESULT_VISIBILITY_CHANGE, _onVisibilityChange);
@@ -1214,7 +1225,7 @@ define(
 				_init: _init,
 				_onClearView: _onClearView,
 				_onDatasetStats: _onDatasetStats,
-				_onEntityFullDetailsShow: _onEntityFullDetailsShow,
+				_onToggleDetails: _onToggleDetails,
 				_onFlowView: _onFlowView,
 				_onSelectionChange: _onSelectionChange,
 				_onShowAdvancedSearchDialog: _onShowAdvancedSearchDialog,

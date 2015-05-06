@@ -227,7 +227,7 @@ define(
 				var SPACER = 1;
 				var BAR_WIDTH = 4 * MULTIPLE;
 
-				var width = _UIObjectState.canvas.width();
+				var width = _UIObjectState.canvas.width() - 20;
 				var height = _UIObjectState.canvas.height();
 
 				if (!graphParams ||

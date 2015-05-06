@@ -313,7 +313,9 @@ define(
 		var _hideFullDetails = function(container) {
 			container.find('.simpleSearchResultText').css('display','block');
 			container.find('.detailedSearchResultText').css('display','none');
-			container.find('#infSearchResultShowDetails').html('[more]');
+			var icon = container.find('#infSearchResultDetailsToggle');
+			icon.removeClass('fa-caret-down');
+			icon.addClass('fa-caret-right');
 		};
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -958,10 +960,10 @@ define(
 		 * @param data
 		 * @private
 		 */
-		var _onTransactionDetailsShow = function(eventChannel, data) {
+		var _onToggleDetails = function(eventChannel, data) {
 
 			if (eventChannel !== transChannel.RESULT_FULL_DETAILS_SHOW) {
-				aperture.log.error('_onTransactionDetailsChange: function called with illegal event channel');
+				aperture.log.error('_onToggleDetails: function called with illegal event channel');
 				return false;
 			}
 
@@ -969,10 +971,24 @@ define(
 				data.xfId == null ||
 				data.container == null
 			) {
-				aperture.log.error('_onTransactionDetailsChange: function called with invalid data');
+				aperture.log.error('_onToggleDetails: function called with invalid data');
 				return false;
 			}
 
+			var icon = data.container.find('#infSearchResultDetailsToggle');
+			if (icon.hasClass('fa-caret-right')) {
+				_showFullDetails(data);
+			} else if (icon.hasClass('fa-caret-down')) {
+				_hideFullDetails(data.container);
+			} else {
+				aperture.log.error('_onToggleDetails: unable to toggle details');
+				return false;
+			}
+		};
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		var _showFullDetails = function(data) {
 			var container = data.container.find('.detailedSearchResultText');
 
 			// Generate the details if we haven't already
@@ -981,7 +997,7 @@ define(
 				var result = _UIObjectState.currentSearchResult.getResultByXfId(data.xfId);
 
 				if (result == null) {
-					aperture.log.warn('_onTransactionDetailsChange: unable to find result with specified id');
+					aperture.log.warn('_showFullDetails: unable to find result with specified id');
 					return false;
 				}
 
@@ -990,7 +1006,7 @@ define(
 					var loading = $(loadingTemplate({height: '32px'})).appendTo(container);
 
 					// disable this until details come back.
-					data.container.find('#infSearchResultShowDetails').html('');
+					data.container.find('#infSearchResultDetailsToggle').css('display','none');
 
 					_getEntityDetails(result,
 						function (transaction, status) {
@@ -1000,7 +1016,7 @@ define(
 								result.updateSpec(transaction);
 
 								if (result == null) {
-									aperture.log.warn('_onTransactionDetailsChange: unable to find result with specified id');
+									aperture.log.warn('_showFullDetails: unable to find result with specified id');
 									return false;
 								}
 
@@ -1016,7 +1032,10 @@ define(
 			
 			data.container.find('.simpleSearchResultText').css('display','none');
 			data.container.find('.detailedSearchResultText').css('display','block');
-			data.container.find('#infSearchResultShowDetails').html('');
+			var icon = data.container.find('#infSearchResultDetailsToggle');
+			icon.removeClass('fa-caret-right');
+			icon.addClass('fa-caret-down');
+			icon.css('display', '');
 
 			return true;
 		};
@@ -1076,7 +1095,7 @@ define(
 					subTokens[appChannel.VIEW_REGISTERED] = aperture.pubsub.subscribe(appChannel.VIEW_REGISTERED, _onViewRegistered);
 					subTokens[appChannel.EXPORT_TRANSACTIONS_REQUEST] = aperture.pubsub.subscribe(appChannel.EXPORT_TRANSACTIONS_REQUEST, _onExport);
 
-					subTokens[transChannel.RESULT_FULL_DETAILS_SHOW] = aperture.pubsub.subscribe(transChannel.RESULT_FULL_DETAILS_SHOW, _onTransactionDetailsShow);
+					subTokens[transChannel.RESULT_FULL_DETAILS_SHOW] = aperture.pubsub.subscribe(transChannel.RESULT_FULL_DETAILS_SHOW, _onToggleDetails);
 					subTokens[transChannel.RESULT_SELECTION_CHANGE] = aperture.pubsub.subscribe(transChannel.RESULT_SELECTION_CHANGE, _onSelectionChange);
 					subTokens[transChannel.RESULT_SORT_ORDER_CHANGE] = aperture.pubsub.subscribe(transChannel.RESULT_SORT_ORDER_CHANGE, _onSortOrderChange);
 					subTokens[transChannel.RESULT_VISIBILITY_CHANGE] = aperture.pubsub.subscribe(transChannel.RESULT_VISIBILITY_CHANGE, _onVisibilityChange);
@@ -1117,7 +1136,7 @@ define(
 				_onClearView: _onClearView,
 				_onVisibilityChange: _onVisibilityChange,
 				_generateTextTableElement: _generateTextTableElement,
-				_onTransactionDetailsShow: _onTransactionDetailsShow,
+				_onToggleDetails: _onToggleDetails,
 				_onSelectionChange: _onSelectionChange,
 				_onViewParametersChanged: _onViewParametersChanged,
 				_onFlowView: _onFlowView,
