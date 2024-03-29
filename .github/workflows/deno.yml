@@ -21,13 +21,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4.2.1
-jobs:
-  build:
-    runs-on: ubuntu-20.04
-    strategy:
+#    steps:
+#      - name: Setup Java JDK
+#        uses: actions/setup-java@v4.2.1
+   strategy:
       matrix:
         java: [ '8', '11', '17', '21' ]
     name: Java ${{ matrix.Java }} sample
@@ -38,14 +35,14 @@ jobs:
         with:
           distribution: '<distribution>'
           java-version: ${{ matrix.java }}
-  # run: mvn clean install
+         run: mvn clean install
   
     cache: 'maven'
     cache-dependency-path: './pom.xml' # optional
     cache-dependency-path: './webdeploy.xml' # optional
  #   cache-dependency-path: 'sub-project/pom.xml' # optional
-- name: Build with Maven
-  run: mvn -B package --file pom.xml
+     - name: Build with Maven
+       run: mvn -B package --file pom.xml
       
       - name: Cache
         uses: actions/cache@v4.0.2
