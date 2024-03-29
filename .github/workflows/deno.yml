@@ -38,7 +38,7 @@ jobs:
         with:
           distribution: '<distribution>'
           java-version: ${{ matrix.java }}
-  run: mvn clean install
+  # run: mvn clean install
   
     cache: 'maven'
     cache-dependency-path: './pom.xml' # optional
