@@ -3,7 +3,7 @@
 version: 2.1
 
 orbs:
-  maven: circleci/maven@1.4.1
+  maven: circleci/maven@1.4
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/jobs-steps/#jobs-overview & https://circleci.com/docs/configuration-reference/#jobs
@@ -15,7 +15,7 @@ jobs:
     docker:
       # Specify the version you desire here
       # See: https://circleci.com/developer/images/image/cimg/openjdk
-      - image: cimg/openjdk:18.0
+      - image: cimg/openjdk:15.0
 
     # Add steps to the job
     # See: https://circleci.com/docs/jobs-steps/#steps-overview & https://circleci.com/docs/configuration-reference/#steps
