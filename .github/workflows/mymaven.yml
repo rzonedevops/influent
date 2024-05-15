@@ -1,0 +1,150 @@
+# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+
+    # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
+    - name: Update dependency graph
+      uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
+    - name: Setup Maven
+    # You may pin to the exact commit or the version.
+    # uses: stCarolas/setup-maven@d6af6abeda15e98926a57b5aa970a96bb37f97d1
+      uses: stCarolas/setup-maven@v5
+    # with:
+    # Version Spec of the version to use.  Examples: 10.x, 10.15.1, >=10.15.0
+    # maven-version: # optional, default is 3.8.2
+    - name: Sync Maven
+  # You may pin to the exact commit or the version.
+  # uses: guoshiqiufeng/github-action-sync-maven@bfe2d292ee8ea65912c72eebceaacc05806d23bc
+      uses: guoshiqiufeng/github-action-sync-maven@v1.2.2
+    # with:
+    # Repository URL
+    # repositories: # default is https://repo1.maven.org/maven2/
+    # List of dependencies to sync
+    # dependenciesJson: # default is [{"groupId":"io.github.guoshiqiufeng", "artifactId":"loki", "version":"0.8.1"}]
+
+    - name: Automated Github Action Maven Version Bump
+  # You may pin to the exact commit or the version.
+  # uses: mickem/gh-action-bump-maven-version@28b60f9e8394195362207ebb2f6041e230718e0a
+      uses: mickem/gh-action-bump-maven-version@v1.0.0
+#  with:
+    # Where to find the pom file
+#    pom-file: # optional, default is pom.xml
+    # Command to update the version
+#    bump-command: # optional, default is mvn org.codehaus.mojo:versions-maven-plugin:set -DnewVersion=@NEW_VERSION@
+    # Path to version in pom file
+#    version-path: # optional, default is /project/version
+    # Custom commit message for version bump commit
+#    commit-message: # optional, default is ci: version bump
+          
+
+
+    - name: automatic-version-bump-maven
+  # You may pin to the exact commit or the version.
+  # uses: MineEra-Corp/automatic-version-bump-maven@ac3a6603b94665f519005650f0b38cc152608b55
+      uses: MineEra-Corp/automatic-version-bump-maven@v1
+          
+ 
+
+    - name: Maven Dependency Tree Dependency Submission
+  # You may pin to the exact commit or the version.
+  # uses: advanced-security/maven-dependency-submission-action@5d0f9011b55d6268922128af45275986303459c3
+      uses: advanced-security/maven-dependency-submission-action@v4.0.3
+#  with:
+    # The directory that contains the maven project
+#    directory: # optional, default is ${{ github.workspace }}
+    # Optional path to a Maven settings.xml file for the dependencies to be resolved
+#    settings-file: # optional
+    # Flag for optionally ignoring any maven wrapper files (mvnw) and instead rely on the PATH provided mvn
+#    ignore-maven-wrapper: # optional
+    # Additional maven arguments to add to the command line invocation of maven when it generates the dependency snapshot
+#    maven-args: # optional, default is 
+    # Optionally include the file name in the dependency snapshot report to GitHub. This is required to be true if you want the results in the dependency tree to have a working link.
+#    snapshot-include-file-name: # optional, default is true
+    # An optional override to specify the path to the file in the repository that the snapshot should be associated with.
+#    snapshot-dependency-file-name: # optional
+    # The GitHub token to use to submit the depedency snapshot to the repository
+#    token: # optional, default is ${{ github.token }}
+    # The SHA that the results will be linked to in the dependency snapshot
+#    snapshot-sha: # optional, default is 
+    # The ref that the results will be linked to in the dependency snapshot
+#    snapshot-ref: # optional, default is 
+          
+    
+    - name: CI Maven
+  # You may pin to the exact commit or the version.
+  # uses: Best-Quality-Engineering/ci-maven-action@4bc4a4f9a59050271d907afee1ac7f03d171f431
+      uses: Best-Quality-Engineering/ci-maven-action@v1.1.0
+#  with:
+    # Specifies parameters used to start up the JVM running Maven
+#    maven-opts: # optional
+    # Produce execution error messages
+#    errors: # optional, default is true
+    # Run in non-interactive (batch) mode (disables output color)
+#    batch-mode: # optional, default is true
+    # Do not display transfer progress when downloading or uploading
+#    no-transfer-progress: # optional, default is true
+    # Only fail the build afterwards; allow all non-impacted builds to continue
+#    fail-at-end: # optional, default is false
+    # Stop at first failure in reactorized builds
+#    fail-fast: # optional, default is false
+    # NEVER fail the build, regardless of project result
+#    fail-never: # optional, default is false
+    # If project list is specified, also build projects required by the list
+#    also-make: # optional, default is false
+    # If project list is specified, also build projects that depend on projects on the list
+#    also-make-dependents: # optional, default is false
+    # Alternate path for the user settings file
+#    settings-file: # optional
+    # Alternate path for the user toolchains file
+#    toolchains-file: # optional
+    # Force the use of an alternate POM file (or directory with pom.xml)
+#    pom-file: # optional
+    # Defines a set of system properties in CSV or multiline format
+#    system-properties: # optional
+    # The CI-friendly revision property to use
+#    revision: # optional, default is undefined
+    # The CI-friendly sha1 property to use
+#    sha1: # optional, default is undefined
+    # The CI-friendly changelist property to use
+#    changelist: # optional, default is undefined
+    # Comma-delimited list of profiles to activate
+#    profiles: # optional
+    # Comma-delimited list of specified reactor projects to build instead of all projects. A project can be specified by [groupId]:artifactId or by its relative path
+#    projects: # optional
+    # Thread count, for instance 2.0C where C is core multiplied
+#    threads: # optional
+    # Comma separated list of goals to execute
+#    goals: # optional
+    # Comma separated list of phases to execute
+#    phases: # optional
+
+
+
