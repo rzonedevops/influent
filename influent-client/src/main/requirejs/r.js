@@ -218,8 +218,10 @@ var requirejs, require, define, xpcUtil;
 
         readFile = xpcUtil.readFile;
 
-        exec = function (string) {
-            return eval(string);
+        exec = function (config) {
+            if (typeof require === 'function') {
+                require.config(config);
+            }
         };
 
         exists = function (fileName) {
@@ -27800,7 +27802,7 @@ define('build', function (require) {
             dir.pop();
             dir = dir.join('/');
             //Make sure dir is JS-escaped, since it will be part of a JS string.
-            exec("require({baseUrl: '" + dir.replace(/[\\"']/g, '\\$&') + "'});");
+            exec({baseUrl: dir.replace(/[\\"']/g, '\\$&')});
         }
     }
 
