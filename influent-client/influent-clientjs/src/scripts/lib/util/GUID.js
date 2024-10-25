@@ -25,13 +25,14 @@ define(
 
 		guid.generateGuid = function () {
 			var result = '';
-			for (var i = 0; i < 32; i++) {
-				if (i === 8 || i === 12 || i === 16 || i === 20) {
-					result = result + '-';
+			var array = new Uint8Array(16);
+			window.crypto.getRandomValues(array);
+			for (var i = 0; i < array.length; i++) {
+				if (i === 4 || i === 6 || i === 8 || i === 10) {
+					result += '-';
 				}
-				result = result + Math.floor(Math.random() * 16).toString(16).toUpperCase();
+				result += array[i].toString(16).padStart(2, '0').toUpperCase();
 			}
-
 			return result;
 		};
 
