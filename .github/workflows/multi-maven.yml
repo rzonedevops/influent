@@ -2,9 +2,9 @@ name: Multi-Matrix Maven Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   schedule:
     - cron: '0 2 * * *'  # Runs daily at 2 AM UTC
 
@@ -67,8 +67,8 @@ jobs:
         body: |
           The build has failed for OS: ${{ matrix.os }} and Java: ${{ matrix.java }}.
           Please check the workflow logs for details.
-        to: your-email@example.com
-        from: github-actions@example.com
+#        to: your-email@example.com
+#        from: github-actions@example.com
 
 
 
