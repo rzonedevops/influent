@@ -2,9 +2,9 @@ name: Maven Multi-Job Workflow
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   schedule:
     - cron: '0 3 * * *'  # Runs daily at 3 AM UTC
 
