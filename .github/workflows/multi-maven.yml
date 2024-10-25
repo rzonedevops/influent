@@ -1,0 +1,71 @@
+name: Multi-Matrix Maven Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # Runs daily at 2 AM UTC
+
+jobs:
+  build:
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        java: [8, 11, 17]
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set Up Java ${{ matrix.java }}
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: ${{ matrix.java }}
+        cache: maven
+
+    - name: Display Java Version
+      run: java -version
+
+    - name: Cache Maven Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.m2/repository
+          !~/.m2/repository/org/apache/maven/plugins/maven-surefire-plugin
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-java${{ matrix.java }}
+        restore-keys: |
+          ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-java
+          ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          ${{ runner.os }}-m2-
+
+    - name: Maven Build and Test
+      run: mvn clean verify
+
+    - name: Upload Test Results
+      if: always() && matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.os }}-java${{ matrix.java }}
+        path: target/surefire-reports/
+
+    - name: Notify on Failure
+      if: failure()
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.example.com
+        server_port: 587
+        username: ${{ secrets.SMTP_USERNAME }}
+        password: ${{ secrets.SMTP_PASSWORD }}
+        subject: 'Build Failure in ${{ matrix.os }} - Java ${{ matrix.java }}'
+        body: |
+          The build has failed for OS: ${{ matrix.os }} and Java: ${{ matrix.java }}.
+          Please check the workflow logs for details.
+        to: your-email@example.com
+        from: github-actions@example.com
