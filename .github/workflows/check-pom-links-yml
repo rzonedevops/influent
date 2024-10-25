@@ -1,0 +1,144 @@
+name: Check and Fix POM Broken Links
+
+# Triggers the workflow on push and daily schedule
+on:
+  push:
+    branches:
+      - main  # Adjust to your default branch
+  schedule:
+    - cron: '0 2 * * *'  # Runs daily at 2 AM UTC
+
+jobs:
+  check-pom-links:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set Up Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'  # Specify your project's Java version
+
+    - name: Set Up Maven Cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.m2/repository
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-
+
+    - name: Validate POM
+      run: mvn validate
+
+    - name: Check for Broken Links
+      id: check_links
+      run: |
+        # Install necessary tools
+        sudo apt-get update
+        sudo apt-get install -y xmlstarlet curl
+
+        # Path to pom.xml
+        POM_FILE="pom.xml"
+
+        # Extract all URLs from the pom.xml (repositories and dependencies)
+        URLS=$(xmlstarlet sel -t -m "//repository/url | //dependency/*[name() = 'url']" -v . -n $POM_FILE)
+
+        echo "Found URLs:"
+        echo "$URLS"
+
+        # Initialize an empty file to store broken URLs
+        BROKEN_URLS_FILE="broken_urls.txt"
+        > $BROKEN_URLS_FILE
+
+        # Function to check URL
+        check_url() {
+          local url=$1
+          # Send a HEAD request to check if the URL is reachable
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -I "$url")
+          if [[ "$HTTP_STATUS" -ge 400 ]]; then
+            echo "$url is broken (Status: $HTTP_STATUS)"
+            echo "$url" >> $BROKEN_URLS_FILE
+          else
+            echo "$url is valid (Status: $HTTP_STATUS)"
+          fi
+        }
+
+        # Iterate over each URL and check
+        while IFS= read -r url; do
+          check_url "$url"
+        done <<< "$URLS"
+
+        # Check if any broken URLs were found
+        if [[ -s $BROKEN_URLS_FILE ]]; then
+          echo "::set-output name=broken::true"
+        else
+          echo "::set-output name=broken::false"
+        fi
+
+    - name: Attempt to Fix Broken Links
+      if: steps.check_links.outputs.broken == 'true'
+      run: |
+        echo "Attempting to fix broken URLs in pom.xml"
+
+        # Read broken URLs
+        BROKEN_URLS=$(cat broken_urls.txt)
+
+        # Iterate over each broken URL
+        for url in $BROKEN_URLS; do
+          echo "Processing broken URL: $url"
+
+          # Example Fix 1: Replace with Maven Central if applicable
+          # This is a simplistic example. Real fixes would require context-specific logic.
+
+          # Check if the broken URL is a repository
+          if grep -q "<repository>.*$url.*</repository>" pom.xml; then
+            echo "Attempting to replace repository URL $url with Maven Central"
+
+            # Replace with Maven Central URL
+            xmlstarlet ed -L -u "//repository[url='$url']/url" -v "https://repo.maven.apache.org/maven2/" pom.xml
+
+            echo "Replaced $url with Maven Central"
+
+          # Check if the broken URL is a dependency URL (if any)
+          elif grep -q "<dependency>.*$url.*</dependency>" pom.xml; then
+            echo "Attempting to remove or update dependency with URL $url"
+
+            # Option 1: Remove the dependency (not recommended without verification)
+            # xmlstarlet ed -L -d "//dependency[url='$url']" pom.xml
+
+            # Option 2: Update the dependency version to the latest (requires additional logic)
+            # Here we simply log. Implement version updates as needed.
+
+            echo "Manual intervention required to fix dependency with URL $url"
+
+          else
+            echo "URL $url does not match known patterns for automatic fixing."
+          fi
+        done
+
+        # Check if pom.xml was modified
+        if git diff --exit-code pom.xml; then
+          echo "No changes made to pom.xml"
+        else
+          echo "Changes detected in pom.xml"
+          # Configure Git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit changes
+          git add pom.xml
+          git commit -m "GitHub Action: Fix broken URLs in pom.xml"
+
+          # Push changes
+          git push
+        fi
+
+    - name: Report Results
+      if: steps.check_links.outputs.broken == 'true'
+      run: |
+        echo "Broken URLs have been addressed. Please review the changes."
+
