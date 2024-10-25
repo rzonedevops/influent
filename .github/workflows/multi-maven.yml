@@ -69,3 +69,4 @@ jobs:
           Please check the workflow logs for details.
         to: your-email@example.com
         from: github-actions@example.com
+
