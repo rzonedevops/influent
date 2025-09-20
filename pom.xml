@@ -35,11 +35,7 @@
 	</properties>
 
 	<repositories>
-		<repository>
-			<id>maven-restlet</id>
-			<name>Public online Restlet repository</name>
-			<url>https://maven.restlet.org</url>
-		</repository>
+		<!-- Removed maven-restlet repository as it's unreachable -->
 	</repositories>
 
 	<!-- For development convenience these properties may be used to copy out 
