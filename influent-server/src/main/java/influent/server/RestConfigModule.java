@@ -33,7 +33,7 @@ import influent.server.rest.EntityDetailsResource;
 import influent.server.rest.EntityLookupResource;
 import influent.server.rest.EntitySearchParamsResource;
 import influent.server.rest.EntitySearchResource;
-import influent.server.rest.ExportGraphResource;
+// import influent.server.rest.ExportGraphResource; // Temporarily disabled
 import influent.server.rest.ExportTransactionTableResource;
 import influent.server.rest.ImportGraphResource;
 import influent.server.rest.LeafEntityLookupResource;
@@ -100,7 +100,7 @@ public class RestConfigModule extends AbstractModule {
 		resourceBinder.addBinding("/restorestate").toInstance(new ResourceDefinition(RestoreStateResource.class));
 		resourceBinder.addBinding("/containedentities").toInstance(new ResourceDefinition(LeafEntityLookupResource.class));
 		resourceBinder.addBinding("/modifycontext").toInstance(new ResourceDefinition(ModifyContextResource.class));
-		resourceBinder.addBinding("/export").toInstance(new ResourceDefinition(ExportGraphResource.class));
+		// resourceBinder.addBinding("/export").toInstance(new ResourceDefinition(ExportGraphResource.class)); // Temporarily disabled
 		resourceBinder.addBinding("/import").toInstance(new ResourceDefinition(ImportGraphResource.class));
 		resourceBinder.addBinding("/entitydetails").toInstance(new ResourceDefinition(EntityDetailsResource.class));
 		resourceBinder.addBinding("/cachestats").toInstance(new ResourceDefinition(CacheStatsResource.class));

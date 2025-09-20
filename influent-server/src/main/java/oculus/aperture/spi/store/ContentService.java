@@ -22,11 +22,17 @@ public interface ContentService {
         public String getId() { return id; }
         public String getContentType() { return contentType; }
         public Date getModified() { return modified; }
+        
+        // Additional stub methods
+        public String getStore() { return ""; }
+        public String getRevision() { return ""; }
     }
     
     public static class Document {
         private DocumentDescriptor descriptor;
         private InputStream inputStream;
+        private String contentType;
+        private byte[] document;
         
         public Document(DocumentDescriptor descriptor, InputStream inputStream) {
             this.descriptor = descriptor;
@@ -35,8 +41,18 @@ public interface ContentService {
         
         public DocumentDescriptor getDescriptor() { return descriptor; }
         public InputStream getInputStream() { return inputStream; }
+        
+        // Additional stub methods
+        public InputStream getContent() { return inputStream; }
+        public void setContentType(String contentType) { this.contentType = contentType; }
+        public void setDocument(byte[] document) { this.document = document; }
     }
     
-    DocumentDescriptor createDocument() throws ConflictException;
+    Document createDocument();
     Document getDocument(String docId);
+    
+    // Additional stub methods
+    default DocumentDescriptor storeDocument(Document doc, String store, Object type, Object encoding) throws ConflictException {
+        return new DocumentDescriptor("stub-id", "text/plain", new Date());
+    }
 }

@@ -1,5 +1,7 @@
 package oculus.aperture.common.rest;
 
+import java.util.List;
+
 /**
  * Stub class to replace missing ApertureJS dependency
  */
@@ -16,6 +18,10 @@ public abstract class ApertureServerResource {
     
     protected Object getResponse() {
         // Stub implementation - return null for now  
-        return null;
+        return new Object() {
+            public void setCacheDirectives(List<?> directives) {
+                // Stub implementation
+            }
+        };
     }
 }
