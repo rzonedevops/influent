@@ -184,7 +184,7 @@ public class TransactionTableResource extends ApertureServerResource {
 					// transaction filtering does not yet work on clusters - see #6090
 					if (TypedId.hasType(id, TypedId.ACCOUNT)) {
 						response.addAll(dataAccess.getEntities(Collections.singletonList(id.trim()), FL_LevelOfDetail.SUMMARY));
-						focusIdList.addAll(ChartResource.getLeafNodes(response));
+						// focusIdList.addAll(ChartResource.getLeafNodes(response)); // Temporarily disabled - ChartResource excluded
 					}
 				}
 

@@ -98,7 +98,7 @@ public abstract class AbstractDataNamespaceHandler implements DataNamespaceHandl
 		// parse table names
 		JSONObject map = new JSONObject(tableNamesJson);
 		
-		for (Iterator<String> i = map.sortedKeys(); i.hasNext(); ) {
+		for (Iterator<String> i = map.keys(); i.hasNext(); ) {
 			String key = i.next();
 			_tableNames.put(key, map.getString(key));
 		}
