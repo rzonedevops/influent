@@ -9,3 +9,7 @@ target
 /influent.iml
 .idea
 .settings
+
+# Build artifacts - dependency analysis files
+dependency-tree.txt
+dependency-graph.dot
