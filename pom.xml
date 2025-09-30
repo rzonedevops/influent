@@ -122,6 +122,9 @@
         	<module>influent-spi</module>
 	        <module>influent-server</module>
 	        <module>influent-client</module>
+        	<module>influent-app</module>
+        	<module>influent-selenium-test</module>
+        	<module>walker</module>
         	<module>kiva</module>
         	<module>bitcoin</module>
 	</modules>
