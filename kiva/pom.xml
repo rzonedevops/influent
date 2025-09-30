@@ -284,6 +284,7 @@
 				<plugins>
 				
 					<!-- OPTIONAL: Copy phantomjs binary into local directory for launching with Jetty below. -->
+					<!-- DISABLED: aperture-capture-phantom artifact not available in Maven Central
 			   	    <plugin>
 			   	        <groupId>org.codehaus.mojo</groupId>
 			   	        <artifactId>dependency-maven-plugin</artifactId>
@@ -309,6 +310,7 @@
 							</execution>
 		   	        	</executions>
 			   	    </plugin>
+			   	    -->
 					
 					<!-- OPTIONAL: For running Jetty in Eclipse -->
 					<plugin>
