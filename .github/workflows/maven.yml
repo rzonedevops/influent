@@ -77,8 +77,8 @@ jobs:
         echo "🔍 Dependency graphs can be visualized using Graphviz tools"
         echo "   Example: dot -Tpng target/dependency-graph.dot -o dependencies.png"
 
-    # Try dependency submission with latest stable version
-    - name: Submit dependencies to GitHub
+    # Submit dependencies to GitHub with improved error handling
+    - name: Submit dependency snapshot to GitHub
       uses: advanced-security/maven-dependency-submission-action@v3
       continue-on-error: true
       id: dependency_submission_official
